@@ -1,0 +1,12 @@
+/Users/arr/Documents/SAPE/Nexus/src/BuildingBlocks/Nexus.BuildingBlocks.Persistence/bin/Debug/net10.0/Nexus.BuildingBlocks.Persistence.deps.json
+/Users/arr/Documents/SAPE/Nexus/src/BuildingBlocks/Nexus.BuildingBlocks.Persistence/bin/Debug/net10.0/Nexus.BuildingBlocks.Persistence.dll
+/Users/arr/Documents/SAPE/Nexus/src/BuildingBlocks/Nexus.BuildingBlocks.Persistence/bin/Debug/net10.0/Nexus.BuildingBlocks.Persistence.pdb
+/Users/arr/Documents/SAPE/Nexus/src/BuildingBlocks/Nexus.BuildingBlocks.Persistence/obj/Debug/net10.0/Nexus.BuildingBlocks.Persistence.GeneratedMSBuildEditorConfig.editorconfig
+/Users/arr/Documents/SAPE/Nexus/src/BuildingBlocks/Nexus.BuildingBlocks.Persistence/obj/Debug/net10.0/Nexus.BuildingBlocks.Persistence.AssemblyInfoInputs.cache
+/Users/arr/Documents/SAPE/Nexus/src/BuildingBlocks/Nexus.BuildingBlocks.Persistence/obj/Debug/net10.0/Nexus.BuildingBlocks.Persistence.AssemblyInfo.cs
+/Users/arr/Documents/SAPE/Nexus/src/BuildingBlocks/Nexus.BuildingBlocks.Persistence/obj/Debug/net10.0/Nexus.BuildingBlocks.Persistence.csproj.CoreCompileInputs.cache
+/Users/arr/Documents/SAPE/Nexus/src/BuildingBlocks/Nexus.BuildingBlocks.Persistence/obj/Debug/net10.0/Nexus.BuildingBlocks.Persistence.sourcelink.json
+/Users/arr/Documents/SAPE/Nexus/src/BuildingBlocks/Nexus.BuildingBlocks.Persistence/obj/Debug/net10.0/Nexus.BuildingBlocks.Persistence.dll
+/Users/arr/Documents/SAPE/Nexus/src/BuildingBlocks/Nexus.BuildingBlocks.Persistence/obj/Debug/net10.0/refint/Nexus.BuildingBlocks.Persistence.dll
+/Users/arr/Documents/SAPE/Nexus/src/BuildingBlocks/Nexus.BuildingBlocks.Persistence/obj/Debug/net10.0/Nexus.BuildingBlocks.Persistence.pdb
+/Users/arr/Documents/SAPE/Nexus/src/BuildingBlocks/Nexus.BuildingBlocks.Persistence/obj/Debug/net10.0/ref/Nexus.BuildingBlocks.Persistence.dll

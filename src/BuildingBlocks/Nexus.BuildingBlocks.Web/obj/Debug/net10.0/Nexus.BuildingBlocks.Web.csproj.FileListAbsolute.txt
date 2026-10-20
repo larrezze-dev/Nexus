@@ -1,0 +1,12 @@
+/Users/arr/Documents/SAPE/Nexus/src/BuildingBlocks/Nexus.BuildingBlocks.Web/bin/Debug/net10.0/Nexus.BuildingBlocks.Web.deps.json
+/Users/arr/Documents/SAPE/Nexus/src/BuildingBlocks/Nexus.BuildingBlocks.Web/bin/Debug/net10.0/Nexus.BuildingBlocks.Web.dll
+/Users/arr/Documents/SAPE/Nexus/src/BuildingBlocks/Nexus.BuildingBlocks.Web/bin/Debug/net10.0/Nexus.BuildingBlocks.Web.pdb
+/Users/arr/Documents/SAPE/Nexus/src/BuildingBlocks/Nexus.BuildingBlocks.Web/obj/Debug/net10.0/Nexus.BuildingBlocks.Web.GeneratedMSBuildEditorConfig.editorconfig
+/Users/arr/Documents/SAPE/Nexus/src/BuildingBlocks/Nexus.BuildingBlocks.Web/obj/Debug/net10.0/Nexus.BuildingBlocks.Web.AssemblyInfoInputs.cache
+/Users/arr/Documents/SAPE/Nexus/src/BuildingBlocks/Nexus.BuildingBlocks.Web/obj/Debug/net10.0/Nexus.BuildingBlocks.Web.AssemblyInfo.cs
+/Users/arr/Documents/SAPE/Nexus/src/BuildingBlocks/Nexus.BuildingBlocks.Web/obj/Debug/net10.0/Nexus.BuildingBlocks.Web.csproj.CoreCompileInputs.cache
+/Users/arr/Documents/SAPE/Nexus/src/BuildingBlocks/Nexus.BuildingBlocks.Web/obj/Debug/net10.0/Nexus.BuildingBlocks.Web.sourcelink.json
+/Users/arr/Documents/SAPE/Nexus/src/BuildingBlocks/Nexus.BuildingBlocks.Web/obj/Debug/net10.0/Nexus.BuildingBlocks.Web.dll
+/Users/arr/Documents/SAPE/Nexus/src/BuildingBlocks/Nexus.BuildingBlocks.Web/obj/Debug/net10.0/refint/Nexus.BuildingBlocks.Web.dll
+/Users/arr/Documents/SAPE/Nexus/src/BuildingBlocks/Nexus.BuildingBlocks.Web/obj/Debug/net10.0/Nexus.BuildingBlocks.Web.pdb
+/Users/arr/Documents/SAPE/Nexus/src/BuildingBlocks/Nexus.BuildingBlocks.Web/obj/Debug/net10.0/ref/Nexus.BuildingBlocks.Web.dll

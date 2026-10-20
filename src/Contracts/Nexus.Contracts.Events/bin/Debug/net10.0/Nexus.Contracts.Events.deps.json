@@ -1,0 +1,23 @@
+{
+  "runtimeTarget": {
+    "name": ".NETCoreApp,Version=v10.0",
+    "signature": ""
+  },
+  "compilationOptions": {},
+  "targets": {
+    ".NETCoreApp,Version=v10.0": {
+      "Nexus.Contracts.Events/1.0.0": {
+        "runtime": {
+          "Nexus.Contracts.Events.dll": {}
+        }
+      }
+    }
+  },
+  "libraries": {
+    "Nexus.Contracts.Events/1.0.0": {
+      "type": "project",
+      "serviceable": false,
+      "sha512": ""
+    }
+  }
+}

@@ -1,0 +1,12 @@
+/Users/arr/Documents/SAPE/Nexus/src/BuildingBlocks/Nexus.BuildingBlocks.Analytics/bin/Debug/net10.0/Nexus.BuildingBlocks.Analytics.deps.json
+/Users/arr/Documents/SAPE/Nexus/src/BuildingBlocks/Nexus.BuildingBlocks.Analytics/bin/Debug/net10.0/Nexus.BuildingBlocks.Analytics.dll
+/Users/arr/Documents/SAPE/Nexus/src/BuildingBlocks/Nexus.BuildingBlocks.Analytics/bin/Debug/net10.0/Nexus.BuildingBlocks.Analytics.pdb
+/Users/arr/Documents/SAPE/Nexus/src/BuildingBlocks/Nexus.BuildingBlocks.Analytics/obj/Debug/net10.0/Nexus.BuildingBlocks.Analytics.GeneratedMSBuildEditorConfig.editorconfig
+/Users/arr/Documents/SAPE/Nexus/src/BuildingBlocks/Nexus.BuildingBlocks.Analytics/obj/Debug/net10.0/Nexus.BuildingBlocks.Analytics.AssemblyInfoInputs.cache
+/Users/arr/Documents/SAPE/Nexus/src/BuildingBlocks/Nexus.BuildingBlocks.Analytics/obj/Debug/net10.0/Nexus.BuildingBlocks.Analytics.AssemblyInfo.cs
+/Users/arr/Documents/SAPE/Nexus/src/BuildingBlocks/Nexus.BuildingBlocks.Analytics/obj/Debug/net10.0/Nexus.BuildingBlocks.Analytics.csproj.CoreCompileInputs.cache
+/Users/arr/Documents/SAPE/Nexus/src/BuildingBlocks/Nexus.BuildingBlocks.Analytics/obj/Debug/net10.0/Nexus.BuildingBlocks.Analytics.sourcelink.json
+/Users/arr/Documents/SAPE/Nexus/src/BuildingBlocks/Nexus.BuildingBlocks.Analytics/obj/Debug/net10.0/Nexus.BuildingBlocks.Analytics.dll
+/Users/arr/Documents/SAPE/Nexus/src/BuildingBlocks/Nexus.BuildingBlocks.Analytics/obj/Debug/net10.0/refint/Nexus.BuildingBlocks.Analytics.dll
+/Users/arr/Documents/SAPE/Nexus/src/BuildingBlocks/Nexus.BuildingBlocks.Analytics/obj/Debug/net10.0/Nexus.BuildingBlocks.Analytics.pdb
+/Users/arr/Documents/SAPE/Nexus/src/BuildingBlocks/Nexus.BuildingBlocks.Analytics/obj/Debug/net10.0/ref/Nexus.BuildingBlocks.Analytics.dll
