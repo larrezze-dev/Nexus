@@ -1,0 +1,99 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+jobs:
+  contracts:
+    name: contracts
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Lint contracts (Spectral + permissions)
+        run: make contracts
+
+  dotnet:
+    name: dotnet
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+          cache: true
+          cache-dependency-path: src/Directory.Packages.props
+
+      - name: Build
+        run: dotnet build src/Nexus.sln
+
+      - name: Test
+        run: dotnet test --solution src/Nexus.sln
+
+  web:
+    name: web
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'npm'
+          cache-dependency-path: web/package-lock.json
+
+      - name: Install dependencies
+        run: npm --prefix web ci
+
+      - name: Lint
+        run: npm --prefix web run lint
+
+      - name: Test
+        run: npm --prefix web test -- --watch=false
+
+      - name: Build
+        run: npm --prefix web run build
+
+  packages:
+    name: packages
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check approved NuGet packages
+        run: bash tools/check-packages.sh
+
+  db:
+    name: db
+    runs-on: ubuntu-latest
+    steps:
+      - run: 'echo "pendiente: paso 0.3"'
+
+  conformance:
+    name: conformance
+    runs-on: ubuntu-latest
+    steps:
+      - run: 'echo "pendiente: paso 0.5"'
+
+  jvm:
+    name: jvm
+    runs-on: ubuntu-latest
+    steps:
+      - run: 'echo "pendiente: paso 4.4"'
+
+  e2e:
+    name: e2e
+    runs-on: ubuntu-latest
+    steps:
+      - run: 'echo "pendiente: paso 1.3"'
