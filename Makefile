@@ -33,8 +33,11 @@ test-e2e:
 	@echo "pending: paso 1.3"
 
 contracts:
-	@if [ -d "contracts/openapi" ]; then \
-		npx -y @stoplight/spectral-cli lint "contracts/openapi/*.yaml" --ruleset contracts/openapi/.spectral.yaml 2>/dev/null || true; \
+	@files=$$(find contracts/openapi -maxdepth 1 -type f -name '*.yaml' ! -name '.*' 2>/dev/null); \
+	if [ -n "$$files" ]; then \
+		npx -y @stoplight/spectral-cli lint $$files --ruleset contracts/openapi/.spectral.yaml; \
+	else \
+		echo "No service OpenAPI files yet (contracts/openapi/*.yaml) - nothing to lint."; \
 	fi
 	@if [ -f "tools/check-permissions.sh" ]; then \
 		bash tools/check-permissions.sh; \
@@ -47,7 +50,7 @@ build:
 	fi
 
 test:
-	@dotnet test src/Nexus.sln
+	@dotnet test --solution src/Nexus.sln
 	@if [ -f "web/package.json" ]; then \
 		npm --prefix web test; \
 	fi
