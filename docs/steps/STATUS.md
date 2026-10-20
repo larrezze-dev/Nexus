@@ -16,7 +16,7 @@ Antes de lanzar 0.1 deben estar en `Aceptado` los ADR 0001–0010 (`docs/adr/REA
 
 | Paso | Título | Tracks | Depende de | Paralelo con | Bloqueado por | Estado | Aprobado (fecha) |
 |---|---|---|---|---|---|---|---|
-| [0.1](F0/0.1-monorepo-ci.md) | Monorepo, CI y esqueletos | I | ADR 0001–0010 | — | — | Pendiente | |
+| [0.1](F0/0.1-monorepo-ci.md) | Monorepo, CI y esqueletos | I | ADR 0001–0010 | — | — | En revisión | |
 | [0.2](F0/0.2-entorno-local.md) | Entorno local (compose + Keycloak) | I | 0.1 | 0.5-F | ADR-0006 | Pendiente | |
 | [0.3](F0/0.3-base-de-datos.md) | BD: roles, Flyway, Outbox, UnitOfWork | C → B | 0.2 | 0.5 | ADR-0001/2/8/9 | Pendiente | |
 | [0.4](F0/0.4-nucleo-organizativo.md) | Núcleo organizativo (S10) | C → B ∥ F | 0.3, 0.5 | 0.7 | ADR-0003, ORG-Q1 | Pendiente | |
