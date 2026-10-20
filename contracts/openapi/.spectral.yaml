@@ -1,0 +1,87 @@
+# Reglas de lint para los contratos OpenAPI de NEXUS.
+#
+# Base: ruleset oficial de Spectral para OpenAPI (spectral:oas), ampliado con
+# las reglas propias que exige `docs/00-foundation/conventions-api.md`.
+#
+# Dos reglas (nexus-list-get-requires-pagination y nexus-response-2xx-example-required)
+# necesitan lógica condicional que las funciones declarativas de Spectral
+# (pattern, truthy, xor, ...) no cubren, así que se apoyan en funciones JS
+# propias en `./functions/`. El resto son declarativas.
+#
+# Uso: `spectral lint contracts/openapi/<servicio>.yaml --ruleset contracts/openapi/.spectral.yaml`
+# (se ejecuta vía `make contracts` y en el job `contracts` de CI, ver repo-structure.md §7).
+#
+# La demostración de que estas reglas detectan de verdad violaciones reales
+# (operationId mal formado, x-permission ausente, listado sin paginación,
+# respuesta sin ejemplo) se hace en la subtarea de verificación final de 0.1,
+# con un fixture OpenAPI desechable que NO se versiona.
+
+extends:
+  - spectral:oas
+
+functions:
+  - nexusPaginationParams
+  - nexusResponseExample
+
+rules:
+  # --- operationId en camelCase (conventions-api.md §2) ---------------------
+  nexus-operation-id-camel-case:
+    description: >
+      El operationId de cada operación debe estar en camelCase
+      (<verbo><Recurso>, p. ej. createAssetType). El cliente Angular generado
+      usa este nombre tal cual.
+    message: "operationId '{{value}}' no está en camelCase (patrón esperado: ^[a-z][a-zA-Z0-9]*$)"
+    severity: error
+    given: "$.paths[*][get,put,post,delete,options,head,patch,trace].operationId"
+    then:
+      function: pattern
+      functionOptions:
+        match: "^[a-z][a-zA-Z0-9]*$"
+
+  # --- x-permission obligatoria y con formato correcto (conventions-api.md §3) ---
+  nexus-operation-permission-required:
+    description: >
+      Toda operación debe declarar la extensión x-permission
+      (RESOURCE:ACTION, o PUBLIC solo para /health).
+    message: "La operación '{{property}}' no declara x-permission"
+    severity: error
+    given: "$.paths[*][get,put,post,delete,options,head,patch,trace]"
+    then:
+      field: x-permission
+      function: truthy
+
+  nexus-operation-permission-format:
+    description: >
+      x-permission debe tener el formato RESOURCE:ACTION en mayúsculas y
+      guion bajo, o ser exactamente PUBLIC.
+    message: "x-permission '{{value}}' no cumple el formato ^[A-Z_]+:[A-Z_]+$|^PUBLIC$"
+    severity: error
+    given: "$.paths[*][get,put,post,delete,options,head,patch,trace].x-permission"
+    then:
+      function: pattern
+      functionOptions:
+        match: "^[A-Z_]+:[A-Z_]+$|^PUBLIC$"
+
+  # --- Paginación obligatoria en listados (conventions-api.md §4) -----------
+  nexus-list-get-requires-pagination:
+    description: >
+      Toda operación GET cuya respuesta 2xx sea una lista (schema type: array,
+      o con propiedad 'items') debe declarar paginación por página
+      (parámetros page + pageSize) o por cursor (parámetros limit + cursor).
+    message: "{{error}}"
+    severity: error
+    given: "$.paths[*].get"
+    then:
+      function: nexusPaginationParams
+
+  # --- Ejemplo obligatorio en toda respuesta 2xx (conventions-api.md §8) ----
+  nexus-response-2xx-example-required:
+    description: >
+      Toda respuesta 2xx debe tener al menos un ejemplo (content.example,
+      content.examples o schema.example), para que el mock Prism y el
+      frontend tengan algo realista que mostrar.
+    message: "{{error}}"
+    severity: error
+    given: "$.paths[*][get,put,post,delete,options,head,patch,trace].responses"
+    then:
+      function: nexusResponseExample

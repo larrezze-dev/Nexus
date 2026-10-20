@@ -1,0 +1,35 @@
+# Registro de topics Kafka de NEXUS (conventions-events.md §5).
+#
+# Se empieza a rellenar a partir del paso en que cada contexto define sus
+# primeros eventos (Avro en contracts/events/<contexto>/*.avsc). Desde este
+# archivo se crean los topics: script local en el paso 0.7, Terraform en el
+# 0.11. `auto.create.topics.enable=false`, así que un topic que no está aquí
+# no existe.
+#
+# Esquema de cada entrada:
+#
+#   - name:          nombre del topic, "nexus.{contexto}.{aggregate}.{evento}"
+#                     en kebab-case (p. ej. "nexus.stock.movement.posted").
+#     context:        contexto de origen (platform, org, catalog, project,
+#                     stock, logistics, solver, commercial, billing, hr,
+#                     controlling, warehouse, commissioning, field; access,
+#                     workflow, docs y gdpr publican como platform).
+#     aggregate:      nombre del agregado en el topic (p. ej. "movement").
+#     event:          verbo en participio pasado (created, updated,
+#                     deactivated, posted, confirmed, versioned...).
+#     version:        versión del schema Avro, entero (coincide con el <n>
+#                     de "<aggregate>.<evento>.v<n>.avsc" y con la cabecera
+#                     nexus-schema-version).
+#     compatibility:  modo de compatibilidad del subject en el Schema
+#                     Registry. Obligatorio BACKWARD (D8).
+#
+# Ejemplo (no activo, solo ilustrativo del formato):
+#
+#   - name: nexus.stock.movement.posted
+#     context: stock
+#     aggregate: movement
+#     event: posted
+#     version: 1
+#     compatibility: BACKWARD
+
+topics: []
