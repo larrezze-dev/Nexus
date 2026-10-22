@@ -1,0 +1,25 @@
+# Catálogo de permisos de NEXUS (conventions-api.md §3: toda operación
+# declara x-permission con un código de este catálogo, o PUBLIC).
+#
+# Se rellena a medida que cada paso introduce sus endpoints. Esquema de cada
+# entrada:
+#
+#   - code:          código del permiso, "RESOURCE:ACTION" en mayúsculas y
+#                     guion bajo (p. ej. "ASSET_TYPE:CREATE"). "PUBLIC" no se
+#                     registra aquí: es el valor reservado para endpoints sin
+#                     permiso (solo /health).
+#     resource:       recurso sobre el que actúa (p. ej. "ASSET_TYPE").
+#     action:         acción (p. ej. "CREATE", "READ", "UPDATE", "DEACTIVATE").
+#     defaultRoles:   array de roles que lo tienen por defecto en las semillas
+#                     (p. ej. ["ADMIN", "WAREHOUSE_MANAGER"]).
+#     step:           id del paso que introduce el permiso (p. ej. "1.3").
+#
+# Ejemplo (no activo, solo ilustrativo del formato):
+#
+#   - code: ASSET_TYPE:CREATE
+#     resource: ASSET_TYPE
+#     action: CREATE
+#     defaultRoles: ["ADMIN"]
+#     step: "1.3"
+
+permissions: []

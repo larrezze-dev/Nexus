@@ -1,0 +1,354 @@
+# Componentes OpenAPI 3.1 reutilizables entre contratos de servicio.
+#
+# No es un documento OpenAPI completo (no tiene openapi/info/paths): es un
+# fragmento pensado para referenciarse por $ref desde
+# contracts/openapi/<servicio>.yaml, p. ej.:
+#
+#   responses:
+#     '404':
+#       $ref: '../_shared/components.yaml#/components/responses/NotFound'
+#   schemas:
+#     Contract:
+#       properties:
+#         totalAmount:
+#           $ref: '../_shared/components.yaml#/components/schemas/Money'
+#
+# Formatos fijados por conventions-api.md §5: importes y cantidades SIEMPRE
+# como string decimal en JSON (nunca `number`, para no perder precisión).
+
+components:
+  schemas:
+    # --- Errores (RFC 9457 + extensiones propias) --------------------------
+    Problem:
+      type: object
+      description: >
+        Problem Details (RFC 9457) con dos extensiones propias de NEXUS:
+        `code` (código interno estable, para manejo programático) y `errors`
+        (detalle por campo en errores de validación).
+      properties:
+        type:
+          type: string
+          format: uri
+          description: Identificador URI del tipo de problema.
+          example: "https://nexus.nussli.ch/problems/unprocessable-entity"
+        title:
+          type: string
+          description: Resumen corto y legible del problema.
+          example: "La solicitud no se puede procesar"
+        status:
+          type: integer
+          description: Código de estado HTTP, repetido del propio response.
+          example: 422
+        detail:
+          type: string
+          description: Explicación específica de esta ocurrencia del problema.
+          example: "El campo 'code' ya existe para esta legal entity."
+        instance:
+          type: string
+          format: uri
+          description: URI de la petición concreta que produjo el error.
+          example: "/v1/asset-types"
+        code:
+          type: string
+          description: Código interno estable del error (no cambia entre idiomas ni versiones).
+          example: "ASSET_TYPE_CODE_DUPLICATE"
+        errors:
+          type: array
+          description: Detalle por campo. Presente sobre todo en 400/422.
+          items:
+            type: object
+            properties:
+              field:
+                type: string
+                example: "code"
+              message:
+                type: string
+                example: "Ya existe un asset type con este código en esta legal entity."
+            required: [field, message]
+      required: [type, title, status]
+
+    # --- Paginación (conventions-api.md §4) ---------------------------------
+    Page:
+      type: object
+      description: >
+        Página de resultados con paginación por desplazamiento (offset), para
+        listados de master data (pocos miles de filas). Los contratos de
+        servicio componen esta base con su propio tipo de `items` (p. ej. con
+        `allOf` y una redeclaración de `items` con el `$ref` concreto).
+      properties:
+        items:
+          type: array
+          items: {}
+        page:
+          type: integer
+          minimum: 1
+          example: 1
+        pageSize:
+          type: integer
+          minimum: 1
+          maximum: 200
+          example: 50
+        total:
+          type: integer
+          minimum: 0
+          example: 1234
+      required: [items, page, pageSize, total]
+
+    CursorPage:
+      type: object
+      description: >
+        Página de resultados con paginación por cursor, para listados de alto
+        volumen (ledger, escaneos, logs).
+      properties:
+        items:
+          type: array
+          items: {}
+        nextCursor:
+          type: [string, "null"]
+          description: Cursor opaco para la siguiente página; null si no hay más.
+          example: "eyJpZCI6ImFiYyJ9"
+      required: [items, nextCursor]
+
+    # --- Dinero, cantidades y decimales (conventions-api.md §5) -------------
+    Decimal:
+      type: string
+      description: >
+        Número decimal serializado como string para no perder precisión.
+        Nunca se usa `number` para dinero o cantidades: JavaScript/JSON
+        pierden precisión en punto flotante.
+      pattern: '^-?\d+(\.\d{1,4})?$'
+      example: "1250.5000"
+
+    Money:
+      type: object
+      description: Importe monetario. `amount` es siempre string decimal.
+      properties:
+        amount:
+          allOf:
+            - $ref: '#/components/schemas/Decimal'
+          example: "1250.5000"
+        currency:
+          type: string
+          description: Código de moneda ISO 4217.
+          pattern: '^[A-Z]{3}$'
+          example: "CHF"
+      required: [amount, currency]
+
+    Quantity:
+      type: object
+      description: Cantidad expresada en una unidad de medida concreta.
+      properties:
+        value:
+          allOf:
+            - $ref: '#/components/schemas/Decimal'
+          example: "12.0000"
+        uomId:
+          allOf:
+            - $ref: '#/components/schemas/UuidV7'
+      required: [value, uomId]
+
+    # --- Identificadores -----------------------------------------------------
+    UuidV7:
+      type: string
+      format: uuid
+      description: Identificador UUIDv7, generado en la aplicación (ADR-0009).
+      example: "018f1a3c-7e3b-7c5a-9c2e-6a2f8e9b0c1d"
+
+    # --- Texto traducible (conventions-api.md §5) ---------------------------
+    I18nText:
+      type: object
+      description: >
+        Texto traducible completo; la UI elige el idioma a mostrar. `de` es
+        obligatorio (idioma de referencia); el resto se completa según
+        disponibilidad de traducción.
+      properties:
+        de:
+          type: string
+          example: "Bühne"
+        en:
+          type: string
+          example: "Stage"
+        fr:
+          type: string
+          example: "Scène"
+        it:
+          type: string
+          example: "Palco"
+        es:
+          type: string
+          example: "Escenario"
+      required: [de]
+
+  responses:
+    BadRequest:
+      description: La solicitud no cumple el formato esperado (JSON inválido, tipo de dato incorrecto).
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+          example:
+            type: "https://nexus.nussli.ch/problems/bad-request"
+            title: "Solicitud incorrecta"
+            status: 400
+            detail: "El cuerpo de la petición no es JSON válido."
+            code: "BAD_REQUEST"
+
+    Unauthorized:
+      description: No se ha presentado un token válido.
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+          example:
+            type: "https://nexus.nussli.ch/problems/unauthorized"
+            title: "No autenticado"
+            status: 401
+            detail: "El token de acceso no es válido o ha expirado."
+            code: "UNAUTHORIZED"
+
+    Forbidden:
+      description: El usuario autenticado no tiene el permiso requerido para esta operación.
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+          example:
+            type: "https://nexus.nussli.ch/problems/forbidden"
+            title: "Acceso denegado"
+            status: 403
+            detail: "Falta el permiso ASSET_TYPE:CREATE para esta legal entity."
+            code: "FORBIDDEN"
+
+    NotFound:
+      description: El recurso solicitado no existe.
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+          example:
+            type: "https://nexus.nussli.ch/problems/not-found"
+            title: "Recurso no encontrado"
+            status: 404
+            detail: "No existe un asset type con id '018f1a3c-7e3b-7c5a-9c2e-6a2f8e9b0c1d'."
+            code: "NOT_FOUND"
+
+    Conflict:
+      description: >
+        El recurso ya existe con contenido distinto (alta idempotente), o el
+        `If-Match` enviado no coincide con el `ETag` actual del recurso.
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+          example:
+            type: "https://nexus.nussli.ch/problems/conflict"
+            title: "Conflicto"
+            status: 409
+            detail: "El recurso ha cambiado desde que se obtuvo el ETag enviado en If-Match."
+            code: "CONFLICT"
+
+    UnprocessableEntity:
+      description: La solicitud tiene el formato correcto pero incumple una regla de negocio.
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+          example:
+            type: "https://nexus.nussli.ch/problems/unprocessable-entity"
+            title: "La solicitud no se puede procesar"
+            status: 422
+            detail: "Ya existe un asset type con este código en esta legal entity."
+            code: "ASSET_TYPE_CODE_DUPLICATE"
+            errors:
+              - field: "code"
+                message: "Ya existe un asset type con este código en esta legal entity."
+
+    PreconditionRequired:
+      description: La operación exige la cabecera `If-Match` y no se ha enviado.
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+          example:
+            type: "https://nexus.nussli.ch/problems/precondition-required"
+            title: "Falta If-Match"
+            status: 428
+            detail: "Esta operación exige la cabecera If-Match con el ETag actual del recurso."
+            code: "PRECONDITION_REQUIRED"
+
+  parameters:
+    IfMatch:
+      name: If-Match
+      in: header
+      required: false
+      description: >
+        ETag del recurso tal como se obtuvo en un GET previo. Obligatorio en
+        `PUT` y transiciones de estado (conventions-api.md §5); si falta,
+        responde 428; si no coincide, 409.
+      schema:
+        type: string
+      example: '"1234567"'
+
+    Page:
+      name: page
+      in: query
+      required: false
+      description: Número de página (base 1).
+      schema:
+        type: integer
+        minimum: 1
+        default: 1
+      example: 1
+
+    PageSize:
+      name: pageSize
+      in: query
+      required: false
+      description: Tamaño de página. Máximo 200.
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 200
+        default: 50
+      example: 50
+
+    Sort:
+      name: sort
+      in: query
+      required: false
+      description: >
+        Campos de orden separados por coma; prefijo '-' para orden
+        descendente (p. ej. `code,-updatedAt`).
+      schema:
+        type: string
+      example: "code,-updatedAt"
+
+    Q:
+      name: q
+      in: query
+      required: false
+      description: Búsqueda de texto libre.
+      schema:
+        type: string
+      example: "bühne"
+
+    Limit:
+      name: limit
+      in: query
+      required: false
+      description: Tamaño de página para paginación por cursor (listados de alto volumen).
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 500
+        default: 100
+      example: 100
+
+    Cursor:
+      name: cursor
+      in: query
+      required: false
+      description: Cursor opaco devuelto como `nextCursor` por la página anterior.
+      schema:
+        type: string
+      example: "eyJpZCI6ImFiYyJ9"

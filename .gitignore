@@ -1,0 +1,35 @@
+# .NET
+bin/
+obj/
+*.user
+*.userprefs
+*.sln.iml
+
+# Node
+node_modules/
+dist/
+npm-debug.log*
+
+# Gradle
+.gradle/
+build/
+gradle-app.setting
+gradlew.bat
+
+# IDEs
+.vs/
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Environment
+.env
+
+# macOS
+.DS_Store
+
+# Temporary files
+*.tmp
+*.temp
