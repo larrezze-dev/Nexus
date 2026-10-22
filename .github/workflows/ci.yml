@@ -96,4 +96,9 @@ jobs:
     name: e2e
     runs-on: ubuntu-latest
     steps:
-      - run: 'echo "pendiente: paso 1.3"'
+      - uses: actions/checkout@v4
+
+      - name: Start local infra
+        run: make up
+
+      - run: 'echo "pendiente: paso 1.3 (tests e2e en sí)"'
