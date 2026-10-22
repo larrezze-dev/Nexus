@@ -1,0 +1,241 @@
+{
+  "realm": "nexus",
+  "enabled": true,
+  "sslRequired": "none",
+  "registrationAllowed": false,
+  "resetPasswordAllowed": false,
+  "attributes": {
+    "devOnlyNote": "LOCAL DEV REALM ONLY. All seeded users have password == username (set via credentials[].value, temporary=false). Never reproduce this pattern outside local docker-compose development."
+  },
+  "clientScopes": [
+    {
+      "name": "access_as_user",
+      "description": "Grants access to the nexus-api resource server. Adds aud=api://nexus to issued tokens via an audience mapper.",
+      "protocol": "openid-connect",
+      "attributes": {
+        "include.in.token.scope": "true",
+        "display.on.consent.screen": "false"
+      },
+      "protocolMappers": [
+        {
+          "name": "audience-nexus-api",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper",
+          "consentRequired": false,
+          "config": {
+            "included.custom.audience": "api://nexus",
+            "access.token.claim": "true",
+            "id.token.claim": "false"
+          }
+        }
+      ]
+    },
+    {
+      "name": "oid",
+      "description": "Exposes the 'oid' user attribute (stable user identifier, analogous to Entra ID's oid claim) in access and ID tokens.",
+      "protocol": "openid-connect",
+      "attributes": {
+        "include.in.token.scope": "true",
+        "display.on.consent.screen": "false"
+      },
+      "protocolMappers": [
+        {
+          "name": "oid-user-attribute",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-attribute-mapper",
+          "consentRequired": false,
+          "config": {
+            "user.attribute": "oid",
+            "claim.name": "oid",
+            "jsonType.label": "String",
+            "id.token.claim": "true",
+            "access.token.claim": "true",
+            "userinfo.token.claim": "true",
+            "multivalued": "false",
+            "aggregate.attrs": "false"
+          }
+        }
+      ]
+    }
+  ],
+  "clients": [
+    {
+      "clientId": "nexus-web",
+      "name": "NEXUS Web (Angular SPA)",
+      "description": "Public SPA client, Authorization Code + PKCE. Direct Access Grants enabled only so tools/doctor.sh can fetch a token for 'usera' via password grant without a browser; do not use password grant from the SPA itself.",
+      "enabled": true,
+      "publicClient": true,
+      "protocol": "openid-connect",
+      "standardFlowEnabled": true,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": true,
+      "serviceAccountsEnabled": false,
+      "redirectUris": [
+        "http://localhost:4200/*"
+      ],
+      "webOrigins": [
+        "http://localhost:4200"
+      ],
+      "attributes": {
+        "pkce.code_challenge_method": "S256"
+      },
+      "defaultClientScopes": [
+        "profile",
+        "email",
+        "roles",
+        "web-origins",
+        "access_as_user",
+        "oid"
+      ],
+      "optionalClientScopes": [
+        "offline_access"
+      ]
+    },
+    {
+      "clientId": "nexus-mobile",
+      "name": "NEXUS Mobile",
+      "description": "Public native client, Authorization Code + PKCE, custom redirect scheme.",
+      "enabled": true,
+      "publicClient": true,
+      "protocol": "openid-connect",
+      "standardFlowEnabled": true,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": false,
+      "redirectUris": [
+        "ch.nussli.nexus.mobile:/oauth2redirect"
+      ],
+      "webOrigins": [],
+      "attributes": {
+        "pkce.code_challenge_method": "S256"
+      },
+      "defaultClientScopes": [
+        "profile",
+        "email",
+        "roles",
+        "access_as_user",
+        "oid"
+      ],
+      "optionalClientScopes": [
+        "offline_access"
+      ]
+    },
+    {
+      "clientId": "nexus-api",
+      "name": "NEXUS API (resource server)",
+      "description": "Bearer-only resource server client. Does not run any flow of its own; validates access tokens issued to nexus-web/nexus-mobile that carry aud=api://nexus via the access_as_user client scope.",
+      "enabled": true,
+      "publicClient": false,
+      "bearerOnly": true,
+      "protocol": "openid-connect",
+      "standardFlowEnabled": false,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": false,
+      "redirectUris": [],
+      "webOrigins": []
+    }
+  ],
+  "users": [
+    {
+      "username": "admin",
+      "enabled": true,
+      "emailVerified": true,
+      "email": "admin@dev.nexus.local",
+      "firstName": "Admin",
+      "lastName": "Dev",
+      "attributes": {
+        "oid": [
+          "00000000-0000-7000-8000-00000000a001"
+        ]
+      },
+      "credentials": [
+        {
+          "type": "password",
+          "value": "admin",
+          "temporary": false
+        }
+      ]
+    },
+    {
+      "username": "usera",
+      "enabled": true,
+      "emailVerified": true,
+      "email": "usera@dev.nexus.local",
+      "firstName": "User",
+      "lastName": "A",
+      "attributes": {
+        "oid": [
+          "00000000-0000-7000-8000-00000000a002"
+        ]
+      },
+      "credentials": [
+        {
+          "type": "password",
+          "value": "usera",
+          "temporary": false
+        }
+      ]
+    },
+    {
+      "username": "userb",
+      "enabled": true,
+      "emailVerified": true,
+      "email": "userb@dev.nexus.local",
+      "firstName": "User",
+      "lastName": "B",
+      "attributes": {
+        "oid": [
+          "00000000-0000-7000-8000-00000000a003"
+        ]
+      },
+      "credentials": [
+        {
+          "type": "password",
+          "value": "userb",
+          "temporary": false
+        }
+      ]
+    },
+    {
+      "username": "wha",
+      "enabled": true,
+      "emailVerified": true,
+      "email": "wha@dev.nexus.local",
+      "firstName": "Warehouse",
+      "lastName": "A",
+      "attributes": {
+        "oid": [
+          "00000000-0000-7000-8000-00000000a004"
+        ]
+      },
+      "credentials": [
+        {
+          "type": "password",
+          "value": "wha",
+          "temporary": false
+        }
+      ]
+    },
+    {
+      "username": "unprovisioned",
+      "enabled": true,
+      "emailVerified": true,
+      "email": "unprovisioned@dev.nexus.local",
+      "firstName": "Unprovisioned",
+      "lastName": "User",
+      "attributes": {
+        "oid": [
+          "00000000-0000-7000-8000-00000000a0ff"
+        ]
+      },
+      "credentials": [
+        {
+          "type": "password",
+          "value": "unprovisioned",
+          "temporary": false
+        }
+      ]
+    }
+  ]
+}
