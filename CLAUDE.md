@@ -70,6 +70,17 @@ make rule-coverage STEP=<id>    # reglas de la ficha sin test
 - Título de PR: `[<id>][<track>] <resumen>`, p. ej. `[1.3][B] Asset types backend`.
 - Commits pequeños, en inglés, en imperativo.
 
+### 6.1 Control autónomo de git/gh
+
+Claude Code gestiona git y GitHub de punta a punta en este proyecto, sin pedir confirmación en cada paso: crea ramas, hace commits, `push`, abre PRs con la plantilla de `delivery-process.md §3` (incluida la tabla "Subtarea · Nivel · Subagente · Escalados") y los **mergea él mismo**, checks en verde. Si un check falla por algo ajeno al código (p. ej. facturación de GitHub Actions, un servicio externo caído), lo reporta y pide una decisión explícita antes de mergear con eso en rojo — no lo decide en silencio.
+
+No necesita permiso para: `git add`/`commit`/`push`/`pull`/`fetch`, crear o borrar ramas ya mergeadas, abrir y mergear PRs, reintentar workflows de CI.
+
+Sigue necesitando confirmación explícita de Luciano para:
+- Marcar un paso como `Aprobado` en `STATUS.md` (sigue siendo solo suyo, regla §1.6).
+- Operaciones destructivas fuera de lo normal: force-push, `reset --hard` sobre una rama compartida, borrar una rama con trabajo sin mergear.
+- Cualquier acción fuera de este repositorio: facturación, ajustes de la organización/cuenta de GitHub, permisos de otras personas.
+
 
 ## 7. Equipo de agentes y selección de modelo
 
