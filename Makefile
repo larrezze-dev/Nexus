@@ -1,13 +1,42 @@
-.PHONY: up down reset doctor db-migrate seed-dev contracts mock-api build test test-rls test-e2e lint rule-coverage
+.PHONY: up down reset logs ps doctor db-migrate seed-dev contracts mock-api build test test-rls test-e2e lint rule-coverage
+
+COMPOSE_FILE  := infra/compose/docker-compose.yml
+COMPOSE_ENV   := infra/compose/.env
+COMPOSE_ENV_EXAMPLE := infra/compose/.env.example
+COMPOSE       := docker compose -f $(COMPOSE_FILE)
+COMPOSE_INFRA := docker compose -f $(COMPOSE_FILE) --env-file $(COMPOSE_ENV) --profile infra
+HEALTH_TIMEOUT := 180
 
 up:
-	@echo "pending: paso 0.2"
+	@test -f $(COMPOSE_ENV) || { test -f $(COMPOSE_ENV_EXAMPLE) || { echo "ERROR: $(COMPOSE_ENV_EXAMPLE) not found"; exit 1; }; cp $(COMPOSE_ENV_EXAMPLE) $(COMPOSE_ENV) && echo "created $(COMPOSE_ENV) from $(COMPOSE_ENV_EXAMPLE)"; }
+	@if $(COMPOSE) up --help 2>/dev/null | grep -q -- '--wait'; then \
+		$(COMPOSE_INFRA) up -d --wait || { echo "ERROR: infra did not become healthy (see 'make ps' / 'make logs')"; exit 1; }; \
+		echo "all healthy"; \
+	else \
+		echo "docker compose has no --wait flag; polling health (timeout $(HEALTH_TIMEOUT)s)"; \
+		$(COMPOSE_INFRA) up -d || exit 1; \
+		deadline=$$(( $$(date +%s) + $(HEALTH_TIMEOUT) )); \
+		while :; do \
+			ids=$$($(COMPOSE_INFRA) ps -q); \
+			st=$$(for id in $$ids; do docker inspect -f '{{if .State.Health}}{{.State.Health.Status}}{{else}}{{.State.Status}}{{end}}' $$id; done); \
+			if echo "$$st" | grep -q unhealthy; then echo "ERROR: unhealthy service(s) (see 'make ps' / 'make logs')"; exit 1; fi; \
+			if [ -n "$$ids" ] && ! echo "$$st" | grep -qvE '^(healthy|running)$$'; then echo "all healthy"; break; fi; \
+			if [ $$(date +%s) -ge $$deadline ]; then echo "ERROR: timeout ($(HEALTH_TIMEOUT)s) waiting for healthy services (see 'make ps' / 'make logs')"; exit 1; fi; \
+			sleep 3; \
+		done; \
+	fi
 
 down:
-	@echo "pending: paso 0.2"
+	@$(COMPOSE) --profile infra down
 
 reset:
-	@echo "pending: paso 0.2"
+	@$(COMPOSE) --profile infra down -v
+
+logs:
+	@$(COMPOSE) --profile infra logs -f $(S)
+
+ps:
+	@$(COMPOSE) --profile infra ps
 
 doctor:
 	@echo "=== Environment Check ==="
@@ -16,6 +45,11 @@ doctor:
 	@echo "npm:"; npm --version 2>/dev/null || echo "  not found"
 	@echo "docker:"; docker --version 2>/dev/null || echo "  not found"
 	@echo "make:"; make --version 2>/dev/null | head -1 || echo "  not found"
+	@if [ -f tools/doctor.sh ]; then \
+		bash tools/doctor.sh; \
+	else \
+		echo "warning: tools/doctor.sh not found yet (paso 0.2 en curso) - skipping"; \
+	fi
 
 db-migrate:
 	@echo "pending: paso 0.3"
