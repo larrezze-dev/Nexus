@@ -123,11 +123,15 @@ PS_JSON="$("${COMPOSE[@]}" ps --format json 2>/dev/null || true)"
 if [[ -z "$PS_JSON" ]]; then
   fail "'docker compose ps' no reporta contenedores corriendo. ¿Ejecutaste 'make up'?"
 else
-  HEALTH_REPORT="$(printf '%s' "$PS_JSON" | python3 - <<'PY'
+  HEALTH_REPORT="$(PS_JSON_DATA="$PS_JSON" python3 - <<'PY'
 import json
+import os
 import sys
 
-raw = sys.stdin.read()
+# Read via env var, not stdin: a piped `producer | python3 - <<'PY'` has the
+# heredoc win the fd0 redirect over the pipe, so sys.stdin.read() would always
+# see an empty string here. Same reasoning applies to the Keycloak check below.
+raw = os.environ["PS_JSON_DATA"]
 containers = []
 try:
     data = json.loads(raw)
@@ -227,12 +231,23 @@ fi
 # ---------------------------------------------------------------------------
 section "7. ClickHouse"
 
-CH_OUT="$(curl -sf "http://localhost:8123/?query=SELECT%201" 2>&1)"
+CLICKHOUSE_USER=""
+CLICKHOUSE_PASSWORD=""
+if [[ -f "$ENV_FILE" ]]; then
+  CLICKHOUSE_USER="$(grep -E '^CLICKHOUSE_USER=' "$ENV_FILE" | head -n1 | cut -d'=' -f2-)"
+  CLICKHOUSE_PASSWORD="$(grep -E '^CLICKHOUSE_PASSWORD=' "$ENV_FILE" | head -n1 | cut -d'=' -f2-)"
+fi
+CLICKHOUSE_USER="${CLICKHOUSE_USER:-nexus}"
+if [[ -z "$CLICKHOUSE_PASSWORD" ]]; then
+  echo "INFO: CLICKHOUSE_PASSWORD no encontrado en $ENV_FILE (o el fichero no existe aún) — probando sin contraseña."
+fi
+
+CH_OUT="$(curl -sf -u "${CLICKHOUSE_USER}:${CLICKHOUSE_PASSWORD}" "http://localhost:8123/?query=SELECT%201" 2>&1)"
 CH_RC=$?
 if [[ $CH_RC -eq 0 ]] && [[ "$(echo "$CH_OUT" | tr -d '[:space:]')" == "1" ]]; then
-  ok "ClickHouse responde '1' a SELECT 1 vía HTTP (puerto 8123)."
+  ok "ClickHouse responde '1' a SELECT 1 vía HTTP (puerto 8123, usuario '$CLICKHOUSE_USER')."
 else
-  fail "ClickHouse no respondió '1' en http://localhost:8123/?query=SELECT%201. Salida: ${CH_OUT}"
+  fail "ClickHouse no respondió '1' en http://localhost:8123/?query=SELECT%201 (usuario '$CLICKHOUSE_USER'). Salida: ${CH_OUT}"
 fi
 
 # ---------------------------------------------------------------------------
@@ -260,10 +275,15 @@ else
   # hand-rolling the Shared Key request-signing algorithm, which would be
   # fragile to maintain and cannot be validated end-to-end in this change.
   echo "INFO: 'az' CLI no disponible — comprobación simplificada a 'el puerto responde' (sin validar escritura real de blobs)."
-  if curl -sf -o /dev/null -w '%{http_code}' "http://localhost:10000/devstoreaccount1" 2>/dev/null | grep -qE '^[0-9]+$'; then
+  # No -f here: an anonymous GET on the account root without a signed request
+  # legitimately gets 400 from Azurite's Blob API — that 400 (tagged with the
+  # Azurite-Blob server header) is itself the proof the service is up and
+  # talking the right protocol, not a failure.
+  AZURITE_HEADERS="$(curl -sS -D - -o /dev/null "http://localhost:10000/devstoreaccount1" 2>&1)"
+  if grep -qi '^Server: Azurite-Blob' <<< "$AZURITE_HEADERS"; then
     ok "Azurite responde en el puerto 10000 (comprobación simplificada, instala 'az' CLI para la prueba completa de create/delete)."
   else
-    fail "Azurite no responde en http://localhost:10000/devstoreaccount1."
+    fail "Azurite no responde en http://localhost:10000/devstoreaccount1. Cabeceras: ${AZURITE_HEADERS}"
   fi
 fi
 
@@ -283,7 +303,7 @@ TOKEN_RC=$?
 if [[ $TOKEN_RC -ne 0 ]]; then
   fail "no se pudo obtener un token de Keycloak para 'usera' (client_id='${KEYCLOAK_CLIENT_ID}') en $KEYCLOAK_TOKEN_URL. Salida: ${TOKEN_RESPONSE}"
 else
-  KEYCLOAK_CHECK_OUT="$(printf '%s' "$TOKEN_RESPONSE" | EXPECTED_OID="$EXPECTED_OID" EXPECTED_AUD="$EXPECTED_AUD" python3 - <<'PY'
+  KEYCLOAK_CHECK_OUT="$(TOKEN_RESPONSE_DATA="$TOKEN_RESPONSE" EXPECTED_OID="$EXPECTED_OID" EXPECTED_AUD="$EXPECTED_AUD" python3 - <<'PY'
 import base64
 import json
 import os
@@ -292,7 +312,10 @@ import sys
 expected_oid = os.environ["EXPECTED_OID"]
 expected_aud = os.environ["EXPECTED_AUD"]
 
-raw = sys.stdin.read()
+# Via env var, not stdin piped into this heredoc — see the comment on the
+# container-health check above for why that combination silently drops the
+# piped data.
+raw = os.environ["TOKEN_RESPONSE_DATA"]
 try:
     body = json.loads(raw)
 except json.JSONDecodeError:

@@ -101,7 +101,8 @@ services:
     networks:
       - nexus
     healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:8081/subjects"]
+      # The cp-schema-registry image (RHEL UBI base) ships no curl/wget, only python3.
+      test: ["CMD-SHELL", "python3 -c \"import urllib.request; urllib.request.urlopen('http://localhost:8081/subjects', timeout=5)\""]
       interval: 10s
       timeout: 10s
       retries: 15
@@ -201,14 +202,9 @@ services:
       - "${OTEL_UI_PORT:-18888}:18888"
     networks:
       - nexus
-    healthcheck:
-      # No CLI HTTP client in this image either; same raw-HTTP-over-/dev/tcp pattern
-      # as Keycloak's, against the dashboard UI port.
-      test: ['CMD-SHELL', '{ printf ''HEAD / HTTP/1.0\r\n\r\n'' >&3; grep -q ''HTTP/1.'' <&3; } 3<>/dev/tcp/127.0.0.1/18888']
-      interval: 10s
-      timeout: 10s
-      retries: 15
-      start_period: 20s
+    # No healthcheck: this image (mcr.microsoft.com/dotnet/aspire-dashboard) ships no
+    # shell at all (not even /bin/sh), so no CMD/CMD-SHELL can run inside it. Reachability
+    # is verified externally by tools/doctor.sh instead.
 
   # --- mock profile ---
   # No services yet. Each `nexus-*` service adds its own `prism-<servicio>` entry,
