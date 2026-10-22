@@ -1,0 +1,220 @@
+# NEXUS local development stack.
+#
+# Profiles:
+#   - infra (default): every service below. Started by `docker compose up` with no
+#     --profile flag, because none of these services declare a `profiles:` key.
+#   - mock: Prism mocks (`prism-<servicio>`), one per service contract. Empty in this
+#     step (0.2) because no service has an approved OpenAPI contract yet. Each service
+#     adds its own `prism-<servicio>` entry, tagged `profiles: ["mock"]`, from the step
+#     where that service's contract reaches Gate C. Run with `docker compose --profile
+#     mock up`.
+#   - apps: the .NET services themselves (`nexus-platform`, `nexus-catalog`, ...).
+#     Empty in this step. Each service adds its own entry, tagged `profiles: ["apps"]`,
+#     from the step where it's born. Run with `docker compose --profile apps up`.
+#
+# Ports follow docs/00-foundation/architecture.md §6.
+
+name: nexus
+
+networks:
+  nexus:
+    name: nexus
+
+volumes:
+  nexus_postgres_data:
+  nexus_kafka_data:
+  nexus_clickhouse_data:
+  nexus_azurite_data:
+
+services:
+  # --- infra profile (default) ---
+
+  postgres:
+    image: postgres:17.11
+    container_name: nexus-postgres
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-nexus}
+      POSTGRES_USER: ${POSTGRES_USER:-nexus}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-nexus_dev_password}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - nexus_postgres_data:/var/lib/postgresql/data
+      - ./postgres/init:/docker-entrypoint-initdb.d:ro
+    networks:
+      - nexus
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-nexus} -d ${POSTGRES_DB:-nexus}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  kafka:
+    image: apache/kafka:4.3.2
+    container_name: nexus-kafka
+    environment:
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_LISTENERS: PLAINTEXT://:29092,PLAINTEXT_HOST://:9092,CONTROLLER://:9093
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:29092,PLAINTEXT_HOST://localhost:${KAFKA_PORT:-9092}
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      # conventions-events.md §5: particiones=1, réplicas=1 en local.
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_NUM_PARTITIONS: 1
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+      # conventions-events.md §5: los topics se crean desde contracts/events/topics.yaml.
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "false"
+      # Default is /tmp/kraft-combined-logs; pin it to the mounted volume below.
+      KAFKA_LOG_DIRS: /var/lib/kafka/data
+    ports:
+      - "${KAFKA_PORT:-9092}:9092"
+    volumes:
+      - nexus_kafka_data:/var/lib/kafka/data
+    networks:
+      - nexus
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/kafka/bin/kafka-broker-api-versions.sh --bootstrap-server localhost:9092 >/dev/null 2>&1"]
+      interval: 10s
+      timeout: 10s
+      retries: 15
+      start_period: 20s
+
+  schema-registry:
+    image: confluentinc/cp-schema-registry:8.3.2
+    container_name: nexus-schema-registry
+    depends_on:
+      kafka:
+        condition: service_healthy
+    environment:
+      SCHEMA_REGISTRY_HOST_NAME: schema-registry
+      SCHEMA_REGISTRY_LISTENERS: http://0.0.0.0:8081
+      SCHEMA_REGISTRY_KAFKASTORE_BOOTSTRAP_SERVERS: kafka:29092
+      SCHEMA_REGISTRY_KAFKASTORE_TOPIC_REPLICATION_FACTOR: 1
+      SCHEMA_REGISTRY_SCHEMA_COMPATIBILITY_LEVEL: backward
+    ports:
+      - "${SCHEMA_REGISTRY_PORT:-8081}:8081"
+    networks:
+      - nexus
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8081/subjects"]
+      interval: 10s
+      timeout: 10s
+      retries: 15
+      start_period: 15s
+
+  kafka-ui:
+    image: kafbat/kafka-ui:v1.5.0
+    container_name: nexus-kafka-ui
+    depends_on:
+      kafka:
+        condition: service_healthy
+      schema-registry:
+        condition: service_healthy
+    environment:
+      KAFKA_CLUSTERS_0_NAME: nexus-local
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:29092
+      KAFKA_CLUSTERS_0_SCHEMAREGISTRY: http://schema-registry:8081
+    ports:
+      - "${KAFKA_UI_PORT:-8085}:8080"
+    networks:
+      - nexus
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:8080/actuator/health || exit 1"]
+      interval: 10s
+      timeout: 10s
+      retries: 15
+      start_period: 20s
+
+  clickhouse:
+    image: clickhouse/clickhouse-server:26.8.34.13
+    container_name: nexus-clickhouse
+    environment:
+      CLICKHOUSE_DB: ${CLICKHOUSE_DB:-nexus_analytics}
+      CLICKHOUSE_USER: ${CLICKHOUSE_USER:-nexus}
+      CLICKHOUSE_PASSWORD: ${CLICKHOUSE_PASSWORD:-nexus_dev_password}
+    ports:
+      - "${CLICKHOUSE_HTTP_PORT:-8123}:8123"
+      - "${CLICKHOUSE_NATIVE_PORT:-9000}:9000"
+    volumes:
+      - nexus_clickhouse_data:/var/lib/clickhouse
+    networks:
+      - nexus
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:8123/ping || exit 1"]
+      interval: 10s
+      timeout: 10s
+      retries: 10
+
+  azurite:
+    image: mcr.microsoft.com/azure-storage/azurite:3.37.0
+    container_name: nexus-azurite
+    command: ["azurite-blob", "--blobHost", "0.0.0.0", "--blobPort", "10000"]
+    ports:
+      - "${AZURITE_BLOB_PORT:-10000}:10000"
+    volumes:
+      - nexus_azurite_data:/data
+    networks:
+      - nexus
+    healthcheck:
+      test: ["CMD", "nc", "-z", "127.0.0.1", "10000"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.8.1
+    container_name: nexus-keycloak
+    command: ["start-dev", "--import-realm"]
+    environment:
+      KEYCLOAK_ADMIN: ${KEYCLOAK_ADMIN:-admin}
+      KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:-admin_dev_password}
+      KC_HEALTH_ENABLED: "true"
+    ports:
+      - "${KEYCLOAK_PORT:-8180}:8080"
+    volumes:
+      # Realm import fixture created by the keycloak track of this same step.
+      - ./keycloak/realm-nexus.json:/opt/keycloak/data/import/realm-nexus.json:ro
+    networks:
+      - nexus
+    healthcheck:
+      # Verbatim pattern from the Keycloak docs (observability/health): the image has
+      # no CLI HTTP client, so the check speaks raw HTTP over a /dev/tcp bash socket
+      # against the management port (9000), where /health/ready lives.
+      test: ['CMD-SHELL', '{ printf ''HEAD /health/ready HTTP/1.0\r\n\r\n'' >&3; grep -q ''HTTP/1.0 200'' <&3; } 3<>/dev/tcp/127.0.0.1/9000']
+      interval: 10s
+      timeout: 10s
+      retries: 15
+      start_period: 30s
+
+  otel:
+    image: mcr.microsoft.com/dotnet/aspire-dashboard:13.6.1
+    container_name: nexus-otel
+    environment:
+      DOTNET_DASHBOARD_UNSECURED_ALLOW_ANONYMOUS: "true"
+    ports:
+      - "${OTEL_OTLP_PORT:-4317}:18889"
+      - "${OTEL_UI_PORT:-18888}:18888"
+    networks:
+      - nexus
+    healthcheck:
+      # No CLI HTTP client in this image either; same raw-HTTP-over-/dev/tcp pattern
+      # as Keycloak's, against the dashboard UI port.
+      test: ['CMD-SHELL', '{ printf ''HEAD / HTTP/1.0\r\n\r\n'' >&3; grep -q ''HTTP/1.'' <&3; } 3<>/dev/tcp/127.0.0.1/18888']
+      interval: 10s
+      timeout: 10s
+      retries: 15
+      start_period: 20s
+
+  # --- mock profile ---
+  # No services yet. Each `nexus-*` service adds its own `prism-<servicio>` entry,
+  # tagged `profiles: ["mock"]`, from the step where that service's contract reaches
+  # Gate C (`make mock-api S=<servicio>`).
+
+  # --- apps profile ---
+  # No services yet. Each `nexus-*` .NET service adds its own entry, tagged
+  # `profiles: ["apps"]`, from the step where it's born.
