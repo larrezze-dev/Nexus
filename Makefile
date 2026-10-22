@@ -11,6 +11,7 @@ up:
 	@test -f $(COMPOSE_ENV) || { test -f $(COMPOSE_ENV_EXAMPLE) || { echo "ERROR: $(COMPOSE_ENV_EXAMPLE) not found"; exit 1; }; cp $(COMPOSE_ENV_EXAMPLE) $(COMPOSE_ENV) && echo "created $(COMPOSE_ENV) from $(COMPOSE_ENV_EXAMPLE)"; }
 	@if $(COMPOSE) up --help 2>/dev/null | grep -q -- '--wait'; then \
 		$(COMPOSE_INFRA) up -d --wait || { echo "ERROR: infra did not become healthy (see 'make ps' / 'make logs')"; exit 1; }; \
+		echo "all healthy"; \
 	else \
 		echo "docker compose has no --wait flag; polling health (timeout $(HEALTH_TIMEOUT)s)"; \
 		$(COMPOSE_INFRA) up -d || exit 1; \
@@ -19,7 +20,7 @@ up:
 			ids=$$($(COMPOSE_INFRA) ps -q); \
 			st=$$(for id in $$ids; do docker inspect -f '{{if .State.Health}}{{.State.Health.Status}}{{else}}{{.State.Status}}{{end}}' $$id; done); \
 			if echo "$$st" | grep -q unhealthy; then echo "ERROR: unhealthy service(s) (see 'make ps' / 'make logs')"; exit 1; fi; \
-			if [ -n "$$ids" ] && ! echo "$$st" | grep -qvE '^(healthy|running)$$'; then echo "infra is up and healthy"; break; fi; \
+			if [ -n "$$ids" ] && ! echo "$$st" | grep -qvE '^(healthy|running)$$'; then echo "all healthy"; break; fi; \
 			if [ $$(date +%s) -ge $$deadline ]; then echo "ERROR: timeout ($(HEALTH_TIMEOUT)s) waiting for healthy services (see 'make ps' / 'make logs')"; exit 1; fi; \
 			sleep 3; \
 		done; \

@@ -118,12 +118,16 @@ fi
 # ---------------------------------------------------------------------------
 section "3. Salud de los contenedores"
 
-PS_JSON="$("${COMPOSE[@]}" ps --format json 2>/dev/null || true)"
+# -a: also report stopped/exited containers — otherwise a service that
+# crashed after being created simply doesn't appear and this check would
+# pass by omission instead of catching it.
+PS_JSON="$("${COMPOSE[@]}" ps -a --format json 2>/dev/null || true)"
+EXPECTED_SERVICES="$("${COMPOSE[@]}" config --services 2>/dev/null || true)"
 
 if [[ -z "$PS_JSON" ]]; then
   fail "'docker compose ps' no reporta contenedores corriendo. ¿Ejecutaste 'make up'?"
 else
-  HEALTH_REPORT="$(PS_JSON_DATA="$PS_JSON" python3 - <<'PY'
+  HEALTH_REPORT="$(PS_JSON_DATA="$PS_JSON" EXPECTED_SERVICES_DATA="$EXPECTED_SERVICES" python3 - <<'PY'
 import json
 import os
 import sys
@@ -132,6 +136,7 @@ import sys
 # heredoc win the fd0 redirect over the pipe, so sys.stdin.read() would always
 # see an empty string here. Same reasoning applies to the Keycloak check below.
 raw = os.environ["PS_JSON_DATA"]
+expected = {s.strip() for s in os.environ["EXPECTED_SERVICES_DATA"].splitlines() if s.strip()}
 containers = []
 try:
     data = json.loads(raw)
@@ -144,8 +149,10 @@ except json.JSONDecodeError:
             containers.append(json.loads(line))
 
 exit_code = 0
+seen = set()
 for c in containers:
     service = c.get("Service") or c.get("Name") or "?"
+    seen.add(service)
     health = (c.get("Health") or "").strip().lower()
     state = (c.get("State") or "").strip().lower()
     if health:
@@ -160,6 +167,10 @@ for c in containers:
         else:
             print(f"FAIL:{service}:state={state}")
             exit_code = 1
+
+for missing in sorted(expected - seen):
+    print(f"FAIL:{missing}:no existe ningún contenedor para este servicio")
+    exit_code = 1
 
 sys.exit(exit_code)
 PY
@@ -366,6 +377,26 @@ PY
   else
     fail "$KEYCLOAK_DETAIL"
   fi
+fi
+
+# ---------------------------------------------------------------------------
+# 10. Aspire Dashboard (otel)
+# ---------------------------------------------------------------------------
+# The otel service has no healthcheck at all (its image has no shell to run
+# one in — see docker-compose.yml), so this is the only thing that actually
+# verifies it is alive, not just "container running".
+section "10. Aspire Dashboard (otel)"
+
+if curl -sf -o /dev/null "http://localhost:18888/"; then
+  ok "Aspire Dashboard responde en http://localhost:18888/."
+else
+  fail "Aspire Dashboard no responde en http://localhost:18888/."
+fi
+
+if nc -z -w2 localhost 4317 2>/dev/null; then
+  ok "Puerto OTLP gRPC 4317 acepta conexiones."
+else
+  fail "Puerto OTLP gRPC 4317 no acepta conexiones."
 fi
 
 # ---------------------------------------------------------------------------
