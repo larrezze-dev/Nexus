@@ -77,8 +77,87 @@ jobs:
   db:
     name: db
     runs-on: ubuntu-latest
+    # Throwaway credentials for the ephemeral CI Postgres service container. They are
+    # not real secrets: the container exists only for this job and is discarded after it.
+    # Nothing here is written into SQL; every password reaches psql/flyway as a variable.
+    env:
+      PG_SUPERUSER_PASSWORD: ci_only_superuser_pw
+      NEXUS_MIGRATOR_PASSWORD: ci_only_migrator_pw
+      SVC_PLATFORM_PASSWORD: ci_only_svc_platform_pw # TODO: align role/variable names with db/bootstrap/00_roles.sql once integrated
+    services:
+      postgres:
+        image: postgres:17.11
+        env:
+          POSTGRES_DB: nexus
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: ${{ env.PG_SUPERUSER_PASSWORD }}
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d nexus"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
     steps:
-      - run: 'echo "pendiente: paso 0.3"'
+      - uses: actions/checkout@v4
+
+      # ubuntu-latest ships the psql client. Connects as the bootstrap superuser; the
+      # role passwords are passed with -v (psql variables), never inlined in the SQL.
+      - name: Bootstrap roles (as superuser)
+        env:
+          PGPASSWORD: ${{ env.PG_SUPERUSER_PASSWORD }}
+        run: |
+          psql -X -v ON_ERROR_STOP=1 \
+            -h localhost -p 5432 -U postgres -d nexus \
+            -v nexus_migrator_password="$NEXUS_MIGRATOR_PASSWORD" \
+            -v svc_platform_password="$SVC_PLATFORM_PASSWORD" \
+            -f db/bootstrap/00_roles.sql
+
+      # Same Flyway image and conventions as `make db-migrate`, but on the host network
+      # because the service is published on localhost:5432 (no compose network here).
+      # The password goes in via -e FLYWAY_PASSWORD (value from env, not argv).
+      - name: Flyway migrate
+        env:
+          FLYWAY_PASSWORD: ${{ env.NEXUS_MIGRATOR_PASSWORD }}
+        run: |
+          docker run --rm --network host \
+            -v "$GITHUB_WORKSPACE/db:/flyway/sql:ro" \
+            -e FLYWAY_PASSWORD \
+            flyway/flyway:13.11.1-alpine \
+            -url=jdbc:postgresql://localhost:5432/nexus \
+            -user=nexus_migrator \
+            -locations=filesystem:/flyway/sql/migrations \
+            -baselineOnMigrate=true \
+            migrate
+
+      - name: Flyway validate
+        env:
+          FLYWAY_PASSWORD: ${{ env.NEXUS_MIGRATOR_PASSWORD }}
+        run: |
+          docker run --rm --network host \
+            -v "$GITHUB_WORKSPACE/db:/flyway/sql:ro" \
+            -e FLYWAY_PASSWORD \
+            flyway/flyway:13.11.1-alpine \
+            -url=jdbc:postgresql://localhost:5432/nexus \
+            -user=nexus_migrator \
+            -locations=filesystem:/flyway/sql/migrations \
+            validate
+
+      # TODO: ajustar tras integrar db/ci/checks.sql. Assumed contract: each check is a
+      # SELECT that returns one row per violation. -q -At prints only rows (no command
+      # tags), ON_ERROR_STOP makes SQL errors fail the step, and any output fails the job.
+      - name: Schema checks (db/ci/checks.sql)
+        env:
+          PGPASSWORD: ${{ env.NEXUS_MIGRATOR_PASSWORD }}
+        run: |
+          out=$(psql -X -q -At -v ON_ERROR_STOP=1 \
+            -h localhost -p 5432 -U nexus_migrator -d nexus \
+            -f db/ci/checks.sql)
+          if [ -n "$out" ]; then
+            echo "$out"
+            echo "db/ci/checks.sql returned violation rows"
+            exit 1
+          fi
 
   conformance:
     name: conformance
