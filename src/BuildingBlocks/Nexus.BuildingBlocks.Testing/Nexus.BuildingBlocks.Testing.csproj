@@ -5,4 +5,19 @@
     <Nullable>enable</Nullable>
   </PropertyGroup>
 
+  <ItemGroup>
+    <PackageReference Include="Npgsql" />
+    <PackageReference Include="Testcontainers.PostgreSql" />
+    <!-- IAsyncLifetime (assembly-fixture lifecycle) lives in xunit.v3's extensibility package;
+         this project is not itself an xunit test project (no test runner/OutputType Exe here),
+         just the thing a future *.Tests project new's up as a shared [assembly: AssemblyFixture]. -->
+    <PackageReference Include="xunit.v3.extensibility.core" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Nexus.BuildingBlocks.Domain\Nexus.BuildingBlocks.Domain.csproj" />
+    <ProjectReference Include="..\Nexus.BuildingBlocks.Application\Nexus.BuildingBlocks.Application.csproj" />
+    <ProjectReference Include="..\Nexus.BuildingBlocks.Persistence\Nexus.BuildingBlocks.Persistence.csproj" />
+  </ItemGroup>
+
 </Project>

@@ -1,0 +1,8 @@
+{
+  "type": "record",
+  "name": "WidgetDeleted",
+  "namespace": "ch.nussli.nexus.test",
+  "fields": [
+    { "name": "widgetId", "type": { "type": "string", "logicalType": "uuid" } }
+  ]
+}

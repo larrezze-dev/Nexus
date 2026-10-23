@@ -5,4 +5,21 @@
     <Nullable>enable</Nullable>
   </PropertyGroup>
 
+  <ItemGroup>
+    <PackageReference Include="Npgsql" />
+    <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" />
+    <PackageReference Include="EFCore.NamingConventions" />
+    <PackageReference Include="Dapper" />
+    <PackageReference Include="Apache.Avro" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Nexus.BuildingBlocks.Domain\Nexus.BuildingBlocks.Domain.csproj" />
+    <ProjectReference Include="..\Nexus.BuildingBlocks.Application\Nexus.BuildingBlocks.Application.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="Nexus.BuildingBlocks.Persistence.Tests" />
+  </ItemGroup>
+
 </Project>

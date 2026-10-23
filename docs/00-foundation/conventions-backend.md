@@ -121,6 +121,7 @@ Todas las respuestas de error son `application/problem+json` (RFC 9457):
 | Blob | `Azure.Storage.Blobs` |
 | Resiliencia | `Microsoft.Extensions.Http.Resilience` |
 | Telemetría | `OpenTelemetry.Extensions.Hosting`, instrumentaciones ASP.NET Core / HttpClient / Npgsql, exportador OTLP |
-| Tests | `xunit.v3`, `Shouldly`, `NSubstitute`, `Testcontainers.PostgreSql`, `Testcontainers.Kafka`, `Testcontainers.ClickHouse`, `Bogus` |
+| Inyección de dependencias | `Microsoft.Extensions.DependencyInjection`, `Microsoft.Extensions.DependencyInjection.Abstractions` `[+]` (ya implícitos en el host ASP.NET Core de §1; se listan explícitamente porque `Nexus.BuildingBlocks.Application`/`Persistence` los referencian directamente) |
+| Tests | `xunit.v3`, `xunit.v3.extensibility.core` `[+]` (mismo paquete/versión que `xunit.v3`; lo necesita una classlib como `Nexus.BuildingBlocks.Testing` para implementar fixtures de xUnit sin ser ella misma un proyecto de test), `Shouldly`, `NSubstitute`, `Testcontainers.PostgreSql`, `Testcontainers.Kafka`, `Testcontainers.ClickHouse`, `Bogus` |
 
 Cualquier paquete fuera de esta lista requiere ADR (H13).

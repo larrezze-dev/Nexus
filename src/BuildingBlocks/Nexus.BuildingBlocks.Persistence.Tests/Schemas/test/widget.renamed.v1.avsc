@@ -1,0 +1,13 @@
+{
+  "type": "record",
+  "name": "WidgetRenamed",
+  "namespace": "ch.nussli.nexus.test",
+  "fields": [
+    { "name": "widgetId", "type": { "type": "string", "logicalType": "uuid" } },
+    { "name": "newName", "type": "string" },
+    { "name": "renamedAt", "type": { "type": "long", "logicalType": "timestamp-micros" } },
+    { "name": "price", "type": { "type": "bytes", "logicalType": "decimal", "precision": 19, "scale": 4 } },
+    { "name": "labels", "type": { "type": "map", "values": "string" } },
+    { "name": "note", "type": ["null", "string"], "default": null }
+  ]
+}
