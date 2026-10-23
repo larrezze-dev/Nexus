@@ -33,6 +33,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Nexus.BuildingBlocks.Applic
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Nexus.BuildingBlocks.Persistence.Tests", "BuildingBlocks\Nexus.BuildingBlocks.Persistence.Tests\Nexus.BuildingBlocks.Persistence.Tests.csproj", "{34E92893-334A-40F4-A51E-A93F4977A7E8}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Nexus.BuildingBlocks.Testing.Tests", "BuildingBlocks\Nexus.BuildingBlocks.Testing.Tests\Nexus.BuildingBlocks.Testing.Tests.csproj", "{693C784E-6587-400D-AE75-77CD0CF707EB}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -187,6 +189,18 @@ Global
 		{34E92893-334A-40F4-A51E-A93F4977A7E8}.Release|x64.Build.0 = Release|Any CPU
 		{34E92893-334A-40F4-A51E-A93F4977A7E8}.Release|x86.ActiveCfg = Release|Any CPU
 		{34E92893-334A-40F4-A51E-A93F4977A7E8}.Release|x86.Build.0 = Release|Any CPU
+		{693C784E-6587-400D-AE75-77CD0CF707EB}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{693C784E-6587-400D-AE75-77CD0CF707EB}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{693C784E-6587-400D-AE75-77CD0CF707EB}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{693C784E-6587-400D-AE75-77CD0CF707EB}.Debug|x64.Build.0 = Debug|Any CPU
+		{693C784E-6587-400D-AE75-77CD0CF707EB}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{693C784E-6587-400D-AE75-77CD0CF707EB}.Debug|x86.Build.0 = Debug|Any CPU
+		{693C784E-6587-400D-AE75-77CD0CF707EB}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{693C784E-6587-400D-AE75-77CD0CF707EB}.Release|Any CPU.Build.0 = Release|Any CPU
+		{693C784E-6587-400D-AE75-77CD0CF707EB}.Release|x64.ActiveCfg = Release|Any CPU
+		{693C784E-6587-400D-AE75-77CD0CF707EB}.Release|x64.Build.0 = Release|Any CPU
+		{693C784E-6587-400D-AE75-77CD0CF707EB}.Release|x86.ActiveCfg = Release|Any CPU
+		{693C784E-6587-400D-AE75-77CD0CF707EB}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -204,5 +218,6 @@ Global
 		{DBEB1696-F815-427E-B510-6C1ADA933FE7} = {A1B2C3D4-E5F6-7890-AB12-34CD56EF7890}
 		{65516DD3-EE69-462D-98E4-066F951CBD3A} = {A1B2C3D4-E5F6-7890-AB12-34CD56EF7890}
 		{34E92893-334A-40F4-A51E-A93F4977A7E8} = {A1B2C3D4-E5F6-7890-AB12-34CD56EF7890}
+		{693C784E-6587-400D-AE75-77CD0CF707EB} = {A1B2C3D4-E5F6-7890-AB12-34CD56EF7890}
 	EndGlobalSection
 EndGlobal

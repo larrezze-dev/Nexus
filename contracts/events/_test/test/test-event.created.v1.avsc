@@ -1,0 +1,10 @@
+{
+  "type": "record",
+  "name": "TestEventCreated",
+  "namespace": "ch.nussli.nexus.test",
+  "doc": "Fixture schema for Nexus.BuildingBlocks.Testing.TestEvent, used only by tests of the outbox/UnitOfWork plumbing (conventions-events.md §6). Not a real domain contract: kept under contracts/events/_test/ so no Schema Registry registration or contract-validation tooling that scans contracts/events/<context>/... picks it up.",
+  "fields": [
+    { "name": "testEventId", "type": { "type": "string", "logicalType": "uuid" } },
+    { "name": "name", "type": "string" }
+  ]
+}
