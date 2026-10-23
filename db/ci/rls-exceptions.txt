@@ -1,0 +1,12 @@
+# RLS exceptions for DBC-1 (db/ci/checks.sql).
+#
+# Format: one entry per line, "schema.table  # justification".
+# Lines starting with "#" (and blank lines) are ignored.
+#
+# Any table listed here has a column named "legal_entity_id" but is
+# intentionally exempt from the ENABLE/FORCE ROW LEVEL SECURITY
+# requirement (conventions-database.md §7). Every entry must carry a
+# justification comment explaining why RLS does not apply.
+#
+# No entries yet: as of step 0.3 no business table with
+# "legal_entity_id" exists in the database.

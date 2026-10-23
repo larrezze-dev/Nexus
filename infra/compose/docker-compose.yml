@@ -36,10 +36,29 @@ services:
       POSTGRES_DB: ${POSTGRES_DB:-nexus}
       POSTGRES_USER: ${POSTGRES_USER:-nexus}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-nexus_dev_password}
+      # Read by db/bootstrap/00_roles.sql (docker-entrypoint-initdb.d) to set each
+      # LOGIN role's password. Never referenced as a literal in that SQL file.
+      NEXUS_MIGRATOR_PASSWORD: ${NEXUS_MIGRATOR_PASSWORD:-nexus_migrator_dev_password}
+      NEXUS_SVC_PLATFORM_PASSWORD: ${NEXUS_SVC_PLATFORM_PASSWORD:-nexus_svc_platform_dev_password}
+      NEXUS_SVC_CATALOG_PASSWORD: ${NEXUS_SVC_CATALOG_PASSWORD:-nexus_svc_catalog_dev_password}
+      NEXUS_SVC_OPERATIONS_PASSWORD: ${NEXUS_SVC_OPERATIONS_PASSWORD:-nexus_svc_operations_dev_password}
+      NEXUS_SVC_COMMERCIAL_PASSWORD: ${NEXUS_SVC_COMMERCIAL_PASSWORD:-nexus_svc_commercial_dev_password}
+      NEXUS_SVC_RESOURCES_PASSWORD: ${NEXUS_SVC_RESOURCES_PASSWORD:-nexus_svc_resources_dev_password}
+      NEXUS_SVC_CONTROLLING_PASSWORD: ${NEXUS_SVC_CONTROLLING_PASSWORD:-nexus_svc_controlling_dev_password}
+      NEXUS_SVC_FIELD_PASSWORD: ${NEXUS_SVC_FIELD_PASSWORD:-nexus_svc_field_dev_password}
+      NEXUS_SVC_RELAY_PASSWORD: ${NEXUS_SVC_RELAY_PASSWORD:-nexus_svc_relay_dev_password}
+      NEXUS_SVC_SOLVER_PASSWORD: ${NEXUS_SVC_SOLVER_PASSWORD:-nexus_svc_solver_dev_password}
     ports:
       - "${POSTGRES_PORT:-5432}:5432"
     volumes:
       - nexus_postgres_data:/var/lib/postgresql/data
+      # db/bootstrap/00_roles.sql can't be bind-mounted directly as a file under
+      # /docker-entrypoint-initdb.d: that path is itself a directory bind mount
+      # (the line below), and nesting a file-level mount inside an already-mounted
+      # read-only directory fails ("read-only file system") on Docker Desktop. It is
+      # mounted at its own path instead, and postgres/init/00_run_bootstrap.sql (the
+      # only script docker-entrypoint-initdb.d actually sees) runs it from there.
+      - ../../db/bootstrap:/bootstrap:ro
       - ./postgres/init:/docker-entrypoint-initdb.d:ro
     networks:
       - nexus

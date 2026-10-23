@@ -1,0 +1,31 @@
+# Canonical list of append-only tables (conventions-database.md §6).
+#
+# Format: one "schema.table" per line. Lines starting with "#" (and
+# blank lines) are ignored.
+#
+# Checked by DBC-4 in db/ci/checks.sql: every table listed here that
+# ALREADY EXISTS in the database must have the
+# "trg_<table>_append_only" trigger installed.
+#
+# As of step 0.3 none of these business tables exist yet -- they are
+# created incrementally by later steps. DBC-4 only evaluates tables
+# that are present in pg_class, so entries for tables that do not
+# exist yet are simply skipped (not a failure) until the step that
+# creates them also adds the append-only trigger.
+
+stock.stock_movement
+logistics.operation_log
+logistics.solver_run
+logistics.solver_deficit
+project.job_state_history
+catalog.maintenance_record
+org.exchange_rate
+workflow.approval_action
+docs.document_access_log
+controlling.cost_posting
+warehouse.scan_event
+commissioning.field_progress_log
+field.field_scan_event
+gdpr.pii_access_log
+gdpr.anonymization_log
+migration.run_log

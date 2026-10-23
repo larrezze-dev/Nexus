@@ -77,8 +77,100 @@ jobs:
   db:
     name: db
     runs-on: ubuntu-latest
+    # Throwaway credentials for the ephemeral CI Postgres service container. They are
+    # not real secrets: the container exists only for this job and is discarded after it.
+    # Nothing here is written into SQL; every password reaches psql/flyway as a variable.
+    env:
+      PG_SUPERUSER_PASSWORD: ci_only_superuser_pw
+      NEXUS_MIGRATOR_PASSWORD: ci_only_migrator_pw
+      NEXUS_SVC_PLATFORM_PASSWORD: ci_only_svc_platform_pw
+      NEXUS_SVC_CATALOG_PASSWORD: ci_only_svc_catalog_pw
+      NEXUS_SVC_OPERATIONS_PASSWORD: ci_only_svc_operations_pw
+      NEXUS_SVC_COMMERCIAL_PASSWORD: ci_only_svc_commercial_pw
+      NEXUS_SVC_RESOURCES_PASSWORD: ci_only_svc_resources_pw
+      NEXUS_SVC_CONTROLLING_PASSWORD: ci_only_svc_controlling_pw
+      NEXUS_SVC_FIELD_PASSWORD: ci_only_svc_field_pw
+      NEXUS_SVC_RELAY_PASSWORD: ci_only_svc_relay_pw
+      NEXUS_SVC_SOLVER_PASSWORD: ci_only_svc_solver_pw
+    services:
+      postgres:
+        image: postgres:17.11
+        env:
+          POSTGRES_DB: nexus
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: ${{ env.PG_SUPERUSER_PASSWORD }}
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d nexus"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
     steps:
-      - run: 'echo "pendiente: paso 0.3"'
+      - uses: actions/checkout@v4
+
+      # ubuntu-latest ships the psql client. Connects as the bootstrap superuser.
+      # db/bootstrap/00_roles.sql reads each role's password itself, via `\set x
+      # `echo "$NEXUS_..._PASSWORD"`` -- a shell command substitution that inherits
+      # psql's own process environment, not `-v name=value`. All 10 NEXUS_*_PASSWORD
+      # variables are already in this job's env (see `env:` above), so nothing more
+      # is needed here beyond PGPASSWORD for psql's own connection to Postgres.
+      - name: Bootstrap roles (as superuser)
+        env:
+          PGPASSWORD: ${{ env.PG_SUPERUSER_PASSWORD }}
+        run: |
+          psql -X -v ON_ERROR_STOP=1 \
+            -h localhost -p 5432 -U postgres -d nexus \
+            -f db/bootstrap/00_roles.sql
+
+      # Same Flyway image and conventions as `make db-migrate`, but on the host network
+      # because the service is published on localhost:5432 (no compose network here).
+      # The password goes in via -e FLYWAY_PASSWORD (value from env, not argv).
+      # Ownership: db/migrations/afterConnect.sql is a Flyway callback (not a
+      # migration) that runs `SET ROLE nexus_owner` after every connection, so
+      # objects created here are owned by nexus_owner, not nexus_migrator.
+      - name: Flyway migrate
+        env:
+          FLYWAY_PASSWORD: ${{ env.NEXUS_MIGRATOR_PASSWORD }}
+        run: |
+          docker run --rm --network host \
+            -v "$GITHUB_WORKSPACE/db:/flyway/sql:ro" \
+            -e FLYWAY_PASSWORD \
+            flyway/flyway:13.11.1-alpine \
+            -url=jdbc:postgresql://localhost:5432/nexus \
+            -user=nexus_migrator \
+            -locations=filesystem:/flyway/sql/migrations \
+            migrate
+
+      - name: Flyway validate
+        env:
+          FLYWAY_PASSWORD: ${{ env.NEXUS_MIGRATOR_PASSWORD }}
+        run: |
+          docker run --rm --network host \
+            -v "$GITHUB_WORKSPACE/db:/flyway/sql:ro" \
+            -e FLYWAY_PASSWORD \
+            flyway/flyway:13.11.1-alpine \
+            -url=jdbc:postgresql://localhost:5432/nexus \
+            -user=nexus_migrator \
+            -locations=filesystem:/flyway/sql/migrations \
+            validate
+
+      # Each DBC-N check is a SELECT that returns one row per violation; the script's
+      # own \warn banners go to stderr (not captured here), so -q -At -- quiet, tuples
+      # only, unaligned -- leaves `out` empty on a clean run and non-empty on any
+      # violation. ON_ERROR_STOP makes a SQL error in the script fail the step too.
+      - name: Schema checks (db/ci/checks.sql)
+        env:
+          PGPASSWORD: ${{ env.NEXUS_MIGRATOR_PASSWORD }}
+        run: |
+          out=$(psql -X -q -At -v ON_ERROR_STOP=1 \
+            -h localhost -p 5432 -U nexus_migrator -d nexus \
+            -f db/ci/checks.sql)
+          if [ -n "$out" ]; then
+            echo "$out"
+            echo "db/ci/checks.sql returned violation rows"
+            exit 1
+          fi
 
   conformance:
     name: conformance
