@@ -32,8 +32,9 @@ public abstract class DbContextBase : DbContext
     }
 
     /// <summary>
-    /// For contexts that need extra options (logging, interceptors). The Npgsql connection is
-    /// always the unit of work's, whatever <paramref name="options"/> says.
+    /// For contexts that need extra options (logging, interceptors) — override
+    /// <see cref="ConfigureOptions"/> for those, not this constructor's <paramref name="options"/>:
+    /// the Npgsql connection is always the unit of work's, whatever <paramref name="options"/> says.
     /// </summary>
     protected DbContextBase(DbContextOptions options, IUnitOfWork unitOfWork)
         : base(options)
@@ -64,13 +65,40 @@ public abstract class DbContextBase : DbContext
         }
     }
 
-    protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
+    /// <summary>
+    /// Sealed on purpose (BE-R1): a derived context must not be able to override this and quietly
+    /// point itself at some other connection, which would run its queries outside the unit of
+    /// work's transaction and RLS session without any visible error. Override
+    /// <see cref="ConfigureOptions"/> instead for anything additive (logging, interceptors).
+    /// </summary>
+    protected sealed override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
     {
         ArgumentNullException.ThrowIfNull(optionsBuilder);
-        optionsBuilder
-            .UseNpgsql(_unitOfWork.Connection)
-            .UseSnakeCaseNamingConvention();
+        ConfigureOptions(optionsBuilder);
+        if (_unitOfWork.IsActive)
+        {
+            optionsBuilder.UseNpgsql(_unitOfWork.Connection);
+        }
+        else
+        {
+            // No transaction yet (e.g. the context is only being used to inspect the EF model,
+            // before BeginAsync): still needs a provider to build the model, but there is no real
+            // connection to force and no RLS session to leak from.
+            optionsBuilder.UseNpgsql();
+        }
+
+        optionsBuilder.UseSnakeCaseNamingConvention();
         base.OnConfiguring(optionsBuilder);
+    }
+
+    /// <summary>
+    /// Override to add options that do not touch the database provider or connection (logging,
+    /// interceptors, query tracking behavior, ...). Called before the unit of work's connection is
+    /// applied; calling <c>UseNpgsql</c> here is pointless and EF will reject the conflicting
+    /// configuration that follows.
+    /// </summary>
+    protected virtual void ConfigureOptions(DbContextOptionsBuilder optionsBuilder)
+    {
     }
 
     protected override void ConfigureConventions(ModelConfigurationBuilder configurationBuilder)

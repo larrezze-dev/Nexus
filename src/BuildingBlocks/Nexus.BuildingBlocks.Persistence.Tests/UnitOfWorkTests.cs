@@ -430,12 +430,13 @@ public sealed class UnitOfWorkTests(PersistenceDatabaseFixture db) : IAsyncLifet
         public Guid? LegalEntityId => null;
     }
 
-    /// <summary>Same model as <see cref="WidgetDbContext"/>, configured without a connection (model inspection only).</summary>
+    /// <summary>
+    /// Same model as <see cref="WidgetDbContext"/>. Built from a unit of work that never called
+    /// <c>BeginAsync</c>, so <see cref="DbContextBase.OnConfiguring"/> takes its no-connection,
+    /// model-inspection-only path on its own -- no override needed here.
+    /// </summary>
     private sealed class WidgetDbContextForModel(IUnitOfWork uow) : DbContextBase(uow)
     {
-        protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder) =>
-            optionsBuilder.UseNpgsql().UseSnakeCaseNamingConvention();
-
         protected override void OnModelCreating(ModelBuilder modelBuilder) =>
             modelBuilder.Entity<Widget>(b =>
             {

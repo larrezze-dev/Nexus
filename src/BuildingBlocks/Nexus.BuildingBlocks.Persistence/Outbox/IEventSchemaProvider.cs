@@ -95,7 +95,8 @@ public sealed partial class FileSystemEventSchemaProvider : IEventSchemaProvider
                 $"Schema '{path}' is a {schema.Tag}, but an event payload schema must be an Avro record.");
     }
 
-    [GeneratedRegex("^[a-z][a-z0-9_-]*$", RegexOptions.CultureInvariant)]
+    // \z (not $): $ allows a trailing \n in .NET regex, \z anchors to the true end of the string.
+    [GeneratedRegex(@"^[a-z][a-z0-9_-]*\z", RegexOptions.CultureInvariant)]
     private static partial Regex SegmentPattern();
 }
 

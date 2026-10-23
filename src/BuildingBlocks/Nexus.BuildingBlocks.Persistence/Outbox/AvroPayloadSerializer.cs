@@ -225,7 +225,8 @@ internal static class AvroPayloadSerializer
 
             case "timestamp-micros":
             case "timestamp-millis":
-                return value switch
+            {
+                var utc = value switch
                 {
                     DateTimeOffset dto => dto.UtcDateTime,
                     DateTime { Kind: DateTimeKind.Utc } dt => dt,
@@ -233,6 +234,21 @@ internal static class AvroPayloadSerializer
                         $"'{path}': DateTime with Kind={dt.Kind} is ambiguous; use DateTimeOffset or a UTC DateTime."),
                     _ => throw Mismatch(path, schema, value),
                 };
+
+                // Reject, don't silently round: same "no precision loss" policy as decimal below.
+                // A .NET tick is 100ns; timestamp-millis keeps whole milliseconds (10,000 ticks),
+                // timestamp-micros keeps whole microseconds (10 ticks) -- Avro's own encoder would
+                // otherwise truncate anything finer via integer division with no error.
+                var unitTicks = schema.LogicalTypeName == "timestamp-millis" ? TimeSpan.TicksPerMillisecond : 10L;
+                if (utc.Ticks % unitTicks != 0)
+                {
+                    throw new EventPayloadSchemaException(
+                        $"'{path}': value has more precision than '{schema.LogicalTypeName}' can represent " +
+                        $"without rounding (ticks={utc.Ticks}); round it explicitly before raising the event.");
+                }
+
+                return utc;
+            }
 
             case "date":
                 return value is DateOnly d

@@ -183,8 +183,12 @@ public sealed class UnitOfWork : IUnitOfWork
             events.AddRange(_explicitEvents);
             await _outboxWriter.WriteAsync(_connection!, _transaction!, events, _envelope, cancellationToken).ConfigureAwait(false);
 
-            // 4. COMMIT.
-            await _transaction!.CommitAsync(cancellationToken).ConfigureAwait(false);
+            // 4. COMMIT. Not cancellable on purpose (same reasoning as RollbackCoreAsync below):
+            // once sent, the server may apply it regardless of what the client does next, so
+            // honoring a cancellation here would leave the caller unsure whether its own writes
+            // actually landed -- risking a retry that double-writes the outbox event and burns
+            // another document number.
+            await _transaction!.CommitAsync(CancellationToken.None).ConfigureAwait(false);
         }
         catch
         {
