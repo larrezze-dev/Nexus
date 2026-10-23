@@ -29,6 +29,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Nexus.Architecture.Tests", 
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Nexus.BuildingBlocks.Domain.Tests", "BuildingBlocks\Nexus.BuildingBlocks.Domain.Tests\Nexus.BuildingBlocks.Domain.Tests.csproj", "{DBEB1696-F815-427E-B510-6C1ADA933FE7}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Nexus.BuildingBlocks.Application.Tests", "BuildingBlocks\Nexus.BuildingBlocks.Application.Tests\Nexus.BuildingBlocks.Application.Tests.csproj", "{65516DD3-EE69-462D-98E4-066F951CBD3A}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -159,6 +161,18 @@ Global
 		{DBEB1696-F815-427E-B510-6C1ADA933FE7}.Release|x64.Build.0 = Release|Any CPU
 		{DBEB1696-F815-427E-B510-6C1ADA933FE7}.Release|x86.ActiveCfg = Release|Any CPU
 		{DBEB1696-F815-427E-B510-6C1ADA933FE7}.Release|x86.Build.0 = Release|Any CPU
+		{65516DD3-EE69-462D-98E4-066F951CBD3A}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{65516DD3-EE69-462D-98E4-066F951CBD3A}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{65516DD3-EE69-462D-98E4-066F951CBD3A}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{65516DD3-EE69-462D-98E4-066F951CBD3A}.Debug|x64.Build.0 = Debug|Any CPU
+		{65516DD3-EE69-462D-98E4-066F951CBD3A}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{65516DD3-EE69-462D-98E4-066F951CBD3A}.Debug|x86.Build.0 = Debug|Any CPU
+		{65516DD3-EE69-462D-98E4-066F951CBD3A}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{65516DD3-EE69-462D-98E4-066F951CBD3A}.Release|Any CPU.Build.0 = Release|Any CPU
+		{65516DD3-EE69-462D-98E4-066F951CBD3A}.Release|x64.ActiveCfg = Release|Any CPU
+		{65516DD3-EE69-462D-98E4-066F951CBD3A}.Release|x64.Build.0 = Release|Any CPU
+		{65516DD3-EE69-462D-98E4-066F951CBD3A}.Release|x86.ActiveCfg = Release|Any CPU
+		{65516DD3-EE69-462D-98E4-066F951CBD3A}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -174,5 +188,6 @@ Global
 		{B8B214CB-605F-4166-BA43-977D4A66D30E} = {A1B2C3D4-E5F6-7890-AB12-34CD56EF7890}
 		{131ACFCD-F2C3-47A8-A91A-372F236C5745} = {0AB3BF05-4346-4AA6-1389-037BE0695223}
 		{DBEB1696-F815-427E-B510-6C1ADA933FE7} = {A1B2C3D4-E5F6-7890-AB12-34CD56EF7890}
+		{65516DD3-EE69-462D-98E4-066F951CBD3A} = {A1B2C3D4-E5F6-7890-AB12-34CD56EF7890}
 	EndGlobalSection
 EndGlobal
