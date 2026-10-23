@@ -1,14 +1,10 @@
 -- infra base: schema + append-only guard function.
 --
--- Ownership note (DBC-6): Flyway connects as `nexus_migrator`, a login role
--- that is a MEMBER of `nexus_owner` (NOLOGIN). Role membership only grants
--- inherited privileges; it does NOT make objects created by the member be
--- owned by the parent role. Without an explicit `SET ROLE`, every object
--- created in this session would be owned by `nexus_migrator`, which would
--- fail DBC-6 ("table owned by a role other than nexus_owner"). We therefore
--- switch the current role to `nexus_owner` for the duration of this
--- migration and reset it at the end.
-SET ROLE nexus_owner;
+-- Ownership (DBC-6): db/migrations/afterConnect.sql (a Flyway callback, not a
+-- migration) already runs `SET ROLE nexus_owner` once for the whole session
+-- before any migration executes, so every object created below is owned by
+-- nexus_owner. This file must not RESET ROLE: that would undo the switch for
+-- every migration that runs after it in the same Flyway invocation.
 
 CREATE SCHEMA infra;
 
@@ -43,5 +39,3 @@ GRANT EXECUTE ON FUNCTION infra.forbid_mutation() TO
   svc_resources,
   svc_controlling,
   svc_field;
-
-RESET ROLE;

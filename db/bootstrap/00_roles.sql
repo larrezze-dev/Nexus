@@ -182,11 +182,35 @@ ALTER ROLE svc_solver WITH PASSWORD :'svc_solver_password' BYPASSRLS;
 -- =============================================================================
 -- 5. Lock down PUBLIC. Nobody connects or creates objects just by having an
 --    account on the cluster; access is granted explicitly, schema by schema, by
---    the migration that creates that schema (DB-R3).
+--    the migration that creates that schema (DB-R3). CONNECT itself is a
+--    database-level privilege, not a schema/table one, so DB-R3 does not cover
+--    it; every role that needs to use this database gets it back here, once,
+--    explicitly (nexus_owner needs no CONNECT: it is NOLOGIN and never connects
+--    directly -- Flyway and every service connect as a role that merely has it
+--    granted, or is a member of it).
 -- =============================================================================
 
 REVOKE ALL ON DATABASE nexus FROM PUBLIC;
 REVOKE CREATE ON SCHEMA public FROM PUBLIC;
+
+GRANT CONNECT ON DATABASE nexus TO
+  nexus_migrator,
+  svc_platform, svc_catalog, svc_operations, svc_commercial,
+  svc_resources, svc_controlling, svc_field, svc_relay, svc_solver;
+
+-- nexus_owner (via nexus_migrator's SET ROLE, see db/migrations/afterConnect.sql)
+-- still needs two CREATE privileges that REVOKE ALL above took away:
+--   - CREATE ON DATABASE nexus: to run `CREATE SCHEMA <context>` at all (schema
+--     creation is governed by a database-level privilege, not a schema-level one).
+--   - CREATE ON SCHEMA public: Flyway's own flyway_schema_history tracking table
+--     lives there, created before any business schema exists.
+GRANT CREATE ON DATABASE nexus TO nexus_owner;
+GRANT CREATE ON SCHEMA public TO nexus_owner;
+
+-- nexus_migrator also runs db/ci/checks.sql directly (CI job "db"), which loads
+-- its two allow-lists into CREATE TEMP TABLEs; TEMP is bundled into the "ALL" that
+-- was just revoked from PUBLIC, so it needs to come back explicitly here too.
+GRANT TEMP ON DATABASE nexus TO nexus_migrator;
 
 -- =============================================================================
 -- 6. Extensions shared across schemas.

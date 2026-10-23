@@ -58,6 +58,9 @@ FLYWAY_URL   := jdbc:postgresql://postgres:5432/nexus
 # The password is read from $(COMPOSE_ENV) on the host and handed to the container via
 # `-e FLYWAY_PASSWORD` (name only, value taken from the environment), so it never shows
 # up in argv / `ps`. --env-file is not used: it only feeds the container, not this shell.
+# Ownership: db/migrations/afterConnect.sql is a Flyway callback (not a migration)
+# that runs `SET ROLE nexus_owner` after every connection, so objects created by
+# migrations are owned by nexus_owner rather than nexus_migrator -- see that file.
 define flyway_run
 	@set -a; . ./$(COMPOSE_ENV); set +a; \
 	export FLYWAY_PASSWORD="$$NEXUS_MIGRATOR_PASSWORD"; \

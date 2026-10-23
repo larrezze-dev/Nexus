@@ -10,9 +10,12 @@
 -- a database that has already been migrated with Flyway. If any of
 -- the SELECTs below returns one or more rows, the job must fail.
 -- Every result row carries a "check_id" column (DBC-1 .. DBC-6) as its
--- first column, and each query is preceded by a \echo so the failing
--- check is unambiguous in the CI log even when several checks fail at
--- once.
+-- first column, and each query is preceded by a \warn (psql 15+: like
+-- \echo, but writes to stderr) so the failing check is unambiguous in
+-- the CI log without polluting the stdout that the caller captures to
+-- decide pass/fail -- \echo would print on stdout even for a 0-row,
+-- fully healthy run and make the caller see "output" that isn't a
+-- violation row.
 
 \set ON_ERROR_STOP on
 \pset pager off
@@ -46,7 +49,7 @@ FROM append_only_raw;
 -- database.md §7), unless it is listed in db/ci/rls-exceptions.txt.
 -- ---------------------------------------------------------------------
 
-\echo 'Checking DBC-1: legal_entity_id tables without RLS enabled+forced ...'
+\warn 'Checking DBC-1: legal_entity_id tables without RLS enabled+forced ...'
 SELECT 'DBC-1' AS check_id,
        n.nspname AS schema_name,
        c.relname AS table_name,
@@ -74,7 +77,7 @@ ORDER BY 2, 3;
 -- schema is one of the reference schemas org, uom, catalog (ARC-R2).
 -- ---------------------------------------------------------------------
 
-\echo 'Checking DBC-2: cross-schema FKs outside org/uom/catalog ...'
+\warn 'Checking DBC-2: cross-schema FKs outside org/uom/catalog ...'
 SELECT 'DBC-2' AS check_id,
        ns_o.nspname AS origin_schema,
        c_o.relname AS origin_table,
@@ -99,7 +102,7 @@ ORDER BY 2, 3;
 -- array) is zero-based, so its first element is indkey[0].
 -- ---------------------------------------------------------------------
 
-\echo 'Checking DBC-3: FK first columns without a matching leading index ...'
+\warn 'Checking DBC-3: FK first columns without a matching leading index ...'
 SELECT 'DBC-3' AS check_id,
        n.nspname AS schema_name,
        c.relname AS table_name,
@@ -133,7 +136,7 @@ ORDER BY 2, 3;
 -- silently skipped, a table that exists without its trigger fails.
 -- ---------------------------------------------------------------------
 
-\echo 'Checking DBC-4: existing append-only tables missing their trigger ...'
+\warn 'Checking DBC-4: existing append-only tables missing their trigger ...'
 SELECT 'DBC-4' AS check_id,
        ao.schema_name,
        ao.table_name,
@@ -156,9 +159,14 @@ ORDER BY 2, 3;
 -- DBC-5: forbidden column types anywhere in the database: timestamp
 -- without time zone, real, double precision, money. Dates/times must
 -- be timestamptz, money/quantities must be numeric (CLAUDE.md §3).
+--
+-- flyway_schema_history is excluded: it is Flyway's own internal
+-- bookkeeping table (its "installed_on" column is "timestamp without
+-- time zone" by Flyway's own design), not a NEXUS migration output, so
+-- this project's column-type rules do not apply to it.
 -- ---------------------------------------------------------------------
 
-\echo 'Checking DBC-5: forbidden column types (timestamp w/o tz, real, double precision, money) ...'
+\warn 'Checking DBC-5: forbidden column types (timestamp w/o tz, real, double precision, money) ...'
 SELECT 'DBC-5' AS check_id,
        table_schema AS schema_name,
        table_name,
@@ -166,6 +174,7 @@ SELECT 'DBC-5' AS check_id,
        data_type
 FROM information_schema.columns
 WHERE table_schema NOT IN ('pg_catalog', 'information_schema')
+  AND table_name <> 'flyway_schema_history'
   AND data_type IN ('timestamp without time zone', 'real', 'double precision', 'money')
 ORDER BY 2, 3, 4;
 
@@ -178,7 +187,7 @@ ORDER BY 2, 3, 4;
 -- by whichever role runs psql, not by application migrations.
 -- ---------------------------------------------------------------------
 
-\echo 'Checking DBC-6: tables not owned by nexus_owner ...'
+\warn 'Checking DBC-6: tables not owned by nexus_owner ...'
 SELECT 'DBC-6' AS check_id,
        schemaname AS schema_name,
        tablename AS table_name,
