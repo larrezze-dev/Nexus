@@ -107,7 +107,9 @@ public sealed class PostgresFixture : IAsyncLifetime
         _network = new NetworkBuilder().Build();
         await _network.CreateAsync();
 
-        _container = new PostgreSqlBuilder("postgres:17-alpine")
+        // Same exact tag as infra/compose/docker-compose.yml and the CI "db" job --
+        // a pinned patch version, not a rolling "17" tag that could drift silently.
+        _container = new PostgreSqlBuilder("postgres:17.11")
             .WithDatabase(Database)
             .WithNetwork(_network)
             .WithNetworkAliases(NetworkAlias)

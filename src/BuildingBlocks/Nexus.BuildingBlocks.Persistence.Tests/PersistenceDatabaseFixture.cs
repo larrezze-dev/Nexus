@@ -23,7 +23,8 @@ public sealed class PersistenceDatabaseFixture : IAsyncLifetime
     private static readonly string[] BusinessRoles =
         ["svc_platform", "svc_catalog", "svc_operations", "svc_commercial", "svc_resources", "svc_controlling", "svc_field"];
 
-    private readonly PostgreSqlContainer _container = new PostgreSqlBuilder("postgres:17-alpine")
+    // Same exact tag as infra/compose/docker-compose.yml and the CI "db" job.
+    private readonly PostgreSqlContainer _container = new PostgreSqlBuilder("postgres:17.11")
         .WithDatabase("nexus")
         .Build();
 
