@@ -1,4 +1,4 @@
-.PHONY: up down reset logs ps doctor db-migrate seed-dev contracts mock-api build test test-rls test-e2e lint rule-coverage
+.PHONY: up down reset logs ps doctor db-migrate db-info db-validate seed-dev contracts mock-api build test test-rls test-e2e lint rule-coverage
 
 COMPOSE_FILE  := infra/compose/docker-compose.yml
 COMPOSE_ENV   := infra/compose/.env
@@ -51,8 +51,34 @@ doctor:
 		echo "warning: tools/doctor.sh not found yet (paso 0.2 en curso) - skipping"; \
 	fi
 
+FLYWAY_IMAGE := flyway/flyway:13.11.1-alpine
+FLYWAY_URL   := jdbc:postgresql://postgres:5432/nexus
+
+# Runs Flyway inside the `nexus` compose network (host `postgres`, role nexus_migrator).
+# The password is read from $(COMPOSE_ENV) on the host and handed to the container via
+# `-e FLYWAY_PASSWORD` (name only, value taken from the environment), so it never shows
+# up in argv / `ps`. --env-file is not used: it only feeds the container, not this shell.
+define flyway_run
+	@set -a; . ./$(COMPOSE_ENV); set +a; \
+	export FLYWAY_PASSWORD="$$NEXUS_MIGRATOR_PASSWORD"; \
+	docker run --rm --network nexus \
+		-v "$(CURDIR)/db:/flyway/sql:ro" \
+		-e FLYWAY_PASSWORD \
+		$(FLYWAY_IMAGE) \
+		-url=$(FLYWAY_URL) \
+		-user=nexus_migrator \
+		-locations=filesystem:/flyway/sql/migrations \
+		$(1)
+endef
+
 db-migrate:
-	@echo "pending: paso 0.3"
+	$(call flyway_run,migrate)
+
+db-info:
+	$(call flyway_run,info)
+
+db-validate:
+	$(call flyway_run,validate)
 
 seed-dev:
 	@echo "pending: paso 0.3"
