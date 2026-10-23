@@ -15,11 +15,20 @@
 -- Passwords: never literals. Each LOGIN role's password is read from an environment
 -- variable that must be set in the shell psql runs in (the Postgres container already
 -- has it, since it comes from the `environment:` block of the same compose service).
--- We use psql's backtick command-substitution form of \set — `\set x `echo
+-- We use psql's backtick command-substitution form of \set — `\set x `printf '%s'
 -- "$ENV_VAR"`` — to read the env var into a psql variable, then reference it with the
 -- safely-quoted `:'x'` form inside plain (non-DO) statements, which is the idiomatic
 -- psql pattern for secrets: it needs no `-v name=value` flags from the caller, only
--- the env var to be present in the process environment. Expected variables:
+-- the env var to be present in the process environment. `printf '%s'`, not `echo`: the
+-- /bin/sh in the postgres image is dash, whose `echo` interprets backslash escapes in
+-- the value by default, which would silently corrupt any password containing one.
+-- Each password variable is also guarded: if the environment variable is unset or
+-- empty, the script aborts (via `\set ON_ERROR_STOP on` plus a deliberately
+-- undefined-function call, since this psql's `\quit <status>` form does not set
+-- a non-zero exit code here) instead of silently calling `ALTER ROLE ... PASSWORD
+-- ''` (which Postgres accepts, with only a NOTICE, as "no password" -- exactly the
+-- kind of mistake that must be loud, not silent, once this same script is reused
+-- by Terraform against Azure in 0.11). Expected variables:
 --   NEXUS_MIGRATOR_PASSWORD        -> nexus_migrator
 --   NEXUS_SVC_PLATFORM_PASSWORD    -> svc_platform
 --   NEXUS_SVC_CATALOG_PASSWORD     -> svc_catalog
@@ -52,7 +61,12 @@ END $$;
 --    connects as to run migrations.
 -- =============================================================================
 
-\set migrator_password `echo "$NEXUS_MIGRATOR_PASSWORD"`
+\set migrator_password_missing `test -z "$NEXUS_MIGRATOR_PASSWORD" && echo true || echo false`
+\if :migrator_password_missing
+  \warn 'FATAL: NEXUS_MIGRATOR_PASSWORD is not set or empty (required password variable)'
+  SELECT nexus_bootstrap_required_password_env_var_is_missing();
+\endif
+\set migrator_password `printf '%s' "$NEXUS_MIGRATOR_PASSWORD"`
 
 DO $$
 BEGIN
@@ -71,7 +85,12 @@ GRANT nexus_owner TO nexus_migrator;
 --    on purpose for every service role except svc_solver (see block 4).
 -- =============================================================================
 
-\set svc_platform_password `echo "$NEXUS_SVC_PLATFORM_PASSWORD"`
+\set svc_platform_password_missing `test -z "$NEXUS_SVC_PLATFORM_PASSWORD" && echo true || echo false`
+\if :svc_platform_password_missing
+  \warn 'FATAL: NEXUS_SVC_PLATFORM_PASSWORD is not set or empty (required password variable)'
+  SELECT nexus_bootstrap_required_password_env_var_is_missing();
+\endif
+\set svc_platform_password `printf '%s' "$NEXUS_SVC_PLATFORM_PASSWORD"`
 
 DO $$
 BEGIN
@@ -82,7 +101,12 @@ END $$;
 
 ALTER ROLE svc_platform WITH PASSWORD :'svc_platform_password';
 
-\set svc_catalog_password `echo "$NEXUS_SVC_CATALOG_PASSWORD"`
+\set svc_catalog_password_missing `test -z "$NEXUS_SVC_CATALOG_PASSWORD" && echo true || echo false`
+\if :svc_catalog_password_missing
+  \warn 'FATAL: NEXUS_SVC_CATALOG_PASSWORD is not set or empty (required password variable)'
+  SELECT nexus_bootstrap_required_password_env_var_is_missing();
+\endif
+\set svc_catalog_password `printf '%s' "$NEXUS_SVC_CATALOG_PASSWORD"`
 
 DO $$
 BEGIN
@@ -93,7 +117,12 @@ END $$;
 
 ALTER ROLE svc_catalog WITH PASSWORD :'svc_catalog_password';
 
-\set svc_operations_password `echo "$NEXUS_SVC_OPERATIONS_PASSWORD"`
+\set svc_operations_password_missing `test -z "$NEXUS_SVC_OPERATIONS_PASSWORD" && echo true || echo false`
+\if :svc_operations_password_missing
+  \warn 'FATAL: NEXUS_SVC_OPERATIONS_PASSWORD is not set or empty (required password variable)'
+  SELECT nexus_bootstrap_required_password_env_var_is_missing();
+\endif
+\set svc_operations_password `printf '%s' "$NEXUS_SVC_OPERATIONS_PASSWORD"`
 
 DO $$
 BEGIN
@@ -104,7 +133,12 @@ END $$;
 
 ALTER ROLE svc_operations WITH PASSWORD :'svc_operations_password';
 
-\set svc_commercial_password `echo "$NEXUS_SVC_COMMERCIAL_PASSWORD"`
+\set svc_commercial_password_missing `test -z "$NEXUS_SVC_COMMERCIAL_PASSWORD" && echo true || echo false`
+\if :svc_commercial_password_missing
+  \warn 'FATAL: NEXUS_SVC_COMMERCIAL_PASSWORD is not set or empty (required password variable)'
+  SELECT nexus_bootstrap_required_password_env_var_is_missing();
+\endif
+\set svc_commercial_password `printf '%s' "$NEXUS_SVC_COMMERCIAL_PASSWORD"`
 
 DO $$
 BEGIN
@@ -115,7 +149,12 @@ END $$;
 
 ALTER ROLE svc_commercial WITH PASSWORD :'svc_commercial_password';
 
-\set svc_resources_password `echo "$NEXUS_SVC_RESOURCES_PASSWORD"`
+\set svc_resources_password_missing `test -z "$NEXUS_SVC_RESOURCES_PASSWORD" && echo true || echo false`
+\if :svc_resources_password_missing
+  \warn 'FATAL: NEXUS_SVC_RESOURCES_PASSWORD is not set or empty (required password variable)'
+  SELECT nexus_bootstrap_required_password_env_var_is_missing();
+\endif
+\set svc_resources_password `printf '%s' "$NEXUS_SVC_RESOURCES_PASSWORD"`
 
 DO $$
 BEGIN
@@ -126,7 +165,12 @@ END $$;
 
 ALTER ROLE svc_resources WITH PASSWORD :'svc_resources_password';
 
-\set svc_controlling_password `echo "$NEXUS_SVC_CONTROLLING_PASSWORD"`
+\set svc_controlling_password_missing `test -z "$NEXUS_SVC_CONTROLLING_PASSWORD" && echo true || echo false`
+\if :svc_controlling_password_missing
+  \warn 'FATAL: NEXUS_SVC_CONTROLLING_PASSWORD is not set or empty (required password variable)'
+  SELECT nexus_bootstrap_required_password_env_var_is_missing();
+\endif
+\set svc_controlling_password `printf '%s' "$NEXUS_SVC_CONTROLLING_PASSWORD"`
 
 DO $$
 BEGIN
@@ -137,7 +181,12 @@ END $$;
 
 ALTER ROLE svc_controlling WITH PASSWORD :'svc_controlling_password';
 
-\set svc_field_password `echo "$NEXUS_SVC_FIELD_PASSWORD"`
+\set svc_field_password_missing `test -z "$NEXUS_SVC_FIELD_PASSWORD" && echo true || echo false`
+\if :svc_field_password_missing
+  \warn 'FATAL: NEXUS_SVC_FIELD_PASSWORD is not set or empty (required password variable)'
+  SELECT nexus_bootstrap_required_password_env_var_is_missing();
+\endif
+\set svc_field_password `printf '%s' "$NEXUS_SVC_FIELD_PASSWORD"`
 
 DO $$
 BEGIN
@@ -148,7 +197,12 @@ END $$;
 
 ALTER ROLE svc_field WITH PASSWORD :'svc_field_password';
 
-\set svc_relay_password `echo "$NEXUS_SVC_RELAY_PASSWORD"`
+\set svc_relay_password_missing `test -z "$NEXUS_SVC_RELAY_PASSWORD" && echo true || echo false`
+\if :svc_relay_password_missing
+  \warn 'FATAL: NEXUS_SVC_RELAY_PASSWORD is not set or empty (required password variable)'
+  SELECT nexus_bootstrap_required_password_env_var_is_missing();
+\endif
+\set svc_relay_password `printf '%s' "$NEXUS_SVC_RELAY_PASSWORD"`
 
 DO $$
 BEGIN
@@ -168,7 +222,12 @@ ALTER ROLE svc_relay WITH PASSWORD :'svc_relay_password';
 --    therefore the one and only service role allowed to bypass RLS.
 -- =============================================================================
 
-\set svc_solver_password `echo "$NEXUS_SVC_SOLVER_PASSWORD"`
+\set svc_solver_password_missing `test -z "$NEXUS_SVC_SOLVER_PASSWORD" && echo true || echo false`
+\if :svc_solver_password_missing
+  \warn 'FATAL: NEXUS_SVC_SOLVER_PASSWORD is not set or empty (required password variable)'
+  SELECT nexus_bootstrap_required_password_env_var_is_missing();
+\endif
+\set svc_solver_password `printf '%s' "$NEXUS_SVC_SOLVER_PASSWORD"`
 
 DO $$
 BEGIN

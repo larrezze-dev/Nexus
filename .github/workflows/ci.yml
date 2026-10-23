@@ -140,7 +140,6 @@ jobs:
             -url=jdbc:postgresql://localhost:5432/nexus \
             -user=nexus_migrator \
             -locations=filesystem:/flyway/sql/migrations \
-            -baselineOnMigrate=true \
             migrate
 
       - name: Flyway validate

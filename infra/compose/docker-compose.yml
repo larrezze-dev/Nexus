@@ -56,7 +56,7 @@ services:
       # /docker-entrypoint-initdb.d: that path is itself a directory bind mount
       # (the line below), and nesting a file-level mount inside an already-mounted
       # read-only directory fails ("read-only file system") on Docker Desktop. It is
-      # mounted at its own path instead, and postgres/init/00_run_bootstrap.sh (the
+      # mounted at its own path instead, and postgres/init/00_run_bootstrap.sql (the
       # only script docker-entrypoint-initdb.d actually sees) runs it from there.
       - ../../db/bootstrap:/bootstrap:ro
       - ./postgres/init:/docker-entrypoint-initdb.d:ro

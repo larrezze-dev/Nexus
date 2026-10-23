@@ -17,25 +17,12 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
--- Schema-level USAGE: required for any role that will reference
--- infra.forbid_mutation() in a trigger definition on its own tables.
-GRANT USAGE ON SCHEMA infra TO
-  svc_platform,
-  svc_catalog,
-  svc_operations,
-  svc_commercial,
-  svc_resources,
-  svc_controlling,
-  svc_field,
-  svc_relay;
-
--- EXECUTE on the function itself: needed by the service roles that will
--- attach it as a trigger on their append-only tables.
-GRANT EXECUTE ON FUNCTION infra.forbid_mutation() TO
-  svc_platform,
-  svc_catalog,
-  svc_operations,
-  svc_commercial,
-  svc_resources,
-  svc_controlling,
-  svc_field;
+-- No GRANT to any svc_* role here, on purpose: no service role owns tables
+-- (DB-R1), so none of them ever runs CREATE TRIGGER -- every append-only
+-- trigger is created by nexus_owner, via a Flyway migration (the afterConnect
+-- callback keeps the session as nexus_owner throughout). Firing an existing
+-- trigger at runtime does not require the invoking role to have EXECUTE on
+-- the trigger function (verified empirically: a role with only UPDATE on the
+-- table, and no EXECUTE on the function, still gets blocked by the trigger).
+-- EXECUTE also stays revoked from PUBLIC, matching outbox.notify_outbox_new().
+REVOKE EXECUTE ON FUNCTION infra.forbid_mutation() FROM PUBLIC;
