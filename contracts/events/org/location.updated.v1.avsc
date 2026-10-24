@@ -11,8 +11,6 @@
     {"name": "city", "type": ["null", "string"], "default": null},
     {"name": "region", "type": ["null", "string"], "default": null},
     {"name": "countryCode", "type": "string"},
-    {"name": "latitude", "type": ["null", {"type": "bytes", "logicalType": "decimal", "precision": 9, "scale": 6}], "default": null},
-    {"name": "longitude", "type": ["null", {"type": "bytes", "logicalType": "decimal", "precision": 9, "scale": 6}], "default": null},
     {"name": "isActive", "type": "boolean"}
   ]
 }
