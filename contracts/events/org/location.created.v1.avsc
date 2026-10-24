@@ -1,0 +1,18 @@
+{
+  "type": "record",
+  "name": "LocationCreated",
+  "namespace": "ch.nussli.nexus.org",
+  "fields": [
+    {"name": "id", "type": {"type": "string", "logicalType": "uuid"}},
+    {"name": "code", "type": ["null", "string"], "default": null},
+    {"name": "name", "type": "string"},
+    {"name": "street", "type": ["null", "string"], "default": null},
+    {"name": "postalCode", "type": ["null", "string"], "default": null},
+    {"name": "city", "type": ["null", "string"], "default": null},
+    {"name": "region", "type": ["null", "string"], "default": null},
+    {"name": "countryCode", "type": "string"},
+    {"name": "latitude", "type": ["null", {"type": "bytes", "logicalType": "decimal", "precision": 9, "scale": 6}], "default": null},
+    {"name": "longitude", "type": ["null", {"type": "bytes", "logicalType": "decimal", "precision": 9, "scale": 6}], "default": null},
+    {"name": "isActive", "type": "boolean"}
+  ]
+}

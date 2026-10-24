@@ -1,0 +1,12 @@
+{
+  "type": "record",
+  "name": "GroupUpdated",
+  "namespace": "ch.nussli.nexus.org",
+  "fields": [
+    {"name": "id", "type": {"type": "string", "logicalType": "uuid"}},
+    {"name": "partyId", "type": {"type": "string", "logicalType": "uuid"}},
+    {"name": "code", "type": "string"},
+    {"name": "consolidationMethod", "type": "string"},
+    {"name": "reportingCurrencyCode", "type": "string"}
+  ]
+}

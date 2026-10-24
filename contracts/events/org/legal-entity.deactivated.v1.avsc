@@ -1,0 +1,14 @@
+{
+  "type": "record",
+  "name": "LegalEntityDeactivated",
+  "namespace": "ch.nussli.nexus.org",
+  "fields": [
+    {"name": "id", "type": {"type": "string", "logicalType": "uuid"}},
+    {"name": "partyId", "type": {"type": "string", "logicalType": "uuid"}},
+    {"name": "groupId", "type": {"type": "string", "logicalType": "uuid"}},
+    {"name": "code", "type": "string"},
+    {"name": "currencyCode", "type": "string"},
+    {"name": "countryCode", "type": "string"},
+    {"name": "isActive", "type": "boolean"}
+  ]
+}
