@@ -1,0 +1,13 @@
+{
+  "type": "record",
+  "name": "UserCreated",
+  "namespace": "ch.nussli.nexus.org",
+  "fields": [
+    {"name": "id", "type": {"type": "string", "logicalType": "uuid"}},
+    {"name": "partyId", "type": {"type": "string", "logicalType": "uuid"}},
+    {"name": "businessUnitId", "type": ["null", {"type": "string", "logicalType": "uuid"}], "default": null},
+    {"name": "externalSubject", "type": ["null", "string"], "default": null},
+    {"name": "preferredLanguage", "type": "string"},
+    {"name": "isActive", "type": "boolean"}
+  ]
+}

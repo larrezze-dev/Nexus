@@ -1,0 +1,14 @@
+{
+  "type": "record",
+  "name": "WarehouseCreated",
+  "namespace": "ch.nussli.nexus.org",
+  "fields": [
+    {"name": "id", "type": {"type": "string", "logicalType": "uuid"}},
+    {"name": "locationId", "type": {"type": "string", "logicalType": "uuid"}},
+    {"name": "legalEntityId", "type": {"type": "string", "logicalType": "uuid"}},
+    {"name": "businessUnitId", "type": ["null", {"type": "string", "logicalType": "uuid"}], "default": null},
+    {"name": "code", "type": "string"},
+    {"name": "captionI18n", "type": {"type": "map", "values": "string"}},
+    {"name": "isActive", "type": "boolean"}
+  ]
+}

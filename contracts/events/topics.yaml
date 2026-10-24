@@ -32,4 +32,118 @@
 #     version: 1
 #     compatibility: BACKWARD
 
-topics: []
+topics:
+  - name: nexus.org.party.created
+    context: org
+    aggregate: party
+    event: created
+    version: 1
+    compatibility: BACKWARD
+  - name: nexus.org.party.updated
+    context: org
+    aggregate: party
+    event: updated
+    version: 1
+    compatibility: BACKWARD
+  - name: nexus.org.party.deactivated
+    context: org
+    aggregate: party
+    event: deactivated
+    version: 1
+    compatibility: BACKWARD
+  - name: nexus.org.group.created
+    context: org
+    aggregate: group
+    event: created
+    version: 1
+    compatibility: BACKWARD
+  - name: nexus.org.group.updated
+    context: org
+    aggregate: group
+    event: updated
+    version: 1
+    compatibility: BACKWARD
+  - name: nexus.org.legal-entity.created
+    context: org
+    aggregate: legal-entity
+    event: created
+    version: 1
+    compatibility: BACKWARD
+  - name: nexus.org.legal-entity.updated
+    context: org
+    aggregate: legal-entity
+    event: updated
+    version: 1
+    compatibility: BACKWARD
+  - name: nexus.org.legal-entity.deactivated
+    context: org
+    aggregate: legal-entity
+    event: deactivated
+    version: 1
+    compatibility: BACKWARD
+  - name: nexus.org.business-unit.created
+    context: org
+    aggregate: business-unit
+    event: created
+    version: 1
+    compatibility: BACKWARD
+  - name: nexus.org.business-unit.updated
+    context: org
+    aggregate: business-unit
+    event: updated
+    version: 1
+    compatibility: BACKWARD
+  - name: nexus.org.business-unit.deactivated
+    context: org
+    aggregate: business-unit
+    event: deactivated
+    version: 1
+    compatibility: BACKWARD
+  - name: nexus.org.location.created
+    context: org
+    aggregate: location
+    event: created
+    version: 1
+    compatibility: BACKWARD
+  - name: nexus.org.location.updated
+    context: org
+    aggregate: location
+    event: updated
+    version: 1
+    compatibility: BACKWARD
+  - name: nexus.org.warehouse.created
+    context: org
+    aggregate: warehouse
+    event: created
+    version: 1
+    compatibility: BACKWARD
+  - name: nexus.org.warehouse.updated
+    context: org
+    aggregate: warehouse
+    event: updated
+    version: 1
+    compatibility: BACKWARD
+  - name: nexus.org.warehouse.deactivated
+    context: org
+    aggregate: warehouse
+    event: deactivated
+    version: 1
+    compatibility: BACKWARD
+  - name: nexus.org.user.created
+    context: org
+    aggregate: user
+    event: created
+    version: 1
+    compatibility: BACKWARD
+  - name: nexus.org.user.updated
+    context: org
+    aggregate: user
+    event: updated
+    version: 1
+    compatibility: BACKWARD
+  - name: nexus.org.user.deactivated
+    context: org
+    aggregate: user
+    event: deactivated
+    version: 1
+    compatibility: BACKWARD
