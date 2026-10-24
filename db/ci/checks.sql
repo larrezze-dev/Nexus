@@ -176,12 +176,14 @@ ORDER BY 2, 3;
 -- without time zone, real, double precision, money. Dates/times must
 -- be timestamptz, money/quantities must be numeric (CLAUDE.md §3).
 --
--- public.flyway_schema_history is excluded: it is Flyway's own internal
--- bookkeeping table (its "installed_on" column is "timestamp without
--- time zone" by Flyway's own design), not a NEXUS migration output, so
--- this project's column-type rules do not apply to it. Scoped to the
--- "public" schema specifically, so a future business table that happens
--- to share that bare name in another schema is still caught.
+-- public.flyway_schema_history and public.flyway_seed_history are excluded:
+-- they are Flyway's own internal bookkeeping tables (one for db/migrations,
+-- one for db/seed/* via `make seed-dev`'s separate -table=flyway_seed_history),
+-- each with an "installed_on" column that is "timestamp without time zone"
+-- by Flyway's own design, not a NEXUS migration/seed output, so this
+-- project's column-type rules do not apply to them. Scoped to the "public"
+-- schema specifically, so a future business table that happens to share
+-- either bare name in another schema is still caught.
 --
 -- Checked via pg_attribute/format_type rather than information_schema,
 -- so that forbidden types inside an array column (e.g. "double
@@ -202,7 +204,7 @@ WHERE a.attnum > 0
   AND NOT a.attisdropped
   AND c.relkind IN ('r', 'p', 'v', 'm', 'f')
   AND n.nspname NOT IN ('pg_catalog', 'information_schema')
-  AND NOT (n.nspname = 'public' AND c.relname = 'flyway_schema_history')
+  AND NOT (n.nspname = 'public' AND c.relname IN ('flyway_schema_history', 'flyway_seed_history'))
   AND (
     a.atttypid IN ('timestamp'::regtype, 'real'::regtype, 'double precision'::regtype, 'money'::regtype)
     OR a.atttypid IN ('timestamp[]'::regtype, 'real[]'::regtype, 'double precision[]'::regtype, 'money[]'::regtype)

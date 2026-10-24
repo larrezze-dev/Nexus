@@ -83,14 +83,45 @@ db-info:
 db-validate:
 	$(call flyway_run,validate)
 
+# Seeds (common + dev) live under db/seed/. They are data, not schema, so they keep their
+# own Flyway history table (flyway_seed_history) and never mix with flyway_schema_history.
+# Same credential handling as flyway_run (see above): password only via -e FLYWAY_PASSWORD.
+# -baselineOnMigrate=true: by the time this runs, "public" already has objects from
+# db-migrate (which ran first against an empty schema and didn't need this flag) --
+# flyway_seed_history itself doesn't exist yet, and Flyway refuses to create a fresh
+# history table in a non-empty schema without an explicit baseline.
+# -callbackLocations: db/migrations/afterConnect.sql (SET ROLE nexus_owner, DBC-6) must
+# still run here even though db/migrations isn't in -locations for this invocation --
+# otherwise flyway_seed_history itself (and every seed row's audit columns written by
+# this session) would end up owned by/attributed to nexus_migrator. callbackLocations
+# scans that directory for callback scripts only, it does not treat its contents as
+# migrations to apply under this table.
 seed-dev:
-	@echo "pending: paso 0.3"
+	@set -a; . ./$(COMPOSE_ENV); set +a; \
+	export FLYWAY_PASSWORD="$$NEXUS_MIGRATOR_PASSWORD"; \
+	docker run --rm --network nexus \
+		-v "$(CURDIR)/db:/flyway/sql:ro" \
+		-e FLYWAY_PASSWORD \
+		$(FLYWAY_IMAGE) \
+		-url=$(FLYWAY_URL) \
+		-user=nexus_migrator \
+		-locations=filesystem:/flyway/sql/seed/common,filesystem:/flyway/sql/seed/dev \
+		-callbackLocations=filesystem:/flyway/sql/migrations \
+		-table=flyway_seed_history \
+		-baselineOnMigrate=true \
+		migrate
 
 test-rls:
 	@echo "pending: paso 0.3"
 
+# Prism mock of contracts/openapi/<S>.yaml on the fixed port 4010. Only one mock at a time
+# for now; the "4010 + n" scheme for several services in parallel is deferred to a later step.
 mock-api:
-	@echo "pending: paso 0.5"
+	@if [ -z "$(S)" ]; then echo "ERROR: usage: make mock-api S=<servicio>"; exit 1; fi
+	@file="contracts/openapi/$(S).yaml"; \
+	if [ ! -f "$$file" ]; then echo "ERROR: $$file not found"; exit 1; fi; \
+	echo "Mocking $$file on http://localhost:4010 (Prism) ..."; \
+	npx -y @stoplight/prism-cli mock "$$file" -p 4010
 
 test-e2e:
 	@echo "pending: paso 1.3"

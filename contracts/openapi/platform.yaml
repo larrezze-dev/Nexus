@@ -1,0 +1,2904 @@
+openapi: 3.1.0
+info:
+  title: NEXUS Platform API
+  version: "0.4.0"
+  description: >
+    Servicio `nexus-platform`: estructura organizativa (`org`) de NEXUS —
+    directorio de Parties, Groups, Legal Entities, Business Units,
+    Locations, Warehouses, Users y Currencies. Capa 1 del modelo de
+    dominio (`docs/domain/org.md`). Alcance principal: paso 0.4 (núcleo).
+    `GET /health` y la forma base de `GET /v1/me` pertenecen al paso 0.5
+    (track C) — se crean aquí porque este documento no existía todavía
+    cuando se ejecutó 0.4; 0.5 solo necesita ampliar `securitySchemes`
+    (oauth2) y los entregables de su propio track B/F, no recrear estas
+    dos operaciones. Las operaciones de tipos de cambio, conversión de
+    moneda y direcciones/relaciones de Party llegan en el paso 1.1.
+  contact:
+    name: NEXUS Platform Team
+    email: nexus-platform@nussli.ch
+
+servers:
+  - url: http://nexus-platform:8080
+    description: Interno (dentro del clúster, tras el gateway)
+
+tags:
+  - name: Parties
+    description: Directorio universal de entidades internas y externas.
+  - name: Groups
+    description: Grupo consolidador de Legal Entities.
+  - name: LegalEntities
+    description: Entidades legales del grupo.
+  - name: BusinessUnits
+    description: Unidades de negocio dentro de una Legal Entity.
+  - name: Locations
+    description: Ubicaciones físicas.
+  - name: Warehouses
+    description: Almacenes, ubicados y asignados a una Legal Entity.
+  - name: Users
+    description: Usuarios de la aplicación.
+  - name: Currencies
+    description: Catálogo de monedas.
+  - name: Me
+    description: Información del usuario autenticado.
+  - name: Health
+    description: Comprobación de vida del servicio.
+
+security:
+  - bearerAuth: []
+
+paths:
+  # ---------------------------------------------------------------------
+  # Parties
+  # ---------------------------------------------------------------------
+  /v1/parties:
+    get:
+      operationId: listParties
+      summary: Listar parties del directorio.
+      description: Listar parties del directorio.
+      tags: [Parties]
+      x-permission: "PARTY:READ"
+      x-scope: none
+      parameters:
+        - $ref: '_shared/components.yaml#/components/parameters/Page'
+        - $ref: '_shared/components.yaml#/components/parameters/PageSize'
+        - $ref: '_shared/components.yaml#/components/parameters/Sort'
+        - $ref: '_shared/components.yaml#/components/parameters/Q'
+        - name: partyType
+          in: query
+          required: false
+          description: Filtra por tipo de party.
+          schema:
+            type: string
+            enum: [ORGANIZATION, PERSON]
+          example: ORGANIZATION
+        - name: isInternal
+          in: query
+          required: false
+          description: Filtra por entidades internas (true) o externas (false) del grupo.
+          schema:
+            type: boolean
+          example: true
+      responses:
+        '200':
+          description: Página de parties.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '_shared/components.yaml#/components/schemas/Page'
+                  - type: object
+                    properties:
+                      items:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/PartyListItem'
+              example:
+                items:
+                  - id: "018f1a3c-7e3b-7c5a-9c2e-6a2f8e9b0c10"
+                    partyType: ORGANIZATION
+                    legalName: "Nüssli Group AG"
+                    displayName: "Nüssli Group"
+                    isInternal: true
+                    isActive: true
+                page: 1
+                pageSize: 50
+                total: 1
+        '400':
+          $ref: '_shared/components.yaml#/components/responses/BadRequest'
+        '401':
+          $ref: '_shared/components.yaml#/components/responses/Unauthorized'
+        '403':
+          $ref: '_shared/components.yaml#/components/responses/Forbidden'
+        '404':
+          $ref: '_shared/components.yaml#/components/responses/NotFound'
+    post:
+      operationId: createParty
+      summary: Crear un party.
+      description: >
+        Alta idempotente: el cliente puede enviar `id` (UUIDv7). Si ya
+        existe un party con ese `id` y contenido idéntico, responde 200
+        con el recurso existente; si existe con contenido distinto,
+        responde 409.
+      tags: [Parties]
+      x-permission: "PARTY:CREATE"
+      x-scope: none
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreatePartyRequest'
+            example:
+              partyType: ORGANIZATION
+              legalName: "Acme Events SA"
+              displayName: "Acme Events"
+              isInternal: false
+      responses:
+        '200':
+          description: Ya existía un party con el mismo `id` y contenido idéntico.
+          headers:
+            ETag:
+              $ref: '#/components/headers/ETag'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Party'
+              example:
+                id: "018f1a3c-7e3b-7c5a-9c2e-6a2f8e9b0c20"
+                partyType: ORGANIZATION
+                legalName: "Acme Events SA"
+                displayName: "Acme Events"
+                taxId: null
+                erpCompanyCode: null
+                isInternal: false
+                isActive: true
+                createdAt: "2026-10-18T16:20:00Z"
+                updatedAt: "2026-10-18T16:20:00Z"
+        '201':
+          description: Party creado.
+          headers:
+            Location:
+              description: URL del nuevo recurso.
+              schema:
+                type: string
+              example: "/v1/parties/018f1a3c-7e3b-7c5a-9c2e-6a2f8e9b0c20"
+            ETag:
+              $ref: '#/components/headers/ETag'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Party'
+              example:
+                id: "018f1a3c-7e3b-7c5a-9c2e-6a2f8e9b0c20"
+                partyType: ORGANIZATION
+                legalName: "Acme Events SA"
+                displayName: "Acme Events"
+                taxId: null
+                erpCompanyCode: null
+                isInternal: false
+                isActive: true
+                createdAt: "2026-10-18T16:20:00Z"
+                updatedAt: "2026-10-18T16:20:00Z"
+        '400':
+          $ref: '_shared/components.yaml#/components/responses/BadRequest'
+        '401':
+          $ref: '_shared/components.yaml#/components/responses/Unauthorized'
+        '403':
+          $ref: '_shared/components.yaml#/components/responses/Forbidden'
+        '404':
+          $ref: '_shared/components.yaml#/components/responses/NotFound'
+        '409':
+          $ref: '_shared/components.yaml#/components/responses/Conflict'
+        '422':
+          $ref: '_shared/components.yaml#/components/responses/UnprocessableEntity'
+
+  /v1/parties/{id}:
+    get:
+      operationId: getParty
+      summary: Obtener un party por id.
+      description: Obtener un party por id.
+      tags: [Parties]
+      x-permission: "PARTY:READ"
+      x-scope: none
+      parameters:
+        - $ref: '#/components/parameters/PartyId'
+      responses:
+        '200':
+          description: Party encontrado.
+          headers:
+            ETag:
+              $ref: '#/components/headers/ETag'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Party'
+              example:
+                id: "018f1a3c-7e3b-7c5a-9c2e-6a2f8e9b0c20"
+                partyType: ORGANIZATION
+                legalName: "Acme Events SA"
+                displayName: "Acme Events"
+                taxId: null
+                erpCompanyCode: null
+                isInternal: false
+                isActive: true
+                createdAt: "2026-10-18T16:20:00Z"
+                updatedAt: "2026-10-18T16:20:00Z"
+        '400':
+          $ref: '_shared/components.yaml#/components/responses/BadRequest'
+        '401':
+          $ref: '_shared/components.yaml#/components/responses/Unauthorized'
+        '403':
+          $ref: '_shared/components.yaml#/components/responses/Forbidden'
+        '404':
+          $ref: '_shared/components.yaml#/components/responses/NotFound'
+    put:
+      operationId: updateParty
+      summary: Modificar un party.
+      description: Modificar un party.
+      tags: [Parties]
+      x-permission: "PARTY:UPDATE"
+      x-scope: none
+      parameters:
+        - $ref: '#/components/parameters/PartyId'
+        - $ref: '_shared/components.yaml#/components/parameters/IfMatch'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdatePartyRequest'
+            example:
+              legalName: "Acme Events SA"
+              displayName: "Acme Events"
+              taxId: "CHE-123.456.789"
+              erpCompanyCode: "ACME01"
+      responses:
+        '200':
+          description: Party modificado.
+          headers:
+            ETag:
+              $ref: '#/components/headers/ETag'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Party'
+              example:
+                id: "018f1a3c-7e3b-7c5a-9c2e-6a2f8e9b0c20"
+                partyType: ORGANIZATION
+                legalName: "Acme Events SA"
+                displayName: "Acme Events"
+                taxId: "CHE-123.456.789"
+                erpCompanyCode: "ACME01"
+                isInternal: false
+                isActive: true
+                createdAt: "2026-10-18T16:20:00Z"
+                updatedAt: "2026-10-19T08:05:00Z"
+        '400':
+          $ref: '_shared/components.yaml#/components/responses/BadRequest'
+        '401':
+          $ref: '_shared/components.yaml#/components/responses/Unauthorized'
+        '403':
+          $ref: '_shared/components.yaml#/components/responses/Forbidden'
+        '404':
+          $ref: '_shared/components.yaml#/components/responses/NotFound'
+        '409':
+          $ref: '_shared/components.yaml#/components/responses/Conflict'
+        '422':
+          $ref: '_shared/components.yaml#/components/responses/UnprocessableEntity'
+        '428':
+          $ref: '_shared/components.yaml#/components/responses/PreconditionRequired'
+
+  /v1/parties/{id}/deactivate:
+    post:
+      operationId: deactivateParty
+      summary: Desactivar un party.
+      description: Desactivar un party.
+      tags: [Parties]
+      x-permission: "PARTY:UPDATE"
+      x-scope: none
+      parameters:
+        - $ref: '#/components/parameters/PartyId'
+        - $ref: '_shared/components.yaml#/components/parameters/IfMatch'
+      responses:
+        '200':
+          description: Party desactivado.
+          headers:
+            ETag:
+              $ref: '#/components/headers/ETag'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Party'
+              example:
+                id: "018f1a3c-7e3b-7c5a-9c2e-6a2f8e9b0c20"
+                partyType: ORGANIZATION
+                legalName: "Acme Events SA"
+                displayName: "Acme Events"
+                taxId: "CHE-123.456.789"
+                erpCompanyCode: "ACME01"
+                isInternal: false
+                isActive: false
+                createdAt: "2026-10-18T16:20:00Z"
+                updatedAt: "2026-10-19T09:00:00Z"
+        '400':
+          $ref: '_shared/components.yaml#/components/responses/BadRequest'
+        '401':
+          $ref: '_shared/components.yaml#/components/responses/Unauthorized'
+        '403':
+          $ref: '_shared/components.yaml#/components/responses/Forbidden'
+        '404':
+          $ref: '_shared/components.yaml#/components/responses/NotFound'
+        '409':
+          $ref: '_shared/components.yaml#/components/responses/Conflict'
+        '422':
+          $ref: '_shared/components.yaml#/components/responses/UnprocessableEntity'
+        '428':
+          $ref: '_shared/components.yaml#/components/responses/PreconditionRequired'
+
+  # ---------------------------------------------------------------------
+  # Groups
+  # ---------------------------------------------------------------------
+  /v1/groups:
+    get:
+      operationId: listGroups
+      summary: Listar groups.
+      description: Listar groups.
+      tags: [Groups]
+      x-permission: "ORG_STRUCTURE:READ"
+      x-scope: none
+      parameters:
+        - $ref: '_shared/components.yaml#/components/parameters/Page'
+        - $ref: '_shared/components.yaml#/components/parameters/PageSize'
+        - $ref: '_shared/components.yaml#/components/parameters/Sort'
+      responses:
+        '200':
+          description: Página de groups.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '_shared/components.yaml#/components/schemas/Page'
+                  - type: object
+                    properties:
+                      items:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/GroupListItem'
+              example:
+                items:
+                  - id: "018f1a3c-7e3b-7c5a-9c2e-6a2f8e9b0c30"
+                    partyId: "018f1a3c-7e3b-7c5a-9c2e-6a2f8e9b0c10"
+                    code: "NUSSLI"
+                    reportingCurrencyCode: "CHF"
+                page: 1
+                pageSize: 50
+                total: 1
+        '400':
+          $ref: '_shared/components.yaml#/components/responses/BadRequest'
+        '401':
+          $ref: '_shared/components.yaml#/components/responses/Unauthorized'
+        '403':
+          $ref: '_shared/components.yaml#/components/responses/Forbidden'
+        '404':
+          $ref: '_shared/components.yaml#/components/responses/NotFound'
+    post:
+      operationId: createGroup
+      summary: Crear un group.
+      description: >
+        Alta idempotente (`id` opcional, UUIDv7). Crea también el `Party`
+        interno (`partyType = ORGANIZATION`, `isInternal = true`, ORG-R1) en
+        la misma operación — el Party no tiene vida propia fuera del Group.
+      tags: [Groups]
+      x-permission: "ORG_STRUCTURE:CREATE"
+      x-scope: none
+      x-rules: [ORG-R1, ORG-R7]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateGroupRequest'
+            example:
+              legalName: "Nüssli Group"
+              code: "NUSSLI"
+              consolidationMethod: FULL
+              reportingCurrencyCode: "CHF"
+      responses:
+        '200':
+          description: Ya existía un group con el mismo `id` y contenido idéntico.
+          headers:
+            ETag:
+              $ref: '#/components/headers/ETag'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Group'
+              example:
+                id: "018f1a3c-7e3b-7c5a-9c2e-6a2f8e9b0c30"
+                partyId: "018f1a3c-7e3b-7c5a-9c2e-6a2f8e9b0c10"
+                code: "NUSSLI"
+                consolidationMethod: FULL
+                reportingCurrencyCode: "CHF"
+                createdAt: "2026-10-18T16:20:00Z"
+                updatedAt: "2026-10-18T16:20:00Z"
+        '201':
+          description: Group creado.
+          headers:
+            Location:
+              description: URL del nuevo recurso.
+              schema:
+                type: string
+              example: "/v1/groups/018f1a3c-7e3b-7c5a-9c2e-6a2f8e9b0c30"
+            ETag:
+              $ref: '#/components/headers/ETag'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Group'
+              example:
+                id: "018f1a3c-7e3b-7c5a-9c2e-6a2f8e9b0c30"
+                partyId: "018f1a3c-7e3b-7c5a-9c2e-6a2f8e9b0c10"
+                code: "NUSSLI"
+                consolidationMethod: FULL
+                reportingCurrencyCode: "CHF"
+                createdAt: "2026-10-18T16:20:00Z"
+                updatedAt: "2026-10-18T16:20:00Z"
+        '400':
+          $ref: '_shared/components.yaml#/components/responses/BadRequest'
+        '401':
+          $ref: '_shared/components.yaml#/components/responses/Unauthorized'
+        '403':
+          $ref: '_shared/components.yaml#/components/responses/Forbidden'
+        '404':
+          $ref: '_shared/components.yaml#/components/responses/NotFound'
+        '409':
+          $ref: '_shared/components.yaml#/components/responses/Conflict'
+        '422':
+          $ref: '_shared/components.yaml#/components/responses/UnprocessableEntity'
+
+  /v1/groups/{id}:
+    get:
+      operationId: getGroup
+      summary: Obtener un group por id.
+      description: Obtener un group por id.
+      tags: [Groups]
+      x-permission: "ORG_STRUCTURE:READ"
+      x-scope: none
+      parameters:
+        - $ref: '#/components/parameters/GroupId'
+      responses:
+        '200':
+          description: Group encontrado.
+          headers:
+            ETag:
+              $ref: '#/components/headers/ETag'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Group'
+              example:
+                id: "018f1a3c-7e3b-7c5a-9c2e-6a2f8e9b0c30"
+                partyId: "018f1a3c-7e3b-7c5a-9c2e-6a2f8e9b0c10"
+                code: "NUSSLI"
+                consolidationMethod: FULL
+                reportingCurrencyCode: "CHF"
+                createdAt: "2026-10-18T16:20:00Z"
+                updatedAt: "2026-10-18T16:20:00Z"
+        '400':
+          $ref: '_shared/components.yaml#/components/responses/BadRequest'
+        '401':
+          $ref: '_shared/components.yaml#/components/responses/Unauthorized'
+        '403':
+          $ref: '_shared/components.yaml#/components/responses/Forbidden'
+        '404':
+          $ref: '_shared/components.yaml#/components/responses/NotFound'
+    put:
+      operationId: updateGroup
+      summary: Modificar un group.
+      description: Modificar un group.
+      tags: [Groups]
+      x-permission: "ORG_STRUCTURE:UPDATE"
+      x-scope: none
+      x-rules: [ORG-R7]
+      parameters:
+        - $ref: '#/components/parameters/GroupId'
+        - $ref: '_shared/components.yaml#/components/parameters/IfMatch'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateGroupRequest'
+            example:
+              code: "NUSSLI"
+              consolidationMethod: FULL
+              reportingCurrencyCode: "CHF"
+      responses:
+        '200':
+          description: Group modificado.
+          headers:
+            ETag:
+              $ref: '#/components/headers/ETag'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Group'
+              example:
+                id: "018f1a3c-7e3b-7c5a-9c2e-6a2f8e9b0c30"
+                partyId: "018f1a3c-7e3b-7c5a-9c2e-6a2f8e9b0c10"
+                code: "NUSSLI"
+                consolidationMethod: FULL
+                reportingCurrencyCode: "CHF"
+                createdAt: "2026-10-18T16:20:00Z"
+                updatedAt: "2026-10-19T08:05:00Z"
+        '400':
+          $ref: '_shared/components.yaml#/components/responses/BadRequest'
+        '401':
+          $ref: '_shared/components.yaml#/components/responses/Unauthorized'
+        '403':
+          $ref: '_shared/components.yaml#/components/responses/Forbidden'
+        '404':
+          $ref: '_shared/components.yaml#/components/responses/NotFound'
+        '409':
+          $ref: '_shared/components.yaml#/components/responses/Conflict'
+        '422':
+          $ref: '_shared/components.yaml#/components/responses/UnprocessableEntity'
+        '428':
+          $ref: '_shared/components.yaml#/components/responses/PreconditionRequired'
+
+  # ---------------------------------------------------------------------
+  # Legal Entities
+  # ---------------------------------------------------------------------
+  /v1/legal-entities:
+    get:
+      operationId: listLegalEntities
+      summary: Listar legal entities.
+      description: Listar legal entities.
+      tags: [LegalEntities]
+      x-permission: "ORG_STRUCTURE:READ"
+      x-scope: none
+      parameters:
+        - $ref: '_shared/components.yaml#/components/parameters/Page'
+        - $ref: '_shared/components.yaml#/components/parameters/PageSize'
+        - $ref: '_shared/components.yaml#/components/parameters/Sort'
+      responses:
+        '200':
+          description: Página de legal entities.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '_shared/components.yaml#/components/schemas/Page'
+                  - type: object
+                    properties:
+                      items:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/LegalEntityListItem'
+              example:
+                items:
+                  - id: "018f1a3c-7e3b-7c5a-9c2e-6a2f8e9b0c40"
+                    groupId: "018f1a3c-7e3b-7c5a-9c2e-6a2f8e9b0c30"
+                    code: "LE-CH"
+                    currencyCode: "CHF"
+                    countryCode: "CH"
+                    isActive: true
+                page: 1
+                pageSize: 50
+                total: 1
+        '400':
+          $ref: '_shared/components.yaml#/components/responses/BadRequest'
+        '401':
+          $ref: '_shared/components.yaml#/components/responses/Unauthorized'
+        '403':
+          $ref: '_shared/components.yaml#/components/responses/Forbidden'
+        '404':
+          $ref: '_shared/components.yaml#/components/responses/NotFound'
+    post:
+      operationId: createLegalEntity
+      summary: Crear una legal entity.
+      description: >
+        Alta idempotente (`id` opcional, UUIDv7). Crea también el `Party`
+        interno (`partyType = ORGANIZATION`, `isInternal = true`, ORG-R1) en
+        la misma operación.
+      tags: [LegalEntities]
+      x-permission: "ORG_STRUCTURE:CREATE"
+      x-scope: none
+      x-rules: [ORG-R1, ORG-R7]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateLegalEntityRequest'
+            example:
+              legalName: "Nexus Event AG"
+              groupId: "018f1a3c-7e3b-7c5a-9c2e-6a2f8e9b0c30"
+              code: "LE-CH"
+              currencyCode: "CHF"
+              countryCode: "CH"
+      responses:
+        '200':
+          description: Ya existía una legal entity con el mismo `id` y contenido idéntico.
+          headers:
+            ETag:
+              $ref: '#/components/headers/ETag'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LegalEntity'
+              example:
+                id: "018f1a3c-7e3b-7c5a-9c2e-6a2f8e9b0c40"
+                partyId: "018f1a3c-7e3b-7c5a-9c2e-6a2f8e9b0c11"
+                groupId: "018f1a3c-7e3b-7c5a-9c2e-6a2f8e9b0c30"
+                code: "LE-CH"
+                currencyCode: "CHF"
+                countryCode: "CH"
+                isActive: true
+                createdAt: "2026-10-18T16:20:00Z"
+                updatedAt: "2026-10-18T16:20:00Z"
+        '201':
+          description: Legal entity creada.
+          headers:
+            Location:
+              description: URL del nuevo recurso.
+              schema:
+                type: string
+              example: "/v1/legal-entities/018f1a3c-7e3b-7c5a-9c2e-6a2f8e9b0c40"
+            ETag:
+              $ref: '#/components/headers/ETag'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LegalEntity'
+              example:
+                id: "018f1a3c-7e3b-7c5a-9c2e-6a2f8e9b0c40"
+                partyId: "018f1a3c-7e3b-7c5a-9c2e-6a2f8e9b0c11"
+                groupId: "018f1a3c-7e3b-7c5a-9c2e-6a2f8e9b0c30"
+                code: "LE-CH"
+                currencyCode: "CHF"
+                countryCode: "CH"
+                isActive: true
+                createdAt: "2026-10-18T16:20:00Z"
+                updatedAt: "2026-10-18T16:20:00Z"
+        '400':
+          $ref: '_shared/components.yaml#/components/responses/BadRequest'
+        '401':
+          $ref: '_shared/components.yaml#/components/responses/Unauthorized'
+        '403':
+          $ref: '_shared/components.yaml#/components/responses/Forbidden'
+        '404':
+          $ref: '_shared/components.yaml#/components/responses/NotFound'
+        '409':
+          $ref: '_shared/components.yaml#/components/responses/Conflict'
+        '422':
+          $ref: '_shared/components.yaml#/components/responses/UnprocessableEntity'
+
+  /v1/legal-entities/{id}:
+    get:
+      operationId: getLegalEntity
+      summary: Obtener una legal entity por id.
+      description: Obtener una legal entity por id.
+      tags: [LegalEntities]
+      x-permission: "ORG_STRUCTURE:READ"
+      x-scope: none
+      parameters:
+        - $ref: '#/components/parameters/LegalEntityId'
+      responses:
+        '200':
+          description: Legal entity encontrada.
+          headers:
+            ETag:
+              $ref: '#/components/headers/ETag'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LegalEntity'
+              example:
+                id: "018f1a3c-7e3b-7c5a-9c2e-6a2f8e9b0c40"
+                partyId: "018f1a3c-7e3b-7c5a-9c2e-6a2f8e9b0c11"
+                groupId: "018f1a3c-7e3b-7c5a-9c2e-6a2f8e9b0c30"
+                code: "LE-CH"
+                currencyCode: "CHF"
+                countryCode: "CH"
+                isActive: true
+                createdAt: "2026-10-18T16:20:00Z"
+                updatedAt: "2026-10-18T16:20:00Z"
+        '400':
+          $ref: '_shared/components.yaml#/components/responses/BadRequest'
+        '401':
+          $ref: '_shared/components.yaml#/components/responses/Unauthorized'
+        '403':
+          $ref: '_shared/components.yaml#/components/responses/Forbidden'
+        '404':
+          $ref: '_shared/components.yaml#/components/responses/NotFound'
+    put:
+      operationId: updateLegalEntity
+      summary: Modificar una legal entity.
+      description: Modificar una legal entity.
+      tags: [LegalEntities]
+      x-permission: "ORG_STRUCTURE:UPDATE"
+      x-scope: none
+      x-rules: [ORG-R7]
+      parameters:
+        - $ref: '#/components/parameters/LegalEntityId'
+        - $ref: '_shared/components.yaml#/components/parameters/IfMatch'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateLegalEntityRequest'
+            example:
+              code: "LE-CH"
+              currencyCode: "CHF"
+              countryCode: "CH"
+      responses:
+        '200':
+          description: Legal entity modificada.
+          headers:
+            ETag:
+              $ref: '#/components/headers/ETag'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LegalEntity'
+              example:
+                id: "018f1a3c-7e3b-7c5a-9c2e-6a2f8e9b0c40"
+                partyId: "018f1a3c-7e3b-7c5a-9c2e-6a2f8e9b0c11"
+                groupId: "018f1a3c-7e3b-7c5a-9c2e-6a2f8e9b0c30"
+                code: "LE-CH"
+                currencyCode: "CHF"
+                countryCode: "CH"
+                isActive: true
+                createdAt: "2026-10-18T16:20:00Z"
+                updatedAt: "2026-10-19T08:05:00Z"
+        '400':
+          $ref: '_shared/components.yaml#/components/responses/BadRequest'
+        '401':
+          $ref: '_shared/components.yaml#/components/responses/Unauthorized'
+        '403':
+          $ref: '_shared/components.yaml#/components/responses/Forbidden'
+        '404':
+          $ref: '_shared/components.yaml#/components/responses/NotFound'
+        '409':
+          $ref: '_shared/components.yaml#/components/responses/Conflict'
+        '422':
+          $ref: '_shared/components.yaml#/components/responses/UnprocessableEntity'
+        '428':
+          $ref: '_shared/components.yaml#/components/responses/PreconditionRequired'
+
+  /v1/legal-entities/{id}/deactivate:
+    post:
+      operationId: deactivateLegalEntity
+      summary: Desactivar una legal entity.
+      description: >
+        Solo se desactiva si no tiene Business Unit ni Warehouse activos
+        (ORG-R5).
+      tags: [LegalEntities]
+      x-permission: "ORG_STRUCTURE:UPDATE"
+      x-scope: none
+      x-rules: [ORG-R5]
+      parameters:
+        - $ref: '#/components/parameters/LegalEntityId'
+        - $ref: '_shared/components.yaml#/components/parameters/IfMatch'
+      responses:
+        '200':
+          description: Legal entity desactivada.
+          headers:
+            ETag:
+              $ref: '#/components/headers/ETag'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LegalEntity'
+              example:
+                id: "018f1a3c-7e3b-7c5a-9c2e-6a2f8e9b0c40"
+                partyId: "018f1a3c-7e3b-7c5a-9c2e-6a2f8e9b0c11"
+                groupId: "018f1a3c-7e3b-7c5a-9c2e-6a2f8e9b0c30"
+                code: "LE-CH"
+                currencyCode: "CHF"
+                countryCode: "CH"
+                isActive: false
+                createdAt: "2026-10-18T16:20:00Z"
+                updatedAt: "2026-10-19T09:00:00Z"
+        '400':
+          $ref: '_shared/components.yaml#/components/responses/BadRequest'
+        '401':
+          $ref: '_shared/components.yaml#/components/responses/Unauthorized'
+        '403':
+          $ref: '_shared/components.yaml#/components/responses/Forbidden'
+        '404':
+          $ref: '_shared/components.yaml#/components/responses/NotFound'
+        '409':
+          $ref: '_shared/components.yaml#/components/responses/Conflict'
+        '422':
+          $ref: '_shared/components.yaml#/components/responses/UnprocessableEntity'
+        '428':
+          $ref: '_shared/components.yaml#/components/responses/PreconditionRequired'
+
+  # ---------------------------------------------------------------------
+  # Business Units
+  # ---------------------------------------------------------------------
+  /v1/business-units:
+    get:
+      operationId: listBusinessUnits
+      summary: Listar business units.
+      description: Listar business units.
+      tags: [BusinessUnits]
+      x-permission: "ORG_STRUCTURE:READ"
+      x-scope: none
+      parameters:
+        - $ref: '_shared/components.yaml#/components/parameters/Page'
+        - $ref: '_shared/components.yaml#/components/parameters/PageSize'
+        - $ref: '_shared/components.yaml#/components/parameters/Sort'
+      responses:
+        '200':
+          description: Página de business units.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '_shared/components.yaml#/components/schemas/Page'
+                  - type: object
+                    properties:
+                      items:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/BusinessUnitListItem'
+              example:
+                items:
+                  - id: "018f1a3c-7e3b-7c5a-9c2e-6a2f8e9b0c50"
+                    legalEntityId: "018f1a3c-7e3b-7c5a-9c2e-6a2f8e9b0c40"
+                    code: "BU-01"
+                    captionI18n:
+                      de: "Vermietung"
+                      en: "Rental"
+                    isActive: true
+                page: 1
+                pageSize: 50
+                total: 1
+        '400':
+          $ref: '_shared/components.yaml#/components/responses/BadRequest'
+        '401':
+          $ref: '_shared/components.yaml#/components/responses/Unauthorized'
+        '403':
+          $ref: '_shared/components.yaml#/components/responses/Forbidden'
+        '404':
+          $ref: '_shared/components.yaml#/components/responses/NotFound'
+    post:
+      operationId: createBusinessUnit
+      summary: Crear una business unit.
+      description: >
+        Alta idempotente (`id` opcional, UUIDv7). Crea también el `Party`
+        interno (`partyType = ORGANIZATION`, `isInternal = true`, ORG-R1) en
+        la misma operación.
+      tags: [BusinessUnits]
+      x-permission: "ORG_STRUCTURE:CREATE"
+      x-scope: none
+      x-rules: [ORG-R1]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateBusinessUnitRequest'
+            example:
+              legalName: "Vermietung CH"
+              legalEntityId: "018f1a3c-7e3b-7c5a-9c2e-6a2f8e9b0c40"
+              code: "BU-01"
+              captionI18n:
+                de: "Vermietung"
+                en: "Rental"
+              costCenterCode: "CC-100"
+      responses:
+        '200':
+          description: Ya existía una business unit con el mismo `id` y contenido idéntico.
+          headers:
+            ETag:
+              $ref: '#/components/headers/ETag'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BusinessUnit'
+              example:
+                id: "018f1a3c-7e3b-7c5a-9c2e-6a2f8e9b0c50"
+                partyId: "018f1a3c-7e3b-7c5a-9c2e-6a2f8e9b0c12"
+                legalEntityId: "018f1a3c-7e3b-7c5a-9c2e-6a2f8e9b0c40"
+                code: "BU-01"
+                captionI18n:
+                  de: "Vermietung"
+                  en: "Rental"
+                costCenterCode: "CC-100"
+                isActive: true
+                createdAt: "2026-10-18T16:20:00Z"
+                updatedAt: "2026-10-18T16:20:00Z"
+        '201':
+          description: Business unit creada.
+          headers:
+            Location:
+              description: URL del nuevo recurso.
+              schema:
+                type: string
+              example: "/v1/business-units/018f1a3c-7e3b-7c5a-9c2e-6a2f8e9b0c50"
+            ETag:
+              $ref: '#/components/headers/ETag'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BusinessUnit'
+              example:
+                id: "018f1a3c-7e3b-7c5a-9c2e-6a2f8e9b0c50"
+                partyId: "018f1a3c-7e3b-7c5a-9c2e-6a2f8e9b0c12"
+                legalEntityId: "018f1a3c-7e3b-7c5a-9c2e-6a2f8e9b0c40"
+                code: "BU-01"
+                captionI18n:
+                  de: "Vermietung"
+                  en: "Rental"
+                costCenterCode: "CC-100"
+                isActive: true
+                createdAt: "2026-10-18T16:20:00Z"
+                updatedAt: "2026-10-18T16:20:00Z"
+        '400':
+          $ref: '_shared/components.yaml#/components/responses/BadRequest'
+        '401':
+          $ref: '_shared/components.yaml#/components/responses/Unauthorized'
+        '403':
+          $ref: '_shared/components.yaml#/components/responses/Forbidden'
+        '404':
+          $ref: '_shared/components.yaml#/components/responses/NotFound'
+        '409':
+          $ref: '_shared/components.yaml#/components/responses/Conflict'
+        '422':
+          $ref: '_shared/components.yaml#/components/responses/UnprocessableEntity'
+
+  /v1/business-units/{id}:
+    get:
+      operationId: getBusinessUnit
+      summary: Obtener una business unit por id.
+      description: Obtener una business unit por id.
+      tags: [BusinessUnits]
+      x-permission: "ORG_STRUCTURE:READ"
+      x-scope: none
+      parameters:
+        - $ref: '#/components/parameters/BusinessUnitId'
+      responses:
+        '200':
+          description: Business unit encontrada.
+          headers:
+            ETag:
+              $ref: '#/components/headers/ETag'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BusinessUnit'
+              example:
+                id: "018f1a3c-7e3b-7c5a-9c2e-6a2f8e9b0c50"
+                partyId: "018f1a3c-7e3b-7c5a-9c2e-6a2f8e9b0c12"
+                legalEntityId: "018f1a3c-7e3b-7c5a-9c2e-6a2f8e9b0c40"
+                code: "BU-01"
+                captionI18n:
+                  de: "Vermietung"
+                  en: "Rental"
+                costCenterCode: "CC-100"
+                isActive: true
+                createdAt: "2026-10-18T16:20:00Z"
+                updatedAt: "2026-10-18T16:20:00Z"
+        '400':
+          $ref: '_shared/components.yaml#/components/responses/BadRequest'
+        '401':
+          $ref: '_shared/components.yaml#/components/responses/Unauthorized'
+        '403':
+          $ref: '_shared/components.yaml#/components/responses/Forbidden'
+        '404':
+          $ref: '_shared/components.yaml#/components/responses/NotFound'
+    put:
+      operationId: updateBusinessUnit
+      summary: Modificar una business unit.
+      description: Modificar una business unit.
+      tags: [BusinessUnits]
+      x-permission: "ORG_STRUCTURE:UPDATE"
+      x-scope: none
+      parameters:
+        - $ref: '#/components/parameters/BusinessUnitId'
+        - $ref: '_shared/components.yaml#/components/parameters/IfMatch'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateBusinessUnitRequest'
+            example:
+              code: "BU-01"
+              captionI18n:
+                de: "Vermietung"
+                en: "Rental"
+              costCenterCode: "CC-100"
+      responses:
+        '200':
+          description: Business unit modificada.
+          headers:
+            ETag:
+              $ref: '#/components/headers/ETag'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BusinessUnit'
+              example:
+                id: "018f1a3c-7e3b-7c5a-9c2e-6a2f8e9b0c50"
+                partyId: "018f1a3c-7e3b-7c5a-9c2e-6a2f8e9b0c12"
+                legalEntityId: "018f1a3c-7e3b-7c5a-9c2e-6a2f8e9b0c40"
+                code: "BU-01"
+                captionI18n:
+                  de: "Vermietung"
+                  en: "Rental"
+                costCenterCode: "CC-100"
+                isActive: true
+                createdAt: "2026-10-18T16:20:00Z"
+                updatedAt: "2026-10-19T08:05:00Z"
+        '400':
+          $ref: '_shared/components.yaml#/components/responses/BadRequest'
+        '401':
+          $ref: '_shared/components.yaml#/components/responses/Unauthorized'
+        '403':
+          $ref: '_shared/components.yaml#/components/responses/Forbidden'
+        '404':
+          $ref: '_shared/components.yaml#/components/responses/NotFound'
+        '409':
+          $ref: '_shared/components.yaml#/components/responses/Conflict'
+        '422':
+          $ref: '_shared/components.yaml#/components/responses/UnprocessableEntity'
+        '428':
+          $ref: '_shared/components.yaml#/components/responses/PreconditionRequired'
+
+  /v1/business-units/{id}/deactivate:
+    post:
+      operationId: deactivateBusinessUnit
+      summary: Desactivar una business unit.
+      description: Desactivar una business unit.
+      tags: [BusinessUnits]
+      x-permission: "ORG_STRUCTURE:UPDATE"
+      x-scope: none
+      parameters:
+        - $ref: '#/components/parameters/BusinessUnitId'
+        - $ref: '_shared/components.yaml#/components/parameters/IfMatch'
+      responses:
+        '200':
+          description: Business unit desactivada.
+          headers:
+            ETag:
+              $ref: '#/components/headers/ETag'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BusinessUnit'
+              example:
+                id: "018f1a3c-7e3b-7c5a-9c2e-6a2f8e9b0c50"
+                partyId: "018f1a3c-7e3b-7c5a-9c2e-6a2f8e9b0c12"
+                legalEntityId: "018f1a3c-7e3b-7c5a-9c2e-6a2f8e9b0c40"
+                code: "BU-01"
+                captionI18n:
+                  de: "Vermietung"
+                  en: "Rental"
+                costCenterCode: "CC-100"
+                isActive: false
+                createdAt: "2026-10-18T16:20:00Z"
+                updatedAt: "2026-10-19T09:00:00Z"
+        '400':
+          $ref: '_shared/components.yaml#/components/responses/BadRequest'
+        '401':
+          $ref: '_shared/components.yaml#/components/responses/Unauthorized'
+        '403':
+          $ref: '_shared/components.yaml#/components/responses/Forbidden'
+        '404':
+          $ref: '_shared/components.yaml#/components/responses/NotFound'
+        '409':
+          $ref: '_shared/components.yaml#/components/responses/Conflict'
+        '428':
+          $ref: '_shared/components.yaml#/components/responses/PreconditionRequired'
+
+  # ---------------------------------------------------------------------
+  # Locations
+  # ---------------------------------------------------------------------
+  /v1/locations:
+    get:
+      operationId: listLocations
+      summary: Listar locations.
+      description: Listar locations.
+      tags: [Locations]
+      x-permission: "ORG_STRUCTURE:READ"
+      x-scope: none
+      parameters:
+        - $ref: '_shared/components.yaml#/components/parameters/Page'
+        - $ref: '_shared/components.yaml#/components/parameters/PageSize'
+        - $ref: '_shared/components.yaml#/components/parameters/Sort'
+      responses:
+        '200':
+          description: Página de locations.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '_shared/components.yaml#/components/schemas/Page'
+                  - type: object
+                    properties:
+                      items:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/LocationListItem'
+              example:
+                items:
+                  - id: "018f1a3c-7e3b-7c5a-9c2e-6a2f8e9b0c60"
+                    code: "LOC-ZH"
+                    name: "Zürich Lagerhalle"
+                    city: "Zürich"
+                    countryCode: "CH"
+                    isActive: true
+                page: 1
+                pageSize: 50
+                total: 1
+        '400':
+          $ref: '_shared/components.yaml#/components/responses/BadRequest'
+        '401':
+          $ref: '_shared/components.yaml#/components/responses/Unauthorized'
+        '403':
+          $ref: '_shared/components.yaml#/components/responses/Forbidden'
+        '404':
+          $ref: '_shared/components.yaml#/components/responses/NotFound'
+    post:
+      operationId: createLocation
+      summary: Crear una location.
+      description: >
+        Alta idempotente: el cliente puede enviar `id` (UUIDv7). Si ya
+        existe una location con ese `id` y contenido idéntico, responde
+        200 con el recurso existente; si existe con contenido distinto,
+        responde 409.
+      tags: [Locations]
+      x-permission: "ORG_STRUCTURE:CREATE"
+      x-scope: none
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateLocationRequest'
+            example:
+              code: "LOC-ZH"
+              name: "Zürich Lagerhalle"
+              street: "Industriestrasse 1"
+              postalCode: "8005"
+              city: "Zürich"
+              region: "ZH"
+              countryCode: "CH"
+      responses:
+        '200':
+          description: Ya existía una location con el mismo `id` y contenido idéntico.
+          headers:
+            ETag:
+              $ref: '#/components/headers/ETag'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Location'
+              example:
+                id: "018f1a3c-7e3b-7c5a-9c2e-6a2f8e9b0c60"
+                code: "LOC-ZH"
+                name: "Zürich Lagerhalle"
+                street: "Industriestrasse 1"
+                postalCode: "8005"
+                city: "Zürich"
+                region: "ZH"
+                countryCode: "CH"
+                isActive: true
+                createdAt: "2026-10-18T16:20:00Z"
+                updatedAt: "2026-10-18T16:20:00Z"
+        '201':
+          description: Location creada.
+          headers:
+            Location:
+              description: URL del nuevo recurso.
+              schema:
+                type: string
+              example: "/v1/locations/018f1a3c-7e3b-7c5a-9c2e-6a2f8e9b0c60"
+            ETag:
+              $ref: '#/components/headers/ETag'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Location'
+              example:
+                id: "018f1a3c-7e3b-7c5a-9c2e-6a2f8e9b0c60"
+                code: "LOC-ZH"
+                name: "Zürich Lagerhalle"
+                street: "Industriestrasse 1"
+                postalCode: "8005"
+                city: "Zürich"
+                region: "ZH"
+                countryCode: "CH"
+                isActive: true
+                createdAt: "2026-10-18T16:20:00Z"
+                updatedAt: "2026-10-18T16:20:00Z"
+        '400':
+          $ref: '_shared/components.yaml#/components/responses/BadRequest'
+        '401':
+          $ref: '_shared/components.yaml#/components/responses/Unauthorized'
+        '403':
+          $ref: '_shared/components.yaml#/components/responses/Forbidden'
+        '404':
+          $ref: '_shared/components.yaml#/components/responses/NotFound'
+        '409':
+          $ref: '_shared/components.yaml#/components/responses/Conflict'
+        '422':
+          $ref: '_shared/components.yaml#/components/responses/UnprocessableEntity'
+
+  /v1/locations/{id}:
+    get:
+      operationId: getLocation
+      summary: Obtener una location por id.
+      description: Obtener una location por id.
+      tags: [Locations]
+      x-permission: "ORG_STRUCTURE:READ"
+      x-scope: none
+      parameters:
+        - $ref: '#/components/parameters/LocationId'
+      responses:
+        '200':
+          description: Location encontrada.
+          headers:
+            ETag:
+              $ref: '#/components/headers/ETag'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Location'
+              example:
+                id: "018f1a3c-7e3b-7c5a-9c2e-6a2f8e9b0c60"
+                code: "LOC-ZH"
+                name: "Zürich Lagerhalle"
+                street: "Industriestrasse 1"
+                postalCode: "8005"
+                city: "Zürich"
+                region: "ZH"
+                countryCode: "CH"
+                isActive: true
+                createdAt: "2026-10-18T16:20:00Z"
+                updatedAt: "2026-10-18T16:20:00Z"
+        '400':
+          $ref: '_shared/components.yaml#/components/responses/BadRequest'
+        '401':
+          $ref: '_shared/components.yaml#/components/responses/Unauthorized'
+        '403':
+          $ref: '_shared/components.yaml#/components/responses/Forbidden'
+        '404':
+          $ref: '_shared/components.yaml#/components/responses/NotFound'
+    put:
+      operationId: updateLocation
+      summary: Modificar una location.
+      description: Modificar una location.
+      tags: [Locations]
+      x-permission: "ORG_STRUCTURE:UPDATE"
+      x-scope: none
+      parameters:
+        - $ref: '#/components/parameters/LocationId'
+        - $ref: '_shared/components.yaml#/components/parameters/IfMatch'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateLocationRequest'
+            example:
+              code: "LOC-ZH"
+              name: "Zürich Lagerhalle"
+              street: "Industriestrasse 1"
+              postalCode: "8005"
+              city: "Zürich"
+              region: "ZH"
+              countryCode: "CH"
+      responses:
+        '200':
+          description: Location modificada.
+          headers:
+            ETag:
+              $ref: '#/components/headers/ETag'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Location'
+              example:
+                id: "018f1a3c-7e3b-7c5a-9c2e-6a2f8e9b0c60"
+                code: "LOC-ZH"
+                name: "Zürich Lagerhalle"
+                street: "Industriestrasse 1"
+                postalCode: "8005"
+                city: "Zürich"
+                region: "ZH"
+                countryCode: "CH"
+                isActive: true
+                createdAt: "2026-10-18T16:20:00Z"
+                updatedAt: "2026-10-19T08:05:00Z"
+        '400':
+          $ref: '_shared/components.yaml#/components/responses/BadRequest'
+        '401':
+          $ref: '_shared/components.yaml#/components/responses/Unauthorized'
+        '403':
+          $ref: '_shared/components.yaml#/components/responses/Forbidden'
+        '404':
+          $ref: '_shared/components.yaml#/components/responses/NotFound'
+        '409':
+          $ref: '_shared/components.yaml#/components/responses/Conflict'
+        '422':
+          $ref: '_shared/components.yaml#/components/responses/UnprocessableEntity'
+        '428':
+          $ref: '_shared/components.yaml#/components/responses/PreconditionRequired'
+
+  # ---------------------------------------------------------------------
+  # Warehouses
+  # ---------------------------------------------------------------------
+  /v1/warehouses:
+    get:
+      operationId: listWarehouses
+      summary: Listar warehouses.
+      description: Listar warehouses.
+      tags: [Warehouses]
+      x-permission: "ORG_STRUCTURE:READ"
+      x-scope: none
+      parameters:
+        - $ref: '_shared/components.yaml#/components/parameters/Page'
+        - $ref: '_shared/components.yaml#/components/parameters/PageSize'
+        - $ref: '_shared/components.yaml#/components/parameters/Sort'
+        - $ref: '_shared/components.yaml#/components/parameters/Q'
+        - name: legalEntityId
+          in: query
+          required: false
+          description: Filtra por legal entity propietaria.
+          schema:
+            $ref: '_shared/components.yaml#/components/schemas/UuidV7'
+        - name: businessUnitId
+          in: query
+          required: false
+          description: Filtra por business unit asignada.
+          schema:
+            $ref: '_shared/components.yaml#/components/schemas/UuidV7'
+        - name: isActive
+          in: query
+          required: false
+          description: Filtra por estado activo/inactivo.
+          schema:
+            type: boolean
+          example: true
+      responses:
+        '200':
+          description: Página de warehouses.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '_shared/components.yaml#/components/schemas/Page'
+                  - type: object
+                    properties:
+                      items:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/WarehouseListItem'
+              example:
+                items:
+                  - id: "018f1a3c-7e3b-7c5a-9c2e-6a2f8e9b0c70"
+                    legalEntityId: "018f1a3c-7e3b-7c5a-9c2e-6a2f8e9b0c40"
+                    businessUnitId: "018f1a3c-7e3b-7c5a-9c2e-6a2f8e9b0c50"
+                    code: "WH-ZH-01"
+                    captionI18n:
+                      de: "Lager Zürich"
+                      en: "Zürich Warehouse"
+                    isActive: true
+                page: 1
+                pageSize: 50
+                total: 1
+        '400':
+          $ref: '_shared/components.yaml#/components/responses/BadRequest'
+        '401':
+          $ref: '_shared/components.yaml#/components/responses/Unauthorized'
+        '403':
+          $ref: '_shared/components.yaml#/components/responses/Forbidden'
+        '404':
+          $ref: '_shared/components.yaml#/components/responses/NotFound'
+    post:
+      operationId: createWarehouse
+      summary: Crear un warehouse.
+      description: >
+        Alta idempotente (`id` opcional, UUIDv7). Si se indica
+        `businessUnitId`, debe pertenecer a la misma `legalEntityId`
+        (ORG-R3).
+      tags: [Warehouses]
+      x-permission: "ORG_STRUCTURE:CREATE"
+      x-scope: none
+      x-rules: [ORG-R3]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateWarehouseRequest'
+            example:
+              locationId: "018f1a3c-7e3b-7c5a-9c2e-6a2f8e9b0c60"
+              legalEntityId: "018f1a3c-7e3b-7c5a-9c2e-6a2f8e9b0c40"
+              businessUnitId: "018f1a3c-7e3b-7c5a-9c2e-6a2f8e9b0c50"
+              code: "WH-ZH-01"
+              captionI18n:
+                de: "Lager Zürich"
+                en: "Zürich Warehouse"
+      responses:
+        '200':
+          description: Ya existía un warehouse con el mismo `id` y contenido idéntico.
+          headers:
+            ETag:
+              $ref: '#/components/headers/ETag'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Warehouse'
+              example:
+                id: "018f1a3c-7e3b-7c5a-9c2e-6a2f8e9b0c70"
+                locationId: "018f1a3c-7e3b-7c5a-9c2e-6a2f8e9b0c60"
+                legalEntityId: "018f1a3c-7e3b-7c5a-9c2e-6a2f8e9b0c40"
+                businessUnitId: "018f1a3c-7e3b-7c5a-9c2e-6a2f8e9b0c50"
+                code: "WH-ZH-01"
+                captionI18n:
+                  de: "Lager Zürich"
+                  en: "Zürich Warehouse"
+                isActive: true
+                createdAt: "2026-10-18T16:20:00Z"
+                updatedAt: "2026-10-18T16:20:00Z"
+        '201':
+          description: Warehouse creado.
+          headers:
+            Location:
+              description: URL del nuevo recurso.
+              schema:
+                type: string
+              example: "/v1/warehouses/018f1a3c-7e3b-7c5a-9c2e-6a2f8e9b0c70"
+            ETag:
+              $ref: '#/components/headers/ETag'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Warehouse'
+              example:
+                id: "018f1a3c-7e3b-7c5a-9c2e-6a2f8e9b0c70"
+                locationId: "018f1a3c-7e3b-7c5a-9c2e-6a2f8e9b0c60"
+                legalEntityId: "018f1a3c-7e3b-7c5a-9c2e-6a2f8e9b0c40"
+                businessUnitId: "018f1a3c-7e3b-7c5a-9c2e-6a2f8e9b0c50"
+                code: "WH-ZH-01"
+                captionI18n:
+                  de: "Lager Zürich"
+                  en: "Zürich Warehouse"
+                isActive: true
+                createdAt: "2026-10-18T16:20:00Z"
+                updatedAt: "2026-10-18T16:20:00Z"
+        '400':
+          $ref: '_shared/components.yaml#/components/responses/BadRequest'
+        '401':
+          $ref: '_shared/components.yaml#/components/responses/Unauthorized'
+        '403':
+          $ref: '_shared/components.yaml#/components/responses/Forbidden'
+        '404':
+          $ref: '_shared/components.yaml#/components/responses/NotFound'
+        '409':
+          $ref: '_shared/components.yaml#/components/responses/Conflict'
+        '422':
+          $ref: '_shared/components.yaml#/components/responses/UnprocessableEntity'
+
+  /v1/warehouses/{id}:
+    get:
+      operationId: getWarehouse
+      summary: Obtener un warehouse por id.
+      description: Obtener un warehouse por id.
+      tags: [Warehouses]
+      x-permission: "ORG_STRUCTURE:READ"
+      x-scope: none
+      parameters:
+        - $ref: '#/components/parameters/WarehouseId'
+      responses:
+        '200':
+          description: Warehouse encontrado.
+          headers:
+            ETag:
+              $ref: '#/components/headers/ETag'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Warehouse'
+              example:
+                id: "018f1a3c-7e3b-7c5a-9c2e-6a2f8e9b0c70"
+                locationId: "018f1a3c-7e3b-7c5a-9c2e-6a2f8e9b0c60"
+                legalEntityId: "018f1a3c-7e3b-7c5a-9c2e-6a2f8e9b0c40"
+                businessUnitId: "018f1a3c-7e3b-7c5a-9c2e-6a2f8e9b0c50"
+                code: "WH-ZH-01"
+                captionI18n:
+                  de: "Lager Zürich"
+                  en: "Zürich Warehouse"
+                isActive: true
+                createdAt: "2026-10-18T16:20:00Z"
+                updatedAt: "2026-10-18T16:20:00Z"
+        '400':
+          $ref: '_shared/components.yaml#/components/responses/BadRequest'
+        '401':
+          $ref: '_shared/components.yaml#/components/responses/Unauthorized'
+        '403':
+          $ref: '_shared/components.yaml#/components/responses/Forbidden'
+        '404':
+          $ref: '_shared/components.yaml#/components/responses/NotFound'
+    put:
+      operationId: updateWarehouse
+      summary: Modificar un warehouse.
+      description: Modificar un warehouse.
+      tags: [Warehouses]
+      x-permission: "ORG_STRUCTURE:UPDATE"
+      x-scope: none
+      x-rules: [ORG-R3]
+      parameters:
+        - $ref: '#/components/parameters/WarehouseId'
+        - $ref: '_shared/components.yaml#/components/parameters/IfMatch'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateWarehouseRequest'
+            example:
+              locationId: "018f1a3c-7e3b-7c5a-9c2e-6a2f8e9b0c60"
+              businessUnitId: "018f1a3c-7e3b-7c5a-9c2e-6a2f8e9b0c50"
+              code: "WH-ZH-01"
+              captionI18n:
+                de: "Lager Zürich"
+                en: "Zürich Warehouse"
+      responses:
+        '200':
+          description: Warehouse modificado.
+          headers:
+            ETag:
+              $ref: '#/components/headers/ETag'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Warehouse'
+              example:
+                id: "018f1a3c-7e3b-7c5a-9c2e-6a2f8e9b0c70"
+                locationId: "018f1a3c-7e3b-7c5a-9c2e-6a2f8e9b0c60"
+                legalEntityId: "018f1a3c-7e3b-7c5a-9c2e-6a2f8e9b0c40"
+                businessUnitId: "018f1a3c-7e3b-7c5a-9c2e-6a2f8e9b0c50"
+                code: "WH-ZH-01"
+                captionI18n:
+                  de: "Lager Zürich"
+                  en: "Zürich Warehouse"
+                isActive: true
+                createdAt: "2026-10-18T16:20:00Z"
+                updatedAt: "2026-10-19T08:05:00Z"
+        '400':
+          $ref: '_shared/components.yaml#/components/responses/BadRequest'
+        '401':
+          $ref: '_shared/components.yaml#/components/responses/Unauthorized'
+        '403':
+          $ref: '_shared/components.yaml#/components/responses/Forbidden'
+        '404':
+          $ref: '_shared/components.yaml#/components/responses/NotFound'
+        '409':
+          $ref: '_shared/components.yaml#/components/responses/Conflict'
+        '422':
+          $ref: '_shared/components.yaml#/components/responses/UnprocessableEntity'
+        '428':
+          $ref: '_shared/components.yaml#/components/responses/PreconditionRequired'
+
+  /v1/warehouses/{id}/deactivate:
+    post:
+      operationId: deactivateWarehouse
+      summary: Desactivar un warehouse.
+      description: Desactivar un warehouse.
+      tags: [Warehouses]
+      x-permission: "ORG_STRUCTURE:UPDATE"
+      x-scope: none
+      parameters:
+        - $ref: '#/components/parameters/WarehouseId'
+        - $ref: '_shared/components.yaml#/components/parameters/IfMatch'
+      responses:
+        '200':
+          description: Warehouse desactivado.
+          headers:
+            ETag:
+              $ref: '#/components/headers/ETag'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Warehouse'
+              example:
+                id: "018f1a3c-7e3b-7c5a-9c2e-6a2f8e9b0c70"
+                locationId: "018f1a3c-7e3b-7c5a-9c2e-6a2f8e9b0c60"
+                legalEntityId: "018f1a3c-7e3b-7c5a-9c2e-6a2f8e9b0c40"
+                businessUnitId: "018f1a3c-7e3b-7c5a-9c2e-6a2f8e9b0c50"
+                code: "WH-ZH-01"
+                captionI18n:
+                  de: "Lager Zürich"
+                  en: "Zürich Warehouse"
+                isActive: false
+                createdAt: "2026-10-18T16:20:00Z"
+                updatedAt: "2026-10-19T09:00:00Z"
+        '400':
+          $ref: '_shared/components.yaml#/components/responses/BadRequest'
+        '401':
+          $ref: '_shared/components.yaml#/components/responses/Unauthorized'
+        '403':
+          $ref: '_shared/components.yaml#/components/responses/Forbidden'
+        '404':
+          $ref: '_shared/components.yaml#/components/responses/NotFound'
+        '409':
+          $ref: '_shared/components.yaml#/components/responses/Conflict'
+        '428':
+          $ref: '_shared/components.yaml#/components/responses/PreconditionRequired'
+
+  # ---------------------------------------------------------------------
+  # Users
+  # ---------------------------------------------------------------------
+  /v1/users:
+    get:
+      operationId: listUsers
+      summary: Listar usuarios.
+      description: Listar usuarios.
+      tags: [Users]
+      x-permission: "USER:READ"
+      x-scope: none
+      parameters:
+        - $ref: '_shared/components.yaml#/components/parameters/Page'
+        - $ref: '_shared/components.yaml#/components/parameters/PageSize'
+        - $ref: '_shared/components.yaml#/components/parameters/Sort'
+      responses:
+        '200':
+          description: Página de usuarios.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '_shared/components.yaml#/components/schemas/Page'
+                  - type: object
+                    properties:
+                      items:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/UserListItem'
+              example:
+                items:
+                  - id: "018f1a3c-7e3b-7c5a-9c2e-6a2f8e9b0c80"
+                    fullName: "Jane Doe"
+                    email: "jane.doe@nussli.ch"
+                    preferredLanguage: "en"
+                    businessUnitId: "018f1a3c-7e3b-7c5a-9c2e-6a2f8e9b0c50"
+                    isActive: true
+                page: 1
+                pageSize: 50
+                total: 1
+        '400':
+          $ref: '_shared/components.yaml#/components/responses/BadRequest'
+        '401':
+          $ref: '_shared/components.yaml#/components/responses/Unauthorized'
+        '403':
+          $ref: '_shared/components.yaml#/components/responses/Forbidden'
+        '404':
+          $ref: '_shared/components.yaml#/components/responses/NotFound'
+    post:
+      operationId: createUser
+      summary: Crear un usuario.
+      description: >
+        Alta idempotente (`id` opcional, UUIDv7). Crea el `Party` (PERSON)
+        y el `app_user` asociado. `oid` mapea a `external_subject` (claim
+        `oid` de Entra ID, ADR-0006) y es obligatorio: el usuario SYSTEM
+        (sin `external_subject`) se siembra, no se crea por API (ORG-R6).
+      tags: [Users]
+      x-permission: "USER:CREATE"
+      x-scope: none
+      x-rules: [ORG-R6, ORG-R9]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateUserRequest'
+            example:
+              oid: "a1b2c3d4-0000-0000-0000-000000000001"
+              fullName: "Jane Doe"
+              email: "jane.doe@nussli.ch"
+              preferredLanguage: "en"
+              businessUnitId: "018f1a3c-7e3b-7c5a-9c2e-6a2f8e9b0c50"
+      responses:
+        '200':
+          description: Ya existía un usuario con el mismo `id` y contenido idéntico.
+          headers:
+            ETag:
+              $ref: '#/components/headers/ETag'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+              example:
+                id: "018f1a3c-7e3b-7c5a-9c2e-6a2f8e9b0c80"
+                partyId: "018f1a3c-7e3b-7c5a-9c2e-6a2f8e9b0c13"
+                fullName: "Jane Doe"
+                email: "jane.doe@nussli.ch"
+                preferredLanguage: "en"
+                businessUnitId: "018f1a3c-7e3b-7c5a-9c2e-6a2f8e9b0c50"
+                isActive: true
+                createdAt: "2026-10-18T16:20:00Z"
+                updatedAt: "2026-10-18T16:20:00Z"
+        '201':
+          description: Usuario creado.
+          headers:
+            Location:
+              description: URL del nuevo recurso.
+              schema:
+                type: string
+              example: "/v1/users/018f1a3c-7e3b-7c5a-9c2e-6a2f8e9b0c80"
+            ETag:
+              $ref: '#/components/headers/ETag'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+              example:
+                id: "018f1a3c-7e3b-7c5a-9c2e-6a2f8e9b0c80"
+                partyId: "018f1a3c-7e3b-7c5a-9c2e-6a2f8e9b0c13"
+                fullName: "Jane Doe"
+                email: "jane.doe@nussli.ch"
+                preferredLanguage: "en"
+                businessUnitId: "018f1a3c-7e3b-7c5a-9c2e-6a2f8e9b0c50"
+                isActive: true
+                createdAt: "2026-10-18T16:20:00Z"
+                updatedAt: "2026-10-18T16:20:00Z"
+        '400':
+          $ref: '_shared/components.yaml#/components/responses/BadRequest'
+        '401':
+          $ref: '_shared/components.yaml#/components/responses/Unauthorized'
+        '403':
+          $ref: '_shared/components.yaml#/components/responses/Forbidden'
+        '404':
+          $ref: '_shared/components.yaml#/components/responses/NotFound'
+        '409':
+          $ref: '_shared/components.yaml#/components/responses/Conflict'
+        '422':
+          $ref: '_shared/components.yaml#/components/responses/UnprocessableEntity'
+
+  /v1/users/{id}:
+    get:
+      operationId: getUser
+      summary: Obtener un usuario por id.
+      description: Obtener un usuario por id.
+      tags: [Users]
+      x-permission: "USER:READ"
+      x-scope: none
+      parameters:
+        - $ref: '#/components/parameters/UserId'
+      responses:
+        '200':
+          description: Usuario encontrado.
+          headers:
+            ETag:
+              $ref: '#/components/headers/ETag'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+              example:
+                id: "018f1a3c-7e3b-7c5a-9c2e-6a2f8e9b0c80"
+                partyId: "018f1a3c-7e3b-7c5a-9c2e-6a2f8e9b0c13"
+                fullName: "Jane Doe"
+                email: "jane.doe@nussli.ch"
+                preferredLanguage: "en"
+                businessUnitId: "018f1a3c-7e3b-7c5a-9c2e-6a2f8e9b0c50"
+                isActive: true
+                createdAt: "2026-10-18T16:20:00Z"
+                updatedAt: "2026-10-18T16:20:00Z"
+        '400':
+          $ref: '_shared/components.yaml#/components/responses/BadRequest'
+        '401':
+          $ref: '_shared/components.yaml#/components/responses/Unauthorized'
+        '403':
+          $ref: '_shared/components.yaml#/components/responses/Forbidden'
+        '404':
+          $ref: '_shared/components.yaml#/components/responses/NotFound'
+    put:
+      operationId: updateUser
+      summary: Modificar un usuario.
+      description: Modificar un usuario.
+      tags: [Users]
+      x-permission: "USER:UPDATE"
+      x-scope: none
+      x-rules: [ORG-R6, ORG-R9]
+      parameters:
+        - $ref: '#/components/parameters/UserId'
+        - $ref: '_shared/components.yaml#/components/parameters/IfMatch'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateUserRequest'
+            example:
+              fullName: "Jane Doe"
+              email: "jane.doe@nussli.ch"
+              preferredLanguage: "en"
+              businessUnitId: "018f1a3c-7e3b-7c5a-9c2e-6a2f8e9b0c50"
+      responses:
+        '200':
+          description: Usuario modificado.
+          headers:
+            ETag:
+              $ref: '#/components/headers/ETag'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+              example:
+                id: "018f1a3c-7e3b-7c5a-9c2e-6a2f8e9b0c80"
+                partyId: "018f1a3c-7e3b-7c5a-9c2e-6a2f8e9b0c13"
+                fullName: "Jane Doe"
+                email: "jane.doe@nussli.ch"
+                preferredLanguage: "en"
+                businessUnitId: "018f1a3c-7e3b-7c5a-9c2e-6a2f8e9b0c50"
+                isActive: true
+                createdAt: "2026-10-18T16:20:00Z"
+                updatedAt: "2026-10-19T08:05:00Z"
+        '400':
+          $ref: '_shared/components.yaml#/components/responses/BadRequest'
+        '401':
+          $ref: '_shared/components.yaml#/components/responses/Unauthorized'
+        '403':
+          $ref: '_shared/components.yaml#/components/responses/Forbidden'
+        '404':
+          $ref: '_shared/components.yaml#/components/responses/NotFound'
+        '409':
+          $ref: '_shared/components.yaml#/components/responses/Conflict'
+        '422':
+          $ref: '_shared/components.yaml#/components/responses/UnprocessableEntity'
+        '428':
+          $ref: '_shared/components.yaml#/components/responses/PreconditionRequired'
+
+  /v1/users/{id}/deactivate:
+    post:
+      operationId: deactivateUser
+      summary: Desactivar un usuario.
+      description: El usuario SYSTEM nunca se desactiva (ORG-R6).
+      tags: [Users]
+      x-permission: "USER:UPDATE"
+      x-scope: none
+      x-rules: [ORG-R6]
+      parameters:
+        - $ref: '#/components/parameters/UserId'
+        - $ref: '_shared/components.yaml#/components/parameters/IfMatch'
+      responses:
+        '200':
+          description: Usuario desactivado.
+          headers:
+            ETag:
+              $ref: '#/components/headers/ETag'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+              example:
+                id: "018f1a3c-7e3b-7c5a-9c2e-6a2f8e9b0c80"
+                partyId: "018f1a3c-7e3b-7c5a-9c2e-6a2f8e9b0c13"
+                fullName: "Jane Doe"
+                email: "jane.doe@nussli.ch"
+                preferredLanguage: "en"
+                businessUnitId: "018f1a3c-7e3b-7c5a-9c2e-6a2f8e9b0c50"
+                isActive: false
+                createdAt: "2026-10-18T16:20:00Z"
+                updatedAt: "2026-10-19T09:00:00Z"
+        '400':
+          $ref: '_shared/components.yaml#/components/responses/BadRequest'
+        '401':
+          $ref: '_shared/components.yaml#/components/responses/Unauthorized'
+        '403':
+          $ref: '_shared/components.yaml#/components/responses/Forbidden'
+        '404':
+          $ref: '_shared/components.yaml#/components/responses/NotFound'
+        '409':
+          $ref: '_shared/components.yaml#/components/responses/Conflict'
+        '422':
+          $ref: '_shared/components.yaml#/components/responses/UnprocessableEntity'
+        '428':
+          $ref: '_shared/components.yaml#/components/responses/PreconditionRequired'
+
+  # ---------------------------------------------------------------------
+  # Currencies
+  # ---------------------------------------------------------------------
+  /v1/currencies:
+    get:
+      operationId: listCurrencies
+      summary: Listar monedas.
+      description: >
+        No hay alta por API: las 4 monedas base (`CHF`, `EUR`, `USD`,
+        `GBP`) ya están sembradas (semilla común, 0.4).
+      tags: [Currencies]
+      x-permission: "CURRENCY:READ"
+      x-scope: none
+      parameters:
+        - $ref: '_shared/components.yaml#/components/parameters/Page'
+        - $ref: '_shared/components.yaml#/components/parameters/PageSize'
+        - $ref: '_shared/components.yaml#/components/parameters/Sort'
+      responses:
+        '200':
+          description: Página de monedas.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '_shared/components.yaml#/components/schemas/Page'
+                  - type: object
+                    properties:
+                      items:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/CurrencyListItem'
+              example:
+                items:
+                  - code: "CHF"
+                    captionI18n:
+                      de: "Schweizer Franken"
+                      en: "Swiss Franc"
+                    minorUnits: 2
+                    isActive: true
+                page: 1
+                pageSize: 50
+                total: 4
+        '400':
+          $ref: '_shared/components.yaml#/components/responses/BadRequest'
+        '401':
+          $ref: '_shared/components.yaml#/components/responses/Unauthorized'
+        '403':
+          $ref: '_shared/components.yaml#/components/responses/Forbidden'
+        '404':
+          $ref: '_shared/components.yaml#/components/responses/NotFound'
+
+  /v1/currencies/{code}:
+    get:
+      operationId: getCurrency
+      summary: Detalle de una moneda.
+      description: >
+        No está en la lista literal de `org.md §5`, pero hace falta un
+        detalle con `ETag` para que `PUT .../{code}` pueda exigir
+        `If-Match` (conventions-api.md §1/§5) — sin este GET, un cliente
+        nunca tendría de dónde sacar el ETag.
+      tags: [Currencies]
+      x-permission: "CURRENCY:READ"
+      x-scope: none
+      parameters:
+        - $ref: '#/components/parameters/CurrencyCode'
+      responses:
+        '200':
+          description: Moneda.
+          headers:
+            ETag:
+              $ref: '#/components/headers/ETag'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Currency'
+              example:
+                code: "CHF"
+                captionI18n:
+                  de: "Schweizer Franken"
+                  en: "Swiss Franc"
+                minorUnits: 2
+                isActive: true
+        '400':
+          $ref: '_shared/components.yaml#/components/responses/BadRequest'
+        '401':
+          $ref: '_shared/components.yaml#/components/responses/Unauthorized'
+        '403':
+          $ref: '_shared/components.yaml#/components/responses/Forbidden'
+        '404':
+          $ref: '_shared/components.yaml#/components/responses/NotFound'
+    put:
+      operationId: updateCurrency
+      summary: Activar o desactivar una moneda.
+      description: >
+        Único caso de uso de escritura sobre monedas: activar/desactivar
+        (`isActive`). El resto de campos son fijos desde la semilla. No se
+        puede desactivar una moneda en uso por un `Group`/`LegalEntity`
+        activo (ORG-R7: ambos deben apuntar a una moneda activa).
+      tags: [Currencies]
+      x-permission: "CURRENCY:UPDATE"
+      x-scope: none
+      x-rules: [ORG-R7]
+      parameters:
+        - $ref: '#/components/parameters/CurrencyCode'
+        - $ref: '_shared/components.yaml#/components/parameters/IfMatch'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateCurrencyRequest'
+            example:
+              isActive: false
+      responses:
+        '200':
+          description: Moneda modificada.
+          headers:
+            ETag:
+              $ref: '#/components/headers/ETag'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Currency'
+              example:
+                code: "GBP"
+                captionI18n:
+                  de: "Britisches Pfund"
+                  en: "British Pound"
+                minorUnits: 2
+                isActive: false
+        '400':
+          $ref: '_shared/components.yaml#/components/responses/BadRequest'
+        '401':
+          $ref: '_shared/components.yaml#/components/responses/Unauthorized'
+        '403':
+          $ref: '_shared/components.yaml#/components/responses/Forbidden'
+        '404':
+          $ref: '_shared/components.yaml#/components/responses/NotFound'
+        '409':
+          $ref: '_shared/components.yaml#/components/responses/Conflict'
+        '422':
+          $ref: '_shared/components.yaml#/components/responses/UnprocessableEntity'
+        '428':
+          $ref: '_shared/components.yaml#/components/responses/PreconditionRequired'
+
+  # ---------------------------------------------------------------------
+  # Health
+  # ---------------------------------------------------------------------
+  /health:
+    get:
+      operationId: getHealth
+      summary: Estado del servicio.
+      description: >
+        Comprobación de vida, sin autenticación (paso 0.5, track C — se
+        crea aquí porque `platform.yaml` no existía todavía).
+      tags: [Health]
+      x-permission: "PUBLIC"
+      security: []
+      responses:
+        '200':
+          description: El servicio responde.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "up"
+                required: [status]
+              example:
+                status: "up"
+
+  # ---------------------------------------------------------------------
+  # Me
+  # ---------------------------------------------------------------------
+  /v1/me:
+    get:
+      operationId: getMe
+      summary: Información del usuario autenticado.
+      description: >
+        Forma base (`subject`, `oid`, `displayName`, `email`,
+        `preferredLanguage`, `provisioned`, `permissions`) fijada por el
+        paso 0.5, track C — se completa aquí porque `platform.yaml` no
+        existía todavía. `userId`/`partyId`/`businessUnitId` son la
+        ampliación de este paso 0.4: resuelve el `app_user` activo
+        asociado al claim `oid` del token (ADR-0006) y los expone solo
+        entonces (hasta que exista esa resolución en 0.4-B, viajan como
+        `null` y `provisioned` es siempre `false`, tal como fija la ficha
+        0.5). Si el `oid` no tiene un `app_user` activo, responde 403 con
+        `Problem.code = "user_not_provisioned"` — nunca 200 con
+        `provisioned: false` una vez exista la resolución. `permissions`
+        sigue vacía hasta el paso 0.6.
+      tags: [Me]
+      x-permission: "AUTHENTICATED"
+      x-scope: none
+      responses:
+        '200':
+          description: Usuario autenticado.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Me'
+              example:
+                subject: "018f1a3c-7e3b-7c5a-9c2e-6a2f8e9b0c90"
+                oid: "00000000-0000-7000-8000-00000000a002"
+                displayName: "User A"
+                email: "usera@dev.nexus.local"
+                userId: "00000000-0000-7000-8000-0000000b0712"
+                partyId: "00000000-0000-7000-8000-0000000b0112"
+                businessUnitId: "00000000-0000-7000-8000-0000000b0401"
+                preferredLanguage: "de"
+                provisioned: true
+                permissions: []
+        '401':
+          $ref: '_shared/components.yaml#/components/responses/Unauthorized'
+        '403':
+          description: >
+            El `oid` del token no tiene un `app_user` activo asociado.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '_shared/components.yaml#/components/schemas/Problem'
+              example:
+                type: "https://nexus.nussli.ch/problems/forbidden"
+                title: "Usuario no provisionado"
+                status: 403
+                detail: "No existe un app_user activo para este token."
+                code: "user_not_provisioned"
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  headers:
+    ETag:
+      description: Versión actual del recurso, para condicionar `If-Match`.
+      schema:
+        type: string
+      example: '"1234567"'
+
+  parameters:
+    PartyId:
+      name: id
+      in: path
+      required: true
+      description: Id del party.
+      schema:
+        $ref: '_shared/components.yaml#/components/schemas/UuidV7'
+    GroupId:
+      name: id
+      in: path
+      required: true
+      description: Id del group.
+      schema:
+        $ref: '_shared/components.yaml#/components/schemas/UuidV7'
+    LegalEntityId:
+      name: id
+      in: path
+      required: true
+      description: Id de la legal entity.
+      schema:
+        $ref: '_shared/components.yaml#/components/schemas/UuidV7'
+    BusinessUnitId:
+      name: id
+      in: path
+      required: true
+      description: Id de la business unit.
+      schema:
+        $ref: '_shared/components.yaml#/components/schemas/UuidV7'
+    LocationId:
+      name: id
+      in: path
+      required: true
+      description: Id de la location.
+      schema:
+        $ref: '_shared/components.yaml#/components/schemas/UuidV7'
+    WarehouseId:
+      name: id
+      in: path
+      required: true
+      description: Id del warehouse.
+      schema:
+        $ref: '_shared/components.yaml#/components/schemas/UuidV7'
+    UserId:
+      name: id
+      in: path
+      required: true
+      description: Id del usuario.
+      schema:
+        $ref: '_shared/components.yaml#/components/schemas/UuidV7'
+    CurrencyCode:
+      name: code
+      in: path
+      required: true
+      description: Código ISO 4217 de la moneda (3 letras mayúsculas).
+      schema:
+        type: string
+        pattern: '^[A-Z]{3}$'
+      example: "CHF"
+
+  schemas:
+    # --- Party ------------------------------------------------------------
+    Party:
+      type: object
+      properties:
+        id:
+          $ref: '_shared/components.yaml#/components/schemas/UuidV7'
+        partyType:
+          type: string
+          enum: [ORGANIZATION, PERSON]
+        legalName:
+          type: string
+        displayName:
+          type: [string, "null"]
+        taxId:
+          type: [string, "null"]
+        erpCompanyCode:
+          type: [string, "null"]
+        isInternal:
+          type: boolean
+        isActive:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      required: [id, partyType, legalName, isInternal, isActive]
+
+    PartyListItem:
+      type: object
+      properties:
+        id:
+          $ref: '_shared/components.yaml#/components/schemas/UuidV7'
+        partyType:
+          type: string
+          enum: [ORGANIZATION, PERSON]
+        legalName:
+          type: string
+        displayName:
+          type: [string, "null"]
+        isInternal:
+          type: boolean
+        isActive:
+          type: boolean
+      required: [id, partyType, legalName, isInternal, isActive]
+
+    CreatePartyRequest:
+      type: object
+      properties:
+        id:
+          allOf:
+            - $ref: '_shared/components.yaml#/components/schemas/UuidV7'
+          description: Id opcional generado por el cliente (alta idempotente).
+        partyType:
+          type: string
+          enum: [ORGANIZATION, PERSON]
+        legalName:
+          type: string
+        displayName:
+          type: [string, "null"]
+        taxId:
+          type: [string, "null"]
+        erpCompanyCode:
+          type: [string, "null"]
+        isInternal:
+          type: boolean
+          default: false
+      required: [partyType, legalName]
+
+    UpdatePartyRequest:
+      type: object
+      description: >
+        `partyType` e `isInternal` son inmutables tras la creación
+        (ORG-R2) y no se exponen aquí.
+      properties:
+        legalName:
+          type: string
+        displayName:
+          type: [string, "null"]
+        taxId:
+          type: [string, "null"]
+        erpCompanyCode:
+          type: [string, "null"]
+      required: [legalName]
+
+    # --- Group --------------------------------------------------------------
+    Group:
+      type: object
+      properties:
+        id:
+          $ref: '_shared/components.yaml#/components/schemas/UuidV7'
+        partyId:
+          $ref: '_shared/components.yaml#/components/schemas/UuidV7'
+        code:
+          type: string
+        consolidationMethod:
+          type: string
+          enum: [FULL, PROPORTIONAL, EQUITY]
+        reportingCurrencyCode:
+          type: string
+          pattern: '^[A-Z]{3}$'
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      required: [id, partyId, code, consolidationMethod, reportingCurrencyCode]
+
+    GroupListItem:
+      type: object
+      properties:
+        id:
+          $ref: '_shared/components.yaml#/components/schemas/UuidV7'
+        partyId:
+          $ref: '_shared/components.yaml#/components/schemas/UuidV7'
+        code:
+          type: string
+        reportingCurrencyCode:
+          type: string
+          pattern: '^[A-Z]{3}$'
+      required: [id, partyId, code, reportingCurrencyCode]
+
+    CreateGroupRequest:
+      type: object
+      properties:
+        id:
+          allOf:
+            - $ref: '_shared/components.yaml#/components/schemas/UuidV7'
+          description: Id opcional generado por el cliente (alta idempotente).
+        legalName:
+          type: string
+          description: >
+            Crea el `Party` interno (partyType=ORGANIZATION, isInternal=true,
+            ORG-R1) en la misma operación — el Party no tiene vida propia
+            fuera del Group.
+        displayName:
+          type: [string, "null"]
+        code:
+          type: string
+        consolidationMethod:
+          type: string
+          enum: [FULL, PROPORTIONAL, EQUITY]
+          default: FULL
+        reportingCurrencyCode:
+          type: string
+          pattern: '^[A-Z]{3}$'
+      required: [legalName, code, reportingCurrencyCode]
+
+    UpdateGroupRequest:
+      type: object
+      properties:
+        code:
+          type: string
+        consolidationMethod:
+          type: string
+          enum: [FULL, PROPORTIONAL, EQUITY]
+        reportingCurrencyCode:
+          type: string
+          pattern: '^[A-Z]{3}$'
+      required: [code, consolidationMethod, reportingCurrencyCode]
+
+    # --- LegalEntity ----------------------------------------------------------
+    LegalEntity:
+      type: object
+      properties:
+        id:
+          $ref: '_shared/components.yaml#/components/schemas/UuidV7'
+        partyId:
+          $ref: '_shared/components.yaml#/components/schemas/UuidV7'
+        groupId:
+          $ref: '_shared/components.yaml#/components/schemas/UuidV7'
+        code:
+          type: string
+        currencyCode:
+          type: string
+          pattern: '^[A-Z]{3}$'
+        countryCode:
+          type: string
+          pattern: '^[A-Z]{2}$'
+        isActive:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      required: [id, partyId, groupId, code, currencyCode, countryCode, isActive]
+
+    LegalEntityListItem:
+      type: object
+      properties:
+        id:
+          $ref: '_shared/components.yaml#/components/schemas/UuidV7'
+        groupId:
+          $ref: '_shared/components.yaml#/components/schemas/UuidV7'
+        code:
+          type: string
+        currencyCode:
+          type: string
+          pattern: '^[A-Z]{3}$'
+        countryCode:
+          type: string
+          pattern: '^[A-Z]{2}$'
+        isActive:
+          type: boolean
+      required: [id, groupId, code, currencyCode, countryCode, isActive]
+
+    CreateLegalEntityRequest:
+      type: object
+      properties:
+        id:
+          allOf:
+            - $ref: '_shared/components.yaml#/components/schemas/UuidV7'
+          description: Id opcional generado por el cliente (alta idempotente).
+        legalName:
+          type: string
+          description: >
+            Crea el `Party` interno (partyType=ORGANIZATION, isInternal=true,
+            ORG-R1) en la misma operación.
+        displayName:
+          type: [string, "null"]
+        groupId:
+          $ref: '_shared/components.yaml#/components/schemas/UuidV7'
+        code:
+          type: string
+        currencyCode:
+          type: string
+          pattern: '^[A-Z]{3}$'
+        countryCode:
+          type: string
+          pattern: '^[A-Z]{2}$'
+      required: [legalName, groupId, code, currencyCode, countryCode]
+
+    UpdateLegalEntityRequest:
+      type: object
+      properties:
+        code:
+          type: string
+        currencyCode:
+          type: string
+          pattern: '^[A-Z]{3}$'
+        countryCode:
+          type: string
+          pattern: '^[A-Z]{2}$'
+      required: [code, currencyCode, countryCode]
+
+    # --- BusinessUnit ---------------------------------------------------------
+    BusinessUnit:
+      type: object
+      properties:
+        id:
+          $ref: '_shared/components.yaml#/components/schemas/UuidV7'
+        partyId:
+          $ref: '_shared/components.yaml#/components/schemas/UuidV7'
+        legalEntityId:
+          $ref: '_shared/components.yaml#/components/schemas/UuidV7'
+        code:
+          type: string
+        captionI18n:
+          $ref: '_shared/components.yaml#/components/schemas/I18nText'
+        costCenterCode:
+          type: [string, "null"]
+        isActive:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      required: [id, partyId, legalEntityId, code, captionI18n, isActive]
+
+    BusinessUnitListItem:
+      type: object
+      properties:
+        id:
+          $ref: '_shared/components.yaml#/components/schemas/UuidV7'
+        legalEntityId:
+          $ref: '_shared/components.yaml#/components/schemas/UuidV7'
+        code:
+          type: string
+        captionI18n:
+          $ref: '_shared/components.yaml#/components/schemas/I18nText'
+        isActive:
+          type: boolean
+      required: [id, legalEntityId, code, captionI18n, isActive]
+
+    CreateBusinessUnitRequest:
+      type: object
+      properties:
+        id:
+          allOf:
+            - $ref: '_shared/components.yaml#/components/schemas/UuidV7'
+          description: Id opcional generado por el cliente (alta idempotente).
+        legalName:
+          type: string
+          description: >
+            Crea el `Party` interno (partyType=ORGANIZATION, isInternal=true,
+            ORG-R1) en la misma operación.
+        displayName:
+          type: [string, "null"]
+        legalEntityId:
+          $ref: '_shared/components.yaml#/components/schemas/UuidV7'
+        code:
+          type: string
+        captionI18n:
+          $ref: '_shared/components.yaml#/components/schemas/I18nText'
+        costCenterCode:
+          type: [string, "null"]
+      required: [legalName, legalEntityId, code, captionI18n]
+
+    UpdateBusinessUnitRequest:
+      type: object
+      properties:
+        code:
+          type: string
+        captionI18n:
+          $ref: '_shared/components.yaml#/components/schemas/I18nText'
+        costCenterCode:
+          type: [string, "null"]
+      required: [code, captionI18n]
+
+    # --- Location ---------------------------------------------------------
+    Location:
+      type: object
+      description: >
+        Forma mínima de 0.4; `latitude`/`longitude` llegan en el paso 1.1.
+      properties:
+        id:
+          $ref: '_shared/components.yaml#/components/schemas/UuidV7'
+        code:
+          type: [string, "null"]
+        name:
+          type: string
+        street:
+          type: [string, "null"]
+        postalCode:
+          type: [string, "null"]
+        city:
+          type: [string, "null"]
+        region:
+          type: [string, "null"]
+        countryCode:
+          type: string
+          pattern: '^[A-Z]{2}$'
+        isActive:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      required: [id, name, countryCode, isActive]
+
+    LocationListItem:
+      type: object
+      properties:
+        id:
+          $ref: '_shared/components.yaml#/components/schemas/UuidV7'
+        code:
+          type: [string, "null"]
+        name:
+          type: string
+        city:
+          type: [string, "null"]
+        countryCode:
+          type: string
+          pattern: '^[A-Z]{2}$'
+        isActive:
+          type: boolean
+      required: [id, name, countryCode, isActive]
+
+    CreateLocationRequest:
+      type: object
+      properties:
+        id:
+          allOf:
+            - $ref: '_shared/components.yaml#/components/schemas/UuidV7'
+          description: Id opcional generado por el cliente (alta idempotente).
+        code:
+          type: [string, "null"]
+        name:
+          type: string
+        street:
+          type: [string, "null"]
+        postalCode:
+          type: [string, "null"]
+        city:
+          type: [string, "null"]
+        region:
+          type: [string, "null"]
+        countryCode:
+          type: string
+          pattern: '^[A-Z]{2}$'
+      required: [name, countryCode]
+
+    UpdateLocationRequest:
+      type: object
+      properties:
+        code:
+          type: [string, "null"]
+        name:
+          type: string
+        street:
+          type: [string, "null"]
+        postalCode:
+          type: [string, "null"]
+        city:
+          type: [string, "null"]
+        region:
+          type: [string, "null"]
+        countryCode:
+          type: string
+          pattern: '^[A-Z]{2}$'
+      required: [name, countryCode]
+
+    # --- Warehouse -----------------------------------------------------------
+    Warehouse:
+      type: object
+      properties:
+        id:
+          $ref: '_shared/components.yaml#/components/schemas/UuidV7'
+        locationId:
+          $ref: '_shared/components.yaml#/components/schemas/UuidV7'
+        legalEntityId:
+          $ref: '_shared/components.yaml#/components/schemas/UuidV7'
+        businessUnitId:
+          type: [string, "null"]
+          format: uuid
+        code:
+          type: string
+        captionI18n:
+          $ref: '_shared/components.yaml#/components/schemas/I18nText'
+        isActive:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      required: [id, locationId, legalEntityId, code, captionI18n, isActive]
+
+    WarehouseListItem:
+      type: object
+      properties:
+        id:
+          $ref: '_shared/components.yaml#/components/schemas/UuidV7'
+        legalEntityId:
+          $ref: '_shared/components.yaml#/components/schemas/UuidV7'
+        businessUnitId:
+          type: [string, "null"]
+          format: uuid
+        code:
+          type: string
+        captionI18n:
+          $ref: '_shared/components.yaml#/components/schemas/I18nText'
+        isActive:
+          type: boolean
+      required: [id, legalEntityId, code, captionI18n, isActive]
+
+    CreateWarehouseRequest:
+      type: object
+      properties:
+        id:
+          allOf:
+            - $ref: '_shared/components.yaml#/components/schemas/UuidV7'
+          description: Id opcional generado por el cliente (alta idempotente).
+        locationId:
+          $ref: '_shared/components.yaml#/components/schemas/UuidV7'
+        legalEntityId:
+          $ref: '_shared/components.yaml#/components/schemas/UuidV7'
+        businessUnitId:
+          type: [string, "null"]
+          format: uuid
+        code:
+          type: string
+        captionI18n:
+          $ref: '_shared/components.yaml#/components/schemas/I18nText'
+      required: [locationId, legalEntityId, code, captionI18n]
+
+    UpdateWarehouseRequest:
+      type: object
+      properties:
+        locationId:
+          $ref: '_shared/components.yaml#/components/schemas/UuidV7'
+        businessUnitId:
+          type: [string, "null"]
+          format: uuid
+        code:
+          type: string
+        captionI18n:
+          $ref: '_shared/components.yaml#/components/schemas/I18nText'
+      required: [locationId, code, captionI18n]
+
+    # --- User ------------------------------------------------------------
+    User:
+      type: object
+      properties:
+        id:
+          $ref: '_shared/components.yaml#/components/schemas/UuidV7'
+        partyId:
+          $ref: '_shared/components.yaml#/components/schemas/UuidV7'
+        oid:
+          type: [string, "null"]
+          description: >
+            Claim `oid` de Entra ID (`app_user.external_subject`). `null`
+            para el usuario SYSTEM, que no inicia sesión.
+        fullName:
+          type: string
+          description: Nombre completo de la persona (`party.legal_name`).
+        email:
+          type: [string, "null"]
+        preferredLanguage:
+          type: string
+          enum: [de, en, fr, it, es]
+        businessUnitId:
+          type: [string, "null"]
+          format: uuid
+        isActive:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      required: [id, partyId, fullName, preferredLanguage, isActive]
+
+    UserListItem:
+      type: object
+      properties:
+        id:
+          $ref: '_shared/components.yaml#/components/schemas/UuidV7'
+        oid:
+          type: [string, "null"]
+        fullName:
+          type: string
+        email:
+          type: [string, "null"]
+        preferredLanguage:
+          type: string
+          enum: [de, en, fr, it, es]
+        businessUnitId:
+          type: [string, "null"]
+          format: uuid
+        isActive:
+          type: boolean
+      required: [id, fullName, preferredLanguage, isActive]
+
+    CreateUserRequest:
+      type: object
+      description: >
+        Crea el `Party` (PERSON) y el `app_user` asociado en la misma
+        operación.
+      properties:
+        id:
+          allOf:
+            - $ref: '_shared/components.yaml#/components/schemas/UuidV7'
+          description: Id opcional generado por el cliente (alta idempotente).
+        oid:
+          type: string
+          description: Claim `oid` de Entra ID; mapea a `app_user.external_subject`.
+        fullName:
+          type: string
+          description: Nombre completo de la persona (`party.legal_name`).
+        email:
+          type: [string, "null"]
+        preferredLanguage:
+          type: string
+          enum: [de, en, fr, it, es]
+          default: de
+        businessUnitId:
+          type: [string, "null"]
+          format: uuid
+      required: [oid, fullName, preferredLanguage]
+
+    UpdateUserRequest:
+      type: object
+      properties:
+        oid:
+          type: [string, "null"]
+          description: >
+            Permite corregir el `oid` (`external_subject`) de un usuario,
+            p. ej. tras un reaprovisionamiento en el IdP. `null` significa
+            que el usuario no puede iniciar sesión (`org.md §3`); no es
+            una regla de negocio (ORG-R6 solo dice que el usuario SYSTEM
+            nunca se edita y nunca tiene `external_subject`).
+        fullName:
+          type: string
+        email:
+          type: [string, "null"]
+        preferredLanguage:
+          type: string
+          enum: [de, en, fr, it, es]
+        businessUnitId:
+          type: [string, "null"]
+          format: uuid
+      required: [fullName, preferredLanguage]
+
+    # --- Currency --------------------------------------------------------
+    Currency:
+      type: object
+      properties:
+        code:
+          type: string
+          pattern: '^[A-Z]{3}$'
+        captionI18n:
+          $ref: '_shared/components.yaml#/components/schemas/I18nText'
+        minorUnits:
+          type: integer
+          minimum: 0
+        isActive:
+          type: boolean
+      required: [code, captionI18n, minorUnits, isActive]
+
+    CurrencyListItem:
+      type: object
+      properties:
+        code:
+          type: string
+          pattern: '^[A-Z]{3}$'
+        captionI18n:
+          $ref: '_shared/components.yaml#/components/schemas/I18nText'
+        minorUnits:
+          type: integer
+          minimum: 0
+        isActive:
+          type: boolean
+      required: [code, captionI18n, minorUnits, isActive]
+
+    UpdateCurrencyRequest:
+      type: object
+      properties:
+        isActive:
+          type: boolean
+      required: [isActive]
+
+    # --- Me ----------------------------------------------------------------
+    Me:
+      type: object
+      description: >
+        Forma base (`subject`, `oid`, `displayName`, `email`,
+        `preferredLanguage`, `provisioned`, `permissions`) del paso 0.5;
+        `userId`/`partyId`/`businessUnitId` son la ampliación del paso 0.4
+        — nulos/ausentes mientras `nexus-platform` solo resuelve datos del
+        token (0.5-B, antes de que exista la resolución real de
+        `oid → app_user` de 0.4-B). `provisioned` es un `boolean` sin
+        restringir a `true`: la ficha 0.5 fija que vale siempre `false`
+        hasta que 0.4-B exista; solo entonces responde 200 con
+        `provisioned: true` (o 403 `user_not_provisioned` si el `oid` no
+        tiene un `app_user` activo — nunca 200 con `false`).
+      properties:
+        subject:
+          type: string
+          description: Claim `sub` del token (identificador técnico del IdP).
+        oid:
+          type: string
+          description: Claim `oid` del token (`app_user.external_subject`).
+        displayName:
+          type: string
+          description: Nombre para mostrar, tomado del token.
+        email:
+          type: [string, "null"]
+          description: Email tomado del token (no de `app_user`).
+        userId:
+          type: [string, "null"]
+          format: uuid
+          description: Resuelto por 0.4-B. `null` hasta entonces.
+        partyId:
+          type: [string, "null"]
+          format: uuid
+          description: Resuelto por 0.4-B. `null` hasta entonces.
+        businessUnitId:
+          type: [string, "null"]
+          format: uuid
+        preferredLanguage:
+          type: string
+          enum: [de, en, fr, it, es]
+        provisioned:
+          type: boolean
+        permissions:
+          type: array
+          description: Vacía hasta el paso 0.6.
+          items:
+            type: string
+      required: [subject, oid, displayName, preferredLanguage, provisioned, permissions]

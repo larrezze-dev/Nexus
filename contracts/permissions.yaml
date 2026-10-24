@@ -22,4 +22,59 @@
 #     defaultRoles: ["ADMIN"]
 #     step: "1.3"
 
-permissions: []
+permissions:
+  - code: PARTY:READ
+    resource: PARTY
+    action: READ
+    defaultRoles: []
+    step: "0.4"
+  - code: PARTY:CREATE
+    resource: PARTY
+    action: CREATE
+    defaultRoles: []
+    step: "0.4"
+  - code: PARTY:UPDATE
+    resource: PARTY
+    action: UPDATE
+    defaultRoles: []
+    step: "0.4"
+  - code: ORG_STRUCTURE:READ
+    resource: ORG_STRUCTURE
+    action: READ
+    defaultRoles: []
+    step: "0.4"
+  - code: ORG_STRUCTURE:CREATE
+    resource: ORG_STRUCTURE
+    action: CREATE
+    defaultRoles: []
+    step: "0.4"
+  - code: ORG_STRUCTURE:UPDATE
+    resource: ORG_STRUCTURE
+    action: UPDATE
+    defaultRoles: []
+    step: "0.4"
+  - code: USER:READ
+    resource: USER
+    action: READ
+    defaultRoles: []
+    step: "0.4"
+  - code: USER:CREATE
+    resource: USER
+    action: CREATE
+    defaultRoles: []
+    step: "0.4"
+  - code: USER:UPDATE
+    resource: USER
+    action: UPDATE
+    defaultRoles: []
+    step: "0.4"
+  - code: CURRENCY:READ
+    resource: CURRENCY
+    action: READ
+    defaultRoles: []
+    step: "0.4"
+  - code: CURRENCY:UPDATE
+    resource: CURRENCY
+    action: UPDATE
+    defaultRoles: []
+    step: "0.4"

@@ -1,0 +1,14 @@
+{
+  "type": "record",
+  "name": "BusinessUnitDeactivated",
+  "namespace": "ch.nussli.nexus.org",
+  "fields": [
+    {"name": "id", "type": {"type": "string", "logicalType": "uuid"}},
+    {"name": "partyId", "type": {"type": "string", "logicalType": "uuid"}},
+    {"name": "legalEntityId", "type": {"type": "string", "logicalType": "uuid"}},
+    {"name": "code", "type": "string"},
+    {"name": "captionI18n", "type": {"type": "map", "values": "string"}},
+    {"name": "costCenterCode", "type": ["null", "string"], "default": null},
+    {"name": "isActive", "type": "boolean"}
+  ]
+}

@@ -42,7 +42,9 @@ rules:
   nexus-operation-permission-required:
     description: >
       Toda operación debe declarar la extensión x-permission
-      (RESOURCE:ACTION, o PUBLIC solo para /health).
+      (RESOURCE:ACTION, PUBLIC solo para /health, o AUTHENTICATED para un
+      endpoint que solo exige estar autenticado, sin permiso concreto —
+      paso 0.5, p. ej. GET /v1/me).
     message: "La operación '{{property}}' no declara x-permission"
     severity: error
     given: "$.paths[*][get,put,post,delete,options,head,patch,trace]"
@@ -53,14 +55,14 @@ rules:
   nexus-operation-permission-format:
     description: >
       x-permission debe tener el formato RESOURCE:ACTION en mayúsculas y
-      guion bajo, o ser exactamente PUBLIC.
-    message: "x-permission '{{value}}' no cumple el formato ^[A-Z_]+:[A-Z_]+$|^PUBLIC$"
+      guion bajo, o ser exactamente PUBLIC o AUTHENTICATED.
+    message: "x-permission '{{value}}' no cumple el formato ^[A-Z_]+:[A-Z_]+$|^PUBLIC$|^AUTHENTICATED$"
     severity: error
     given: "$.paths[*][get,put,post,delete,options,head,patch,trace].x-permission"
     then:
       function: pattern
       functionOptions:
-        match: "^[A-Z_]+:[A-Z_]+$|^PUBLIC$"
+        match: "^[A-Z_]+:[A-Z_]+$|^PUBLIC$|^AUTHENTICATED$"
 
   # --- Paginación obligatoria en listados (conventions-api.md §4) -----------
   nexus-list-get-requires-pagination:

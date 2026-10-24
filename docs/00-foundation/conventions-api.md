@@ -27,7 +27,7 @@
 
 | Extensión | Dónde | Contenido |
 |---|---|---|
-| `x-permission` | Cada operación | `RESOURCE:ACTION`, p. ej. `ASSET_TYPE:CREATE`. `PUBLIC` solo en `/health` |
+| `x-permission` | Cada operación | `RESOURCE:ACTION`, p. ej. `ASSET_TYPE:CREATE`. `PUBLIC` solo en `/health`. `AUTHENTICATED` `[+]` para un endpoint que solo exige sesión válida, sin permiso concreto (p. ej. `GET /v1/me`, paso 0.5) |
 | `x-scope` | Operaciones con alcance | De dónde sale el alcance del permiso: `body.legalEntityId`, `path.projectId`, `none` |
 | `x-rules` | Operaciones con reglas de negocio | Lista de ids de regla que puede devolver en 422 |
 

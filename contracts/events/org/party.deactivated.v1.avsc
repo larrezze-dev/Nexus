@@ -1,0 +1,15 @@
+{
+  "type": "record",
+  "name": "PartyDeactivated",
+  "namespace": "ch.nussli.nexus.org",
+  "fields": [
+    {"name": "id", "type": {"type": "string", "logicalType": "uuid"}},
+    {"name": "partyType", "type": "string"},
+    {"name": "legalName", "type": "string"},
+    {"name": "displayName", "type": ["null", "string"], "default": null},
+    {"name": "taxId", "type": ["null", "string"], "default": null},
+    {"name": "erpCompanyCode", "type": ["null", "string"], "default": null},
+    {"name": "isInternal", "type": "boolean"},
+    {"name": "isActive", "type": "boolean"}
+  ]
+}
