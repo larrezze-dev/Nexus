@@ -127,7 +127,7 @@ public sealed class OutboxWriter : IOutboxWriter
             command.Parameters.Add(new NpgsqlParameter<string> { TypedValue = e.EventType, NpgsqlDbType = NpgsqlDbType.Text });
             command.Parameters.Add(new NpgsqlParameter<int> { TypedValue = e.SchemaVersion, NpgsqlDbType = NpgsqlDbType.Integer });
             command.Parameters.Add(new NpgsqlParameter<string> { TypedValue = row.Headers, NpgsqlDbType = NpgsqlDbType.Jsonb });
-            command.Parameters.Add(new NpgsqlParameter<string> { TypedValue = row.Payload, NpgsqlDbType = NpgsqlDbType.Jsonb });
+            command.Parameters.Add(new NpgsqlParameter<string> { TypedValue = row.Payload, NpgsqlDbType = NpgsqlDbType.Text }); // text, not jsonb: ADR-0013
             command.Parameters.Add(new NpgsqlParameter<DateTimeOffset> { TypedValue = now, NpgsqlDbType = NpgsqlDbType.TimestampTz });
             batch.BatchCommands.Add(command);
         }

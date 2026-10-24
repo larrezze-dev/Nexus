@@ -52,7 +52,9 @@ CREATE TABLE outbox.message (
   event_type        text        NOT NULL,
   schema_version    integer     NOT NULL,
   headers           jsonb       NOT NULL,             -- resto del envoltorio §2
-  payload           jsonb       NOT NULL,             -- [+] Avro en codificación JSON; el relay lo pasa a binario
+  payload           text        NOT NULL,             -- [+] Avro en codificación JSON; el relay lo pasa a binario.
+                                                        -- text, no jsonb (ADR-0013): un decimal Avro (bytes) puede
+                                                        -- producir un escape \u0000, que jsonb rechaza.
   created_at        timestamptz NOT NULL,
   published_at      timestamptz NULL,
   status            text        NOT NULL DEFAULT 'PENDING'
