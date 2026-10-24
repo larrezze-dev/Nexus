@@ -1,4 +1,9 @@
+using System.Globalization;
+using System.Numerics;
 using System.Text.Json;
+using Avro;
+using Avro.Generic;
+using Avro.IO;
 using Microsoft.EntityFrameworkCore;
 using Nexus.BuildingBlocks.Persistence.Outbox;
 using Npgsql;
@@ -245,21 +250,22 @@ public sealed class UnitOfWorkTests(PersistenceDatabaseFixture db) : IAsyncLifet
             ctx.Widgets.Add(widget);
             for (var i = 1; i <= 40; i++)
             {
-                widget.Rename($"n{i}", 1m, DateTimeOffset.UtcNow); // constant price: see the decimal/jsonb known limitation below
+                widget.Rename($"n{i}", 1m, DateTimeOffset.UtcNow);
             }
 
             await uow.CommitAsync(Ct);
         }
 
         await using var cmd = db.Admin.CreateCommand(
-            "SELECT aggregate_version, payload->>'newName' FROM outbox.message WHERE aggregate_id = $1 ORDER BY created_at, id");
+            "SELECT aggregate_version, payload FROM outbox.message WHERE aggregate_id = $1 ORDER BY created_at, id");
         cmd.Parameters.Add(new NpgsqlParameter { Value = widgetId });
         await using var reader = await cmd.ExecuteReaderAsync(Ct);
         var expected = 1L;
         while (await reader.ReadAsync(Ct))
         {
             reader.GetInt64(0).ShouldBe(expected);
-            reader.GetString(1).ShouldBe($"n{expected}");
+            using var payload = JsonDocument.Parse(reader.GetString(1)); // payload is text (ADR-0013)
+            payload.RootElement.GetProperty("newName").GetString().ShouldBe($"n{expected}");
             expected++;
         }
 
@@ -383,16 +389,19 @@ public sealed class UnitOfWorkTests(PersistenceDatabaseFixture db) : IAsyncLifet
     }
 
     /// <summary>
-    /// Known limitation (see report / ADR draft): Avro's JSON encoding writes decimal bytes as
-    /// \u00XX escapes, and jsonb rejects \u0000. 256.0000 at scale 4 = 0x2710_00 contains a zero
-    /// byte. The transaction is aborted (never silently corrupted), which this test pins down.
+    /// ADR-0013: Avro's JSON encoding writes decimal bytes as \u00XX escapes. At scale 4,
+    /// 16.0000 = 160000 = 0x02_71_00 and 256.0000 = 2560000 = 0x27_10_00 both contain a zero
+    /// byte, i.e. a \u0000 escape, which jsonb rejected (22P05) and aborted the unit of work.
+    /// outbox.message.payload is text now: the unit of work commits, the outbox row exists, and
+    /// the stored payload decodes back (with the event's own .avsc) to the exact decimal.
     /// </summary>
     [Theory]
-    [InlineData("256")]
-    [InlineData("16")] // 160000 = 0x027100: ordinary amounts hit this, not just edge cases
-    public async Task DecimalWithZeroByte_IsRejectedByJsonb_AndAbortsTheTransaction_KnownLimitation(string price)
+    [InlineData("16.0000")] // ordinary amounts hit this, not just edge cases
+    [InlineData("256.0000")]
+    public async Task DecimalWithZeroByte_IsStoredInTextPayload_AndReadsBackExactly(string price)
     {
         var widgetId = Guid.CreateVersion7();
+        var expected = decimal.Parse(price, CultureInfo.InvariantCulture);
 
         await using (var uow = db.CreateUnitOfWork(_dataSource, _userId, _correlationId))
         {
@@ -400,13 +409,34 @@ public sealed class UnitOfWorkTests(PersistenceDatabaseFixture db) : IAsyncLifet
             await using var ctx = new WidgetDbContext(uow);
             var widget = Widget.Create(widgetId, "x");
             ctx.Widgets.Add(widget);
-            widget.Rename("y", decimal.Parse(price, System.Globalization.CultureInfo.InvariantCulture), DateTimeOffset.UtcNow);
-
-            var ex = await Should.ThrowAsync<PostgresException>(() => uow.CommitAsync(Ct));
-            ex.SqlState.ShouldBe(PostgresErrorCodes.UntranslatableCharacter);
+            widget.Rename("y", expected, DateTimeOffset.UtcNow);
+            await uow.CommitAsync(Ct);
         }
 
-        (await CountWidgets(widgetId)).ShouldBe(0);
+        (await CountWidgets(widgetId)).ShouldBe(1);
+        (await CountOutbox(widgetId)).ShouldBe(1);
+
+        var stored = await db.ScalarAsync<string>("SELECT payload FROM outbox.message WHERE aggregate_id = $1", widgetId);
+        stored.ShouldNotBeNull();
+        stored.ShouldContain("\\u0000"); // the escape jsonb refused: proves this case is exercised
+        stored.ShouldNotContain("\0"); // escaped, never a raw NUL (text cannot hold one either)
+
+        // Raw bytes: the JSON string's chars are the two's-complement big-endian unscaled value.
+        using (var json = JsonDocument.Parse(stored))
+        {
+            var bytes = json.RootElement.GetProperty("price").GetString()!.Select(c => checked((byte)c)).ToArray();
+            bytes.ShouldContain((byte)0);
+            new BigInteger(bytes, isUnsigned: false, isBigEndian: true)
+                .ShouldBe(new BigInteger(expected * 10_000m));
+        }
+
+        // Round trip through Avro's own JSON decoder, as the relay (step 0.7) will read it.
+        var schema = db.SchemaProvider.GetSchema(new WidgetRenamed(widgetId, "y", DateTimeOffset.UtcNow, expected, new Dictionary<string, string>(), null));
+        var record = new GenericDatumReader<GenericRecord>(schema, schema).Read(null!, new JsonDecoder(schema, stored));
+        var avroPrice = (AvroDecimal)record["price"];
+        avroPrice.Scale.ShouldBe(4);
+        avroPrice.UnscaledValue.ShouldBe(new BigInteger(expected * 10_000m)); // exact: 160000 / 2560000 at scale 4
+        ((decimal)avroPrice).ShouldBe(expected);
     }
 
     private async Task<long> CountWidgets(Guid id) =>

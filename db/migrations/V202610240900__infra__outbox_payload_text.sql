@@ -1,0 +1,21 @@
+-- ADR-0013: outbox.message.payload jsonb -> text.
+--
+-- The payload is Avro in JSON encoding (EV-R1). Avro encodes a `decimal` logical
+-- type as `bytes`, and its JSON encoder writes every byte as a \u00XX escape. Any
+-- decimal whose two's-complement representation contains a 0x00 byte (e.g.
+-- 16.0000 or 256.0000 at scale 4) therefore produces \u0000, which jsonb rejects
+-- (SQLSTATE 22P05, "unsupported Unicode escape sequence"). text stores
+-- the JSON verbatim; nothing queries the payload with jsonb operators (the relay
+-- reads the whole row and forwards it).
+--
+-- V202610231001__infra__outbox_inbox.sql is merged and is not edited (ADR-0001).
+-- The column has no default, CHECK, index or column-level grant of its own, so the
+-- type change needs nothing else: every valid jsonb value has a text
+-- representation, and the cast is lossless. headers stays jsonb.
+--
+-- Runs as nexus_migrator with `SET ROLE nexus_owner` (afterConnect.sql), the
+-- table's owner. The ALTER rewrites the table under ACCESS EXCLUSIVE; acceptable
+-- because the outbox is short-lived (PUBLISHED rows are purged after 7 days) and
+-- this runs before go-live. Ownership and grants are unchanged by ALTER COLUMN TYPE.
+
+ALTER TABLE outbox.message ALTER COLUMN payload TYPE text;

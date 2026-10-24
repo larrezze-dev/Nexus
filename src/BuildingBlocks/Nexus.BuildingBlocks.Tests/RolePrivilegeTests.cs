@@ -49,7 +49,7 @@ public sealed class RolePrivilegeTests(PostgresFixture db)
         await using var insert = new NpgsqlCommand(
             "INSERT INTO outbox.message (id, topic, aggregate_type, aggregate_id, aggregate_version, " +
             "event_type, schema_version, headers, payload, created_at) " +
-            "VALUES ($1, 'nexus.test.test-event.created', 'test-event', $1, 1, 'test.test-event.created', 1, '{}'::jsonb, '{}'::jsonb, now())",
+            "VALUES ($1, 'nexus.test.test-event.created', 'test-event', $1, 1, 'test.test-event.created', 1, '{}'::jsonb, '{}', now())",
             connection);
         insert.Parameters.Add(new NpgsqlParameter<Guid> { TypedValue = id });
 

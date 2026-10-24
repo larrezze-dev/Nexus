@@ -52,7 +52,10 @@ namespace Nexus.BuildingBlocks.Persistence.Outbox;
 /// The resulting <see cref="GenericRecord"/> is written with Avro's own
 /// <see cref="GenericDatumWriter{T}"/> + <see cref="JsonEncoder"/>, which re-validates every
 /// value against the schema and produces the canonical Avro JSON encoding stored in
-/// <c>outbox.message.payload</c> (EV-R1); the relay turns it into binary Avro later.
+/// <c>outbox.message.payload</c> (EV-R1); the relay turns it into binary Avro later. That column
+/// is <c>text</c>, not <c>jsonb</c> (ADR-0013): decimals are encoded as <c>bytes</c>, written as
+/// <c>\u00XX</c> escapes, and jsonb rejects the <c>\u0000</c> escape that ordinary amounts
+/// such as 16.0000 produce.
 /// </para>
 ///
 /// <para>
