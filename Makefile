@@ -83,14 +83,33 @@ db-info:
 db-validate:
 	$(call flyway_run,validate)
 
+# Seeds (common + dev) live under db/seed/. They are data, not schema, so they keep their
+# own Flyway history table (flyway_seed_history) and never mix with flyway_schema_history.
+# Same credential handling as flyway_run (see above): password only via -e FLYWAY_PASSWORD.
 seed-dev:
-	@echo "pending: paso 0.3"
+	@set -a; . ./$(COMPOSE_ENV); set +a; \
+	export FLYWAY_PASSWORD="$$NEXUS_MIGRATOR_PASSWORD"; \
+	docker run --rm --network nexus \
+		-v "$(CURDIR)/db:/flyway/sql:ro" \
+		-e FLYWAY_PASSWORD \
+		$(FLYWAY_IMAGE) \
+		-url=$(FLYWAY_URL) \
+		-user=nexus_migrator \
+		-locations=filesystem:/flyway/sql/seed/common,filesystem:/flyway/sql/seed/dev \
+		-table=flyway_seed_history \
+		migrate
 
 test-rls:
 	@echo "pending: paso 0.3"
 
+# Prism mock of contracts/openapi/<S>.yaml on the fixed port 4010. Only one mock at a time
+# for now; the "4010 + n" scheme for several services in parallel is deferred to a later step.
 mock-api:
-	@echo "pending: paso 0.5"
+	@if [ -z "$(S)" ]; then echo "ERROR: usage: make mock-api S=<servicio>"; exit 1; fi
+	@file="contracts/openapi/$(S).yaml"; \
+	if [ ! -f "$$file" ]; then echo "ERROR: $$file not found"; exit 1; fi; \
+	echo "Mocking $$file on http://localhost:4010 (Prism) ..."; \
+	npx -y @stoplight/prism-cli mock "$$file" -p 4010
 
 test-e2e:
 	@echo "pending: paso 1.3"
