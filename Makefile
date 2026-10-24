@@ -86,6 +86,16 @@ db-validate:
 # Seeds (common + dev) live under db/seed/. They are data, not schema, so they keep their
 # own Flyway history table (flyway_seed_history) and never mix with flyway_schema_history.
 # Same credential handling as flyway_run (see above): password only via -e FLYWAY_PASSWORD.
+# -baselineOnMigrate=true: by the time this runs, "public" already has objects from
+# db-migrate (which ran first against an empty schema and didn't need this flag) --
+# flyway_seed_history itself doesn't exist yet, and Flyway refuses to create a fresh
+# history table in a non-empty schema without an explicit baseline.
+# -callbackLocations: db/migrations/afterConnect.sql (SET ROLE nexus_owner, DBC-6) must
+# still run here even though db/migrations isn't in -locations for this invocation --
+# otherwise flyway_seed_history itself (and every seed row's audit columns written by
+# this session) would end up owned by/attributed to nexus_migrator. callbackLocations
+# scans that directory for callback scripts only, it does not treat its contents as
+# migrations to apply under this table.
 seed-dev:
 	@set -a; . ./$(COMPOSE_ENV); set +a; \
 	export FLYWAY_PASSWORD="$$NEXUS_MIGRATOR_PASSWORD"; \
@@ -96,7 +106,9 @@ seed-dev:
 		-url=$(FLYWAY_URL) \
 		-user=nexus_migrator \
 		-locations=filesystem:/flyway/sql/seed/common,filesystem:/flyway/sql/seed/dev \
+		-callbackLocations=filesystem:/flyway/sql/migrations \
 		-table=flyway_seed_history \
+		-baselineOnMigrate=true \
 		migrate
 
 test-rls:
