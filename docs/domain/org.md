@@ -173,6 +173,8 @@ CREATE TABLE org.party_relationship (
 
 **Semilla dev (0.4):** grupo `NUSSLI`; entidades `LE-CH` (CHF, CH) y `LE-DE` (EUR, DE); una BU y un almacén por entidad; los usuarios de `OrgFixture` (`conventions-testing.md §4`).
 
+**`external_subject` obligatorio en el alta (decidido 2026-10-24):** aunque la columna admite `NULL` para cualquier usuario (no solo SYSTEM — "no puede iniciar sesión"), la API (`POST /v1/users`, `contracts/openapi/platform.yaml`) exige `oid` siempre al crear. No se permite precrear una cuenta sin vincular su `oid` real todavía. Decisión de Luciano, conservadora; revisar si en el futuro hace falta precrear usuarios antes de que existan en el IdP.
+
 ## §4 Reglas
 
 | Id | Regla | Origen |
