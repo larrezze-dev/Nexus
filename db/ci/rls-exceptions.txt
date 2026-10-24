@@ -8,5 +8,5 @@
 # requirement (conventions-database.md §7). Every entry must carry a
 # justification comment explaining why RLS does not apply.
 #
-# No entries yet: as of step 0.3 no business table with
-# "legal_entity_id" exists in the database.
+org.business_unit  # org schema is GLOBAL profile, no RLS (ORG-Q1, decided 2026-10-24): the whole org structure/Party directory is shared across the group, not scoped per legal entity, even though this table happens to carry a legal_entity_id FK column.
+org.warehouse       # same as above (ORG-Q1 / org GLOBAL profile): legal_entity_id is a structural FK, not an RLS scope here.
