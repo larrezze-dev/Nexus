@@ -22,7 +22,7 @@ CREATE SCHEMA org;
 
 CREATE TABLE org.currency (
   code         char(3)     PRIMARY KEY CHECK (code ~ '^[A-Z]{3}$'),
-  caption_i18n jsonb       NOT NULL,
+  caption_i18n jsonb       NOT NULL CHECK (jsonb_typeof(caption_i18n) = 'object' AND caption_i18n ? 'de'),
   minor_units  smallint    NOT NULL DEFAULT 2,
   is_active    boolean     NOT NULL DEFAULT true,
   created_at   timestamptz NOT NULL,
@@ -58,7 +58,7 @@ CREATE INDEX ix_party_legal_name_trgm ON org.party USING gin (legal_name gin_trg
 CREATE TABLE org."group" (
   id                      uuid        NOT NULL PRIMARY KEY,
   party_id                uuid        NOT NULL UNIQUE REFERENCES org.party(id),
-  code                    text        NOT NULL UNIQUE,
+  code                    text        NOT NULL UNIQUE CHECK (code ~ '^[A-Z0-9_\-\.]{1,40}$'),
   consolidation_method    text        NOT NULL DEFAULT 'FULL'
                           CHECK (consolidation_method IN ('FULL','PROPORTIONAL','EQUITY')),
   reporting_currency_code char(3)     NOT NULL REFERENCES org.currency(code),
@@ -79,7 +79,7 @@ CREATE TABLE org.legal_entity (
   id            uuid        PRIMARY KEY,
   party_id      uuid        NOT NULL UNIQUE REFERENCES org.party(id),
   group_id      uuid        NOT NULL REFERENCES org."group"(id),
-  code          text        NOT NULL UNIQUE,
+  code          text        NOT NULL UNIQUE CHECK (code ~ '^[A-Z0-9_\-\.]{1,40}$'),
   currency_code char(3)     NOT NULL REFERENCES org.currency(code),
   country_code  char(2)     NOT NULL,
   is_active     boolean     NOT NULL DEFAULT true,
@@ -100,8 +100,8 @@ CREATE TABLE org.business_unit (
   id               uuid        PRIMARY KEY,
   party_id         uuid        NOT NULL UNIQUE REFERENCES org.party(id),
   legal_entity_id  uuid        NOT NULL REFERENCES org.legal_entity(id),
-  code             text        NOT NULL,
-  caption_i18n     jsonb       NOT NULL,
+  code             text        NOT NULL CHECK (code ~ '^[A-Z0-9_\-\.]{1,40}$'),
+  caption_i18n     jsonb       NOT NULL CHECK (jsonb_typeof(caption_i18n) = 'object' AND caption_i18n ? 'de'),
   cost_center_code text        NULL,
   is_active        boolean     NOT NULL DEFAULT true,
   created_at       timestamptz NOT NULL,
@@ -121,7 +121,7 @@ CREATE INDEX ix_business_unit_le ON org.business_unit(legal_entity_id);
 
 CREATE TABLE org.location (
   id           uuid        PRIMARY KEY,
-  code         text        NULL UNIQUE,
+  code         text        NULL UNIQUE CHECK (code ~ '^[A-Z0-9_\-\.]{1,40}$'),
   name         text        NOT NULL,
   street       text        NULL,
   postal_code  text        NULL,
@@ -144,8 +144,8 @@ CREATE TABLE org.warehouse (
   location_id      uuid        NOT NULL REFERENCES org.location(id),
   legal_entity_id  uuid        NOT NULL REFERENCES org.legal_entity(id),
   business_unit_id uuid        NULL REFERENCES org.business_unit(id),
-  code             text        NOT NULL UNIQUE,
-  caption_i18n     jsonb       NOT NULL,
+  code             text        NOT NULL UNIQUE CHECK (code ~ '^[A-Z0-9_\-\.]{1,40}$'),
+  caption_i18n     jsonb       NOT NULL CHECK (jsonb_typeof(caption_i18n) = 'object' AND caption_i18n ? 'de'),
   is_active        boolean     NOT NULL DEFAULT true,
   created_at       timestamptz NOT NULL,
   created_by       uuid        NOT NULL,
@@ -176,6 +176,14 @@ CREATE TABLE org.app_user (
 );
 -- Added (business_unit_id has no index of its own in the domain DDL, DBC-3).
 CREATE INDEX ix_app_user_bu ON org.app_user(business_unit_id);
+
+-- ORG-R9: email is unique among active users (conventions-database.md §9:
+-- "unicidades de negocio como UNIQUE, o índice único parcial si hay
+-- is_active" -- a plain UNIQUE would wrongly block reusing a deactivated
+-- user's email for someone new). lower() so the uniqueness is
+-- case-insensitive, matching how email addresses are actually compared.
+CREATE UNIQUE INDEX ux_app_user_email_active ON org.app_user (lower(email))
+  WHERE is_active AND email IS NOT NULL;
 
 -- ---------------------------------------------------------------------------
 -- Privileges (exact; no more, no less)

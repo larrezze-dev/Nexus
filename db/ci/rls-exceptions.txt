@@ -8,5 +8,5 @@
 # requirement (conventions-database.md §7). Every entry must carry a
 # justification comment explaining why RLS does not apply.
 #
-org.business_unit  # org schema is GLOBAL profile, no RLS (ORG-Q1, decided 2026-10-24): the whole org structure/Party directory is shared across the group, not scoped per legal entity, even though this table happens to carry a legal_entity_id FK column.
-org.warehouse       # same as above (ORG-Q1 / org GLOBAL profile): legal_entity_id is a structural FK, not an RLS scope here.
+org.business_unit  # conventions-database.md §7: org structure is GLOBAL (no RLS) precisely to avoid access.visible_*() recursing into the org tables its own policies would read; legal_entity_id here is a structural FK, not an RLS scope.
+org.warehouse       # same as above (conventions-database.md §7, org GLOBAL profile).

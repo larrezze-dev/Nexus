@@ -54,15 +54,17 @@ for file in "${service_files[@]}"; do
   used_permissions=()
   while IFS= read -r p; do
     [[ -n "$p" ]] && used_permissions+=("$p")
-  done < <(grep -oE 'x-permission:[[:space:]]*[A-Za-z0-9_:]+' "$file" \
-    | sed -E 's/x-permission:[[:space:]]*//' | sort -u)
+  done < <(grep -oE 'x-permission:[[:space:]]*"?[A-Za-z0-9_:]+"?' "$file" \
+    | sed -E 's/x-permission:[[:space:]]*"?//; s/"$//' | sort -u)
 
   # Guard against bash's "unbound variable" on an empty array under `set -u`
   # (bash < 4.4, e.g. macOS's stock /bin/bash 3.2) if a service file somehow
   # has zero x-permission matches.
   if [[ "${#used_permissions[@]}" -gt 0 ]]; then
     for perm in "${used_permissions[@]}"; do
-      [[ "$perm" == "PUBLIC" ]] && continue
+      # PUBLIC and AUTHENTICATED are reserved values (conventions-api.md §3),
+      # not resource codes -- they never need a contracts/permissions.yaml entry.
+      [[ "$perm" == "PUBLIC" || "$perm" == "AUTHENTICATED" ]] && continue
       if ! printf '%s\n' "${declared_codes[@]}" | grep -qx -- "$perm"; then
         echo "ERROR: x-permission '$perm' in $file is not declared in $PERMISSIONS_FILE." >&2
         failed=1

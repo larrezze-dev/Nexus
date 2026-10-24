@@ -28,8 +28,12 @@ components:
       properties:
         type:
           type: string
-          format: uri
-          description: Identificador URI del tipo de problema.
+          format: uri-reference
+          description: >
+            Identificador URI del tipo de problema. RFC 9457 §3.1.1 también
+            lo define como "URI reference" (admite rutas relativas), igual
+            que `instance` más abajo — por coherencia, aunque este campo en
+            NEXUS siempre use una URI absoluta.
           example: "https://nexus.nussli.ch/problems/unprocessable-entity"
         title:
           type: string

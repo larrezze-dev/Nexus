@@ -78,8 +78,3 @@ permissions:
     action: UPDATE
     defaultRoles: []
     step: "0.4"
-  - code: ME:READ
-    resource: ME
-    action: READ
-    defaultRoles: []
-    step: "0.4"

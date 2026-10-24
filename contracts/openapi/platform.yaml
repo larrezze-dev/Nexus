@@ -6,9 +6,13 @@ info:
     Servicio `nexus-platform`: estructura organizativa (`org`) de NEXUS —
     directorio de Parties, Groups, Legal Entities, Business Units,
     Locations, Warehouses, Users y Currencies. Capa 1 del modelo de
-    dominio (`docs/domain/org.md`). Alcance de este documento: paso 0.4
-    (núcleo). Las operaciones de tipos de cambio, conversión de moneda y
-    direcciones/relaciones de Party llegan en el paso 1.1.
+    dominio (`docs/domain/org.md`). Alcance principal: paso 0.4 (núcleo).
+    `GET /health` y la forma base de `GET /v1/me` pertenecen al paso 0.5
+    (track C) — se crean aquí porque este documento no existía todavía
+    cuando se ejecutó 0.4; 0.5 solo necesita ampliar `securitySchemes`
+    (oauth2) y los entregables de su propio track B/F, no recrear estas
+    dos operaciones. Las operaciones de tipos de cambio, conversión de
+    moneda y direcciones/relaciones de Party llegan en el paso 1.1.
   contact:
     name: NEXUS Platform Team
     email: nexus-platform@nussli.ch
@@ -36,6 +40,8 @@ tags:
     description: Catálogo de monedas.
   - name: Me
     description: Información del usuario autenticado.
+  - name: Health
+    description: Comprobación de vida del servicio.
 
 security:
   - bearerAuth: []
@@ -379,13 +385,13 @@ paths:
       operationId: createGroup
       summary: Crear un group.
       description: >
-        Alta idempotente (`id` opcional, UUIDv7). `partyId` debe apuntar a
-        un Party existente con `partyType = ORGANIZATION` e `isInternal =
-        true` (ORG-R1).
+        Alta idempotente (`id` opcional, UUIDv7). Crea también el `Party`
+        interno (`partyType = ORGANIZATION`, `isInternal = true`, ORG-R1) en
+        la misma operación — el Party no tiene vida propia fuera del Group.
       tags: [Groups]
       x-permission: "ORG_STRUCTURE:CREATE"
       x-scope: none
-      x-rules: [ORG-R1]
+      x-rules: [ORG-R1, ORG-R7]
       requestBody:
         required: true
         content:
@@ -393,7 +399,7 @@ paths:
             schema:
               $ref: '#/components/schemas/CreateGroupRequest'
             example:
-              partyId: "018f1a3c-7e3b-7c5a-9c2e-6a2f8e9b0c10"
+              legalName: "Nüssli Group"
               code: "NUSSLI"
               consolidationMethod: FULL
               reportingCurrencyCode: "CHF"
@@ -493,6 +499,7 @@ paths:
       tags: [Groups]
       x-permission: "ORG_STRUCTURE:UPDATE"
       x-scope: none
+      x-rules: [ORG-R7]
       parameters:
         - $ref: '#/components/parameters/GroupId'
         - $ref: '_shared/components.yaml#/components/parameters/IfMatch'
@@ -591,13 +598,13 @@ paths:
       operationId: createLegalEntity
       summary: Crear una legal entity.
       description: >
-        Alta idempotente (`id` opcional, UUIDv7). `partyId` debe apuntar a
-        un Party existente con `partyType = ORGANIZATION` e `isInternal =
-        true` (ORG-R1).
+        Alta idempotente (`id` opcional, UUIDv7). Crea también el `Party`
+        interno (`partyType = ORGANIZATION`, `isInternal = true`, ORG-R1) en
+        la misma operación.
       tags: [LegalEntities]
       x-permission: "ORG_STRUCTURE:CREATE"
       x-scope: none
-      x-rules: [ORG-R1]
+      x-rules: [ORG-R1, ORG-R7]
       requestBody:
         required: true
         content:
@@ -605,7 +612,7 @@ paths:
             schema:
               $ref: '#/components/schemas/CreateLegalEntityRequest'
             example:
-              partyId: "018f1a3c-7e3b-7c5a-9c2e-6a2f8e9b0c11"
+              legalName: "Nexus Event AG"
               groupId: "018f1a3c-7e3b-7c5a-9c2e-6a2f8e9b0c30"
               code: "LE-CH"
               currencyCode: "CHF"
@@ -712,6 +719,7 @@ paths:
       tags: [LegalEntities]
       x-permission: "ORG_STRUCTURE:UPDATE"
       x-scope: none
+      x-rules: [ORG-R7]
       parameters:
         - $ref: '#/components/parameters/LegalEntityId'
         - $ref: '_shared/components.yaml#/components/parameters/IfMatch'
@@ -770,6 +778,7 @@ paths:
       tags: [LegalEntities]
       x-permission: "ORG_STRUCTURE:UPDATE"
       x-scope: none
+      x-rules: [ORG-R5]
       parameters:
         - $ref: '#/components/parameters/LegalEntityId'
         - $ref: '_shared/components.yaml#/components/parameters/IfMatch'
@@ -859,13 +868,12 @@ paths:
       operationId: createBusinessUnit
       summary: Crear una business unit.
       description: >
-        Alta idempotente (`id` opcional, UUIDv7). `partyId` debe apuntar a
-        un Party existente con `partyType = ORGANIZATION` e `isInternal =
-        true` (ORG-R1). El alcance de esta alta es `legalEntityId` del
-        cuerpo.
+        Alta idempotente (`id` opcional, UUIDv7). Crea también el `Party`
+        interno (`partyType = ORGANIZATION`, `isInternal = true`, ORG-R1) en
+        la misma operación.
       tags: [BusinessUnits]
       x-permission: "ORG_STRUCTURE:CREATE"
-      x-scope: body.legalEntityId
+      x-scope: none
       x-rules: [ORG-R1]
       requestBody:
         required: true
@@ -874,7 +882,7 @@ paths:
             schema:
               $ref: '#/components/schemas/CreateBusinessUnitRequest'
             example:
-              partyId: "018f1a3c-7e3b-7c5a-9c2e-6a2f8e9b0c12"
+              legalName: "Vermietung CH"
               legalEntityId: "018f1a3c-7e3b-7c5a-9c2e-6a2f8e9b0c40"
               code: "BU-01"
               captionI18n:
@@ -1396,13 +1404,13 @@ paths:
       operationId: createWarehouse
       summary: Crear un warehouse.
       description: >
-        Alta idempotente (`id` opcional, UUIDv7). El alcance de esta alta
-        es `legalEntityId` del cuerpo. Si se indica `businessUnitId`, debe
-        pertenecer a la misma `legalEntityId` (ORG-R3, fuera del alcance
-        de esta subtarea).
+        Alta idempotente (`id` opcional, UUIDv7). Si se indica
+        `businessUnitId`, debe pertenecer a la misma `legalEntityId`
+        (ORG-R3).
       tags: [Warehouses]
       x-permission: "ORG_STRUCTURE:CREATE"
-      x-scope: body.legalEntityId
+      x-scope: none
+      x-rules: [ORG-R3]
       requestBody:
         required: true
         content:
@@ -1525,6 +1533,7 @@ paths:
       tags: [Warehouses]
       x-permission: "ORG_STRUCTURE:UPDATE"
       x-scope: none
+      x-rules: [ORG-R3]
       parameters:
         - $ref: '#/components/parameters/WarehouseId'
         - $ref: '_shared/components.yaml#/components/parameters/IfMatch'
@@ -1683,6 +1692,7 @@ paths:
       tags: [Users]
       x-permission: "USER:CREATE"
       x-scope: none
+      x-rules: [ORG-R6, ORG-R9]
       requestBody:
         required: true
         content:
@@ -1797,6 +1807,7 @@ paths:
       tags: [Users]
       x-permission: "USER:UPDATE"
       x-scope: none
+      x-rules: [ORG-R6, ORG-R9]
       parameters:
         - $ref: '#/components/parameters/UserId'
         - $ref: '_shared/components.yaml#/components/parameters/IfMatch'
@@ -1854,6 +1865,7 @@ paths:
       tags: [Users]
       x-permission: "USER:UPDATE"
       x-scope: none
+      x-rules: [ORG-R6]
       parameters:
         - $ref: '#/components/parameters/UserId'
         - $ref: '_shared/components.yaml#/components/parameters/IfMatch'
@@ -1942,6 +1954,44 @@ paths:
           $ref: '_shared/components.yaml#/components/responses/NotFound'
 
   /v1/currencies/{code}:
+    get:
+      operationId: getCurrency
+      summary: Detalle de una moneda.
+      description: >
+        No está en la lista literal de `org.md §5`, pero hace falta un
+        detalle con `ETag` para que `PUT .../{code}` pueda exigir
+        `If-Match` (conventions-api.md §1/§5) — sin este GET, un cliente
+        nunca tendría de dónde sacar el ETag.
+      tags: [Currencies]
+      x-permission: "CURRENCY:READ"
+      x-scope: none
+      parameters:
+        - $ref: '#/components/parameters/CurrencyCode'
+      responses:
+        '200':
+          description: Moneda.
+          headers:
+            ETag:
+              $ref: '#/components/headers/ETag'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Currency'
+              example:
+                code: "CHF"
+                captionI18n:
+                  de: "Schweizer Franken"
+                  en: "Swiss Franc"
+                minorUnits: 2
+                isActive: true
+        '400':
+          $ref: '_shared/components.yaml#/components/responses/BadRequest'
+        '401':
+          $ref: '_shared/components.yaml#/components/responses/Unauthorized'
+        '403':
+          $ref: '_shared/components.yaml#/components/responses/Forbidden'
+        '404':
+          $ref: '_shared/components.yaml#/components/responses/NotFound'
     put:
       operationId: updateCurrency
       summary: Activar o desactivar una moneda.
@@ -1997,30 +2047,66 @@ paths:
   # ---------------------------------------------------------------------
   # Me
   # ---------------------------------------------------------------------
+  /health:
+    get:
+      operationId: getHealth
+      summary: Estado del servicio.
+      description: >
+        Comprobación de vida, sin autenticación (paso 0.5, track C — se
+        crea aquí porque `platform.yaml` no existía todavía).
+      tags: [Health]
+      x-permission: "PUBLIC"
+      security: []
+      responses:
+        '200':
+          description: El servicio responde.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "up"
+                required: [status]
+              example:
+                status: "up"
+
   /v1/me:
     get:
       operationId: getMe
       summary: Información del usuario autenticado.
       description: >
-        Resuelve el `app_user` activo asociado al claim `oid` del token
+        Forma base (`subject`, `oid`, `displayName`, `email`,
+        `permissions`) fijada por el paso 0.5, track C — se completa aquí
+        porque `platform.yaml` no existía todavía. `userId`/`partyId`/
+        `businessUnitId`/`provisioned` son la ampliación de este paso 0.4:
+        resuelve el `app_user` activo asociado al claim `oid` del token
         (ADR-0006). Si el `oid` no tiene un `app_user` activo, responde
-        403 con `Problem.code = "user_not_provisioned"`.
+        403 con `Problem.code = "user_not_provisioned"` (`provisioned`
+        queda en `false` hasta entonces; antes de este paso era siempre
+        `false`). `permissions` sigue vacía hasta el paso 0.6.
       tags: [Me]
-      x-permission: "ME:READ"
+      x-permission: "AUTHENTICATED"
       x-scope: none
       responses:
         '200':
-          description: Usuario autenticado provisionado.
+          description: Usuario autenticado.
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Me'
               example:
+                subject: "018f1a3c-7e3b-7c5a-9c2e-6a2f8e9b0c90"
+                oid: "00000000-0000-7000-8000-00000000a002"
+                displayName: "User A"
+                email: "usera@dev.nexus.local"
                 userId: "018f1a3c-7e3b-7c5a-9c2e-6a2f8e9b0c80"
                 partyId: "018f1a3c-7e3b-7c5a-9c2e-6a2f8e9b0c13"
                 businessUnitId: "018f1a3c-7e3b-7c5a-9c2e-6a2f8e9b0c50"
-                preferredLanguage: "en"
+                preferredLanguage: "de"
                 provisioned: true
+                permissions: []
         '401':
           $ref: '_shared/components.yaml#/components/responses/Unauthorized'
         '403':
@@ -2243,10 +2329,14 @@ components:
           allOf:
             - $ref: '_shared/components.yaml#/components/schemas/UuidV7'
           description: Id opcional generado por el cliente (alta idempotente).
-        partyId:
-          allOf:
-            - $ref: '_shared/components.yaml#/components/schemas/UuidV7'
-          description: Party existente con partyType=ORGANIZATION e isInternal=true (ORG-R1).
+        legalName:
+          type: string
+          description: >
+            Crea el `Party` interno (partyType=ORGANIZATION, isInternal=true,
+            ORG-R1) en la misma operación — el Party no tiene vida propia
+            fuera del Group.
+        displayName:
+          type: [string, "null"]
         code:
           type: string
         consolidationMethod:
@@ -2256,7 +2346,7 @@ components:
         reportingCurrencyCode:
           type: string
           pattern: '^[A-Z]{3}$'
-      required: [partyId, code, reportingCurrencyCode]
+      required: [legalName, code, reportingCurrencyCode]
 
     UpdateGroupRequest:
       type: object
@@ -2325,10 +2415,13 @@ components:
           allOf:
             - $ref: '_shared/components.yaml#/components/schemas/UuidV7'
           description: Id opcional generado por el cliente (alta idempotente).
-        partyId:
-          allOf:
-            - $ref: '_shared/components.yaml#/components/schemas/UuidV7'
-          description: Party existente con partyType=ORGANIZATION e isInternal=true (ORG-R1).
+        legalName:
+          type: string
+          description: >
+            Crea el `Party` interno (partyType=ORGANIZATION, isInternal=true,
+            ORG-R1) en la misma operación.
+        displayName:
+          type: [string, "null"]
         groupId:
           $ref: '_shared/components.yaml#/components/schemas/UuidV7'
         code:
@@ -2339,7 +2432,7 @@ components:
         countryCode:
           type: string
           pattern: '^[A-Z]{2}$'
-      required: [partyId, groupId, code, currencyCode, countryCode]
+      required: [legalName, groupId, code, currencyCode, countryCode]
 
     UpdateLegalEntityRequest:
       type: object
@@ -2402,10 +2495,13 @@ components:
           allOf:
             - $ref: '_shared/components.yaml#/components/schemas/UuidV7'
           description: Id opcional generado por el cliente (alta idempotente).
-        partyId:
-          allOf:
-            - $ref: '_shared/components.yaml#/components/schemas/UuidV7'
-          description: Party existente con partyType=ORGANIZATION e isInternal=true (ORG-R1).
+        legalName:
+          type: string
+          description: >
+            Crea el `Party` interno (partyType=ORGANIZATION, isInternal=true,
+            ORG-R1) en la misma operación.
+        displayName:
+          type: [string, "null"]
         legalEntityId:
           $ref: '_shared/components.yaml#/components/schemas/UuidV7'
         code:
@@ -2414,7 +2510,7 @@ components:
           $ref: '_shared/components.yaml#/components/schemas/I18nText'
         costCenterCode:
           type: [string, "null"]
-      required: [partyId, legalEntityId, code, captionI18n]
+      required: [legalName, legalEntityId, code, captionI18n]
 
     UpdateBusinessUnitRequest:
       type: object
@@ -2609,6 +2705,11 @@ components:
           $ref: '_shared/components.yaml#/components/schemas/UuidV7'
         partyId:
           $ref: '_shared/components.yaml#/components/schemas/UuidV7'
+        oid:
+          type: [string, "null"]
+          description: >
+            Claim `oid` de Entra ID (`app_user.external_subject`). `null`
+            para el usuario SYSTEM, que no inicia sesión.
         fullName:
           type: string
           description: Nombre completo de la persona (`party.legal_name`).
@@ -2635,6 +2736,8 @@ components:
       properties:
         id:
           $ref: '_shared/components.yaml#/components/schemas/UuidV7'
+        oid:
+          type: [string, "null"]
         fullName:
           type: string
         email:
@@ -2679,6 +2782,12 @@ components:
     UpdateUserRequest:
       type: object
       properties:
+        oid:
+          type: [string, "null"]
+          description: >
+            Permite corregir el `oid` (`external_subject`) de un usuario,
+            p. ej. tras un reaprovisionamiento en el IdP. `null` no está
+            permitido para un usuario que no sea SYSTEM (ORG-R6).
         fullName:
           type: string
         email:
@@ -2732,7 +2841,23 @@ components:
     # --- Me ----------------------------------------------------------------
     Me:
       type: object
+      description: >
+        Forma base (`subject`, `oid`, `displayName`, `email`,
+        `permissions`) del paso 0.5; `userId`/`partyId`/`businessUnitId`/
+        `provisioned` son la ampliación del paso 0.4.
       properties:
+        subject:
+          type: string
+          description: Claim `sub` del token (identificador técnico del IdP).
+        oid:
+          type: string
+          description: Claim `oid` del token (`app_user.external_subject`).
+        displayName:
+          type: string
+          description: Nombre para mostrar, tomado del token.
+        email:
+          type: [string, "null"]
+          description: Email tomado del token (no de `app_user`).
         userId:
           $ref: '_shared/components.yaml#/components/schemas/UuidV7'
         partyId:
@@ -2746,4 +2871,9 @@ components:
         provisioned:
           type: boolean
           enum: [true]
-      required: [userId, partyId, preferredLanguage, provisioned]
+        permissions:
+          type: array
+          description: Vacía hasta el paso 0.6.
+          items:
+            type: string
+      required: [subject, oid, displayName, userId, partyId, preferredLanguage, provisioned, permissions]
