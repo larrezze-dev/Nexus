@@ -18,8 +18,10 @@ info:
     email: nexus-platform@nussli.ch
 
 servers:
-  - url: http://nexus-platform:8080
-    description: Interno (dentro del clúster, tras el gateway)
+  - url: http://nexus-platform:5101
+    description: Interno (dentro del clúster, directo al servicio)
+  - url: http://localhost:8080/api/platform
+    description: Externo, vía gateway (YARP, paso 0.5 track B)
 
 tags:
   - name: Parties
@@ -2142,6 +2144,22 @@ components:
       type: http
       scheme: bearer
       bearerFormat: JWT
+
+    oauth2:
+      type: oauth2
+      description: >
+        Flujo interactivo (Authorization Code + PKCE, ADR-0006) para
+        Swagger UI y clientes OIDC genéricos. Las URLs de abajo son las
+        del IdP de desarrollo local (Keycloak, infra/compose). En Azure,
+        Entra ID usa URLs distintas — ADR-0006: "mismo código, solo
+        cambia la configuración" (authority/clientId/scope), nunca este
+        documento.
+      flows:
+        authorizationCode:
+          authorizationUrl: http://localhost:8180/realms/nexus/protocol/openid-connect/auth
+          tokenUrl: http://localhost:8180/realms/nexus/protocol/openid-connect/token
+          scopes:
+            access_as_user: Acceso a la API de NEXUS en nombre del usuario (ADR-0006).
 
   headers:
     ETag:
