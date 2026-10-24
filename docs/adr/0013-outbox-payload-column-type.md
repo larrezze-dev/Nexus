@@ -1,7 +1,7 @@
 # ADR-0013 · Tipo de columna para `outbox.message.payload`
 
-- **Estado:** Propuesto
-- **Fecha:** 2026-10-23
+- **Estado:** Aceptado
+- **Fecha:** 2026-10-23 (decidido 2026-10-24)
 - **Decide:** Luciano Arrezze
 - **Afecta a:** `conventions-events.md §3, §6`, `db/migrations/V202610231001__infra__outbox_inbox.sql` (0.3, ya en `main`), todo paso futuro cuyos eventos lleven un campo `decimal` (dinero, cantidades, porcentajes, tipo de cambio)
 
@@ -13,7 +13,7 @@ Esto no es un caso límite raro: cualquier valor `decimal` cuya representación 
 
 ## Decisión
 
-_Pendiente de tu elección entre las alternativas de abajo._ Recomendación del equipo: **(A)** — cambia el tipo de columna, no el contrato de eventos ya fijado por ADR-0008/EV-R1, y es una migración aditiva de una sola columna sin tocar la versionada ya mergeada (`db/migrations/V202610231001...` no se edita — ADR-0001 — se añade una nueva `V<ts>__infra__outbox_payload_text.sql` con `ALTER TABLE outbox.message ALTER COLUMN payload TYPE text`).
+**(A)** — `outbox.message.payload` pasa de `jsonb` a `text`. No cambia el contrato de eventos ya fijado por ADR-0008/EV-R1 (sigue siendo JSON de Avro); es una migración aditiva de una sola columna sin tocar la versionada ya mergeada (`db/migrations/V202610231001...` no se edita — ADR-0001 — se añade una nueva `V<ts>__infra__outbox_payload_text.sql` con `ALTER TABLE outbox.message ALTER COLUMN payload TYPE text`). El binding de Npgsql del `OutboxWriter` (`NpgsqlDbType.Jsonb` → `NpgsqlDbType.Text` para el parámetro `payload`) cambia junto con la migración.
 
 ## Alternativas descartadas
 
