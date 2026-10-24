@@ -100,3 +100,8 @@ Reglas:
 4. **Paralelismo:** las subtareas independientes del mismo track se lanzan en paralelo, cada una con `isolation: worktree` si tocan ficheros distintos. Las que comparten ficheros van en secuencia.
 5. **Contexto mínimo:** cada subagente recibe solo la subtarea, los ficheros que debe tocar y las secciones de `docs/` que le aplican (de la tabla "Leer" de la ficha), nunca la ficha entera ni el historial.
 6. **Cierre:** el PR incluye la tabla "Subtarea · Nivel · Subagente · Escalados", para que Luciano vea qué hizo cada modelo.
+
+
+## 8. Gestion de la ventana de contexto
+
+Cuando el uso de la ventana de contexto llegue a maximo 85% compactala e intenta seguir con el desarrollo. Si en algun momento la ventana de contexto, mismo compactada x veces llega al 70% de su uso, guarda las informaciones de desarrollo y prepara la memoria y todos los archivos relevantes para una nueva sesion. Luego de ello informa al usuario: "Iniciar nueva sesion con el siguiente prompt: " y describre el prompt para la nueva sesion para que siga desarrollando segun el flujo actual de trabajo.
