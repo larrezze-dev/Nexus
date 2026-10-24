@@ -47,7 +47,7 @@ Servicios: `svc_platform`, `svc_catalog`, `svc_operations`, `svc_commercial`, `s
 | Porcentaje | `numeric(7,4)` como fracción (0.1500 = 15 %) |
 | Tipo de cambio | `numeric(19,10)` |
 | Texto traducible | `jsonb` `caption_i18n` (§5) |
-| Payload flexible | `jsonb` (solo donde el manual lo dice: `delta_lines`, `payload` de outbox) |
+| Payload flexible | `jsonb` (solo donde el manual lo dice: `delta_lines`). `outbox.message.payload` es `text`, no `jsonb` (ADR-0013: un `decimal` de Avro puede producir un escape `\u0000`, que `jsonb` rechaza) |
 | Geo | `numeric(9,6)` lat / lon. PostGIS no se instala salvo ADR |
 
 ## §4 Columnas estándar
