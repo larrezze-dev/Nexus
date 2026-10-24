@@ -54,8 +54,8 @@ for file in "${service_files[@]}"; do
   used_permissions=()
   while IFS= read -r p; do
     [[ -n "$p" ]] && used_permissions+=("$p")
-  done < <(grep -oE 'x-permission:[[:space:]]*"?[A-Za-z0-9_:]+"?' "$file" \
-    | sed -E 's/x-permission:[[:space:]]*"?//; s/"$//' | sort -u)
+  done < <(grep -oE "x-permission:[[:space:]]*[\"']?[A-Za-z0-9_:]+[\"']?" "$file" \
+    | sed -E "s/x-permission:[[:space:]]*[\"']?//; s/[\"']\$//" | sort -u)
 
   # Guard against bash's "unbound variable" on an empty array under `set -u`
   # (bash < 4.4, e.g. macOS's stock /bin/bash 3.2) if a service file somehow

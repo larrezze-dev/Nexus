@@ -182,7 +182,7 @@ CREATE INDEX ix_app_user_bu ON org.app_user(business_unit_id);
 -- is_active" -- a plain UNIQUE would wrongly block reusing a deactivated
 -- user's email for someone new). lower() so the uniqueness is
 -- case-insensitive, matching how email addresses are actually compared.
-CREATE UNIQUE INDEX ux_app_user_email_active ON org.app_user (lower(email))
+CREATE UNIQUE INDEX uq_app_user_email_active ON org.app_user (lower(email))
   WHERE is_active AND email IS NOT NULL;
 
 -- ---------------------------------------------------------------------------
