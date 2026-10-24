@@ -105,3 +105,8 @@ Reglas:
 ## 8. Gestion de la ventana de contexto
 
 Cuando el uso de la ventana de contexto llegue a maximo 85% compactala e intenta seguir con el desarrollo. Si en algun momento la ventana de contexto, mismo compactada x veces llega al 70% de su uso, guarda las informaciones de desarrollo y prepara la memoria y todos los archivos relevantes para una nueva sesion. Luego de ello informa al usuario: "Iniciar nueva sesion con el siguiente prompt: " y describre el prompt para la nueva sesion para que siga desarrollando segun el flujo actual de trabajo.
+
+
+## 9. Pruebas manuales y aprobacion explicita de Luciano
+
+Para cada nuevo fragmento, seccion o modulo utilizable el usuario (Luciano) tendra que manualmente comprobar su funcionamiento, diseño de interfaz, campos de la tablas de la base de datos y dar su aprobacion explicita o solicitar modificaciones. Esta regla se aplica a los fragmento, seccion o modulo verificables por un humano. Luciano tendra la opcion de autorizar/aprobar los fragmento, seccion o modulos sin haberlos probado manualmente y para ello dara la instruccion explicita de aprobado y/o continuar.
