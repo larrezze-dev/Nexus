@@ -236,6 +236,6 @@ Todos de master data, con estado completo (EV-R4). Contexto `org`.
 
 ## §8 Abiertos ⚑
 
-- **ORG-Q1:** visibilidad del directorio `Party`. Propuesta: `GLOBAL` (directorio compartido por el grupo). Alternativa: RLS por `owner_legal_entity_id`. Afecta a privacidad de clientes y contactos.
+- **ORG-Q1 (decidido 2026-10-24):** visibilidad del directorio `Party` = **`GLOBAL`** (directorio compartido por todo el grupo, sin columna de alcance ni RLS — coincide con la DDL de `org.party` de `§3`, que no lleva `legal_entity_id`). Decisión de Luciano antes del paso 0.4.
 - **ORG-Q2:** no hay entidad `CostCenter`; se guarda `cost_center_code` como texto hasta que exista un plan de cuentas.
 - **ORG-Q3:** valores de `consolidation_method`. Propuesta: `FULL`, `PROPORTIONAL`, `EQUITY`.
