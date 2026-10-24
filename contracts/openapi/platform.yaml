@@ -1,25 +1,31 @@
 openapi: 3.1.0
 info:
   title: NEXUS Platform API
-  version: "0.4.0"
+  version: "0.5.0"
   description: >
     Servicio `nexus-platform`: estructura organizativa (`org`) de NEXUS —
     directorio de Parties, Groups, Legal Entities, Business Units,
     Locations, Warehouses, Users y Currencies. Capa 1 del modelo de
     dominio (`docs/domain/org.md`). Alcance principal: paso 0.4 (núcleo).
-    `GET /health` y la forma base de `GET /v1/me` pertenecen al paso 0.5
-    (track C) — se crean aquí porque este documento no existía todavía
-    cuando se ejecutó 0.4; 0.5 solo necesita ampliar `securitySchemes`
-    (oauth2) y los entregables de su propio track B/F, no recrear estas
-    dos operaciones. Las operaciones de tipos de cambio, conversión de
-    moneda y direcciones/relaciones de Party llegan en el paso 1.1.
+    `GET /health` y la forma base de `GET /v1/me` se crearon ya en el
+    paso 0.4, porque este documento no existía todavía cuando se
+    ejecutó; 0.5 (track C) solo amplió `servers`/`securitySchemes`
+    (`oidc`), sin recrear esas dos operaciones. Las operaciones de
+    tipos de cambio, conversión de moneda y direcciones/relaciones de
+    Party llegan en el paso 1.1.
   contact:
     name: NEXUS Platform Team
     email: nexus-platform@nussli.ch
 
 servers:
-  - url: http://nexus-platform:8080
-    description: Interno (dentro del clúster, tras el gateway)
+  # Primera entrada = rootUrl por defecto de ng-openapi-gen (track F): debe ser
+  # relativa para que funcione igual contra el gateway real (ng serve con
+  # proxy.conf.json) y contra el mock de Prism (proxy.mock.json) sin reconfigurar
+  # nada — conventions-api.md §1, ruta externa "/api/<servicio>/v1/<recurso>".
+  - url: /api/platform
+    description: Externo, vía gateway (YARP, paso 0.5 track B) o proxy de Angular
+  - url: http://nexus-platform:5101
+    description: Interno (dentro del clúster, directo al servicio)
 
 tags:
   - name: Parties
@@ -2142,6 +2148,23 @@ components:
       type: http
       scheme: bearer
       bearerFormat: JWT
+
+    oidc:
+      type: openIdConnect
+      description: >
+        Flujo interactivo (Authorization Code + PKCE, ADR-0006) para
+        Swagger UI y clientes OIDC genéricos, descrito como
+        `openIdConnect` en vez de `oauth2` explícito: una sola URL de
+        descubrimiento (`.well-known/openid-configuration`) en lugar de
+        fijar `authorizationUrl`/`tokenUrl` a mano — así "URLs
+        parametrizadas" (la ficha de 0.5) es literal: cambiar de entorno
+        es cambiar un solo valor, no dos. La URL de abajo es la del IdP
+        de desarrollo local (Keycloak, `infra/compose`, realm `nexus`).
+        En Azure, Entra ID usa otra `openIdConnectUrl` (y el scope real
+        es `api://nexus/access_as_user`, no el nombre corto que usa
+        Keycloak) — ADR-0006: "mismo código, solo cambia la
+        configuración" (authority/clientId/scope), nunca este documento.
+      openIdConnectUrl: http://localhost:8180/realms/nexus/.well-known/openid-configuration
 
   headers:
     ETag:
