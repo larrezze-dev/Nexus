@@ -1,0 +1,8 @@
+<nav class="nx-breadcrumb" aria-label="Breadcrumb">
+  @for (crumb of crumbs(); track crumb.path; let last = $last) {
+    <a class="nx-breadcrumb__item" [routerLink]="crumb.path">{{ crumb.titleKey }}</a>
+    @if (!last) {
+      <span class="nx-breadcrumb__separator" aria-hidden="true">/</span>
+    }
+  }
+</nav>
