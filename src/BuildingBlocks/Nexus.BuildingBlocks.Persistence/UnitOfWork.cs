@@ -64,7 +64,7 @@ public sealed class UnitOfWork : IUnitOfWork
         }
 
         // RLS context must identify a real user (BE-R1): an empty id would silently see nothing.
-        if (!_currentUser.IsAuthenticated || _currentUser.UserId == Guid.Empty)
+        if (!_currentUser.IsAuthenticated || _currentUser.UserId is not { } userId || userId == Guid.Empty)
         {
             throw new InvalidOperationException("A unit of work requires an authenticated ICurrentUser with a non-empty UserId.");
         }
@@ -75,7 +75,7 @@ public sealed class UnitOfWork : IUnitOfWork
         }
 
         _envelope = new OutboxEnvelopeContext(
-            _currentUser.UserId,
+            userId,
             _correlation.CorrelationId,
             _correlation.CausationId ?? _correlation.CorrelationId);
 
