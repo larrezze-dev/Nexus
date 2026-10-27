@@ -10,6 +10,9 @@ node_modules/
 dist/
 npm-debug.log*
 
+# Generated API clients (make contracts, ng-openapi-gen)
+web/src/app/api/
+
 # Gradle
 .gradle/
 build/

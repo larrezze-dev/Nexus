@@ -65,12 +65,19 @@
         },
         "serve": {
           "builder": "@angular/build:dev-server",
+          "options": {
+            "proxyConfig": "proxy.conf.json"
+          },
           "configurations": {
             "production": {
               "buildTarget": "web:build:production"
             },
             "development": {
               "buildTarget": "web:build:development"
+            },
+            "mock": {
+              "buildTarget": "web:build:development",
+              "proxyConfig": "proxy.mock.json"
             }
           },
           "defaultConfiguration": "development"
