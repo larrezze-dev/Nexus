@@ -1,0 +1,10 @@
+{
+  "/api/platform/**": {
+    "target": "http://localhost:4010",
+    "secure": false,
+    "changeOrigin": true,
+    "pathRewrite": {
+      "^/api/platform": ""
+    }
+  }
+}

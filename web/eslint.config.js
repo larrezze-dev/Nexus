@@ -7,6 +7,10 @@ const angularTemplateParser = require('@angular-eslint/template-parser');
 
 module.exports = [
   {
+    // Generated API clients (make contracts / ng-openapi-gen) are not hand-written code.
+    ignores: ['src/app/api/**'],
+  },
+  {
     files: ['**/*.ts'],
     languageOptions: {
       parser: tsParser,
