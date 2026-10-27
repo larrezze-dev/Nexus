@@ -1,0 +1,10 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <ItemGroup>
+    <ProjectReference Include="..\Nexus.Platform.Application\Nexus.Platform.Application.csproj" />
+    <ProjectReference Include="..\Nexus.Platform.Infrastructure\Nexus.Platform.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\BuildingBlocks\Nexus.BuildingBlocks.Application\Nexus.BuildingBlocks.Application.csproj" />
+    <ProjectReference Include="..\..\BuildingBlocks\Nexus.BuildingBlocks.Web\Nexus.BuildingBlocks.Web.csproj" />
+  </ItemGroup>
+
+</Project>

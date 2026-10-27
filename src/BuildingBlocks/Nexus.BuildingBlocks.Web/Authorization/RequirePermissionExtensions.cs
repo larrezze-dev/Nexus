@@ -56,4 +56,36 @@ public static class RequirePermissionExtensions
 
         return builder;
     }
+
+    /// <summary>
+    /// Marks the endpoint with the reserved `x-permission: PUBLIC` value (conventions-api.md
+    /// §3): no authentication required at all. Calls <c>AllowAnonymous()</c> (so the endpoint
+    /// is reachable even if a fallback authorization policy is ever configured) and attaches
+    /// <see cref="PublicEndpointMetadata"/> for the OpenAPI operation transformer.
+    /// </summary>
+    public static TBuilder RequirePublic<TBuilder>(this TBuilder builder)
+        where TBuilder : IEndpointConventionBuilder
+    {
+        builder.AllowAnonymous();
+        builder.WithMetadata(new PublicEndpointMetadata());
+
+        return builder;
+    }
+
+    /// <summary>
+    /// Marks the endpoint with the reserved `x-permission: AUTHENTICATED` value
+    /// (conventions-api.md §3): any valid session is enough, there is no `RESOURCE:ACTION`
+    /// permission to check. Calls <c>RequireAuthorization()</c> (401 for no/invalid token) and
+    /// attaches <see cref="AuthenticatedOnlyMetadata"/> for the OpenAPI operation transformer.
+    /// Unlike <see cref="RequirePermission"/>, this never adds <see cref="PermissionEndpointFilter"/>
+    /// - there is no permission to enforce.
+    /// </summary>
+    public static TBuilder RequireAuthenticatedOnly<TBuilder>(this TBuilder builder)
+        where TBuilder : IEndpointConventionBuilder
+    {
+        builder.RequireAuthorization();
+        builder.WithMetadata(new AuthenticatedOnlyMetadata());
+
+        return builder;
+    }
 }

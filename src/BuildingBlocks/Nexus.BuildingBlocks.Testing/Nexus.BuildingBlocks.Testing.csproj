@@ -12,6 +12,12 @@
          this project is not itself an xunit test project (no test runner/OutputType Exe here),
          just the thing a future *.Tests project new's up as a shared [assembly: AssemblyFixture]. -->
     <PackageReference Include="xunit.v3.extensibility.core" />
+    <!-- TestJwtIssuer signs tokens with System.IdentityModel.Tokens.Jwt / Microsoft.IdentityModel.Tokens,
+         both transitive dependencies of this package - referenced directly here only so this
+         project (not just a host that happens to also pull it in) compiles against them. -->
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" />
+    <!-- WebAppFixture<TProgram> wraps WebApplicationFactory<TProgram>. -->
+    <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" />
   </ItemGroup>
 
   <ItemGroup>
