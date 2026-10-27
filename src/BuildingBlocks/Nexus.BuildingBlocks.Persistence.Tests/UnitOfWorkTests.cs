@@ -224,6 +224,22 @@ public sealed class UnitOfWorkTests(PersistenceDatabaseFixture db) : IAsyncLifet
         await Should.ThrowAsync<InvalidOperationException>(() => uncorrelated.BeginAsync(Ct));
     }
 
+    // BE-R1: an authenticated caller not (yet) resolved to an app_user (UserId null, e.g. an
+    // unprovisioned oid) or carrying an empty id must never open an RLS session.
+    [Theory]
+    [InlineData(null)]
+    [InlineData("00000000-0000-0000-0000-000000000000")]
+    public async Task Begin_RejectsAuthenticatedUserWithoutUserId(string? userId)
+    {
+        await using var unresolved = new UnitOfWork(
+            _dataSource,
+            new TestCurrentUser(userId is null ? null : Guid.Parse(userId, CultureInfo.InvariantCulture)),
+            new CorrelationContext { CorrelationId = _correlationId },
+            new OutboxWriter(db.SchemaProvider, new TestIdGenerator(), TimeProvider.System));
+
+        await Should.ThrowAsync<InvalidOperationException>(() => unresolved.BeginAsync(Ct));
+    }
+
     [Fact]
     public async Task UnitOfWork_IsSingleUse()
     {

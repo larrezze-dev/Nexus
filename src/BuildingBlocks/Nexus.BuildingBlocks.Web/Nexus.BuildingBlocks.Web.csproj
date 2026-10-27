@@ -5,4 +5,17 @@
     <Nullable>enable</Nullable>
   </PropertyGroup>
 
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Nexus.BuildingBlocks.Application\Nexus.BuildingBlocks.Application.csproj" />
+    <ProjectReference Include="..\Nexus.BuildingBlocks.Persistence\Nexus.BuildingBlocks.Persistence.csproj" />
+  </ItemGroup>
+
 </Project>

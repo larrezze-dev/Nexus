@@ -90,11 +90,15 @@ public sealed class WidgetDbContext : DbContextBase
     }
 }
 
-public sealed class TestCurrentUser(Guid userId, bool isAuthenticated = true) : ICurrentUser
+public sealed class TestCurrentUser(Guid? userId, bool isAuthenticated = true) : ICurrentUser
 {
-    public Guid UserId { get; } = userId;
+    public Guid? UserId { get; } = userId;
 
     public bool IsAuthenticated { get; } = isAuthenticated;
+
+    public string? Oid => null;
+
+    public string? Subject => null;
 }
 
 public sealed class TestIdGenerator : IIdGenerator
