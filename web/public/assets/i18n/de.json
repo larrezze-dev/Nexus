@@ -1,0 +1,36 @@
+{
+  "common": {
+    "cancel": "Abbrechen",
+    "reload": "Neu laden",
+    "save": "Speichern"
+  },
+  "errors": {
+    "generic": "Etwas ist schiefgelaufen. Bitte versuchen Sie es erneut.",
+    "validation": "Bitte korrigieren Sie die markierten Felder.",
+    "unauthorized": "Ihre Sitzung ist abgelaufen. Bitte melden Sie sich erneut an.",
+    "forbidden": "Sie haben keine Berechtigung für diese Aktion.",
+    "notFound": "Die angeforderte Ressource wurde nicht gefunden.",
+    "concurrencyTitle": "Ein anderer Benutzer hat diesen Datensatz geändert",
+    "concurrencyMessage": "Ein anderer Benutzer hat diesen Datensatz gespeichert, nachdem Sie ihn geladen haben. Laden Sie neu, um die aktuelle Version zu sehen, bevor Sie fortfahren.",
+    "SAMPLE-R1": "Beispieltext für Geschäftsregel SAMPLE-R1 — durch den echten Text ersetzen."
+  },
+  "shell": {
+    "nav": {
+      "home": "Startseite"
+    },
+    "userMenu": {
+      "language": "Sprache"
+    }
+  },
+  "httpPages": {
+    "forbidden": {
+      "title": "Zugriff verweigert",
+      "message": "Sie haben keine Berechtigung, diese Seite anzuzeigen.",
+      "requiredPermission": "Erforderliche Berechtigung: {{permission}}"
+    },
+    "notFound": {
+      "title": "Seite nicht gefunden",
+      "message": "Die gesuchte Seite existiert nicht oder wurde verschoben."
+    }
+  }
+}

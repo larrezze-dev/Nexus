@@ -1,0 +1,36 @@
+{
+  "common": {
+    "cancel": "Cancel",
+    "reload": "Reload",
+    "save": "Save"
+  },
+  "errors": {
+    "generic": "Something went wrong. Please try again.",
+    "validation": "Please fix the highlighted fields.",
+    "unauthorized": "Your session has expired. Please sign in again.",
+    "forbidden": "You do not have permission to do this.",
+    "notFound": "The requested resource was not found.",
+    "concurrencyTitle": "Someone else has modified this record",
+    "concurrencyMessage": "Another user saved changes to this record after you loaded it. Reload to see the latest version before continuing.",
+    "SAMPLE-R1": "Example business rule message — replace with the real text for rule SAMPLE-R1."
+  },
+  "shell": {
+    "nav": {
+      "home": "Home"
+    },
+    "userMenu": {
+      "language": "Language"
+    }
+  },
+  "httpPages": {
+    "forbidden": {
+      "title": "Access denied",
+      "message": "You do not have permission to view this page.",
+      "requiredPermission": "Required permission: {{permission}}"
+    },
+    "notFound": {
+      "title": "Page not found",
+      "message": "The page you are looking for does not exist or was moved."
+    }
+  }
+}

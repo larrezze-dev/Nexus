@@ -1,0 +1,36 @@
+{
+  "common": {
+    "cancel": "Annuler",
+    "reload": "Recharger",
+    "save": "Enregistrer"
+  },
+  "errors": {
+    "generic": "Une erreur est survenue. Veuillez réessayer.",
+    "validation": "Veuillez corriger les champs signalés.",
+    "unauthorized": "Votre session a expiré. Veuillez vous reconnecter.",
+    "forbidden": "Vous n'avez pas la permission d'effectuer cette action.",
+    "notFound": "La ressource demandée n'a pas été trouvée.",
+    "concurrencyTitle": "Un autre utilisateur a modifié cet enregistrement",
+    "concurrencyMessage": "Un autre utilisateur a enregistré des modifications sur cet enregistrement après que vous l'ayez chargé. Rechargez pour voir la dernière version avant de continuer.",
+    "SAMPLE-R1": "Exemple de message pour la règle métier SAMPLE-R1 — à remplacer par le vrai texte."
+  },
+  "shell": {
+    "nav": {
+      "home": "Accueil"
+    },
+    "userMenu": {
+      "language": "Langue"
+    }
+  },
+  "httpPages": {
+    "forbidden": {
+      "title": "Accès refusé",
+      "message": "Vous n'avez pas la permission de voir cette page.",
+      "requiredPermission": "Permission requise : {{permission}}"
+    },
+    "notFound": {
+      "title": "Page introuvable",
+      "message": "La page que vous recherchez n'existe pas ou a été déplacée."
+    }
+  }
+}

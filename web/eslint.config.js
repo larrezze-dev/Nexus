@@ -21,7 +21,9 @@ module.exports = [
         'error',
         {
           type: 'attribute',
-          prefix: 'app',
+          // `app` for the shell/root; `nx` for shared and core components
+          // (conventions-frontend.md §5: nx-data-grid, nx-status-badge, ...).
+          prefix: ['app', 'nx'],
           style: 'camelCase',
         },
       ],
@@ -29,7 +31,7 @@ module.exports = [
         'error',
         {
           type: 'element',
-          prefix: 'app',
+          prefix: ['app', 'nx'],
           style: 'kebab-case',
         },
       ],
