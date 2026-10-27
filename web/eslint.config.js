@@ -29,7 +29,9 @@ module.exports = [
         'error',
         {
           type: 'element',
-          prefix: 'app',
+          // 'nx' covers the shared/ui component library (nx-data-grid, nx-status-badge, …)
+          // required by conventions-frontend.md §5; 'app' stays the default for the rest.
+          prefix: ['app', 'nx'],
           style: 'kebab-case',
         },
       ],

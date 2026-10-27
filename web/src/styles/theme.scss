@@ -1,0 +1,22 @@
+// ⚑ paleta provisional — colores corporativos de Nüssli pendientes de decisión.
+// Tema M3 de Angular Material (paso 0.5, core/layout). Cuando la decisión de
+// marca esté cerrada, solo hay que cambiar los valores de `color` de este
+// fichero; ningún componente depende de los nombres de paleta concretos.
+@use '@angular/material' as mat;
+
+html {
+  // Estilos estructurales (ripple, overlays del CDK, etc.) independientes del color.
+  @include mat.core();
+
+  @include mat.theme(
+    (
+      color: (
+        theme-type: light,
+        primary: mat.$blue-palette,
+        tertiary: mat.$cyan-palette,
+      ),
+      typography: Roboto,
+      density: 0,
+    )
+  );
+}
