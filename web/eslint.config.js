@@ -21,8 +21,8 @@ module.exports = [
         'error',
         {
           type: 'attribute',
-          // 'nx' covers the shared/ directives (e.g. *nxCan, conventions-frontend.md §6);
-          // 'app' remains the default for feature-owned directives.
+          // `app` for the shell/root; `nx` for shared and core directives/components
+          // (conventions-frontend.md §5-6: nx-data-grid, nx-status-badge, *nxCan, ...).
           prefix: ['app', 'nx'],
           style: 'camelCase',
         },
@@ -31,7 +31,7 @@ module.exports = [
         'error',
         {
           type: 'element',
-          prefix: 'app',
+          prefix: ['app', 'nx'],
           style: 'kebab-case',
         },
       ],

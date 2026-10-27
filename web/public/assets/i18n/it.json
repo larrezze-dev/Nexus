@@ -1,0 +1,36 @@
+{
+  "common": {
+    "cancel": "Annulla",
+    "reload": "Ricarica",
+    "save": "Salva"
+  },
+  "errors": {
+    "generic": "Qualcosa è andato storto. Riprova.",
+    "validation": "Correggi i campi evidenziati.",
+    "unauthorized": "La sessione è scaduta. Accedi di nuovo.",
+    "forbidden": "Non hai il permesso di eseguire questa azione.",
+    "notFound": "La risorsa richiesta non è stata trovata.",
+    "concurrencyTitle": "Un altro utente ha modificato questo record",
+    "concurrencyMessage": "Un altro utente ha salvato modifiche a questo record dopo che l'hai caricato. Ricarica per vedere l'ultima versione prima di continuare.",
+    "SAMPLE-R1": "Testo di esempio per la regola di business SAMPLE-R1 — da sostituire con il testo reale."
+  },
+  "shell": {
+    "nav": {
+      "home": "Home"
+    },
+    "userMenu": {
+      "language": "Lingua"
+    }
+  },
+  "httpPages": {
+    "forbidden": {
+      "title": "Accesso negato",
+      "message": "Non hai il permesso di visualizzare questa pagina.",
+      "requiredPermission": "Permesso richiesto: {{permission}}"
+    },
+    "notFound": {
+      "title": "Pagina non trovata",
+      "message": "La pagina che stai cercando non esiste o è stata spostata."
+    }
+  }
+}
