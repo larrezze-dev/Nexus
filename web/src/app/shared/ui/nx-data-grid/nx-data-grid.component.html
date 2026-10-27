@@ -1,0 +1,35 @@
+<div class="nx-data-grid">
+  <div class="nx-data-grid__viewport">
+    <ag-grid-angular
+      class="nx-data-grid__grid"
+      [columnDefs]="columns()"
+      [rowData]="rowData()"
+      [theme]="theme"
+      [loading]="loading()"
+      rowSelection="multiple"
+      (gridReady)="onGridReady($event)"
+      (sortChanged)="onSortChanged($event)"
+      (selectionChanged)="onSelectionChanged($event)"
+    />
+
+    @if (!loading() && total() === 0) {
+      <div class="nx-data-grid__empty" data-testid="nx-data-grid-empty">
+        {{ emptyMessageKey() | transloco }}
+      </div>
+    }
+
+    @if (loading()) {
+      <div class="nx-data-grid__loading" data-testid="nx-data-grid-loading">
+        <mat-spinner diameter="32" />
+      </div>
+    }
+  </div>
+
+  <mat-paginator
+    [length]="total()"
+    [pageIndex]="pageIndex()"
+    [pageSize]="pageSizeState()"
+    [pageSizeOptions]="pageSizeOptions()"
+    (page)="onPage($event)"
+  />
+</div>

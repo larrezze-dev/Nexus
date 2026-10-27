@@ -1,0 +1,5 @@
+<mat-chip-set>
+  <mat-chip class="nx-status-badge" [ngClass]="resolved().colorClass" [disableRipple]="true" [attr.data-status]="status()">
+    {{ resolved().i18nKey | transloco }}
+  </mat-chip>
+</mat-chip-set>
