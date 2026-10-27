@@ -21,7 +21,9 @@ module.exports = [
         'error',
         {
           type: 'attribute',
-          prefix: 'app',
+          // 'nx' covers the shared/ directives (e.g. *nxCan, conventions-frontend.md §6);
+          // 'app' remains the default for feature-owned directives.
+          prefix: ['app', 'nx'],
           style: 'camelCase',
         },
       ],
