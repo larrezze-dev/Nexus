@@ -9,6 +9,7 @@ import { MatMenuModule } from '@angular/material/menu';
 import { MatSidenavModule } from '@angular/material/sidenav';
 import { MatToolbarModule } from '@angular/material/toolbar';
 import { RouterLink, RouterOutlet } from '@angular/router';
+import { NxCanDirective } from '../../shared/auth/can.directive';
 import { BreadcrumbComponent } from './breadcrumb.component';
 import { NavigationBuilderService } from './navigation-builder.service';
 import { NxNavItem } from './nav-item.model';
@@ -28,10 +29,8 @@ import { NxNavItem } from './nav-item.model';
  *     <ng-template #extra><app-language-selector /></ng-template>
  *   </app-shell>
  *   ```
- * - Nav items are rendered unconditionally regardless of `item.permission`
- *   in this worktree (`shared/auth`'s `*nxCan` is not available here). F5
- *   must wrap the `<a mat-list-item>` below with
- *   `*nxCan="item.permission"` once `shared/auth` is merged.
+ * - Nav items are wrapped with `*nxCan="item.permission"` (`shared/auth`),
+ *   wired by F5 once `shared/auth` was merged into this worktree.
  * - The approvals bell is not rendered at all (ficha 0.5: hidden until
  *   0.9). 0.9 adds it back, it does not just toggle a flag.
  */
@@ -51,6 +50,7 @@ import { NxNavItem } from './nav-item.model';
     MatFormFieldModule,
     MatInputModule,
     BreadcrumbComponent,
+    NxCanDirective,
   ],
   templateUrl: './shell.component.html',
   styleUrl: './shell.component.scss',

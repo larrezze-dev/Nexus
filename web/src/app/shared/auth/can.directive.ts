@@ -43,9 +43,14 @@ export class NxCanDirective {
     });
   }
 
+  /**
+   * `null`/`undefined` means "no permission required" (e.g. a nav item every authenticated
+   * user may see): the directive then always shows its content, regardless of
+   * `PermissionsStore`.
+   */
   @Input({ required: true })
-  set nxCan(permission: string) {
-    this.permission = permission;
+  set nxCan(permission: string | null | undefined) {
+    this.permission = permission ?? null;
     this.updateView();
   }
 

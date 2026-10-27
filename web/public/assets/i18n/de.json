@@ -32,5 +32,22 @@
       "title": "Seite nicht gefunden",
       "message": "Die gesuchte Seite existiert nicht oder wurde verschoben."
     }
+  },
+  "nav": {
+    "account": "Mein Konto"
+  },
+  "account": {
+    "title": "Mein Konto",
+    "loading": "Wird geladen…",
+    "fields": {
+      "subject": "Subject",
+      "oid": "Objekt-ID",
+      "displayName": "Name",
+      "email": "E-Mail",
+      "preferredLanguage": "Bevorzugte Sprache",
+      "provisioned": "Angelegt",
+      "permissions": "Berechtigungen",
+      "noPermissions": "Noch keine Berechtigungen"
+    }
   }
 }

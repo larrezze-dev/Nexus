@@ -32,5 +32,22 @@
       "title": "Page introuvable",
       "message": "La page que vous recherchez n'existe pas ou a été déplacée."
     }
+  },
+  "nav": {
+    "account": "Mon compte"
+  },
+  "account": {
+    "title": "Mon compte",
+    "loading": "Chargement…",
+    "fields": {
+      "subject": "Subject",
+      "oid": "ID d'objet",
+      "displayName": "Nom",
+      "email": "E-mail",
+      "preferredLanguage": "Langue préférée",
+      "provisioned": "Provisionné",
+      "permissions": "Permissions",
+      "noPermissions": "Aucune permission pour le moment"
+    }
   }
 }

@@ -32,5 +32,22 @@
       "title": "Pagina non trovata",
       "message": "La pagina che stai cercando non esiste o è stata spostata."
     }
+  },
+  "nav": {
+    "account": "Il mio account"
+  },
+  "account": {
+    "title": "Il mio account",
+    "loading": "Caricamento…",
+    "fields": {
+      "subject": "Subject",
+      "oid": "ID oggetto",
+      "displayName": "Nome",
+      "email": "Email",
+      "preferredLanguage": "Lingua preferita",
+      "provisioned": "Predisposto",
+      "permissions": "Permessi",
+      "noPermissions": "Nessun permesso ancora"
+    }
   }
 }

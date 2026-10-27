@@ -32,5 +32,22 @@
       "title": "Page not found",
       "message": "The page you are looking for does not exist or was moved."
     }
+  },
+  "nav": {
+    "account": "My account"
+  },
+  "account": {
+    "title": "My account",
+    "loading": "Loading…",
+    "fields": {
+      "subject": "Subject",
+      "oid": "Object ID",
+      "displayName": "Name",
+      "email": "Email",
+      "preferredLanguage": "Preferred language",
+      "provisioned": "Provisioned",
+      "permissions": "Permissions",
+      "noPermissions": "No permissions yet"
+    }
   }
 }

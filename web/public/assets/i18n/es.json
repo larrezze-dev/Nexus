@@ -32,5 +32,22 @@
       "title": "Página no encontrada",
       "message": "La página que buscas no existe o fue movida."
     }
+  },
+  "nav": {
+    "account": "Mi cuenta"
+  },
+  "account": {
+    "title": "Mi cuenta",
+    "loading": "Cargando…",
+    "fields": {
+      "subject": "Subject",
+      "oid": "ID de objeto",
+      "displayName": "Nombre",
+      "email": "Correo electrónico",
+      "preferredLanguage": "Idioma preferido",
+      "provisioned": "Provisionado",
+      "permissions": "Permisos",
+      "noPermissions": "Sin permisos todavía"
+    }
   }
 }

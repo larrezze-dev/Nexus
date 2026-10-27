@@ -2,8 +2,7 @@
   <mat-sidenav class="nx-shell__sidenav" mode="side" [opened]="true">
     <mat-nav-list>
       @for (item of navItems(); track item.path) {
-        <!-- TODO (F5): wrap with *nxCan="item.permission" once shared/auth is merged. -->
-        <a mat-list-item [routerLink]="item.path">
+        <a mat-list-item [routerLink]="item.path" *nxCan="item.permission">
           @if (item.icon) {
             <mat-icon matListItemIcon>{{ item.icon }}</mat-icon>
           }
