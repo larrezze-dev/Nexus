@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Threading.RateLimiting;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Http.Features;
@@ -81,27 +82,44 @@ builder.Services.AddRateLimiter(options =>
 var app = builder.Build();
 
 // Correlation id (ADR-0009: UUIDv7 generated in the application): reuse the inbound header when
-// the client already sent one, otherwise create it here so every downstream service and the
-// response always carry X-Correlation-Id.
+// it is exactly one well-formed, non-empty GUID (same validation as
+// Nexus.BuildingBlocks.Web.Correlation.CorrelationMiddleware, which this gateway does not
+// reference to stay dependency-free) -- never echo an unvalidated client-supplied value back
+// verbatim, or a caller could plant arbitrary text in both the forwarded request and the
+// gateway's own response header (log/response injection, found live during review: a header
+// like "<script>...> not-a-guid" was reflected unchanged). Anything else is discarded and
+// replaced with a fresh one, same as a missing header.
 app.Use(async (context, next) =>
 {
     const string headerName = "X-Correlation-Id";
 
-    if (!context.Request.Headers.TryGetValue(headerName, out var correlationId) ||
-        string.IsNullOrWhiteSpace(correlationId))
-    {
-        correlationId = Guid.CreateVersion7().ToString();
-        context.Request.Headers[headerName] = correlationId;
-    }
+    var formatted = TryReadCorrelationId(context.Request.Headers[headerName]) is { } parsed
+        ? parsed.ToString("D", CultureInfo.InvariantCulture)
+        : Guid.CreateVersion7().ToString("D", CultureInfo.InvariantCulture);
+
+    context.Request.Headers[headerName] = formatted;
 
     context.Response.OnStarting(() =>
     {
-        context.Response.Headers[headerName] = correlationId;
+        context.Response.Headers[headerName] = formatted;
         return Task.CompletedTask;
     });
 
     await next();
 });
+
+static Guid? TryReadCorrelationId(Microsoft.Extensions.Primitives.StringValues values)
+{
+    // Exactly one value: several X-Correlation-Id headers are ambiguous, so start a new flow.
+    if (values.Count != 1)
+    {
+        return null;
+    }
+
+    return Guid.TryParse(values[0], CultureInfo.InvariantCulture, out var parsed) && parsed != Guid.Empty
+        ? parsed
+        : null;
+}
 
 // Body size: Kestrel enforces the default 10 MB limit from configuration
 // (Kestrel:Limits:MaxRequestBodySize in appsettings.json). Raise it to 500 MB only for the

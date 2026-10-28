@@ -1,3 +1,4 @@
+using System.Globalization;
 using Microsoft.AspNetCore.Http;
 using Nexus.BuildingBlocks.Application;
 
@@ -16,8 +17,15 @@ public static class GetMe
     private const string LocaleClaim = "locale";
 
     /// <summary>Fallback `preferredLanguage` ("del token o `de`", ficha 0.5) when the token has
-    /// no <see cref="LocaleClaim"/>.</summary>
+    /// no <see cref="LocaleClaim"/>, or when it has one outside <see cref="SupportedLanguages"/>.</summary>
     private const string DefaultPreferredLanguage = "de";
+
+    /// <summary>The exact `enum` the contract declares for `Me.preferredLanguage`
+    /// (contracts/openapi/platform.yaml). An IdP-supplied locale that isn't a 2-letter
+    /// prefix of one of these (e.g. Entra ID's `de-CH`, `en-US`, or an unsupported `pt`)
+    /// must fall back to <see cref="DefaultPreferredLanguage"/> instead of leaking out of
+    /// contract, since this response is never schema-validated at runtime.</summary>
+    private static readonly HashSet<string> SupportedLanguages = ["de", "en", "fr", "it", "es"];
 
     /// <summary>
     /// Builds the <see cref="MeResponse"/> from the validated JWT. <see cref="ICurrentUser"/>
@@ -41,7 +49,7 @@ public static class GetMe
         var oid = currentUser.Oid ?? string.Empty;
         var displayName = principal.FindFirst(NameClaim)?.Value ?? subject;
         var email = principal.FindFirst(EmailClaim)?.Value;
-        var preferredLanguage = principal.FindFirst(LocaleClaim)?.Value ?? DefaultPreferredLanguage;
+        var preferredLanguage = NormalizePreferredLanguage(principal.FindFirst(LocaleClaim)?.Value);
 
         var response = new MeResponse(
             Subject: subject,
@@ -56,5 +64,23 @@ public static class GetMe
             Permissions: []);
 
         return Results.Ok(response);
+    }
+
+    /// <summary>
+    /// Maps an IdP `locale` claim (e.g. `de-CH`, `en-US`, `pt`) to the contract's
+    /// `preferredLanguage` enum: the lower-cased 2-letter language prefix if it is one of
+    /// <see cref="SupportedLanguages"/>, otherwise <see cref="DefaultPreferredLanguage"/>.
+    /// </summary>
+    private static string NormalizePreferredLanguage(string? locale)
+    {
+        if (string.IsNullOrWhiteSpace(locale))
+        {
+            return DefaultPreferredLanguage;
+        }
+
+        var prefix = locale.Length >= 2 ? locale[..2] : locale;
+        var normalized = prefix.ToLower(CultureInfo.InvariantCulture);
+
+        return SupportedLanguages.Contains(normalized) ? normalized : DefaultPreferredLanguage;
     }
 }

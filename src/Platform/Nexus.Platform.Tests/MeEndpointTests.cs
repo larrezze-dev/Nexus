@@ -1,6 +1,7 @@
 using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
+using System.Security.Claims;
 using System.Text.Json;
 using Nexus.BuildingBlocks.Testing;
 using Shouldly;
@@ -66,5 +67,26 @@ public sealed class MeEndpointTests : IClassFixture<WebAppFixture<Program>>
         body!.RootElement.GetProperty("oid").GetString().ShouldBe(Oid);
         body.RootElement.GetProperty("provisioned").GetBoolean().ShouldBeFalse();
         body.RootElement.GetProperty("permissions").GetArrayLength().ShouldBe(0);
+    }
+
+    [Theory]
+    [InlineData("de-CH", "de")]
+    [InlineData("en-US", "en")]
+    [InlineData("pt", "de")]
+    [InlineData("PT-BR", "de")]
+    public async Task Me_endpoint_normalizes_locale_claim_to_the_contract_enum(string locale, string expected)
+    {
+        // contracts/openapi/platform.yaml fixes Me.preferredLanguage to enum [de,en,fr,it,es].
+        // An IdP-supplied locale outside that set (or with a region suffix) must never leak
+        // out of contract, since this response is never schema-validated at runtime.
+        using var client = _fixture.CreateClient();
+        var token = _fixture.JwtIssuer.IssueToken(additionalClaims: [new Claim("locale", locale)]);
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+        var response = await client.GetAsync(new Uri("/v1/me", UriKind.Relative), TestContext.Current.CancellationToken);
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
+
+        var body = await response.Content.ReadFromJsonAsync<JsonDocument>(TestContext.Current.CancellationToken);
+        body!.RootElement.GetProperty("preferredLanguage").GetString().ShouldBe(expected);
     }
 }

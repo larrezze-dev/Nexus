@@ -34,4 +34,37 @@ public class GatewayEndpointTests : IClassFixture<WebApplicationFactory<Program>
 
         response.StatusCode.ShouldBe(HttpStatusCode.Unauthorized);
     }
+
+    [Fact]
+    public async Task A_valid_inbound_correlation_id_is_echoed_back_unchanged()
+    {
+        using var client = _factory.CreateClient();
+        var correlationId = Guid.CreateVersion7().ToString();
+        using var request = new HttpRequestMessage(HttpMethod.Get, "/health");
+        request.Headers.Add("X-Correlation-Id", correlationId);
+
+        var response = await client.SendAsync(request, TestContext.Current.CancellationToken);
+
+        response.Headers.GetValues("X-Correlation-Id").ShouldHaveSingleItem().ShouldBe(correlationId);
+    }
+
+    [Fact]
+    public async Task An_inbound_correlation_id_that_is_not_a_valid_guid_is_never_reflected()
+    {
+        // Found live during review: the gateway used to echo back any text verbatim, both to
+        // the response header and to the request it forwarded downstream (log/response
+        // injection risk). A malformed value must be discarded and replaced, same as a
+        // missing header -- never passed through.
+        using var client = _factory.CreateClient();
+        const string malformed = "<script>alert(1)</script> not-a-guid";
+        using var request = new HttpRequestMessage(HttpMethod.Get, "/health");
+        request.Headers.Add("X-Correlation-Id", malformed);
+
+        var response = await client.SendAsync(request, TestContext.Current.CancellationToken);
+
+        var echoed = response.Headers.GetValues("X-Correlation-Id").ShouldHaveSingleItem();
+        echoed.ShouldNotBe(malformed);
+        Guid.TryParse(echoed, out var parsed).ShouldBeTrue();
+        parsed.ShouldNotBe(Guid.Empty);
+    }
 }
