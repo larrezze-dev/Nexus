@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Http;
 using Nexus.BuildingBlocks.Application;
 using Nexus.BuildingBlocks.Persistence;
+using Nexus.BuildingBlocks.Web.Identity;
 
 namespace Nexus.BuildingBlocks.Web.Authentication;
 
@@ -28,12 +29,19 @@ public sealed class HttpCurrentUser : ICurrentUser
     public string? Subject => FindClaim(JwtClaimNames.Subject);
 
     /// <summary>
-    /// Always <see langword="null"/> in step 0.5: resolving <see cref="Oid"/> to
-    /// <c>org.app_user.id</c> (and the 403 <c>user_not_provisioned</c>) arrives with the
-    /// organisational core in step 0.4. Until then no HTTP request can open a unit of work,
-    /// which is intended (BE-R1: never an RLS session without a real user).
+    /// <c>org.app_user.id</c>, as resolved from <see cref="Oid"/> by
+    /// <see cref="IdentityResolutionMiddleware"/> (step 0.4) and stored as the request's
+    /// <see cref="AppUserIdentity"/> feature. <see langword="null"/> when the request is not
+    /// authenticated or was not resolved (public endpoints, or before the middleware ran) — in
+    /// which case no unit of work can begin (BE-R1: never an RLS session without a real user).
     /// </summary>
-    public Guid? UserId => null;
+    public Guid? UserId => Identity?.UserId;
+
+    /// <summary><c>org.app_user.party_id</c> of the resolved user; see <see cref="UserId"/>.</summary>
+    public Guid? PartyId => Identity?.PartyId;
+
+    /// <summary><c>org.app_user.business_unit_id</c> of the resolved user; see <see cref="UserId"/>.</summary>
+    public Guid? BusinessUnitId => Identity?.BusinessUnitId;
 
     /// <summary>
     /// The correlation id of the request, as set by the correlation middleware
@@ -41,6 +49,9 @@ public sealed class HttpCurrentUser : ICurrentUser
     /// middleware has not run. Single source of truth stays <see cref="ICorrelationContext"/>.
     /// </summary>
     public Guid CorrelationId => _correlation.CorrelationId;
+
+    private AppUserIdentity? Identity =>
+        IsAuthenticated ? _httpContextAccessor.HttpContext!.Features.Get<AppUserIdentity>() : null;
 
     private string? FindClaim(string type)
     {

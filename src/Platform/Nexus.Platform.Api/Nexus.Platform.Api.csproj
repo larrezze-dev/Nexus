@@ -7,4 +7,14 @@
     <ProjectReference Include="..\..\BuildingBlocks\Nexus.BuildingBlocks.Web\Nexus.BuildingBlocks.Web.csproj" />
   </ItemGroup>
 
+  <!-- The outbox validates every event payload against its local Avro contract before writing
+       it (EV-R2). The service's own contexts' schemas are copied next to the binaries, under
+       contracts/events/<context>/, which is the default root of FileSystemEventSchemaProvider
+       (NexusPersistenceOptions.EventSchemaRoot). Only org: nexus-platform's schema (ARC-R1). -->
+  <ItemGroup>
+    <None Include="..\..\..\contracts\events\org\*.avsc"
+          Link="contracts\events\org\%(Filename)%(Extension)"
+          CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
 </Project>

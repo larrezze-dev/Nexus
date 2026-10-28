@@ -99,6 +99,10 @@ public sealed class TestCurrentUser(Guid? userId, bool isAuthenticated = true) :
     public string? Oid => null;
 
     public string? Subject => null;
+
+    public Guid? PartyId => null;
+
+    public Guid? BusinessUnitId => null;
 }
 
 public sealed class TestIdGenerator : IIdGenerator
