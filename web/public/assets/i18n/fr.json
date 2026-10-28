@@ -12,7 +12,9 @@
     "notFound": "La ressource demandée n'a pas été trouvée.",
     "concurrencyTitle": "Un autre utilisateur a modifié cet enregistrement",
     "concurrencyMessage": "Un autre utilisateur a enregistré des modifications sur cet enregistrement après que vous l'ayez chargé. Rechargez pour voir la dernière version avant de continuer.",
-    "SAMPLE-R1": "Exemple de message pour la règle métier SAMPLE-R1 — à remplacer par le vrai texte."
+    "SAMPLE-R1": "Exemple de message pour la règle métier SAMPLE-R1 — à remplacer par le vrai texte.",
+    "ORG-R6": "L'utilisateur SYSTEM ne peut pas être modifié ni désactivé.",
+    "ORG-R9": "Un utilisateur avec cet e-mail existe déjà."
   },
   "shell": {
     "nav": {
@@ -40,7 +42,9 @@
     }
   },
   "nav": {
-    "account": "Mon compte"
+    "account": "Mon compte",
+    "users": "Utilisateurs",
+    "parties": "Partenaires"
   },
   "account": {
     "title": "Mon compte",
@@ -85,6 +89,61 @@
     "entityPicker": {
       "placeholder": "Rechercher…",
       "noResults": "Aucun résultat"
+    }
+  },
+  "org": {
+    "users": {
+      "title": "Utilisateurs",
+      "actions": {
+        "new": "Nouvel utilisateur",
+        "deactivate": "Désactiver",
+        "clearBusinessUnit": "Changer"
+      },
+      "detail": {
+        "newTitle": "Nouvel utilisateur",
+        "editTitle": "Modifier l'utilisateur",
+        "loading": "Chargement…",
+        "systemUserNotice": "L'utilisateur SYSTEM ne peut pas être modifié ni désactivé."
+      },
+      "fields": {
+        "oid": "ID d'objet (oid)",
+        "fullName": "Nom complet",
+        "email": "E-mail",
+        "preferredLanguage": "Langue préférée",
+        "businessUnit": "Business unit"
+      }
+    },
+    "parties": {
+      "title": "Partenaires",
+      "actions": {
+        "new": "Nouveau partenaire",
+        "deactivate": "Désactiver"
+      },
+      "filters": {
+        "search": "Rechercher",
+        "partyType": "Type",
+        "isInternal": "Interne",
+        "any": "Tous",
+        "internal": "Interne",
+        "external": "Externe"
+      },
+      "partyType": {
+        "organization": "Organisation",
+        "person": "Personne"
+      },
+      "detail": {
+        "newTitle": "Nouveau partenaire",
+        "editTitle": "Modifier le partenaire",
+        "loading": "Chargement…"
+      },
+      "fields": {
+        "partyType": "Type de partenaire",
+        "legalName": "Raison sociale",
+        "displayName": "Nom affiché",
+        "taxId": "Numéro fiscal",
+        "erpCompanyCode": "Code société ERP",
+        "isInternal": "Interne"
+      }
     }
   }
 }

@@ -12,7 +12,9 @@
     "notFound": "Die angeforderte Ressource wurde nicht gefunden.",
     "concurrencyTitle": "Ein anderer Benutzer hat diesen Datensatz geändert",
     "concurrencyMessage": "Ein anderer Benutzer hat diesen Datensatz gespeichert, nachdem Sie ihn geladen haben. Laden Sie neu, um die aktuelle Version zu sehen, bevor Sie fortfahren.",
-    "SAMPLE-R1": "Beispieltext für Geschäftsregel SAMPLE-R1 — durch den echten Text ersetzen."
+    "SAMPLE-R1": "Beispieltext für Geschäftsregel SAMPLE-R1 — durch den echten Text ersetzen.",
+    "ORG-R6": "Der SYSTEM-Benutzer kann nicht bearbeitet oder deaktiviert werden.",
+    "ORG-R9": "Es existiert bereits ein Benutzer mit dieser E-Mail-Adresse."
   },
   "shell": {
     "nav": {
@@ -40,7 +42,9 @@
     }
   },
   "nav": {
-    "account": "Mein Konto"
+    "account": "Mein Konto",
+    "users": "Benutzer",
+    "parties": "Partner"
   },
   "account": {
     "title": "Mein Konto",
@@ -85,6 +89,61 @@
     "entityPicker": {
       "placeholder": "Suchen…",
       "noResults": "Keine Ergebnisse"
+    }
+  },
+  "org": {
+    "users": {
+      "title": "Benutzer",
+      "actions": {
+        "new": "Neuer Benutzer",
+        "deactivate": "Deaktivieren",
+        "clearBusinessUnit": "Ändern"
+      },
+      "detail": {
+        "newTitle": "Neuer Benutzer",
+        "editTitle": "Benutzer bearbeiten",
+        "loading": "Wird geladen…",
+        "systemUserNotice": "Der SYSTEM-Benutzer kann nicht bearbeitet oder deaktiviert werden."
+      },
+      "fields": {
+        "oid": "Objekt-ID (oid)",
+        "fullName": "Vollständiger Name",
+        "email": "E-Mail",
+        "preferredLanguage": "Bevorzugte Sprache",
+        "businessUnit": "Business Unit"
+      }
+    },
+    "parties": {
+      "title": "Partner",
+      "actions": {
+        "new": "Neuer Partner",
+        "deactivate": "Deaktivieren"
+      },
+      "filters": {
+        "search": "Suche",
+        "partyType": "Typ",
+        "isInternal": "Intern",
+        "any": "Alle",
+        "internal": "Intern",
+        "external": "Extern"
+      },
+      "partyType": {
+        "organization": "Organisation",
+        "person": "Person"
+      },
+      "detail": {
+        "newTitle": "Neuer Partner",
+        "editTitle": "Partner bearbeiten",
+        "loading": "Wird geladen…"
+      },
+      "fields": {
+        "partyType": "Partnertyp",
+        "legalName": "Rechtlicher Name",
+        "displayName": "Anzeigename",
+        "taxId": "Steuernummer",
+        "erpCompanyCode": "ERP-Firmencode",
+        "isInternal": "Intern"
+      }
     }
   }
 }
