@@ -70,6 +70,21 @@
       "pending": "Ausstehend",
       "approved": "Genehmigt",
       "rejected": "Abgelehnt"
+    },
+    "i18nCaptionEditor": {
+      "groupLabel": "Übersetzungen der Bezeichnung",
+      "deRequired": "Deutsch ist erforderlich.",
+      "language": {
+        "de": "Deutsch",
+        "en": "Englisch",
+        "fr": "Französisch",
+        "it": "Italienisch",
+        "es": "Spanisch"
+      }
+    },
+    "entityPicker": {
+      "placeholder": "Suchen…",
+      "noResults": "Keine Ergebnisse"
     }
   }
 }

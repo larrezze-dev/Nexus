@@ -70,6 +70,21 @@
       "pending": "Pending",
       "approved": "Approved",
       "rejected": "Rejected"
+    },
+    "i18nCaptionEditor": {
+      "groupLabel": "Caption translations",
+      "deRequired": "German is required.",
+      "language": {
+        "de": "German",
+        "en": "English",
+        "fr": "French",
+        "it": "Italian",
+        "es": "Spanish"
+      }
+    },
+    "entityPicker": {
+      "placeholder": "Search…",
+      "noResults": "No results"
     }
   }
 }

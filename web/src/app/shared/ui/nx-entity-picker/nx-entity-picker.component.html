@@ -1,0 +1,29 @@
+<mat-form-field class="nx-entity-picker" subscriptSizing="dynamic">
+  <input
+    matInput
+    type="text"
+    data-testid="nx-entity-picker-input"
+    [placeholder]="placeholderKey() | transloco"
+    [formControl]="control"
+    [matAutocomplete]="auto"
+    [attr.aria-busy]="loading()"
+  />
+  @if (loading()) {
+    <mat-progress-spinner
+      matSuffix
+      diameter="18"
+      mode="indeterminate"
+      data-testid="nx-entity-picker-loading"
+    />
+  }
+  <mat-autocomplete #auto="matAutocomplete" [displayWith]="displayFn" (optionSelected)="onOptionSelected($event)">
+    @for (option of options(); track $index) {
+      <mat-option [value]="option">{{ displayWith()(option) }}</mat-option>
+    }
+    @if (!loading() && options().length === 0) {
+      <mat-option disabled data-testid="nx-entity-picker-no-results">{{
+        'shared.entityPicker.noResults' | transloco
+      }}</mat-option>
+    }
+  </mat-autocomplete>
+</mat-form-field>

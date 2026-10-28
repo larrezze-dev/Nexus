@@ -70,6 +70,21 @@
       "pending": "En attente",
       "approved": "Approuvé",
       "rejected": "Rejeté"
+    },
+    "i18nCaptionEditor": {
+      "groupLabel": "Traductions de la légende",
+      "deRequired": "L'allemand est obligatoire.",
+      "language": {
+        "de": "Allemand",
+        "en": "Anglais",
+        "fr": "Français",
+        "it": "Italien",
+        "es": "Espagnol"
+      }
+    },
+    "entityPicker": {
+      "placeholder": "Rechercher…",
+      "noResults": "Aucun résultat"
     }
   }
 }

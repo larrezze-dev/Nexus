@@ -70,6 +70,21 @@
       "pending": "Pendiente",
       "approved": "Aprobado",
       "rejected": "Rechazado"
+    },
+    "i18nCaptionEditor": {
+      "groupLabel": "Traducciones del título",
+      "deRequired": "El alemán es obligatorio.",
+      "language": {
+        "de": "Alemán",
+        "en": "Inglés",
+        "fr": "Francés",
+        "it": "Italiano",
+        "es": "Español"
+      }
+    },
+    "entityPicker": {
+      "placeholder": "Buscar…",
+      "noResults": "Sin resultados"
     }
   }
 }

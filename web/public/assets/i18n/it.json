@@ -70,6 +70,21 @@
       "pending": "In attesa",
       "approved": "Approvato",
       "rejected": "Rifiutato"
+    },
+    "i18nCaptionEditor": {
+      "groupLabel": "Traduzioni della didascalia",
+      "deRequired": "Il tedesco è obbligatorio.",
+      "language": {
+        "de": "Tedesco",
+        "en": "Inglese",
+        "fr": "Francese",
+        "it": "Italiano",
+        "es": "Spagnolo"
+      }
+    },
+    "entityPicker": {
+      "placeholder": "Cerca…",
+      "noResults": "Nessun risultato"
     }
   }
 }

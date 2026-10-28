@@ -1,0 +1,25 @@
+<div class="nx-i18n-caption-editor" role="group" [attr.aria-label]="'shared.i18nCaptionEditor.groupLabel' | transloco">
+  @for (lang of languages; track lang) {
+    <mat-form-field class="nx-i18n-caption-editor__row" subscriptSizing="dynamic">
+      <mat-label>
+        {{ 'shared.i18nCaptionEditor.language.' + lang | transloco }}
+        @if (lang === 'de') {
+          <span class="nx-i18n-caption-editor__required" aria-hidden="true">*</span>
+        }
+      </mat-label>
+      <input
+        matInput
+        type="text"
+        [attr.data-lang]="lang"
+        [formControl]="form.controls[lang]"
+        [required]="lang === 'de'"
+        (blur)="onBlur()"
+      />
+      @if (lang === 'de' && form.controls.de.invalid && (form.controls.de.touched || form.controls.de.dirty)) {
+        <mat-error data-testid="nx-i18n-caption-editor-de-error">{{
+          'shared.i18nCaptionEditor.deRequired' | transloco
+        }}</mat-error>
+      }
+    </mat-form-field>
+  }
+</div>
