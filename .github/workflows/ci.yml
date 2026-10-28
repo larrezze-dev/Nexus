@@ -176,7 +176,68 @@ jobs:
     name: conformance
     runs-on: ubuntu-latest
     steps:
-      - run: 'echo "pendiente: paso 0.5"'
+      - uses: actions/checkout@v4
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+          cache: true
+          cache-dependency-path: src/Directory.Packages.props
+
+      # `dotnet run` (not publish+exec): the setup-dotnet SDK is already here, the service
+      # doesn't need a self-contained artifact for this check, and this keeps the job doing
+      # exactly what a developer running `make run-backend` locally does. appsettings.json
+      # already ships a valid (if fictitious) Nexus:Authentication:Authority/Audience, so no
+      # extra env vars are needed for the host to register the JWT bearer scheme and start --
+      # confirmed by running the service with no overrides.
+      # Backgrounded with `&`; its PID is captured so the cleanup step can stop it explicitly
+      # rather than relying on the runner to reap it when the job ends.
+      # `--project <path>` alone does NOT make that directory the content root: ASP.NET
+      # Core resolves appsettings.json relative to the process's working directory, which
+      # `dotnet run --project` leaves at $GITHUB_WORKSPACE (the caller's cwd), not the
+      # project's own folder. Without `working-directory` here the host throws
+      # "Missing configuration 'Nexus:Authentication:Authority'" before /health ever comes
+      # up - reproduced locally with the exact command below run from the repo root.
+      - name: Start Nexus.Platform.Api
+        working-directory: src/Platform/Nexus.Platform.Api
+        run: |
+          dotnet run --no-launch-profile &
+          echo "PLATFORM_API_PID=$!" >> "$GITHUB_ENV"
+
+      - name: Wait for /health
+        run: |
+          timeout 60 bash -c 'until curl -sf http://localhost:5101/health > /dev/null; do sleep 1; done'
+
+      - name: Download the service's real OpenAPI document
+        run: |
+          curl -sf http://localhost:5101/openapi/v1.json -o platform-actual.json
+
+      # contracts/openapi/platform.yaml is intentionally ahead of the service (contract-first,
+      # ADR-0005): it already defines ~27 operations while nexus-platform only implements 2
+      # (GET /health, GET /v1/me). oasdiff direction matters here -- base is what the service
+      # exposes TODAY, revision is the full contract -- so operations the contract defines but
+      # the service doesn't implement yet are additions (never breaking); only a change to the
+      # shape of an operation the service already implements would be.
+      # --err-ignore tools/oasdiff-err-ignore.txt: one documented, per-endpoint exception (see
+      # that file's header) for a known gap between the custom `x-permission` OpenAPI
+      # extension this step's services use and oasdiff's standard-`security`-based breaking
+      # change detection -- not a blanket suppression, every other finding still fails the job.
+      - name: oasdiff breaking (service vs. contract)
+        run: |
+          docker run --rm \
+            -v "$GITHUB_WORKSPACE:/workspace:ro" \
+            tufin/oasdiff:v1.35.0-rc.1 breaking --fail-on ERR \
+            --err-ignore /workspace/tools/oasdiff-err-ignore.txt \
+            /workspace/platform-actual.json \
+            /workspace/contracts/openapi/platform.yaml
+
+      - name: Stop Nexus.Platform.Api
+        if: always()
+        run: |
+          if [ -n "${PLATFORM_API_PID:-}" ]; then
+            kill "$PLATFORM_API_PID" 2>/dev/null || true
+          fi
 
   jvm:
     name: jvm
