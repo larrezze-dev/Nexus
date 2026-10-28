@@ -1,0 +1,75 @@
+{
+  "common": {
+    "cancel": "Cancelar",
+    "reload": "Recargar",
+    "save": "Guardar"
+  },
+  "errors": {
+    "generic": "Algo salió mal. Inténtalo de nuevo.",
+    "validation": "Corrige los campos marcados.",
+    "unauthorized": "Tu sesión ha caducado. Inicia sesión de nuevo.",
+    "forbidden": "No tienes permiso para realizar esta acción.",
+    "notFound": "No se encontró el recurso solicitado.",
+    "concurrencyTitle": "Otro usuario ha modificado este registro",
+    "concurrencyMessage": "Otro usuario guardó cambios en este registro después de que lo cargaras. Recarga para ver la última versión antes de continuar.",
+    "SAMPLE-R1": "Mensaje de ejemplo para la regla de negocio SAMPLE-R1 — sustituir por el texto real."
+  },
+  "shell": {
+    "nav": {
+      "home": "Inicio"
+    },
+    "userMenu": {
+      "language": "Idioma"
+    },
+    "topBar": {
+      "searchPlaceholder": "Buscar",
+      "searchTooltip": "Próximamente",
+      "searchAriaLabel": "Búsqueda global (próximamente)",
+      "userMenuAriaLabel": "Menú de usuario"
+    }
+  },
+  "httpPages": {
+    "forbidden": {
+      "title": "Acceso denegado",
+      "message": "No tienes permiso para ver esta página.",
+      "requiredPermission": "Permiso requerido: {{permission}}"
+    },
+    "notFound": {
+      "title": "Página no encontrada",
+      "message": "La página que buscas no existe o fue movida."
+    }
+  },
+  "nav": {
+    "account": "Mi cuenta"
+  },
+  "account": {
+    "title": "Mi cuenta",
+    "loading": "Cargando…",
+    "fields": {
+      "subject": "Subject",
+      "oid": "ID de objeto",
+      "displayName": "Nombre",
+      "email": "Correo electrónico",
+      "preferredLanguage": "Idioma preferido",
+      "provisioned": "Provisionado",
+      "permissions": "Permisos",
+      "noPermissions": "Sin permisos todavía"
+    }
+  },
+  "breadcrumb": {
+    "ariaLabel": "Migas de pan"
+  },
+  "shared": {
+    "dataGrid": {
+      "empty": "No hay datos disponibles."
+    },
+    "status": {
+      "draft": "Borrador",
+      "active": "Activo",
+      "inactive": "Inactivo",
+      "pending": "Pendiente",
+      "approved": "Aprobado",
+      "rejected": "Rechazado"
+    }
+  }
+}

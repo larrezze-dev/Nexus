@@ -143,6 +143,21 @@ contracts:
 	else \
 		echo "No service OpenAPI files yet (contracts/openapi/*.yaml) - nothing to lint."; \
 	fi
+	@files=$$(find contracts/openapi -maxdepth 1 -type f -name '*.yaml' ! -name '.*' 2>/dev/null); \
+	if [ -n "$$files" ]; then \
+		gen=web/node_modules/.bin/ng-openapi-gen; \
+		if [ ! -x "$$gen" ]; then echo "ERROR: $$gen not found - run 'npm --prefix web ci' first"; exit 1; fi; \
+		tmp=$$(mktemp -d) || exit 1; \
+		for f in $$files; do \
+			svc=$$(basename "$$f" .yaml); \
+			echo "Generating Angular client for $$svc -> web/src/app/api/$$svc"; \
+			node tools/bundle-openapi.cjs "$$f" "$$tmp/$$svc.json" && \
+			"$$gen" -i "$$tmp/$$svc.json" -o "web/src/app/api/$$svc" || { rm -rf "$$tmp"; exit 1; }; \
+		done; \
+		rm -rf "$$tmp"; \
+	else \
+		echo "No service OpenAPI files yet - no Angular client to generate."; \
+	fi
 	@if [ -f "tools/check-permissions.sh" ]; then \
 		bash tools/check-permissions.sh; \
 	fi

@@ -1,0 +1,22 @@
+// ⚑ colores provisionales — a alinear con la paleta corporativa definitiva.
+.nx-status-badge {
+  &.nx-status-badge--neutral {
+    --mdc-chip-elevated-container-color: #e0e0e0;
+    --mdc-chip-label-text-color: #424242;
+  }
+
+  &.nx-status-badge--success {
+    --mdc-chip-elevated-container-color: #c8e6c9;
+    --mdc-chip-label-text-color: #1b5e20;
+  }
+
+  &.nx-status-badge--warning {
+    --mdc-chip-elevated-container-color: #ffe0b2;
+    --mdc-chip-label-text-color: #e65100;
+  }
+
+  &.nx-status-badge--danger {
+    --mdc-chip-elevated-container-color: #ffcdd2;
+    --mdc-chip-label-text-color: #b71c1c;
+  }
+}

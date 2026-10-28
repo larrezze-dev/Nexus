@@ -1,0 +1,63 @@
+<mat-sidenav-container class="nx-shell">
+  <mat-sidenav class="nx-shell__sidenav" mode="side" [opened]="true">
+    <mat-nav-list>
+      @for (item of navItems(); track item.path) {
+        <a mat-list-item [routerLink]="item.path" *nxCan="item.permission">
+          @if (item.icon) {
+            <mat-icon matListItemIcon>{{ item.icon }}</mat-icon>
+          }
+          <span matListItemTitle>{{ item.titleKey | transloco }}</span>
+        </a>
+      }
+    </mat-nav-list>
+  </mat-sidenav>
+
+  <mat-sidenav-content class="nx-shell__content-area">
+    <mat-toolbar class="nx-shell__toolbar" color="primary">
+      <span class="nx-shell__logo">NEXUS</span>
+
+      <mat-form-field class="nx-shell__search" appearance="outline" subscriptSizing="dynamic">
+        <input
+          matInput
+          disabled
+          [placeholder]="'shell.topBar.searchPlaceholder' | transloco"
+          [title]="'shell.topBar.searchTooltip' | transloco"
+          [attr.aria-label]="'shell.topBar.searchAriaLabel' | transloco"
+          data-testid="nx-shell-search"
+        />
+      </mat-form-field>
+
+      <span class="nx-shell__spacer"></span>
+
+      <!--
+        Campana de aprobaciones: oculta hasta 0.9 (ficha 0.5 §4, track F
+        punto 4). No se renderiza en absoluto; 0.9 la añade, no solo la
+        muestra.
+      -->
+
+      <button
+        mat-icon-button
+        [matMenuTriggerFor]="userMenu"
+        [attr.aria-label]="'shell.topBar.userMenuAriaLabel' | transloco"
+        data-testid="nx-shell-user-menu-trigger"
+      >
+        <mat-icon>account_circle</mat-icon>
+      </button>
+      <mat-menu #userMenu="matMenu">
+        @if (userMenuExtra) {
+          <ng-container *ngTemplateOutlet="userMenuExtra"></ng-container>
+        }
+        <a mat-menu-item routerLink="/account">
+          <mat-icon>person</mat-icon>
+          <span>{{ 'nav.account' | transloco }}</span>
+        </a>
+      </mat-menu>
+    </mat-toolbar>
+
+    <app-breadcrumb />
+
+    <main class="nx-shell__content">
+      <router-outlet />
+    </main>
+  </mat-sidenav-content>
+</mat-sidenav-container>

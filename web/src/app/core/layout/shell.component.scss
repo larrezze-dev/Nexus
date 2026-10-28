@@ -1,0 +1,33 @@
+.nx-shell {
+  height: 100dvh;
+}
+
+.nx-shell__sidenav {
+  width: 240px;
+}
+
+.nx-shell__toolbar {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+
+.nx-shell__logo {
+  font-weight: 700;
+  letter-spacing: 0.05em;
+}
+
+.nx-shell__search {
+  width: 280px;
+}
+
+.nx-shell__spacer {
+  flex: 1 1 auto;
+}
+
+.nx-shell__content {
+  padding: 1rem;
+}

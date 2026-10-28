@@ -7,6 +7,10 @@ const angularTemplateParser = require('@angular-eslint/template-parser');
 
 module.exports = [
   {
+    // Generated API clients (make contracts / ng-openapi-gen) are not hand-written code.
+    ignores: ['src/app/api/**'],
+  },
+  {
     files: ['**/*.ts'],
     languageOptions: {
       parser: tsParser,
@@ -21,7 +25,9 @@ module.exports = [
         'error',
         {
           type: 'attribute',
-          prefix: 'app',
+          // `app` for the shell/root; `nx` for shared and core directives/components
+          // (conventions-frontend.md §5-6: nx-data-grid, nx-status-badge, *nxCan, ...).
+          prefix: ['app', 'nx'],
           style: 'camelCase',
         },
       ],
@@ -29,7 +35,9 @@ module.exports = [
         'error',
         {
           type: 'element',
-          prefix: 'app',
+          // 'nx' covers the shared/ui component library (nx-data-grid, nx-status-badge, …)
+          // required by conventions-frontend.md §5; 'app' stays the default for the rest.
+          prefix: ['app', 'nx'],
           style: 'kebab-case',
         },
       ],

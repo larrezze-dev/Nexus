@@ -1,0 +1,13 @@
+<nav class="nx-breadcrumb" [attr.aria-label]="'breadcrumb.ariaLabel' | transloco">
+  @for (crumb of crumbs(); track crumb.path; let last = $last) {
+    <a
+      class="nx-breadcrumb__item"
+      [routerLink]="crumb.path"
+      [attr.aria-current]="last ? 'page' : null"
+      >{{ crumb.titleKey | transloco }}</a
+    >
+    @if (!last) {
+      <span class="nx-breadcrumb__separator" aria-hidden="true">/</span>
+    }
+  }
+</nav>
