@@ -6,7 +6,7 @@
           @if (item.icon) {
             <mat-icon matListItemIcon>{{ item.icon }}</mat-icon>
           }
-          <span matListItemTitle>{{ item.titleKey }}</span>
+          <span matListItemTitle>{{ item.titleKey | transloco }}</span>
         </a>
       }
     </mat-nav-list>
@@ -20,9 +20,9 @@
         <input
           matInput
           disabled
-          placeholder="Search"
-          title="Próximamente"
-          aria-label="Búsqueda global (próximamente)"
+          [placeholder]="'shell.topBar.searchPlaceholder' | transloco"
+          [title]="'shell.topBar.searchTooltip' | transloco"
+          [attr.aria-label]="'shell.topBar.searchAriaLabel' | transloco"
           data-testid="nx-shell-search"
         />
       </mat-form-field>
@@ -35,7 +35,12 @@
         muestra.
       -->
 
-      <button mat-icon-button [matMenuTriggerFor]="userMenu" aria-label="User menu" data-testid="nx-shell-user-menu-trigger">
+      <button
+        mat-icon-button
+        [matMenuTriggerFor]="userMenu"
+        [attr.aria-label]="'shell.topBar.userMenuAriaLabel' | transloco"
+        data-testid="nx-shell-user-menu-trigger"
+      >
         <mat-icon>account_circle</mat-icon>
       </button>
       <mat-menu #userMenu="matMenu">
@@ -44,7 +49,7 @@
         }
         <a mat-menu-item routerLink="/account">
           <mat-icon>person</mat-icon>
-          <span>Mi cuenta</span>
+          <span>{{ 'nav.account' | transloco }}</span>
         </a>
       </mat-menu>
     </mat-toolbar>

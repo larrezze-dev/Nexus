@@ -1,6 +1,7 @@
 import { Component, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ActivatedRouteSnapshot, NavigationEnd, Router, RouterLink } from '@angular/router';
+import { TranslocoPipe } from '@jsverse/transloco';
 import { filter } from 'rxjs';
 
 export interface NxBreadcrumb {
@@ -15,7 +16,7 @@ export interface NxBreadcrumb {
 @Component({
   selector: 'app-breadcrumb',
   standalone: true,
-  imports: [RouterLink],
+  imports: [RouterLink, TranslocoPipe],
   templateUrl: './breadcrumb.component.html',
   styleUrl: './breadcrumb.component.scss',
 })

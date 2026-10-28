@@ -9,6 +9,7 @@ import { MatMenuModule } from '@angular/material/menu';
 import { MatSidenavModule } from '@angular/material/sidenav';
 import { MatToolbarModule } from '@angular/material/toolbar';
 import { RouterLink, RouterOutlet } from '@angular/router';
+import { TranslocoPipe } from '@jsverse/transloco';
 import { NxCanDirective } from '../../shared/auth/can.directive';
 import { BreadcrumbComponent } from './breadcrumb.component';
 import { NavigationBuilderService } from './navigation-builder.service';
@@ -49,6 +50,7 @@ import { NxNavItem } from './nav-item.model';
     MatButtonModule,
     MatFormFieldModule,
     MatInputModule,
+    TranslocoPipe,
     BreadcrumbComponent,
     NxCanDirective,
   ],

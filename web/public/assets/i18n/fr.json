@@ -20,6 +20,12 @@
     },
     "userMenu": {
       "language": "Langue"
+    },
+    "topBar": {
+      "searchPlaceholder": "Rechercher",
+      "searchTooltip": "Bientôt disponible",
+      "searchAriaLabel": "Recherche globale (bientôt disponible)",
+      "userMenuAriaLabel": "Menu utilisateur"
     }
   },
   "httpPages": {
@@ -48,6 +54,22 @@
       "provisioned": "Provisionné",
       "permissions": "Permissions",
       "noPermissions": "Aucune permission pour le moment"
+    }
+  },
+  "breadcrumb": {
+    "ariaLabel": "Fil d'Ariane"
+  },
+  "shared": {
+    "dataGrid": {
+      "empty": "Aucune donnée disponible."
+    },
+    "status": {
+      "draft": "Brouillon",
+      "active": "Actif",
+      "inactive": "Inactif",
+      "pending": "En attente",
+      "approved": "Approuvé",
+      "rejected": "Rejeté"
     }
   }
 }

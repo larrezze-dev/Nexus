@@ -1,6 +1,7 @@
 import { Component, TemplateRef, ViewChild } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
+import { provideTransloco } from '@jsverse/transloco';
 import { ShellComponent } from './shell.component';
 import { NavigationBuilderService } from './navigation-builder.service';
 import { NxNavItem } from './nav-item.model';
@@ -28,6 +29,7 @@ describe('ShellComponent', () => {
       imports: [ShellComponent],
       providers: [
         provideRouter([]),
+        provideTransloco({ config: { availableLangs: ['de', 'en', 'fr', 'it', 'es'], defaultLang: 'de' } }),
         { provide: NavigationBuilderService, useValue: { build: () => fakeNavItems } },
       ],
     }).compileComponents();
@@ -41,7 +43,7 @@ describe('ShellComponent', () => {
     expect(fixture.nativeElement.textContent).toContain('NEXUS');
     expect(search).toBeTruthy();
     expect(search?.disabled).toBe(true);
-    expect(search?.title).toBe('Próximamente');
+    expect(search?.title).toBeTruthy();
   });
 
   it('does not render an approvals bell', () => {
@@ -66,6 +68,7 @@ describe('ShellComponent userMenuExtra projection', () => {
       imports: [HostComponent],
       providers: [
         provideRouter([]),
+        provideTransloco({ config: { availableLangs: ['de', 'en', 'fr', 'it', 'es'], defaultLang: 'de' } }),
         { provide: NavigationBuilderService, useValue: { build: () => fakeNavItems } },
       ],
     }).createComponent(HostComponent);

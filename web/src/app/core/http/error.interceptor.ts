@@ -42,7 +42,10 @@ export const errorInterceptor: HttpInterceptorFn = (req, next) => {
 
   return next(req).pipe(
     catchError((error: unknown) => {
-      if (error instanceof HttpErrorResponse) {
+      // Only react to our own API (same scope as the auth interceptor's bearer token):
+      // a 404 fetching an i18n asset or a 401 from a third-party request must not navigate
+      // the whole app to /not-found or /login.
+      if (error instanceof HttpErrorResponse && req.url.startsWith('/api/')) {
         const problem = isProblem(error.error) ? error.error : undefined;
 
         switch (error.status) {

@@ -43,6 +43,20 @@ describe('NxDataGridComponent', () => {
     expect(fetchSpy).toHaveBeenCalledWith(0, 25, null, { q: 'abc' });
   });
 
+  it('fetches with the caller-provided pageSize, not the 25 default', async () => {
+    const fetchSpy = vi.fn((page: number, pageSize: number) =>
+      of<Page<Row>>({ items: [], page, pageSize, total: 0 }),
+    );
+    const fixture = createFixture();
+    fixture.componentRef.setInput('columns', columns);
+    fixture.componentRef.setInput('fetch', fetchSpy);
+    fixture.componentRef.setInput('pageSize', 50);
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    expect(fetchSpy).toHaveBeenCalledWith(0, 50, null, {});
+  });
+
   it('refetches at the new page/pageSize when the paginator changes', async () => {
     const fetchSpy = vi.fn((page: number, pageSize: number) =>
       of<Page<Row>>({ items: [], page, pageSize, total: 0 }),

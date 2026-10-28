@@ -20,6 +20,12 @@
     },
     "userMenu": {
       "language": "Sprache"
+    },
+    "topBar": {
+      "searchPlaceholder": "Suche",
+      "searchTooltip": "Demnächst verfügbar",
+      "searchAriaLabel": "Globale Suche (demnächst verfügbar)",
+      "userMenuAriaLabel": "Benutzermenü"
     }
   },
   "httpPages": {
@@ -48,6 +54,22 @@
       "provisioned": "Angelegt",
       "permissions": "Berechtigungen",
       "noPermissions": "Noch keine Berechtigungen"
+    }
+  },
+  "breadcrumb": {
+    "ariaLabel": "Brotkrumen"
+  },
+  "shared": {
+    "dataGrid": {
+      "empty": "Keine Daten vorhanden."
+    },
+    "status": {
+      "draft": "Entwurf",
+      "active": "Aktiv",
+      "inactive": "Inaktiv",
+      "pending": "Ausstehend",
+      "approved": "Genehmigt",
+      "rejected": "Abgelehnt"
     }
   }
 }

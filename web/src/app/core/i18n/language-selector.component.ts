@@ -9,8 +9,9 @@ import { LANGUAGE_OPTIONS, type SupportedLanguage } from './supported-languages'
  * Standalone and self-contained: `core/layout` (another track) inserts it where it builds
  * the user menu — this component does not assume anything about its host's layout.
  *
- * No `mat-icon` glyph is used here: `index.html` does not link the Material Icons font in
- * this worktree, and a missing font would render a literal icon-name fallback instead.
+ * No `mat-icon` glyph is used here: the button only needs the active language's label, and a
+ * generic "language"/globe icon would not add information a screen reader doesn't already
+ * get from the label text.
  */
 @Component({
   selector: 'nx-language-selector',

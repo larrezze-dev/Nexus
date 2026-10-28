@@ -2,6 +2,7 @@ import { Component } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import { RouterTestingHarness } from '@angular/router/testing';
+import { provideTransloco } from '@jsverse/transloco';
 import { BreadcrumbComponent } from './breadcrumb.component';
 
 @Component({ template: '', standalone: true })
@@ -19,7 +20,10 @@ const routes = [
 describe('BreadcrumbComponent', () => {
   beforeEach(() => {
     TestBed.configureTestingModule({
-      providers: [provideRouter(routes)],
+      providers: [
+        provideRouter(routes),
+        provideTransloco({ config: { availableLangs: ['de', 'en', 'fr', 'it', 'es'], defaultLang: 'de' } }),
+      ],
     });
   });
 

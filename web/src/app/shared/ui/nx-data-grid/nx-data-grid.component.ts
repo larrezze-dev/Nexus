@@ -1,4 +1,13 @@
-import { ChangeDetectionStrategy, Component, EventEmitter, Output, effect, input, signal } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  EventEmitter,
+  Output,
+  effect,
+  input,
+  linkedSignal,
+  signal,
+} from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { MatPaginatorModule, PageEvent } from '@angular/material/paginator';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
@@ -68,7 +77,12 @@ export class NxDataGridComponent<T> {
   protected readonly rowData = signal<T[]>([]);
   protected readonly total = signal(0);
   protected readonly pageIndex = signal(0);
-  protected readonly pageSizeState = signal(this.pageSize());
+  // `linkedSignal`, not a plain `signal(this.pageSize())`: a field initializer runs before
+  // Angular assigns bound input-signal values, so a plain signal would always capture the
+  // input's *default* (25), ignoring whatever `[pageSize]` the caller actually passed.
+  // `linkedSignal` recomputes from `pageSize()` whenever it changes, while still letting
+  // `onPage` override it locally once the user picks a different page size.
+  protected readonly pageSizeState = linkedSignal(() => this.pageSize());
 
   private readonly sort = signal<NxSortModel | null>(null);
   private readonly reload$ = new Subject<void>();

@@ -20,6 +20,12 @@
     },
     "userMenu": {
       "language": "Language"
+    },
+    "topBar": {
+      "searchPlaceholder": "Search",
+      "searchTooltip": "Coming soon",
+      "searchAriaLabel": "Global search (coming soon)",
+      "userMenuAriaLabel": "User menu"
     }
   },
   "httpPages": {
@@ -48,6 +54,22 @@
       "provisioned": "Provisioned",
       "permissions": "Permissions",
       "noPermissions": "No permissions yet"
+    }
+  },
+  "breadcrumb": {
+    "ariaLabel": "Breadcrumb"
+  },
+  "shared": {
+    "dataGrid": {
+      "empty": "No data available."
+    },
+    "status": {
+      "draft": "Draft",
+      "active": "Active",
+      "inactive": "Inactive",
+      "pending": "Pending",
+      "approved": "Approved",
+      "rejected": "Rejected"
     }
   }
 }

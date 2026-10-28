@@ -31,10 +31,10 @@ describe('errorInterceptor', () => {
     const { http, controller, router } = setup();
     let captured: HttpErrorResponse | undefined;
 
-    http.post('/v1/asset-types', {}).subscribe({ error: (err) => (captured = err) });
+    http.post('/api/v1/asset-types', {}).subscribe({ error: (err) => (captured = err) });
 
     const problem: Problem = { type: 'validation', status: 400, errors: { code: ['required'] } };
-    controller.expectOne('/v1/asset-types').flush(problem, { status: 400, statusText: 'Bad Request' });
+    controller.expectOne('/api/v1/asset-types').flush(problem, { status: 400, statusText: 'Bad Request' });
 
     expect(captured?.status).toBe(400);
     expect((captured?.error as Problem).errors?.['code']).toEqual(['required']);
@@ -47,8 +47,8 @@ describe('errorInterceptor', () => {
     const listener = vi.fn();
     window.addEventListener(NEXUS_UNAUTHORIZED_EVENT, listener);
 
-    http.get('/v1/asset-types').subscribe({ error: () => undefined });
-    controller.expectOne('/v1/asset-types').flush({}, { status: 401, statusText: 'Unauthorized' });
+    http.get('/api/v1/asset-types').subscribe({ error: () => undefined });
+    controller.expectOne('/api/v1/asset-types').flush({}, { status: 401, statusText: 'Unauthorized' });
 
     expect(router.navigateByUrl).toHaveBeenCalledWith('/login');
     expect(listener).toHaveBeenCalledTimes(1);
@@ -59,9 +59,9 @@ describe('errorInterceptor', () => {
   it('navigates to /forbidden with the required permission as a query param on 403', () => {
     const { http, controller, router } = setup();
 
-    http.get('/v1/asset-types').subscribe({ error: () => undefined });
+    http.get('/api/v1/asset-types').subscribe({ error: () => undefined });
     const problem: Problem = { type: 'forbidden', status: 403, requiredPermission: 'ASSET_TYPE:CREATE' };
-    controller.expectOne('/v1/asset-types').flush(problem, { status: 403, statusText: 'Forbidden' });
+    controller.expectOne('/api/v1/asset-types').flush(problem, { status: 403, statusText: 'Forbidden' });
 
     expect(router.navigate).toHaveBeenCalledWith(['/forbidden'], {
       queryParams: { permission: 'ASSET_TYPE:CREATE' },
@@ -71,8 +71,8 @@ describe('errorInterceptor', () => {
   it('navigates to /not-found on 404', () => {
     const { http, controller, router } = setup();
 
-    http.get('/v1/asset-types/missing').subscribe({ error: () => undefined });
-    controller.expectOne('/v1/asset-types/missing').flush({}, { status: 404, statusText: 'Not Found' });
+    http.get('/api/v1/asset-types/missing').subscribe({ error: () => undefined });
+    controller.expectOne('/api/v1/asset-types/missing').flush({}, { status: 404, statusText: 'Not Found' });
 
     expect(router.navigateByUrl).toHaveBeenCalledWith('/not-found');
   });
@@ -80,9 +80,9 @@ describe('errorInterceptor', () => {
   it('opens the concurrency dialog on a 409 concurrency conflict, without navigating', () => {
     const { http, controller, router, concurrencyDialog } = setup();
 
-    http.put('/v1/asset-types/1', {}).subscribe({ error: () => undefined });
+    http.put('/api/v1/asset-types/1', {}).subscribe({ error: () => undefined });
     const problem: Problem = { type: 'concurrency', status: 409 };
-    controller.expectOne('/v1/asset-types/1').flush(problem, { status: 409, statusText: 'Conflict' });
+    controller.expectOne('/api/v1/asset-types/1').flush(problem, { status: 409, statusText: 'Conflict' });
 
     expect(concurrencyDialog.open).toHaveBeenCalledTimes(1);
     expect(router.navigate).not.toHaveBeenCalled();
@@ -93,9 +93,9 @@ describe('errorInterceptor', () => {
     const { http, controller, concurrencyDialog } = setup();
     let captured: HttpErrorResponse | undefined;
 
-    http.post('/v1/asset-types', {}).subscribe({ error: (err) => (captured = err) });
+    http.post('/api/v1/asset-types', {}).subscribe({ error: (err) => (captured = err) });
     const problem: Problem = { type: 'idempotency_conflict', status: 409 };
-    controller.expectOne('/v1/asset-types').flush(problem, { status: 409, statusText: 'Conflict' });
+    controller.expectOne('/api/v1/asset-types').flush(problem, { status: 409, statusText: 'Conflict' });
 
     expect(concurrencyDialog.open).not.toHaveBeenCalled();
     expect(captured?.status).toBe(409);
@@ -105,11 +105,23 @@ describe('errorInterceptor', () => {
     const { http, controller, router } = setup();
     let captured: HttpErrorResponse | undefined;
 
-    http.post('/v1/asset-types', {}).subscribe({ error: (err) => (captured = err) });
+    http.post('/api/v1/asset-types', {}).subscribe({ error: (err) => (captured = err) });
     const problem: Problem = { type: 'business_rule', status: 422, code: 'STK-R5' };
-    controller.expectOne('/v1/asset-types').flush(problem, { status: 422, statusText: 'Unprocessable Entity' });
+    controller.expectOne('/api/v1/asset-types').flush(problem, { status: 422, statusText: 'Unprocessable Entity' });
 
     expect((captured?.error as Problem).code).toBe('STK-R5');
+    expect(router.navigate).not.toHaveBeenCalled();
+    expect(router.navigateByUrl).not.toHaveBeenCalled();
+  });
+
+  it('ignores a 404 outside /api/** (e.g. a missing i18n asset) instead of navigating to /not-found', () => {
+    const { http, controller, router } = setup();
+    let captured: HttpErrorResponse | undefined;
+
+    http.get('/assets/i18n/xx.json').subscribe({ error: (err) => (captured = err) });
+    controller.expectOne('/assets/i18n/xx.json').flush(null, { status: 404, statusText: 'Not Found' });
+
+    expect(captured?.status).toBe(404);
     expect(router.navigate).not.toHaveBeenCalled();
     expect(router.navigateByUrl).not.toHaveBeenCalled();
   });

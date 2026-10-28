@@ -20,7 +20,7 @@ class CallerPage {
   private readonly http = inject(HttpClient);
 
   trigger(): void {
-    this.http.get('/v1/asset-types').subscribe({ error: () => undefined });
+    this.http.get('/api/v1/asset-types').subscribe({ error: () => undefined });
   }
 }
 
@@ -44,7 +44,7 @@ describe('provideNexusHttp() + provideNexusI18n() integration', () => {
     caller.trigger();
 
     const controller = TestBed.inject(HttpTestingController);
-    const req = controller.expectOne('/v1/asset-types');
+    const req = controller.expectOne('/api/v1/asset-types');
     req.flush(
       { type: 'forbidden', status: 403, requiredPermission: 'ASSET_TYPE:CREATE' },
       { status: 403, statusText: 'Forbidden' },
