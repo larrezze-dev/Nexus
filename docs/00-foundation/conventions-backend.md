@@ -118,10 +118,11 @@ Todas las respuestas de error son `application/problem+json` (RFC 9457):
 | ClickHouse | `ClickHouse.Client` |
 | Gateway | `Yarp.ReverseProxy` |
 | Auth | `Microsoft.AspNetCore.Authentication.JwtBearer` (ADR-0006) |
+| OpenAPI | `Microsoft.AspNetCore.OpenApi` `[+]` (ya nombrado en §1; no es parte del shared framework bajo Central Package Management, se lista aquí al formalizarse en el paso 0.5) |
 | Blob | `Azure.Storage.Blobs` |
 | Resiliencia | `Microsoft.Extensions.Http.Resilience` |
 | Telemetría | `OpenTelemetry.Extensions.Hosting`, instrumentaciones ASP.NET Core / HttpClient / Npgsql, exportador OTLP |
 | Inyección de dependencias | `Microsoft.Extensions.DependencyInjection`, `Microsoft.Extensions.DependencyInjection.Abstractions` `[+]` (ya implícitos en el host ASP.NET Core de §1; se listan explícitamente porque `Nexus.BuildingBlocks.Application`/`Persistence` los referencian directamente) |
-| Tests | `xunit.v3`, `xunit.v3.extensibility.core` `[+]` (mismo paquete/versión que `xunit.v3`; lo necesita una classlib como `Nexus.BuildingBlocks.Testing` para implementar fixtures de xUnit sin ser ella misma un proyecto de test), `Shouldly`, `NSubstitute`, `Testcontainers.PostgreSql`, `Testcontainers.Kafka`, `Testcontainers.ClickHouse`, `Bogus` |
+| Tests | `xunit.v3`, `xunit.v3.extensibility.core` `[+]` (mismo paquete/versión que `xunit.v3`; lo necesita una classlib como `Nexus.BuildingBlocks.Testing` para implementar fixtures de xUnit sin ser ella misma un proyecto de test), `Shouldly`, `NSubstitute`, `Microsoft.AspNetCore.Mvc.Testing` `[+]` (paquete estándar de Microsoft para `WebApplicationFactory<TEntryPoint>`, usado por los tests de integración de `nexus-gateway`/`nexus-platform` desde el paso 0.5), `Testcontainers.PostgreSql`, `Testcontainers.Kafka`, `Testcontainers.ClickHouse`, `Bogus` |
 
 Cualquier paquete fuera de esta lista requiere ADR (H13).

@@ -126,6 +126,16 @@ mock-api:
 test-e2e:
 	@echo "pending: paso 1.3"
 
+# Gateway (:8080) + every existing business service (today: nexus-platform, :5101) under
+# `dotnet watch`, each its own child process. Ctrl+C sends SIGINT to this `make` process;
+# the trap below forwards it to both children so neither is left running in the background
+# (dotnet watch itself does not die just because its parent shell does).
+run-backend:
+	@trap 'echo "stopping..."; kill $$(jobs -p) 2>/dev/null' INT TERM EXIT; \
+	(cd src/Gateway/Nexus.Gateway && dotnet watch) & \
+	(cd src/Platform/Nexus.Platform.Api && dotnet watch) & \
+	wait
+
 contracts:
 	@files=$$(find contracts/openapi -maxdepth 1 -type f -name '*.yaml' ! -name '.*' 2>/dev/null); \
 	if [ -n "$$files" ]; then \

@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Nexus.Platform.Domain\Nexus.Platform.Domain.csproj" />
+    <ProjectReference Include="..\..\BuildingBlocks\Nexus.BuildingBlocks.Application\Nexus.BuildingBlocks.Application.csproj" />
+  </ItemGroup>
+
+</Project>

@@ -1,0 +1,37 @@
+# oasdiff-err-ignore.txt — known, documented exceptions for the `conformance` CI job
+# (.github/workflows/ci.yml), passed to `oasdiff breaking --err-ignore`.
+#
+# Each line below silences one specific, already-investigated ERR-level finding from
+# `oasdiff breaking <service-openapi> contracts/openapi/<service>.yaml`. Do not add a line
+# here to make an unrelated or unexamined finding disappear — only for a finding you have
+# reproduced locally and understood. New entries need a comment, same as these.
+#
+# Format (see oasdiff docs/BREAKING-CHANGES.md "Ignoring Specific Breaking Changes"):
+# a line must contain the operation's method+path and (a substring of) the finding's
+# description text; extra words/comments on the line are ignored by the matcher.
+
+# --- nexus-platform: GET /v1/me --------------------------------------------------------
+# Step 0.5 track B: GetMe.cs is guarded at runtime by .RequireAuthenticatedOnly(), but the
+# OpenAPI document Nexus.Platform.Api serves at /openapi/v1.json never gets a standard
+# OpenAPI `security` requirement for it — PermissionOpenApiOperationTransformer (B2,
+# src/BuildingBlocks/Nexus.BuildingBlocks.Web/OpenApi/) only writes the custom
+# `x-permission: AUTHENTICATED` extension, never `security`/`components.securitySchemes`.
+# contracts/openapi/platform.yaml *does* declare a real `bearerAuth` security scheme for
+# this operation, so oasdiff (which judges the service's own OpenAPI document literally,
+# not what the service actually enforces at runtime — see "How oasdiff decides what is
+# breaking" in its docs) reads the service's document as "this endpoint currently allows
+# anonymous access" and flags the contract's requirement as removing that access.
+# This is a real, reproducible gap between the documented and the enforced permission
+# model, not a bug in oasdiff or in the contract: do not "fix" it by weakening
+# contracts/openapi/platform.yaml. The correct fix is for a future B-track step to make
+# the OpenAPI generator also emit standard `security`/`securitySchemes` alongside
+# `x-permission` (or for the conformance strategy to stop relying on standard OpenAPI
+# `security` for this check at all) — tracked as an open finding from step 0.5 track B,
+# flagged to the orchestrator/Luciano in that track's closing report, not decided here.
+# Every endpoint guarded only by `x-permission` (not by a real `security` entry) will hit
+# the same finding once implemented; each one needs its own line here until that fix
+# lands — this file is a transparent, per-endpoint stopgap, not a blanket suppression of
+# the "api-security-anonymous-access-removed" check (which stays enabled for every other
+# endpoint, so a genuine regression — a currently `security`-documented endpoint losing
+# its requirement — still fails the job).
+GET /v1/me the endpoint no longer allows anonymous access and now only accepts `bearerAuth`
