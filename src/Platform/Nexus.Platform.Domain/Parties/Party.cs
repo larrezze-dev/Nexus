@@ -91,6 +91,54 @@ public sealed class Party : AggregateRoot<Guid>
         return true;
     }
 
+    /// <summary>
+    /// <c>PUT /v1/parties/{id}</c> (<c>UpdatePartyRequest</c>): full replacement of every
+    /// editable field. <see cref="PartyType"/> and <see cref="IsInternal"/> are not parameters
+    /// here — ORG-R2 keeps them fixed after creation, and the contract does not expose them on
+    /// this request. Returns <see langword="true"/> and raises <see cref="PartyUpdated"/> only
+    /// if something actually changed (no event for a no-op).
+    /// </summary>
+    public bool Update(string legalName, string? displayName, string? taxId, string? erpCompanyCode)
+    {
+        Guard.Against.NullOrWhiteSpace(legalName, nameof(legalName));
+
+        var changed =
+            !string.Equals(LegalName, legalName, StringComparison.Ordinal)
+            || !string.Equals(DisplayName, displayName, StringComparison.Ordinal)
+            || !string.Equals(TaxId, taxId, StringComparison.Ordinal)
+            || !string.Equals(ErpCompanyCode, erpCompanyCode, StringComparison.Ordinal);
+
+        if (!changed)
+        {
+            return false;
+        }
+
+        LegalName = legalName;
+        DisplayName = displayName;
+        TaxId = taxId;
+        ErpCompanyCode = erpCompanyCode;
+        RaiseUpdated();
+        return true;
+    }
+
+    /// <summary>
+    /// <c>POST /v1/parties/{id}/deactivate</c>: no DELETE in master data. Idempotent —
+    /// deactivating an already inactive party changes nothing and raises nothing. Returns
+    /// whether anything changed.
+    /// </summary>
+    public bool Deactivate()
+    {
+        if (!IsActive)
+        {
+            return false;
+        }
+
+        IsActive = false;
+        RaiseEvent(new PartyDeactivated(
+            Id, PartyType.ToName(), LegalName, DisplayName, TaxId, ErpCompanyCode, IsInternal, IsActive));
+        return true;
+    }
+
     private void RaiseUpdated() =>
         RaiseEvent(new PartyUpdated(
             Id, PartyType.ToName(), LegalName, DisplayName, TaxId, ErpCompanyCode, IsInternal, IsActive));
