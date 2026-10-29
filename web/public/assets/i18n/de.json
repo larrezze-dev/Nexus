@@ -14,7 +14,8 @@
     "concurrencyMessage": "Ein anderer Benutzer hat diesen Datensatz gespeichert, nachdem Sie ihn geladen haben. Laden Sie neu, um die aktuelle Version zu sehen, bevor Sie fortfahren.",
     "SAMPLE-R1": "Beispieltext für Geschäftsregel SAMPLE-R1 — durch den echten Text ersetzen.",
     "ORG-R6": "Der SYSTEM-Benutzer kann nicht bearbeitet oder deaktiviert werden.",
-    "ORG-R9": "Es existiert bereits ein Benutzer mit dieser E-Mail-Adresse."
+    "ORG-R9": "Es existiert bereits ein Benutzer mit dieser E-Mail-Adresse.",
+    "ORG-R3": "Ein Warehouse mit einer Business Unit muss eine Business Unit verwenden, die zur selben Legal Entity gehört."
   },
   "shell": {
     "nav": {
@@ -48,7 +49,9 @@
     "org": {
       "legalEntities": "Gesellschaften",
       "businessUnits": "Geschäftsbereiche"
-    }
+    },
+    "locations": "Standorte",
+    "warehouses": "Warehouses"
   },
   "org": {
     "legalEntities": {
@@ -185,6 +188,71 @@
     "entityPicker": {
       "placeholder": "Suchen…",
       "noResults": "Keine Ergebnisse"
+    }
+  },
+  "locations": {
+    "title": "Standorte",
+    "actions": {
+      "create": "Neuer Standort"
+    },
+    "list": {
+      "columns": {
+        "code": "Code",
+        "name": "Name",
+        "city": "Stadt",
+        "countryCode": "Land",
+        "isActive": "Status"
+      }
+    },
+    "detail": {
+      "title": {
+        "create": "Neuer Standort",
+        "edit": "Standort bearbeiten"
+      }
+    },
+    "fields": {
+      "code": "Code",
+      "name": "Name",
+      "street": "Strasse",
+      "postalCode": "PLZ",
+      "city": "Stadt",
+      "region": "Region",
+      "countryCode": "Ländercode"
+    }
+  },
+  "warehouses": {
+    "title": "Warehouses",
+    "actions": {
+      "create": "Neues Warehouse",
+      "deactivate": "Deaktivieren"
+    },
+    "filters": {
+      "search": "Suchen",
+      "legalEntity": "Legal Entity",
+      "businessUnit": "Business Unit",
+      "isActive": "Status",
+      "isActiveAll": "Alle"
+    },
+    "list": {
+      "columns": {
+        "code": "Code",
+        "caption": "Bezeichnung",
+        "isActive": "Status"
+      }
+    },
+    "detail": {
+      "title": {
+        "create": "Neues Warehouse",
+        "edit": "Warehouse bearbeiten"
+      }
+    },
+    "fields": {
+      "code": "Code",
+      "location": "Standort",
+      "legalEntity": "Legal Entity",
+      "businessUnit": "Business Unit",
+      "clear": "Entfernen",
+      "current": "Aktuell: {{value}}"
     }
   }
 }

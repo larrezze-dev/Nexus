@@ -14,7 +14,8 @@
     "concurrencyMessage": "Un altro utente ha salvato modifiche a questo record dopo che l'hai caricato. Ricarica per vedere l'ultima versione prima di continuare.",
     "SAMPLE-R1": "Testo di esempio per la regola di business SAMPLE-R1 — da sostituire con il testo reale.",
     "ORG-R6": "L'utente SYSTEM non può essere modificato né disattivato.",
-    "ORG-R9": "Esiste già un utente con questa email."
+    "ORG-R9": "Esiste già un utente con questa email.",
+    "ORG-R3": "Un magazzino con una business unit deve usare una business unit che appartiene alla stessa legal entity."
   },
   "shell": {
     "nav": {
@@ -48,7 +49,9 @@
     "org": {
       "legalEntities": "Entità legali",
       "businessUnits": "Unità di business"
-    }
+    },
+    "locations": "Sedi",
+    "warehouses": "Magazzini"
   },
   "account": {
     "title": "Il mio account",
@@ -185,6 +188,71 @@
         "costCenterCode": "Centro di costo",
         "isActive": "Stato"
       }
+    }
+  },
+  "locations": {
+    "title": "Sedi",
+    "actions": {
+      "create": "Nuova sede"
+    },
+    "list": {
+      "columns": {
+        "code": "Codice",
+        "name": "Nome",
+        "city": "Città",
+        "countryCode": "Paese",
+        "isActive": "Stato"
+      }
+    },
+    "detail": {
+      "title": {
+        "create": "Nuova sede",
+        "edit": "Modifica sede"
+      }
+    },
+    "fields": {
+      "code": "Codice",
+      "name": "Nome",
+      "street": "Via",
+      "postalCode": "CAP",
+      "city": "Città",
+      "region": "Regione",
+      "countryCode": "Codice paese"
+    }
+  },
+  "warehouses": {
+    "title": "Magazzini",
+    "actions": {
+      "create": "Nuovo magazzino",
+      "deactivate": "Disattiva"
+    },
+    "filters": {
+      "search": "Cerca",
+      "legalEntity": "Legal entity",
+      "businessUnit": "Business unit",
+      "isActive": "Stato",
+      "isActiveAll": "Tutti"
+    },
+    "list": {
+      "columns": {
+        "code": "Codice",
+        "caption": "Didascalia",
+        "isActive": "Stato"
+      }
+    },
+    "detail": {
+      "title": {
+        "create": "Nuovo magazzino",
+        "edit": "Modifica magazzino"
+      }
+    },
+    "fields": {
+      "code": "Codice",
+      "location": "Sede",
+      "legalEntity": "Legal entity",
+      "businessUnit": "Business unit",
+      "clear": "Rimuovi",
+      "current": "Attuale: {{value}}"
     }
   }
 }

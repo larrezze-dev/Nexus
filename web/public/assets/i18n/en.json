@@ -14,7 +14,8 @@
     "concurrencyMessage": "Another user saved changes to this record after you loaded it. Reload to see the latest version before continuing.",
     "SAMPLE-R1": "Example business rule message — replace with the real text for rule SAMPLE-R1.",
     "ORG-R6": "The SYSTEM user cannot be edited or deactivated.",
-    "ORG-R9": "A user with this email already exists."
+    "ORG-R9": "A user with this email already exists.",
+    "ORG-R3": "A warehouse with a business unit must use a business unit that belongs to the same legal entity."
   },
   "shell": {
     "nav": {
@@ -48,7 +49,9 @@
     "org": {
       "legalEntities": "Legal entities",
       "businessUnits": "Business units"
-    }
+    },
+    "locations": "Locations",
+    "warehouses": "Warehouses"
   },
   "account": {
     "title": "My account",
@@ -185,6 +188,71 @@
         "costCenterCode": "Cost center",
         "isActive": "Status"
       }
+    }
+  },
+  "locations": {
+    "title": "Locations",
+    "actions": {
+      "create": "New location"
+    },
+    "list": {
+      "columns": {
+        "code": "Code",
+        "name": "Name",
+        "city": "City",
+        "countryCode": "Country",
+        "isActive": "Status"
+      }
+    },
+    "detail": {
+      "title": {
+        "create": "New location",
+        "edit": "Edit location"
+      }
+    },
+    "fields": {
+      "code": "Code",
+      "name": "Name",
+      "street": "Street",
+      "postalCode": "Postal code",
+      "city": "City",
+      "region": "Region",
+      "countryCode": "Country code"
+    }
+  },
+  "warehouses": {
+    "title": "Warehouses",
+    "actions": {
+      "create": "New warehouse",
+      "deactivate": "Deactivate"
+    },
+    "filters": {
+      "search": "Search",
+      "legalEntity": "Legal entity",
+      "businessUnit": "Business unit",
+      "isActive": "Status",
+      "isActiveAll": "All"
+    },
+    "list": {
+      "columns": {
+        "code": "Code",
+        "caption": "Caption",
+        "isActive": "Status"
+      }
+    },
+    "detail": {
+      "title": {
+        "create": "New warehouse",
+        "edit": "Edit warehouse"
+      }
+    },
+    "fields": {
+      "code": "Code",
+      "location": "Location",
+      "legalEntity": "Legal entity",
+      "businessUnit": "Business unit",
+      "clear": "Clear",
+      "current": "Current: {{value}}"
     }
   }
 }

@@ -14,7 +14,8 @@
     "concurrencyMessage": "Un autre utilisateur a enregistré des modifications sur cet enregistrement après que vous l'ayez chargé. Rechargez pour voir la dernière version avant de continuer.",
     "SAMPLE-R1": "Exemple de message pour la règle métier SAMPLE-R1 — à remplacer par le vrai texte.",
     "ORG-R6": "L'utilisateur SYSTEM ne peut pas être modifié ni désactivé.",
-    "ORG-R9": "Un utilisateur avec cet e-mail existe déjà."
+    "ORG-R9": "Un utilisateur avec cet e-mail existe déjà.",
+    "ORG-R3": "Un entrepôt avec une unité d'affaires doit utiliser une unité d'affaires qui appartient à la même entité juridique."
   },
   "shell": {
     "nav": {
@@ -48,7 +49,9 @@
     "org": {
       "legalEntities": "Entités juridiques",
       "businessUnits": "Unités d'affaires"
-    }
+    },
+    "locations": "Sites",
+    "warehouses": "Entrepôts"
   },
   "account": {
     "title": "Mon compte",
@@ -185,6 +188,71 @@
         "costCenterCode": "Centre de coûts",
         "isActive": "Statut"
       }
+    }
+  },
+  "locations": {
+    "title": "Sites",
+    "actions": {
+      "create": "Nouveau site"
+    },
+    "list": {
+      "columns": {
+        "code": "Code",
+        "name": "Nom",
+        "city": "Ville",
+        "countryCode": "Pays",
+        "isActive": "Statut"
+      }
+    },
+    "detail": {
+      "title": {
+        "create": "Nouveau site",
+        "edit": "Modifier le site"
+      }
+    },
+    "fields": {
+      "code": "Code",
+      "name": "Nom",
+      "street": "Rue",
+      "postalCode": "Code postal",
+      "city": "Ville",
+      "region": "Région",
+      "countryCode": "Code pays"
+    }
+  },
+  "warehouses": {
+    "title": "Entrepôts",
+    "actions": {
+      "create": "Nouvel entrepôt",
+      "deactivate": "Désactiver"
+    },
+    "filters": {
+      "search": "Rechercher",
+      "legalEntity": "Entité juridique",
+      "businessUnit": "Unité d'affaires",
+      "isActive": "Statut",
+      "isActiveAll": "Tous"
+    },
+    "list": {
+      "columns": {
+        "code": "Code",
+        "caption": "Légende",
+        "isActive": "Statut"
+      }
+    },
+    "detail": {
+      "title": {
+        "create": "Nouvel entrepôt",
+        "edit": "Modifier l'entrepôt"
+      }
+    },
+    "fields": {
+      "code": "Code",
+      "location": "Site",
+      "legalEntity": "Entité juridique",
+      "businessUnit": "Unité d'affaires",
+      "clear": "Effacer",
+      "current": "Actuel : {{value}}"
     }
   }
 }

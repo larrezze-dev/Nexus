@@ -14,7 +14,8 @@
     "concurrencyMessage": "Otro usuario guardó cambios en este registro después de que lo cargaras. Recarga para ver la última versión antes de continuar.",
     "SAMPLE-R1": "Mensaje de ejemplo para la regla de negocio SAMPLE-R1 — sustituir por el texto real.",
     "ORG-R6": "El usuario SYSTEM no se puede editar ni desactivar.",
-    "ORG-R9": "Ya existe un usuario con este email."
+    "ORG-R9": "Ya existe un usuario con este email.",
+    "ORG-R3": "Un warehouse con una business unit debe usar una business unit que pertenezca a la misma legal entity."
   },
   "shell": {
     "nav": {
@@ -48,7 +49,9 @@
     "org": {
       "legalEntities": "Entidades legales",
       "businessUnits": "Unidades de negocio"
-    }
+    },
+    "locations": "Ubicaciones",
+    "warehouses": "Almacenes"
   },
   "account": {
     "title": "Mi cuenta",
@@ -185,6 +188,71 @@
         "costCenterCode": "Centro de costo",
         "isActive": "Estado"
       }
+    }
+  },
+  "locations": {
+    "title": "Ubicaciones",
+    "actions": {
+      "create": "Nueva ubicación"
+    },
+    "list": {
+      "columns": {
+        "code": "Código",
+        "name": "Nombre",
+        "city": "Ciudad",
+        "countryCode": "País",
+        "isActive": "Estado"
+      }
+    },
+    "detail": {
+      "title": {
+        "create": "Nueva ubicación",
+        "edit": "Editar ubicación"
+      }
+    },
+    "fields": {
+      "code": "Código",
+      "name": "Nombre",
+      "street": "Calle",
+      "postalCode": "Código postal",
+      "city": "Ciudad",
+      "region": "Región",
+      "countryCode": "Código de país"
+    }
+  },
+  "warehouses": {
+    "title": "Almacenes",
+    "actions": {
+      "create": "Nuevo almacén",
+      "deactivate": "Desactivar"
+    },
+    "filters": {
+      "search": "Buscar",
+      "legalEntity": "Legal entity",
+      "businessUnit": "Business unit",
+      "isActive": "Estado",
+      "isActiveAll": "Todos"
+    },
+    "list": {
+      "columns": {
+        "code": "Código",
+        "caption": "Título",
+        "isActive": "Estado"
+      }
+    },
+    "detail": {
+      "title": {
+        "create": "Nuevo almacén",
+        "edit": "Editar almacén"
+      }
+    },
+    "fields": {
+      "code": "Código",
+      "location": "Ubicación",
+      "legalEntity": "Legal entity",
+      "businessUnit": "Business unit",
+      "clear": "Quitar",
+      "current": "Actual: {{value}}"
     }
   }
 }
