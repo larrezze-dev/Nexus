@@ -12,7 +12,8 @@
     "notFound": "Die angeforderte Ressource wurde nicht gefunden.",
     "concurrencyTitle": "Ein anderer Benutzer hat diesen Datensatz geändert",
     "concurrencyMessage": "Ein anderer Benutzer hat diesen Datensatz gespeichert, nachdem Sie ihn geladen haben. Laden Sie neu, um die aktuelle Version zu sehen, bevor Sie fortfahren.",
-    "SAMPLE-R1": "Beispieltext für Geschäftsregel SAMPLE-R1 — durch den echten Text ersetzen."
+    "SAMPLE-R1": "Beispieltext für Geschäftsregel SAMPLE-R1 — durch den echten Text ersetzen.",
+    "ORG-R3": "Ein Warehouse mit einer Business Unit muss eine Business Unit verwenden, die zur selben Legal Entity gehört."
   },
   "shell": {
     "nav": {
@@ -40,7 +41,74 @@
     }
   },
   "nav": {
-    "account": "Mein Konto"
+    "account": "Mein Konto",
+    "locations": "Standorte",
+    "warehouses": "Warehouses"
+  },
+  "locations": {
+    "title": "Standorte",
+    "actions": {
+      "create": "Neuer Standort"
+    },
+    "list": {
+      "columns": {
+        "code": "Code",
+        "name": "Name",
+        "city": "Stadt",
+        "countryCode": "Land",
+        "isActive": "Status"
+      }
+    },
+    "detail": {
+      "title": {
+        "create": "Neuer Standort",
+        "edit": "Standort bearbeiten"
+      }
+    },
+    "fields": {
+      "code": "Code",
+      "name": "Name",
+      "street": "Strasse",
+      "postalCode": "PLZ",
+      "city": "Stadt",
+      "region": "Region",
+      "countryCode": "Ländercode"
+    }
+  },
+  "warehouses": {
+    "title": "Warehouses",
+    "actions": {
+      "create": "Neues Warehouse",
+      "deactivate": "Deaktivieren"
+    },
+    "filters": {
+      "search": "Suchen",
+      "legalEntity": "Legal Entity",
+      "businessUnit": "Business Unit",
+      "isActive": "Status",
+      "isActiveAll": "Alle"
+    },
+    "list": {
+      "columns": {
+        "code": "Code",
+        "caption": "Bezeichnung",
+        "isActive": "Status"
+      }
+    },
+    "detail": {
+      "title": {
+        "create": "Neues Warehouse",
+        "edit": "Warehouse bearbeiten"
+      }
+    },
+    "fields": {
+      "code": "Code",
+      "location": "Standort",
+      "legalEntity": "Legal Entity",
+      "businessUnit": "Business Unit",
+      "clear": "Entfernen",
+      "current": "Aktuell: {{value}}"
+    }
   },
   "account": {
     "title": "Mein Konto",
