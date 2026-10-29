@@ -1,0 +1,71 @@
+<div class="nx-party-detail-page">
+  <h1>
+    @if (isNew()) {
+      {{ 'org.parties.detail.newTitle' | transloco }}
+    } @else {
+      {{ 'org.parties.detail.editTitle' | transloco }}
+    }
+  </h1>
+
+  @if (facade.loading()) {
+    <p>{{ 'org.parties.detail.loading' | transloco }}</p>
+  } @else {
+    @if (facade.error()) {
+      <p role="alert">{{ facade.error() }}</p>
+    }
+
+    <form [formGroup]="form" (ngSubmit)="save()">
+      <mat-form-field>
+        <mat-label>{{ 'org.parties.fields.partyType' | transloco }}</mat-label>
+        <mat-select formControlName="partyType" data-testid="party-type-select">
+          <mat-option value="ORGANIZATION">{{ 'org.parties.partyType.organization' | transloco }}</mat-option>
+          <mat-option value="PERSON">{{ 'org.parties.partyType.person' | transloco }}</mat-option>
+        </mat-select>
+      </mat-form-field>
+
+      <mat-form-field>
+        <mat-label>{{ 'org.parties.fields.legalName' | transloco }}</mat-label>
+        <input matInput formControlName="legalName" data-testid="party-legal-name-input" />
+      </mat-form-field>
+
+      <mat-form-field>
+        <mat-label>{{ 'org.parties.fields.displayName' | transloco }}</mat-label>
+        <input matInput formControlName="displayName" data-testid="party-display-name-input" />
+      </mat-form-field>
+
+      <mat-form-field>
+        <mat-label>{{ 'org.parties.fields.taxId' | transloco }}</mat-label>
+        <input matInput formControlName="taxId" data-testid="party-tax-id-input" />
+      </mat-form-field>
+
+      <mat-form-field>
+        <mat-label>{{ 'org.parties.fields.erpCompanyCode' | transloco }}</mat-label>
+        <input matInput formControlName="erpCompanyCode" data-testid="party-erp-company-code-input" />
+      </mat-form-field>
+
+      <mat-checkbox formControlName="isInternal" data-testid="party-is-internal-checkbox">
+        {{ 'org.parties.fields.isInternal' | transloco }}
+      </mat-checkbox>
+
+      <div class="nx-party-detail-page__actions">
+        <button mat-flat-button color="primary" type="submit" [disabled]="facade.saving()" data-testid="party-save-button">
+          {{ 'common.save' | transloco }}
+        </button>
+        <a mat-button routerLink="..">{{ 'common.cancel' | transloco }}</a>
+
+        @if (!isNew()) {
+          <button
+            mat-button
+            type="button"
+            color="warn"
+            *nxCan="'PARTY:DEACTIVATE'"
+            (click)="deactivate()"
+            data-testid="party-deactivate-button"
+          >
+            {{ 'org.parties.actions.deactivate' | transloco }}
+          </button>
+        }
+      </div>
+    </form>
+  }
+</div>

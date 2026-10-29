@@ -1,0 +1,13 @@
+.nx-i18n-caption-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+
+  &__row {
+    width: 100%;
+  }
+
+  &__required {
+    color: var(--mat-sys-error, #b3261e);
+  }
+}

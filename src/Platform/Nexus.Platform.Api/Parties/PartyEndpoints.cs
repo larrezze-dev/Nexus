@@ -4,6 +4,7 @@ using Nexus.BuildingBlocks.Application.Paging;
 using Nexus.BuildingBlocks.Web.Authorization;
 using Nexus.BuildingBlocks.Web.ErrorHandling;
 using Nexus.BuildingBlocks.Web.Http;
+using Nexus.BuildingBlocks.Web.OpenApi;
 using Nexus.Platform.Api.Users;
 using Nexus.Platform.Application.Parties;
 using Nexus.Platform.Application.Parties.CreateParty;
@@ -29,11 +30,13 @@ public static class PartyEndpoints
 
         group.MapGet(string.Empty, ListParties)
             .WithName("listParties")
+            .ValidatedBy<GetPartiesQuery>()
             .RequirePermission("PARTY", PermissionAction.Read)
             .WithScope("none");
 
         group.MapPost(string.Empty, CreateParty)
             .WithName("createParty")
+            .ValidatedBy<CreatePartyCommand>()
             .RequirePermission("PARTY", PermissionAction.Create)
             .WithScope("none");
 
@@ -44,6 +47,7 @@ public static class PartyEndpoints
 
         group.MapPut("/{id:guid}", UpdateParty)
             .WithName("updateParty")
+            .ValidatedBy<UpdatePartyCommand>()
             .RequirePermission("PARTY", PermissionAction.Update)
             .WithScope("none");
 

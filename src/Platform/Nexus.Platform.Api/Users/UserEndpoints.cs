@@ -4,6 +4,7 @@ using Nexus.BuildingBlocks.Application.Paging;
 using Nexus.BuildingBlocks.Web.Authorization;
 using Nexus.BuildingBlocks.Web.ErrorHandling;
 using Nexus.BuildingBlocks.Web.Http;
+using Nexus.BuildingBlocks.Web.OpenApi;
 using Nexus.Platform.Application.Users;
 using Nexus.Platform.Application.Users.CreateUser;
 using Nexus.Platform.Application.Users.DeactivateUser;
@@ -28,11 +29,13 @@ public static class UserEndpoints
 
         group.MapGet(string.Empty, ListUsers)
             .WithName("listUsers")
+            .ValidatedBy<GetUsersQuery>()
             .RequirePermission("USER", PermissionAction.Read)
             .WithScope("none");
 
         group.MapPost(string.Empty, CreateUser)
             .WithName("createUser")
+            .ValidatedBy<CreateUserCommand>()
             .RequirePermission("USER", PermissionAction.Create)
             .WithScope("none")
             .WithRules("ORG-R6", "ORG-R9");
@@ -44,6 +47,7 @@ public static class UserEndpoints
 
         group.MapPut("/{id:guid}", UpdateUser)
             .WithName("updateUser")
+            .ValidatedBy<UpdateUserCommand>()
             .RequirePermission("USER", PermissionAction.Update)
             .WithScope("none")
             .WithRules("ORG-R6", "ORG-R9");

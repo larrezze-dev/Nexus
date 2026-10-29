@@ -6,6 +6,7 @@ using Nexus.BuildingBlocks.Domain;
 using Nexus.BuildingBlocks.Web.Authorization;
 using Nexus.BuildingBlocks.Web.ErrorHandling;
 using Nexus.BuildingBlocks.Web.Http;
+using Nexus.BuildingBlocks.Web.OpenApi;
 using Nexus.Platform.Api.Users;
 using Nexus.Platform.Application.Locations;
 using Nexus.Platform.Application.Locations.CreateLocation;
@@ -30,11 +31,13 @@ public static class LocationEndpoints
 
         group.MapGet(string.Empty, ListLocations)
             .WithName("listLocations")
+            .ValidatedBy<GetLocationsQuery>()
             .RequirePermission("ORG_STRUCTURE", PermissionAction.Read)
             .WithScope("none");
 
         group.MapPost(string.Empty, CreateLocation)
             .WithName("createLocation")
+            .ValidatedBy<CreateLocationCommand>()
             .RequirePermission("ORG_STRUCTURE", PermissionAction.Create)
             .WithScope("none");
 
@@ -45,6 +48,7 @@ public static class LocationEndpoints
 
         group.MapPut("/{id:guid}", UpdateLocation)
             .WithName("updateLocation")
+            .ValidatedBy<UpdateLocationCommand>()
             .RequirePermission("ORG_STRUCTURE", PermissionAction.Update)
             .WithScope("none");
 

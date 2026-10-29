@@ -6,6 +6,7 @@ using Nexus.BuildingBlocks.Domain;
 using Nexus.BuildingBlocks.Web.Authorization;
 using Nexus.BuildingBlocks.Web.ErrorHandling;
 using Nexus.BuildingBlocks.Web.Http;
+using Nexus.BuildingBlocks.Web.OpenApi;
 using Nexus.Platform.Api.Users;
 using Nexus.Platform.Application.BusinessUnits;
 using Nexus.Platform.Application.BusinessUnits.CreateBusinessUnit;
@@ -30,11 +31,13 @@ public static class BusinessUnitEndpoints
 
         group.MapGet(string.Empty, ListBusinessUnits)
             .WithName("listBusinessUnits")
+            .ValidatedBy<GetBusinessUnitsQuery>()
             .RequirePermission("ORG_STRUCTURE", PermissionAction.Read)
             .WithScope("none");
 
         group.MapPost(string.Empty, CreateBusinessUnit)
             .WithName("createBusinessUnit")
+            .ValidatedBy<CreateBusinessUnitCommand>()
             .RequirePermission("ORG_STRUCTURE", PermissionAction.Create)
             .WithScope("none")
             .WithRules("ORG-R1");
@@ -46,6 +49,7 @@ public static class BusinessUnitEndpoints
 
         group.MapPut("/{id:guid}", UpdateBusinessUnit)
             .WithName("updateBusinessUnit")
+            .ValidatedBy<UpdateBusinessUnitCommand>()
             .RequirePermission("ORG_STRUCTURE", PermissionAction.Update)
             .WithScope("none");
 
