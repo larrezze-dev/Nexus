@@ -1,4 +1,5 @@
 using FluentValidation;
+using Nexus.BuildingBlocks.Application.Validation;
 using Nexus.BuildingBlocks.Application;
 using Nexus.BuildingBlocks.Domain;
 
@@ -18,7 +19,7 @@ internal sealed class UpdateCurrencyValidator : AbstractValidator<UpdateCurrency
     public UpdateCurrencyValidator()
     {
         RuleFor(c => c.Code)
-            .Must(code => code.Length == 3 && code.All(ch => ch is >= 'A' and <= 'Z'))
+            .Matches("^[A-Z]{3}$")
             .WithMessage("'code' must be 3 upper-case letters (ISO 4217).");
     }
 }

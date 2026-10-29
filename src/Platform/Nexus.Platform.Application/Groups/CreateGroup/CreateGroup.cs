@@ -1,4 +1,5 @@
 using FluentValidation;
+using Nexus.BuildingBlocks.Application.Validation;
 using Nexus.BuildingBlocks.Application;
 using Nexus.BuildingBlocks.Domain;
 using Nexus.Platform.Application.Currencies;
@@ -41,7 +42,7 @@ internal sealed class CreateGroupValidator : AbstractValidator<CreateGroupComman
             .WithMessage("'id' must be a UUIDv7 (ADR-0009).");
         RuleFor(c => c.LegalName).MustBeNonBlank();
         RuleFor(c => c.Code).MustBeNonBlank().Matches(@"^[A-Z0-9_\-\.]{1,40}$");
-        RuleFor(c => c.ConsolidationMethod).Must(AllowedConsolidationMethods.Contains)
+        RuleFor(c => c.ConsolidationMethod).NotNull().MustBeOneOf(AllowedConsolidationMethods)
             .WithMessage("'consolidationMethod' must be one of: FULL, PROPORTIONAL, EQUITY.");
         RuleFor(c => c.ReportingCurrencyCode).Matches(@"^[A-Z]{3}$");
     }

@@ -1,3 +1,4 @@
+using FluentValidation;
 using Nexus.BuildingBlocks.Application;
 using Nexus.BuildingBlocks.Domain;
 
@@ -5,6 +6,14 @@ namespace Nexus.Platform.Application.Currencies.GetCurrency;
 
 /// <summary><c>GET /v1/currencies/{code}</c> (<c>getCurrency</c>): detail plus version for the <c>ETag</c>.</summary>
 public sealed record GetCurrencyQuery(string Code) : IQuery<CurrencyDetails>;
+
+internal sealed class GetCurrencyValidator : AbstractValidator<GetCurrencyQuery>
+{
+    public GetCurrencyValidator()
+    {
+        RuleFor(q => q.Code).Matches("^[A-Z]{3}$").WithMessage("'code' must be 3 upper-case letters (ISO 4217).");
+    }
+}
 
 internal sealed class GetCurrencyHandler : IQueryHandler<GetCurrencyQuery, CurrencyDetails>
 {

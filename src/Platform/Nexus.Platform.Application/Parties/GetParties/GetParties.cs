@@ -1,4 +1,5 @@
 using FluentValidation;
+using Nexus.BuildingBlocks.Application.Validation;
 using Nexus.BuildingBlocks.Application;
 using Nexus.BuildingBlocks.Application.Paging;
 using Nexus.BuildingBlocks.Domain;
@@ -33,9 +34,9 @@ internal sealed class GetPartiesValidator : AbstractValidator<GetPartiesQuery>
                 context.AddFailure("sort", error!);
             }
         });
-        When(q => q.PartyType is not null, () => RuleFor(q => q.PartyType)
-            .Must(value => value is PartyTypeNames.Organization or PartyTypeNames.Person)
-            .WithMessage($"'partyType' must be one of: {PartyTypeNames.Organization}, {PartyTypeNames.Person}."));
+        RuleFor(q => q.PartyType)
+            .MustBeOneOf([PartyTypeNames.Organization, PartyTypeNames.Person])
+            .WithMessage($"'partyType' must be one of: {PartyTypeNames.Organization}, {PartyTypeNames.Person}.");
     }
 }
 

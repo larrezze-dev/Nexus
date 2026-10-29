@@ -1,4 +1,5 @@
 using FluentValidation;
+using Nexus.BuildingBlocks.Application.Validation;
 using Nexus.BuildingBlocks.Application;
 using Nexus.BuildingBlocks.Domain;
 using Nexus.Platform.Domain.Parties;
@@ -31,7 +32,8 @@ internal sealed class CreatePartyValidator : AbstractValidator<CreatePartyComman
             .Must(id => id is null || (id.Value != Guid.Empty && id.Value.Version == 7))
             .WithMessage("'id' must be a UUIDv7 (ADR-0009).");
         RuleFor(c => c.PartyType)
-            .Must(value => value is PartyTypeNames.Organization or PartyTypeNames.Person)
+            .NotNull()
+            .MustBeOneOf([PartyTypeNames.Organization, PartyTypeNames.Person])
             .WithMessage($"'partyType' must be one of: {PartyTypeNames.Organization}, {PartyTypeNames.Person}.");
         RuleFor(c => c.LegalName).Must(v => !string.IsNullOrWhiteSpace(v)).WithMessage("'legalName' must not be empty.");
     }

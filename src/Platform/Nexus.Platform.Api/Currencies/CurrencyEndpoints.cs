@@ -36,6 +36,7 @@ public static class CurrencyEndpoints
 
         group.MapGet("/{code}", GetCurrency)
             .WithName("getCurrency")
+            .ValidatedBy<GetCurrencyQuery>()
             .RequirePermission("CURRENCY", PermissionAction.Read)
             .WithScope("none");
 
