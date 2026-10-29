@@ -44,7 +44,11 @@
   "nav": {
     "account": "My account",
     "users": "Users",
-    "parties": "Parties"
+    "parties": "Parties",
+    "org": {
+      "legalEntities": "Legal entities",
+      "businessUnits": "Business units"
+    }
   },
   "account": {
     "title": "My account",
@@ -143,6 +147,43 @@
         "taxId": "Tax ID",
         "erpCompanyCode": "ERP company code",
         "isInternal": "Internal"
+      }
+    },
+    "legalEntities": {
+      "title": "Legal entities",
+      "new": "New legal entity",
+      "newTitle": "New legal entity",
+      "loading": "Loading…",
+      "empty": "No legal entities found.",
+      "deactivate": "Deactivate",
+      "confirmDeactivate": "Deactivate this legal entity? This cannot be undone.",
+      "fields": {
+        "legalName": "Legal name",
+        "displayName": "Display name",
+        "groupId": "Group",
+        "code": "Code",
+        "currencyCode": "Currency",
+        "countryCode": "Country",
+        "isActive": "Status"
+      }
+    },
+    "businessUnits": {
+      "title": "Business units",
+      "new": "New business unit",
+      "newTitle": "New business unit",
+      "loading": "Loading…",
+      "empty": "No business units found.",
+      "deactivate": "Deactivate",
+      "confirmDeactivate": "Deactivate this business unit? This cannot be undone.",
+      "fields": {
+        "legalName": "Legal name",
+        "displayName": "Display name",
+        "legalEntityId": "Legal entity",
+        "legalEntitySearch": "Search legal entity…",
+        "code": "Code",
+        "caption": "Caption",
+        "costCenterCode": "Cost center",
+        "isActive": "Status"
       }
     }
   }

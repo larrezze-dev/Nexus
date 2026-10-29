@@ -44,7 +44,11 @@
   "nav": {
     "account": "Il mio account",
     "users": "Utenti",
-    "parties": "Partner"
+    "parties": "Partner",
+    "org": {
+      "legalEntities": "Entità legali",
+      "businessUnits": "Unità di business"
+    }
   },
   "account": {
     "title": "Il mio account",
@@ -143,6 +147,43 @@
         "taxId": "Partita IVA",
         "erpCompanyCode": "Codice azienda ERP",
         "isInternal": "Interno"
+      }
+    },
+    "legalEntities": {
+      "title": "Entità legali",
+      "new": "Nuova entità legale",
+      "newTitle": "Nuova entità legale",
+      "loading": "Caricamento…",
+      "empty": "Nessuna entità legale trovata.",
+      "deactivate": "Disattiva",
+      "confirmDeactivate": "Disattivare questa entità legale? L'operazione non può essere annullata.",
+      "fields": {
+        "legalName": "Ragione sociale",
+        "displayName": "Nome visualizzato",
+        "groupId": "Gruppo",
+        "code": "Codice",
+        "currencyCode": "Valuta",
+        "countryCode": "Paese",
+        "isActive": "Stato"
+      }
+    },
+    "businessUnits": {
+      "title": "Unità di business",
+      "new": "Nuova unità di business",
+      "newTitle": "Nuova unità di business",
+      "loading": "Caricamento…",
+      "empty": "Nessuna unità di business trovata.",
+      "deactivate": "Disattiva",
+      "confirmDeactivate": "Disattivare questa unità di business? L'operazione non può essere annullata.",
+      "fields": {
+        "legalName": "Ragione sociale",
+        "displayName": "Nome visualizzato",
+        "legalEntityId": "Entità legale",
+        "legalEntitySearch": "Cerca entità legale…",
+        "code": "Codice",
+        "caption": "Etichetta",
+        "costCenterCode": "Centro di costo",
+        "isActive": "Stato"
       }
     }
   }

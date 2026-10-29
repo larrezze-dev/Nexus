@@ -44,54 +44,50 @@
   "nav": {
     "account": "Mein Konto",
     "users": "Benutzer",
-    "parties": "Partner"
-  },
-  "account": {
-    "title": "Mein Konto",
-    "loading": "Wird geladen…",
-    "fields": {
-      "subject": "Subject",
-      "oid": "Objekt-ID",
-      "displayName": "Name",
-      "email": "E-Mail",
-      "preferredLanguage": "Bevorzugte Sprache",
-      "provisioned": "Angelegt",
-      "permissions": "Berechtigungen",
-      "noPermissions": "Noch keine Berechtigungen"
-    }
-  },
-  "breadcrumb": {
-    "ariaLabel": "Brotkrumen"
-  },
-  "shared": {
-    "dataGrid": {
-      "empty": "Keine Daten vorhanden."
-    },
-    "status": {
-      "draft": "Entwurf",
-      "active": "Aktiv",
-      "inactive": "Inaktiv",
-      "pending": "Ausstehend",
-      "approved": "Genehmigt",
-      "rejected": "Abgelehnt"
-    },
-    "i18nCaptionEditor": {
-      "groupLabel": "Übersetzungen der Bezeichnung",
-      "deRequired": "Deutsch ist erforderlich.",
-      "language": {
-        "de": "Deutsch",
-        "en": "Englisch",
-        "fr": "Französisch",
-        "it": "Italienisch",
-        "es": "Spanisch"
-      }
-    },
-    "entityPicker": {
-      "placeholder": "Suchen…",
-      "noResults": "Keine Ergebnisse"
+    "parties": "Partner",
+    "org": {
+      "legalEntities": "Gesellschaften",
+      "businessUnits": "Geschäftsbereiche"
     }
   },
   "org": {
+    "legalEntities": {
+      "title": "Gesellschaften",
+      "new": "Neue Gesellschaft",
+      "newTitle": "Neue Gesellschaft",
+      "loading": "Wird geladen…",
+      "empty": "Keine Gesellschaften gefunden.",
+      "deactivate": "Deaktivieren",
+      "confirmDeactivate": "Diese Gesellschaft deaktivieren? Dies kann nicht widerrufen werden.",
+      "fields": {
+        "legalName": "Rechtsname",
+        "displayName": "Anzeigename",
+        "groupId": "Gruppe",
+        "code": "Code",
+        "currencyCode": "Währung",
+        "countryCode": "Land",
+        "isActive": "Status"
+      }
+    },
+    "businessUnits": {
+      "title": "Geschäftsbereiche",
+      "new": "Neuer Geschäftsbereich",
+      "newTitle": "Neuer Geschäftsbereich",
+      "loading": "Wird geladen…",
+      "empty": "Keine Geschäftsbereiche gefunden.",
+      "deactivate": "Deaktivieren",
+      "confirmDeactivate": "Diesen Geschäftsbereich deaktivieren? Dies kann nicht widerrufen werden.",
+      "fields": {
+        "legalName": "Rechtsname",
+        "displayName": "Anzeigename",
+        "legalEntityId": "Gesellschaft",
+        "legalEntitySearch": "Gesellschaft suchen…",
+        "code": "Code",
+        "caption": "Bezeichnung",
+        "costCenterCode": "Kostenstelle",
+        "isActive": "Status"
+      }
+    },
     "users": {
       "title": "Benutzer",
       "actions": {
@@ -144,6 +140,51 @@
         "erpCompanyCode": "ERP-Firmencode",
         "isInternal": "Intern"
       }
+    }
+  },
+  "account": {
+    "title": "Mein Konto",
+    "loading": "Wird geladen…",
+    "fields": {
+      "subject": "Subject",
+      "oid": "Objekt-ID",
+      "displayName": "Name",
+      "email": "E-Mail",
+      "preferredLanguage": "Bevorzugte Sprache",
+      "provisioned": "Angelegt",
+      "permissions": "Berechtigungen",
+      "noPermissions": "Noch keine Berechtigungen"
+    }
+  },
+  "breadcrumb": {
+    "ariaLabel": "Brotkrumen"
+  },
+  "shared": {
+    "dataGrid": {
+      "empty": "Keine Daten vorhanden."
+    },
+    "status": {
+      "draft": "Entwurf",
+      "active": "Aktiv",
+      "inactive": "Inaktiv",
+      "pending": "Ausstehend",
+      "approved": "Genehmigt",
+      "rejected": "Abgelehnt"
+    },
+    "i18nCaptionEditor": {
+      "groupLabel": "Übersetzungen der Bezeichnung",
+      "deRequired": "Deutsch ist erforderlich.",
+      "language": {
+        "de": "Deutsch",
+        "en": "Englisch",
+        "fr": "Französisch",
+        "it": "Italienisch",
+        "es": "Spanisch"
+      }
+    },
+    "entityPicker": {
+      "placeholder": "Suchen…",
+      "noResults": "Keine Ergebnisse"
     }
   }
 }

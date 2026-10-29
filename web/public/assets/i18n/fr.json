@@ -44,7 +44,11 @@
   "nav": {
     "account": "Mon compte",
     "users": "Utilisateurs",
-    "parties": "Partenaires"
+    "parties": "Partenaires",
+    "org": {
+      "legalEntities": "Entités juridiques",
+      "businessUnits": "Unités d'affaires"
+    }
   },
   "account": {
     "title": "Mon compte",
@@ -143,6 +147,43 @@
         "taxId": "Numéro fiscal",
         "erpCompanyCode": "Code société ERP",
         "isInternal": "Interne"
+      }
+    },
+    "legalEntities": {
+      "title": "Entités juridiques",
+      "new": "Nouvelle entité juridique",
+      "newTitle": "Nouvelle entité juridique",
+      "loading": "Chargement…",
+      "empty": "Aucune entité juridique trouvée.",
+      "deactivate": "Désactiver",
+      "confirmDeactivate": "Désactiver cette entité juridique ? Cette action est irréversible.",
+      "fields": {
+        "legalName": "Raison sociale",
+        "displayName": "Nom affiché",
+        "groupId": "Groupe",
+        "code": "Code",
+        "currencyCode": "Devise",
+        "countryCode": "Pays",
+        "isActive": "Statut"
+      }
+    },
+    "businessUnits": {
+      "title": "Unités d'affaires",
+      "new": "Nouvelle unité d'affaires",
+      "newTitle": "Nouvelle unité d'affaires",
+      "loading": "Chargement…",
+      "empty": "Aucune unité d'affaires trouvée.",
+      "deactivate": "Désactiver",
+      "confirmDeactivate": "Désactiver cette unité d'affaires ? Cette action est irréversible.",
+      "fields": {
+        "legalName": "Raison sociale",
+        "displayName": "Nom affiché",
+        "legalEntityId": "Entité juridique",
+        "legalEntitySearch": "Rechercher une entité juridique…",
+        "code": "Code",
+        "caption": "Libellé",
+        "costCenterCode": "Centre de coûts",
+        "isActive": "Statut"
       }
     }
   }
