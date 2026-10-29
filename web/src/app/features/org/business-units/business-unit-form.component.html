@@ -1,0 +1,64 @@
+<form class="nx-business-unit-form" [formGroup]="form" (ngSubmit)="onSubmit()">
+  @if (mode() === 'create') {
+    <mat-form-field subscriptSizing="dynamic">
+      <mat-label>{{ 'org.businessUnits.fields.legalName' | transloco }}</mat-label>
+      <input matInput type="text" data-testid="bu-form-legal-name" formControlName="legalName" required />
+      @for (message of errorsFor('legalName'); track message) {
+        <mat-error>{{ message }}</mat-error>
+      }
+    </mat-form-field>
+
+    <mat-form-field subscriptSizing="dynamic">
+      <mat-label>{{ 'org.businessUnits.fields.displayName' | transloco }}</mat-label>
+      <input matInput type="text" data-testid="bu-form-display-name" formControlName="displayName" />
+    </mat-form-field>
+
+    <div class="nx-business-unit-form__legal-entity" data-testid="bu-form-legal-entity-picker">
+      <nx-entity-picker
+        [search]="legalEntitySearch()"
+        [displayWith]="legalEntityDisplayWith"
+        placeholderKey="org.businessUnits.fields.legalEntitySearch"
+        (selected)="onLegalEntitySelected($event)"
+      />
+      @for (message of errorsFor('legalEntityId'); track message) {
+        <mat-error>{{ message }}</mat-error>
+      }
+    </div>
+  } @else {
+    <mat-form-field subscriptSizing="dynamic">
+      <mat-label>{{ 'org.businessUnits.fields.legalEntityId' | transloco }}</mat-label>
+      <input
+        matInput
+        type="text"
+        data-testid="bu-form-legal-entity-display"
+        [value]="legalEntityDisplay()"
+        disabled
+      />
+    </mat-form-field>
+  }
+
+  <mat-form-field subscriptSizing="dynamic">
+    <mat-label>{{ 'org.businessUnits.fields.code' | transloco }}</mat-label>
+    <input matInput type="text" data-testid="bu-form-code" formControlName="code" required />
+    @for (message of errorsFor('code'); track message) {
+      <mat-error>{{ message }}</mat-error>
+    }
+  </mat-form-field>
+
+  <nx-i18n-caption-editor formControlName="captionI18n" data-testid="bu-form-caption" />
+
+  <mat-form-field subscriptSizing="dynamic">
+    <mat-label>{{ 'org.businessUnits.fields.costCenterCode' | transloco }}</mat-label>
+    <input matInput type="text" data-testid="bu-form-cost-center" formControlName="costCenterCode" />
+  </mat-form-field>
+
+  <div class="nx-business-unit-form__actions">
+    <button mat-raised-button color="primary" type="submit" data-testid="bu-form-submit" [disabled]="saving()">
+      @if (saving()) {
+        <mat-progress-spinner diameter="18" mode="indeterminate" />
+      } @else {
+        {{ 'common.save' | transloco }}
+      }
+    </button>
+  </div>
+</form>

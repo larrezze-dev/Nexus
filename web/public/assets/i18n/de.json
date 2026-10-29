@@ -40,7 +40,50 @@
     }
   },
   "nav": {
-    "account": "Mein Konto"
+    "account": "Mein Konto",
+    "org": {
+      "legalEntities": "Gesellschaften",
+      "businessUnits": "Geschäftsbereiche"
+    }
+  },
+  "org": {
+    "legalEntities": {
+      "title": "Gesellschaften",
+      "new": "Neue Gesellschaft",
+      "newTitle": "Neue Gesellschaft",
+      "loading": "Wird geladen…",
+      "empty": "Keine Gesellschaften gefunden.",
+      "deactivate": "Deaktivieren",
+      "confirmDeactivate": "Diese Gesellschaft deaktivieren? Dies kann nicht widerrufen werden.",
+      "fields": {
+        "legalName": "Rechtsname",
+        "displayName": "Anzeigename",
+        "groupId": "Gruppe",
+        "code": "Code",
+        "currencyCode": "Währung",
+        "countryCode": "Land",
+        "isActive": "Status"
+      }
+    },
+    "businessUnits": {
+      "title": "Geschäftsbereiche",
+      "new": "Neuer Geschäftsbereich",
+      "newTitle": "Neuer Geschäftsbereich",
+      "loading": "Wird geladen…",
+      "empty": "Keine Geschäftsbereiche gefunden.",
+      "deactivate": "Deaktivieren",
+      "confirmDeactivate": "Diesen Geschäftsbereich deaktivieren? Dies kann nicht widerrufen werden.",
+      "fields": {
+        "legalName": "Rechtsname",
+        "displayName": "Anzeigename",
+        "legalEntityId": "Gesellschaft",
+        "legalEntitySearch": "Gesellschaft suchen…",
+        "code": "Code",
+        "caption": "Bezeichnung",
+        "costCenterCode": "Kostenstelle",
+        "isActive": "Status"
+      }
+    }
   },
   "account": {
     "title": "Mein Konto",

@@ -40,7 +40,50 @@
     }
   },
   "nav": {
-    "account": "Il mio account"
+    "account": "Il mio account",
+    "org": {
+      "legalEntities": "Entità legali",
+      "businessUnits": "Unità di business"
+    }
+  },
+  "org": {
+    "legalEntities": {
+      "title": "Entità legali",
+      "new": "Nuova entità legale",
+      "newTitle": "Nuova entità legale",
+      "loading": "Caricamento…",
+      "empty": "Nessuna entità legale trovata.",
+      "deactivate": "Disattiva",
+      "confirmDeactivate": "Disattivare questa entità legale? L'operazione non può essere annullata.",
+      "fields": {
+        "legalName": "Ragione sociale",
+        "displayName": "Nome visualizzato",
+        "groupId": "Gruppo",
+        "code": "Codice",
+        "currencyCode": "Valuta",
+        "countryCode": "Paese",
+        "isActive": "Stato"
+      }
+    },
+    "businessUnits": {
+      "title": "Unità di business",
+      "new": "Nuova unità di business",
+      "newTitle": "Nuova unità di business",
+      "loading": "Caricamento…",
+      "empty": "Nessuna unità di business trovata.",
+      "deactivate": "Disattiva",
+      "confirmDeactivate": "Disattivare questa unità di business? L'operazione non può essere annullata.",
+      "fields": {
+        "legalName": "Ragione sociale",
+        "displayName": "Nome visualizzato",
+        "legalEntityId": "Entità legale",
+        "legalEntitySearch": "Cerca entità legale…",
+        "code": "Codice",
+        "caption": "Etichetta",
+        "costCenterCode": "Centro di costo",
+        "isActive": "Stato"
+      }
+    }
   },
   "account": {
     "title": "Il mio account",

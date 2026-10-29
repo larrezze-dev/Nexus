@@ -40,7 +40,50 @@
     }
   },
   "nav": {
-    "account": "Mi cuenta"
+    "account": "Mi cuenta",
+    "org": {
+      "legalEntities": "Entidades legales",
+      "businessUnits": "Unidades de negocio"
+    }
+  },
+  "org": {
+    "legalEntities": {
+      "title": "Entidades legales",
+      "new": "Nueva entidad legal",
+      "newTitle": "Nueva entidad legal",
+      "loading": "Cargando…",
+      "empty": "No se encontraron entidades legales.",
+      "deactivate": "Desactivar",
+      "confirmDeactivate": "¿Desactivar esta entidad legal? Esta acción no se puede deshacer.",
+      "fields": {
+        "legalName": "Razón social",
+        "displayName": "Nombre visible",
+        "groupId": "Grupo",
+        "code": "Código",
+        "currencyCode": "Moneda",
+        "countryCode": "País",
+        "isActive": "Estado"
+      }
+    },
+    "businessUnits": {
+      "title": "Unidades de negocio",
+      "new": "Nueva unidad de negocio",
+      "newTitle": "Nueva unidad de negocio",
+      "loading": "Cargando…",
+      "empty": "No se encontraron unidades de negocio.",
+      "deactivate": "Desactivar",
+      "confirmDeactivate": "¿Desactivar esta unidad de negocio? Esta acción no se puede deshacer.",
+      "fields": {
+        "legalName": "Razón social",
+        "displayName": "Nombre visible",
+        "legalEntityId": "Entidad legal",
+        "legalEntitySearch": "Buscar entidad legal…",
+        "code": "Código",
+        "caption": "Etiqueta",
+        "costCenterCode": "Centro de costo",
+        "isActive": "Estado"
+      }
+    }
   },
   "account": {
     "title": "Mi cuenta",

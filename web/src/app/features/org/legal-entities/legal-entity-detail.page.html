@@ -1,0 +1,40 @@
+<div class="nx-legal-entity-detail-page">
+  @if (mode() === 'create') {
+    <header class="nx-legal-entity-detail-page__header">
+      <h1>{{ 'org.legalEntities.newTitle' | transloco }}</h1>
+    </header>
+  } @else if (loading()) {
+    <p>{{ 'org.legalEntities.loading' | transloco }}</p>
+  } @else if (entity(); as current) {
+    <header class="nx-legal-entity-detail-page__header">
+      <h1>{{ current.code }}</h1>
+      <nx-status-badge [status]="current.isActive ? 'active' : 'inactive'" />
+      @if (current.isActive) {
+        <button
+          mat-stroked-button
+          type="button"
+          data-testid="le-detail-deactivate"
+          *nxCan="'ORG_STRUCTURE:UPDATE'"
+          [disabled]="saving()"
+          (click)="onDeactivate()"
+        >
+          {{ 'org.legalEntities.deactivate' | transloco }}
+        </button>
+      }
+    </header>
+  }
+
+  @if (saveError()) {
+    <p role="alert" data-testid="le-detail-save-error">{{ saveError() }}</p>
+  }
+
+  @if (mode() === 'create' || entity()) {
+    <nx-legal-entity-form
+      [mode]="mode()"
+      [initial]="entity()"
+      [saving]="saving()"
+      [fieldErrors]="fieldErrors()"
+      (save)="onSave($event)"
+    />
+  }
+</div>
