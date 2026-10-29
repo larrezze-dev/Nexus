@@ -51,7 +51,9 @@
       "businessUnits": "Unités d'affaires"
     },
     "locations": "Sites",
-    "warehouses": "Entrepôts"
+    "warehouses": "Entrepôts",
+    "orgTree": "Arborescence de l'organisation",
+    "orgCurrencies": "Devises"
   },
   "account": {
     "title": "Mon compte",
@@ -64,7 +66,10 @@
       "preferredLanguage": "Langue préférée",
       "provisioned": "Provisionné",
       "permissions": "Permissions",
-      "noPermissions": "Aucune permission pour le moment"
+      "noPermissions": "Aucune permission pour le moment",
+      "userId": "ID utilisateur",
+      "partyId": "ID de party",
+      "businessUnitId": "ID de l'unité commerciale"
     }
   },
   "breadcrumb": {
@@ -187,6 +192,25 @@
         "caption": "Libellé",
         "costCenterCode": "Centre de coûts",
         "isActive": "Statut"
+      }
+    },
+    "tree": {
+      "title": "Arborescence de l'organisation",
+      "empty": "Aucune structure organisationnelle pour le moment."
+    },
+    "currencies": {
+      "title": "Devises",
+      "empty": "Aucune devise disponible.",
+      "columns": {
+        "code": "Code",
+        "caption": "Nom",
+        "minorUnits": "Décimales",
+        "status": "Statut",
+        "action": "Action"
+      },
+      "actions": {
+        "activate": "Activer",
+        "deactivate": "Désactiver"
       }
     }
   },

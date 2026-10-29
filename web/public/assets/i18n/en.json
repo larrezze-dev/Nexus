@@ -51,7 +51,9 @@
       "businessUnits": "Business units"
     },
     "locations": "Locations",
-    "warehouses": "Warehouses"
+    "warehouses": "Warehouses",
+    "orgTree": "Organization tree",
+    "orgCurrencies": "Currencies"
   },
   "account": {
     "title": "My account",
@@ -64,7 +66,10 @@
       "preferredLanguage": "Preferred language",
       "provisioned": "Provisioned",
       "permissions": "Permissions",
-      "noPermissions": "No permissions yet"
+      "noPermissions": "No permissions yet",
+      "userId": "User id",
+      "partyId": "Party id",
+      "businessUnitId": "Business unit id"
     }
   },
   "breadcrumb": {
@@ -187,6 +192,25 @@
         "caption": "Caption",
         "costCenterCode": "Cost center",
         "isActive": "Status"
+      }
+    },
+    "tree": {
+      "title": "Organization tree",
+      "empty": "No organization structure yet."
+    },
+    "currencies": {
+      "title": "Currencies",
+      "empty": "No currencies available.",
+      "columns": {
+        "code": "Code",
+        "caption": "Name",
+        "minorUnits": "Minor units",
+        "status": "Status",
+        "action": "Action"
+      },
+      "actions": {
+        "activate": "Activate",
+        "deactivate": "Deactivate"
       }
     }
   },

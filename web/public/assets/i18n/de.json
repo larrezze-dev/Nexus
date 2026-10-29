@@ -51,7 +51,9 @@
       "businessUnits": "Geschäftsbereiche"
     },
     "locations": "Standorte",
-    "warehouses": "Warehouses"
+    "warehouses": "Warehouses",
+    "orgTree": "Organisationsstruktur",
+    "orgCurrencies": "Währungen"
   },
   "org": {
     "legalEntities": {
@@ -143,6 +145,25 @@
         "erpCompanyCode": "ERP-Firmencode",
         "isInternal": "Intern"
       }
+    },
+    "tree": {
+      "title": "Organisationsstruktur",
+      "empty": "Noch keine Organisationsstruktur."
+    },
+    "currencies": {
+      "title": "Währungen",
+      "empty": "Keine Währungen verfügbar.",
+      "columns": {
+        "code": "Code",
+        "caption": "Name",
+        "minorUnits": "Nachkommastellen",
+        "status": "Status",
+        "action": "Aktion"
+      },
+      "actions": {
+        "activate": "Aktivieren",
+        "deactivate": "Deaktivieren"
+      }
     }
   },
   "account": {
@@ -156,7 +177,10 @@
       "preferredLanguage": "Bevorzugte Sprache",
       "provisioned": "Angelegt",
       "permissions": "Berechtigungen",
-      "noPermissions": "Noch keine Berechtigungen"
+      "noPermissions": "Noch keine Berechtigungen",
+      "userId": "Benutzer-ID",
+      "partyId": "Party-ID",
+      "businessUnitId": "Geschäftsbereich-ID"
     }
   },
   "breadcrumb": {

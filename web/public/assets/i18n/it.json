@@ -51,7 +51,9 @@
       "businessUnits": "Unità di business"
     },
     "locations": "Sedi",
-    "warehouses": "Magazzini"
+    "warehouses": "Magazzini",
+    "orgTree": "Struttura organizzativa",
+    "orgCurrencies": "Valute"
   },
   "account": {
     "title": "Il mio account",
@@ -64,7 +66,10 @@
       "preferredLanguage": "Lingua preferita",
       "provisioned": "Predisposto",
       "permissions": "Permessi",
-      "noPermissions": "Nessun permesso ancora"
+      "noPermissions": "Nessun permesso ancora",
+      "userId": "ID utente",
+      "partyId": "ID party",
+      "businessUnitId": "ID unità di business"
     }
   },
   "breadcrumb": {
@@ -187,6 +192,25 @@
         "caption": "Etichetta",
         "costCenterCode": "Centro di costo",
         "isActive": "Stato"
+      }
+    },
+    "tree": {
+      "title": "Struttura organizzativa",
+      "empty": "Nessuna struttura organizzativa ancora."
+    },
+    "currencies": {
+      "title": "Valute",
+      "empty": "Nessuna valuta disponibile.",
+      "columns": {
+        "code": "Codice",
+        "caption": "Nome",
+        "minorUnits": "Decimali",
+        "status": "Stato",
+        "action": "Azione"
+      },
+      "actions": {
+        "activate": "Attiva",
+        "deactivate": "Disattiva"
       }
     }
   },
