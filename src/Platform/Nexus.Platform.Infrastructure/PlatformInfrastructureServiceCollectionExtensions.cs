@@ -1,9 +1,15 @@
 using Microsoft.Extensions.DependencyInjection;
+using Nexus.Platform.Application.BusinessUnits;
+using Nexus.Platform.Application.Locations;
 using Nexus.Platform.Application.Parties;
 using Nexus.Platform.Application.Users;
+using Nexus.Platform.Application.Warehouses;
+using Nexus.Platform.Infrastructure.BusinessUnits;
+using Nexus.Platform.Infrastructure.Locations;
 using Nexus.Platform.Infrastructure.Parties;
 using Nexus.Platform.Infrastructure.Persistence;
 using Nexus.Platform.Infrastructure.Users;
+using Nexus.Platform.Infrastructure.Warehouses;
 
 namespace Nexus.Platform.Infrastructure;
 
@@ -29,6 +35,13 @@ public static class PlatformInfrastructureServiceCollectionExtensions
         services.AddScoped<IPartyRepository, PartyRepository>();
         services.AddScoped<IAppUserRepository, AppUserRepository>();
         services.AddScoped<IUserReadDb, UserReadDb>();
+
+        services.AddScoped<IBusinessUnitRepository, BusinessUnitRepository>();
+        services.AddScoped<IBusinessUnitReadDb, BusinessUnitReadDb>();
+        services.AddScoped<IWarehouseRepository, WarehouseRepository>();
+        services.AddScoped<IWarehouseReadDb, WarehouseReadDb>();
+        services.AddScoped<ILocationRepository, LocationRepository>();
+        services.AddScoped<ILocationReadDb, LocationReadDb>();
 
         return services;
     }

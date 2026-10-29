@@ -8,8 +8,11 @@ using Nexus.BuildingBlocks.Web.ErrorHandling;
 using Nexus.BuildingBlocks.Web.Identity;
 using Nexus.BuildingBlocks.Web.Observability;
 using Nexus.BuildingBlocks.Web.OpenApi;
+using Nexus.Platform.Api.BusinessUnits;
+using Nexus.Platform.Api.Locations;
 using Nexus.Platform.Api.Session;
 using Nexus.Platform.Api.Users;
+using Nexus.Platform.Api.Warehouses;
 using Nexus.Platform.Application.Users.CreateUser;
 using Nexus.Platform.Infrastructure;
 
@@ -34,6 +37,9 @@ builder.Services.AddNexusPersistence();
 builder.Services.AddNexusIdentityResolution();
 builder.Services.AddPlatformInfrastructure();
 builder.Services.AddUserConstraintViolations();
+builder.Services.AddBusinessUnitConstraintViolations();
+builder.Services.AddWarehouseConstraintViolations();
+builder.Services.AddLocationConstraintViolations();
 
 var app = builder.Build();
 
@@ -57,6 +63,9 @@ app.MapGet("/v1/me", GetMe.Handle)
     .WithScope("none");
 
 app.MapUserEndpoints();
+app.MapBusinessUnitEndpoints();
+app.MapWarehouseEndpoints();
+app.MapLocationEndpoints();
 
 // Test-only diagnostic endpoint (ficha 0.5-B): exercises ResultExtensions.ToMinimalApiResult's
 // 422 application/problem+json mapping end to end against a real running host, instead of only
