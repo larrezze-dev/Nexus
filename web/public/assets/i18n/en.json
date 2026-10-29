@@ -12,7 +12,10 @@
     "notFound": "The requested resource was not found.",
     "concurrencyTitle": "Someone else has modified this record",
     "concurrencyMessage": "Another user saved changes to this record after you loaded it. Reload to see the latest version before continuing.",
-    "SAMPLE-R1": "Example business rule message — replace with the real text for rule SAMPLE-R1."
+    "SAMPLE-R1": "Example business rule message — replace with the real text for rule SAMPLE-R1.",
+    "ORG-R6": "The SYSTEM user cannot be edited or deactivated.",
+    "ORG-R9": "A user with this email already exists.",
+    "ORG-R3": "A warehouse with a business unit must use a business unit that belongs to the same legal entity."
   },
   "shell": {
     "nav": {
@@ -40,7 +43,17 @@
     }
   },
   "nav": {
-    "account": "My account"
+    "account": "My account",
+    "users": "Users",
+    "parties": "Parties",
+    "org": {
+      "legalEntities": "Legal entities",
+      "businessUnits": "Business units"
+    },
+    "locations": "Locations",
+    "warehouses": "Warehouses",
+    "orgTree": "Organization tree",
+    "orgCurrencies": "Currencies"
   },
   "account": {
     "title": "My account",
@@ -53,7 +66,10 @@
       "preferredLanguage": "Preferred language",
       "provisioned": "Provisioned",
       "permissions": "Permissions",
-      "noPermissions": "No permissions yet"
+      "noPermissions": "No permissions yet",
+      "userId": "User id",
+      "partyId": "Party id",
+      "businessUnitId": "Business unit id"
     }
   },
   "breadcrumb": {
@@ -70,6 +86,197 @@
       "pending": "Pending",
       "approved": "Approved",
       "rejected": "Rejected"
+    },
+    "i18nCaptionEditor": {
+      "groupLabel": "Caption translations",
+      "deRequired": "German is required.",
+      "language": {
+        "de": "German",
+        "en": "English",
+        "fr": "French",
+        "it": "Italian",
+        "es": "Spanish"
+      }
+    },
+    "entityPicker": {
+      "placeholder": "Search…",
+      "noResults": "No results"
+    }
+  },
+  "org": {
+    "users": {
+      "title": "Users",
+      "actions": {
+        "new": "New user",
+        "deactivate": "Deactivate",
+        "clearBusinessUnit": "Change"
+      },
+      "detail": {
+        "newTitle": "New user",
+        "editTitle": "Edit user",
+        "loading": "Loading…",
+        "systemUserNotice": "The SYSTEM user cannot be edited or deactivated."
+      },
+      "fields": {
+        "oid": "Object ID (oid)",
+        "fullName": "Full name",
+        "email": "Email",
+        "preferredLanguage": "Preferred language",
+        "businessUnit": "Business unit"
+      }
+    },
+    "parties": {
+      "title": "Parties",
+      "actions": {
+        "new": "New party",
+        "deactivate": "Deactivate"
+      },
+      "filters": {
+        "search": "Search",
+        "partyType": "Type",
+        "isInternal": "Internal",
+        "any": "Any",
+        "internal": "Internal",
+        "external": "External"
+      },
+      "partyType": {
+        "organization": "Organization",
+        "person": "Person"
+      },
+      "detail": {
+        "newTitle": "New party",
+        "editTitle": "Edit party",
+        "loading": "Loading…"
+      },
+      "fields": {
+        "partyType": "Party type",
+        "legalName": "Legal name",
+        "displayName": "Display name",
+        "taxId": "Tax ID",
+        "erpCompanyCode": "ERP company code",
+        "isInternal": "Internal"
+      }
+    },
+    "legalEntities": {
+      "title": "Legal entities",
+      "new": "New legal entity",
+      "newTitle": "New legal entity",
+      "loading": "Loading…",
+      "empty": "No legal entities found.",
+      "deactivate": "Deactivate",
+      "confirmDeactivate": "Deactivate this legal entity? This cannot be undone.",
+      "fields": {
+        "legalName": "Legal name",
+        "displayName": "Display name",
+        "groupId": "Group",
+        "code": "Code",
+        "currencyCode": "Currency",
+        "countryCode": "Country",
+        "isActive": "Status"
+      }
+    },
+    "businessUnits": {
+      "title": "Business units",
+      "new": "New business unit",
+      "newTitle": "New business unit",
+      "loading": "Loading…",
+      "empty": "No business units found.",
+      "deactivate": "Deactivate",
+      "confirmDeactivate": "Deactivate this business unit? This cannot be undone.",
+      "fields": {
+        "legalName": "Legal name",
+        "displayName": "Display name",
+        "legalEntityId": "Legal entity",
+        "legalEntitySearch": "Search legal entity…",
+        "code": "Code",
+        "caption": "Caption",
+        "costCenterCode": "Cost center",
+        "isActive": "Status"
+      }
+    },
+    "tree": {
+      "title": "Organization tree",
+      "empty": "No organization structure yet."
+    },
+    "currencies": {
+      "title": "Currencies",
+      "empty": "No currencies available.",
+      "columns": {
+        "code": "Code",
+        "caption": "Name",
+        "minorUnits": "Minor units",
+        "status": "Status",
+        "action": "Action"
+      },
+      "actions": {
+        "activate": "Activate",
+        "deactivate": "Deactivate"
+      }
+    }
+  },
+  "locations": {
+    "title": "Locations",
+    "actions": {
+      "create": "New location"
+    },
+    "list": {
+      "columns": {
+        "code": "Code",
+        "name": "Name",
+        "city": "City",
+        "countryCode": "Country",
+        "isActive": "Status"
+      }
+    },
+    "detail": {
+      "title": {
+        "create": "New location",
+        "edit": "Edit location"
+      }
+    },
+    "fields": {
+      "code": "Code",
+      "name": "Name",
+      "street": "Street",
+      "postalCode": "Postal code",
+      "city": "City",
+      "region": "Region",
+      "countryCode": "Country code"
+    }
+  },
+  "warehouses": {
+    "title": "Warehouses",
+    "actions": {
+      "create": "New warehouse",
+      "deactivate": "Deactivate"
+    },
+    "filters": {
+      "search": "Search",
+      "legalEntity": "Legal entity",
+      "businessUnit": "Business unit",
+      "isActive": "Status",
+      "isActiveAll": "All"
+    },
+    "list": {
+      "columns": {
+        "code": "Code",
+        "caption": "Caption",
+        "isActive": "Status"
+      }
+    },
+    "detail": {
+      "title": {
+        "create": "New warehouse",
+        "edit": "Edit warehouse"
+      }
+    },
+    "fields": {
+      "code": "Code",
+      "location": "Location",
+      "legalEntity": "Legal entity",
+      "businessUnit": "Business unit",
+      "clear": "Clear",
+      "current": "Current: {{value}}"
     }
   }
 }

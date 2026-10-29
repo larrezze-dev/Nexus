@@ -12,7 +12,10 @@
     "notFound": "Die angeforderte Ressource wurde nicht gefunden.",
     "concurrencyTitle": "Ein anderer Benutzer hat diesen Datensatz geändert",
     "concurrencyMessage": "Ein anderer Benutzer hat diesen Datensatz gespeichert, nachdem Sie ihn geladen haben. Laden Sie neu, um die aktuelle Version zu sehen, bevor Sie fortfahren.",
-    "SAMPLE-R1": "Beispieltext für Geschäftsregel SAMPLE-R1 — durch den echten Text ersetzen."
+    "SAMPLE-R1": "Beispieltext für Geschäftsregel SAMPLE-R1 — durch den echten Text ersetzen.",
+    "ORG-R6": "Der SYSTEM-Benutzer kann nicht bearbeitet oder deaktiviert werden.",
+    "ORG-R9": "Es existiert bereits ein Benutzer mit dieser E-Mail-Adresse.",
+    "ORG-R3": "Ein Warehouse mit einer Business Unit muss eine Business Unit verwenden, die zur selben Legal Entity gehört."
   },
   "shell": {
     "nav": {
@@ -40,7 +43,128 @@
     }
   },
   "nav": {
-    "account": "Mein Konto"
+    "account": "Mein Konto",
+    "users": "Benutzer",
+    "parties": "Partner",
+    "org": {
+      "legalEntities": "Gesellschaften",
+      "businessUnits": "Geschäftsbereiche"
+    },
+    "locations": "Standorte",
+    "warehouses": "Warehouses",
+    "orgTree": "Organisationsstruktur",
+    "orgCurrencies": "Währungen"
+  },
+  "org": {
+    "legalEntities": {
+      "title": "Gesellschaften",
+      "new": "Neue Gesellschaft",
+      "newTitle": "Neue Gesellschaft",
+      "loading": "Wird geladen…",
+      "empty": "Keine Gesellschaften gefunden.",
+      "deactivate": "Deaktivieren",
+      "confirmDeactivate": "Diese Gesellschaft deaktivieren? Dies kann nicht widerrufen werden.",
+      "fields": {
+        "legalName": "Rechtsname",
+        "displayName": "Anzeigename",
+        "groupId": "Gruppe",
+        "code": "Code",
+        "currencyCode": "Währung",
+        "countryCode": "Land",
+        "isActive": "Status"
+      }
+    },
+    "businessUnits": {
+      "title": "Geschäftsbereiche",
+      "new": "Neuer Geschäftsbereich",
+      "newTitle": "Neuer Geschäftsbereich",
+      "loading": "Wird geladen…",
+      "empty": "Keine Geschäftsbereiche gefunden.",
+      "deactivate": "Deaktivieren",
+      "confirmDeactivate": "Diesen Geschäftsbereich deaktivieren? Dies kann nicht widerrufen werden.",
+      "fields": {
+        "legalName": "Rechtsname",
+        "displayName": "Anzeigename",
+        "legalEntityId": "Gesellschaft",
+        "legalEntitySearch": "Gesellschaft suchen…",
+        "code": "Code",
+        "caption": "Bezeichnung",
+        "costCenterCode": "Kostenstelle",
+        "isActive": "Status"
+      }
+    },
+    "users": {
+      "title": "Benutzer",
+      "actions": {
+        "new": "Neuer Benutzer",
+        "deactivate": "Deaktivieren",
+        "clearBusinessUnit": "Ändern"
+      },
+      "detail": {
+        "newTitle": "Neuer Benutzer",
+        "editTitle": "Benutzer bearbeiten",
+        "loading": "Wird geladen…",
+        "systemUserNotice": "Der SYSTEM-Benutzer kann nicht bearbeitet oder deaktiviert werden."
+      },
+      "fields": {
+        "oid": "Objekt-ID (oid)",
+        "fullName": "Vollständiger Name",
+        "email": "E-Mail",
+        "preferredLanguage": "Bevorzugte Sprache",
+        "businessUnit": "Business Unit"
+      }
+    },
+    "parties": {
+      "title": "Partner",
+      "actions": {
+        "new": "Neuer Partner",
+        "deactivate": "Deaktivieren"
+      },
+      "filters": {
+        "search": "Suche",
+        "partyType": "Typ",
+        "isInternal": "Intern",
+        "any": "Alle",
+        "internal": "Intern",
+        "external": "Extern"
+      },
+      "partyType": {
+        "organization": "Organisation",
+        "person": "Person"
+      },
+      "detail": {
+        "newTitle": "Neuer Partner",
+        "editTitle": "Partner bearbeiten",
+        "loading": "Wird geladen…"
+      },
+      "fields": {
+        "partyType": "Partnertyp",
+        "legalName": "Rechtlicher Name",
+        "displayName": "Anzeigename",
+        "taxId": "Steuernummer",
+        "erpCompanyCode": "ERP-Firmencode",
+        "isInternal": "Intern"
+      }
+    },
+    "tree": {
+      "title": "Organisationsstruktur",
+      "empty": "Noch keine Organisationsstruktur."
+    },
+    "currencies": {
+      "title": "Währungen",
+      "empty": "Keine Währungen verfügbar.",
+      "columns": {
+        "code": "Code",
+        "caption": "Name",
+        "minorUnits": "Nachkommastellen",
+        "status": "Status",
+        "action": "Aktion"
+      },
+      "actions": {
+        "activate": "Aktivieren",
+        "deactivate": "Deaktivieren"
+      }
+    }
   },
   "account": {
     "title": "Mein Konto",
@@ -53,7 +177,10 @@
       "preferredLanguage": "Bevorzugte Sprache",
       "provisioned": "Angelegt",
       "permissions": "Berechtigungen",
-      "noPermissions": "Noch keine Berechtigungen"
+      "noPermissions": "Noch keine Berechtigungen",
+      "userId": "Benutzer-ID",
+      "partyId": "Party-ID",
+      "businessUnitId": "Geschäftsbereich-ID"
     }
   },
   "breadcrumb": {
@@ -70,6 +197,86 @@
       "pending": "Ausstehend",
       "approved": "Genehmigt",
       "rejected": "Abgelehnt"
+    },
+    "i18nCaptionEditor": {
+      "groupLabel": "Übersetzungen der Bezeichnung",
+      "deRequired": "Deutsch ist erforderlich.",
+      "language": {
+        "de": "Deutsch",
+        "en": "Englisch",
+        "fr": "Französisch",
+        "it": "Italienisch",
+        "es": "Spanisch"
+      }
+    },
+    "entityPicker": {
+      "placeholder": "Suchen…",
+      "noResults": "Keine Ergebnisse"
+    }
+  },
+  "locations": {
+    "title": "Standorte",
+    "actions": {
+      "create": "Neuer Standort"
+    },
+    "list": {
+      "columns": {
+        "code": "Code",
+        "name": "Name",
+        "city": "Stadt",
+        "countryCode": "Land",
+        "isActive": "Status"
+      }
+    },
+    "detail": {
+      "title": {
+        "create": "Neuer Standort",
+        "edit": "Standort bearbeiten"
+      }
+    },
+    "fields": {
+      "code": "Code",
+      "name": "Name",
+      "street": "Strasse",
+      "postalCode": "PLZ",
+      "city": "Stadt",
+      "region": "Region",
+      "countryCode": "Ländercode"
+    }
+  },
+  "warehouses": {
+    "title": "Warehouses",
+    "actions": {
+      "create": "Neues Warehouse",
+      "deactivate": "Deaktivieren"
+    },
+    "filters": {
+      "search": "Suchen",
+      "legalEntity": "Legal Entity",
+      "businessUnit": "Business Unit",
+      "isActive": "Status",
+      "isActiveAll": "Alle"
+    },
+    "list": {
+      "columns": {
+        "code": "Code",
+        "caption": "Bezeichnung",
+        "isActive": "Status"
+      }
+    },
+    "detail": {
+      "title": {
+        "create": "Neues Warehouse",
+        "edit": "Warehouse bearbeiten"
+      }
+    },
+    "fields": {
+      "code": "Code",
+      "location": "Standort",
+      "legalEntity": "Legal Entity",
+      "businessUnit": "Business Unit",
+      "clear": "Entfernen",
+      "current": "Aktuell: {{value}}"
     }
   }
 }

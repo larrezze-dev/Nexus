@@ -12,7 +12,10 @@
     "notFound": "No se encontró el recurso solicitado.",
     "concurrencyTitle": "Otro usuario ha modificado este registro",
     "concurrencyMessage": "Otro usuario guardó cambios en este registro después de que lo cargaras. Recarga para ver la última versión antes de continuar.",
-    "SAMPLE-R1": "Mensaje de ejemplo para la regla de negocio SAMPLE-R1 — sustituir por el texto real."
+    "SAMPLE-R1": "Mensaje de ejemplo para la regla de negocio SAMPLE-R1 — sustituir por el texto real.",
+    "ORG-R6": "El usuario SYSTEM no se puede editar ni desactivar.",
+    "ORG-R9": "Ya existe un usuario con este email.",
+    "ORG-R3": "Un warehouse con una business unit debe usar una business unit que pertenezca a la misma legal entity."
   },
   "shell": {
     "nav": {
@@ -40,7 +43,17 @@
     }
   },
   "nav": {
-    "account": "Mi cuenta"
+    "account": "Mi cuenta",
+    "users": "Usuarios",
+    "parties": "Terceros",
+    "org": {
+      "legalEntities": "Entidades legales",
+      "businessUnits": "Unidades de negocio"
+    },
+    "locations": "Ubicaciones",
+    "warehouses": "Almacenes",
+    "orgTree": "Árbol de la organización",
+    "orgCurrencies": "Monedas"
   },
   "account": {
     "title": "Mi cuenta",
@@ -53,7 +66,10 @@
       "preferredLanguage": "Idioma preferido",
       "provisioned": "Provisionado",
       "permissions": "Permisos",
-      "noPermissions": "Sin permisos todavía"
+      "noPermissions": "Sin permisos todavía",
+      "userId": "ID de usuario",
+      "partyId": "ID de party",
+      "businessUnitId": "ID de la unidad de negocio"
     }
   },
   "breadcrumb": {
@@ -70,6 +86,197 @@
       "pending": "Pendiente",
       "approved": "Aprobado",
       "rejected": "Rechazado"
+    },
+    "i18nCaptionEditor": {
+      "groupLabel": "Traducciones del título",
+      "deRequired": "El alemán es obligatorio.",
+      "language": {
+        "de": "Alemán",
+        "en": "Inglés",
+        "fr": "Francés",
+        "it": "Italiano",
+        "es": "Español"
+      }
+    },
+    "entityPicker": {
+      "placeholder": "Buscar…",
+      "noResults": "Sin resultados"
+    }
+  },
+  "org": {
+    "users": {
+      "title": "Usuarios",
+      "actions": {
+        "new": "Nuevo usuario",
+        "deactivate": "Desactivar",
+        "clearBusinessUnit": "Cambiar"
+      },
+      "detail": {
+        "newTitle": "Nuevo usuario",
+        "editTitle": "Editar usuario",
+        "loading": "Cargando…",
+        "systemUserNotice": "El usuario SYSTEM no se puede editar ni desactivar."
+      },
+      "fields": {
+        "oid": "ID de objeto (oid)",
+        "fullName": "Nombre completo",
+        "email": "Correo electrónico",
+        "preferredLanguage": "Idioma preferido",
+        "businessUnit": "Business unit"
+      }
+    },
+    "parties": {
+      "title": "Terceros",
+      "actions": {
+        "new": "Nuevo tercero",
+        "deactivate": "Desactivar"
+      },
+      "filters": {
+        "search": "Buscar",
+        "partyType": "Tipo",
+        "isInternal": "Interno",
+        "any": "Cualquiera",
+        "internal": "Interno",
+        "external": "Externo"
+      },
+      "partyType": {
+        "organization": "Organización",
+        "person": "Persona"
+      },
+      "detail": {
+        "newTitle": "Nuevo tercero",
+        "editTitle": "Editar tercero",
+        "loading": "Cargando…"
+      },
+      "fields": {
+        "partyType": "Tipo de tercero",
+        "legalName": "Razón social",
+        "displayName": "Nombre visible",
+        "taxId": "NIF/CIF",
+        "erpCompanyCode": "Código de sociedad ERP",
+        "isInternal": "Interno"
+      }
+    },
+    "legalEntities": {
+      "title": "Entidades legales",
+      "new": "Nueva entidad legal",
+      "newTitle": "Nueva entidad legal",
+      "loading": "Cargando…",
+      "empty": "No se encontraron entidades legales.",
+      "deactivate": "Desactivar",
+      "confirmDeactivate": "¿Desactivar esta entidad legal? Esta acción no se puede deshacer.",
+      "fields": {
+        "legalName": "Razón social",
+        "displayName": "Nombre visible",
+        "groupId": "Grupo",
+        "code": "Código",
+        "currencyCode": "Moneda",
+        "countryCode": "País",
+        "isActive": "Estado"
+      }
+    },
+    "businessUnits": {
+      "title": "Unidades de negocio",
+      "new": "Nueva unidad de negocio",
+      "newTitle": "Nueva unidad de negocio",
+      "loading": "Cargando…",
+      "empty": "No se encontraron unidades de negocio.",
+      "deactivate": "Desactivar",
+      "confirmDeactivate": "¿Desactivar esta unidad de negocio? Esta acción no se puede deshacer.",
+      "fields": {
+        "legalName": "Razón social",
+        "displayName": "Nombre visible",
+        "legalEntityId": "Entidad legal",
+        "legalEntitySearch": "Buscar entidad legal…",
+        "code": "Código",
+        "caption": "Etiqueta",
+        "costCenterCode": "Centro de costo",
+        "isActive": "Estado"
+      }
+    },
+    "tree": {
+      "title": "Árbol de la organización",
+      "empty": "Todavía no hay estructura organizativa."
+    },
+    "currencies": {
+      "title": "Monedas",
+      "empty": "No hay monedas disponibles.",
+      "columns": {
+        "code": "Código",
+        "caption": "Nombre",
+        "minorUnits": "Decimales",
+        "status": "Estado",
+        "action": "Acción"
+      },
+      "actions": {
+        "activate": "Activar",
+        "deactivate": "Desactivar"
+      }
+    }
+  },
+  "locations": {
+    "title": "Ubicaciones",
+    "actions": {
+      "create": "Nueva ubicación"
+    },
+    "list": {
+      "columns": {
+        "code": "Código",
+        "name": "Nombre",
+        "city": "Ciudad",
+        "countryCode": "País",
+        "isActive": "Estado"
+      }
+    },
+    "detail": {
+      "title": {
+        "create": "Nueva ubicación",
+        "edit": "Editar ubicación"
+      }
+    },
+    "fields": {
+      "code": "Código",
+      "name": "Nombre",
+      "street": "Calle",
+      "postalCode": "Código postal",
+      "city": "Ciudad",
+      "region": "Región",
+      "countryCode": "Código de país"
+    }
+  },
+  "warehouses": {
+    "title": "Almacenes",
+    "actions": {
+      "create": "Nuevo almacén",
+      "deactivate": "Desactivar"
+    },
+    "filters": {
+      "search": "Buscar",
+      "legalEntity": "Legal entity",
+      "businessUnit": "Business unit",
+      "isActive": "Estado",
+      "isActiveAll": "Todos"
+    },
+    "list": {
+      "columns": {
+        "code": "Código",
+        "caption": "Título",
+        "isActive": "Estado"
+      }
+    },
+    "detail": {
+      "title": {
+        "create": "Nuevo almacén",
+        "edit": "Editar almacén"
+      }
+    },
+    "fields": {
+      "code": "Código",
+      "location": "Ubicación",
+      "legalEntity": "Legal entity",
+      "businessUnit": "Business unit",
+      "clear": "Quitar",
+      "current": "Actual: {{value}}"
     }
   }
 }

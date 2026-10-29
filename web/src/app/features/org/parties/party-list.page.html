@@ -1,0 +1,39 @@
+<div class="nx-party-list-page__header">
+  <h1>{{ 'org.parties.title' | transloco }}</h1>
+  <a mat-flat-button color="primary" routerLink="new" *nxCan="'PARTY:CREATE'">
+    <mat-icon>add</mat-icon>
+    {{ 'org.parties.actions.new' | transloco }}
+  </a>
+</div>
+
+<form [formGroup]="filterForm" class="nx-party-list-page__filters">
+  <mat-form-field>
+    <mat-label>{{ 'org.parties.filters.search' | transloco }}</mat-label>
+    <input matInput formControlName="q" data-testid="party-filter-q" />
+  </mat-form-field>
+
+  <mat-form-field>
+    <mat-label>{{ 'org.parties.filters.partyType' | transloco }}</mat-label>
+    <mat-select formControlName="partyType" data-testid="party-filter-type">
+      <mat-option value="">{{ 'org.parties.filters.any' | transloco }}</mat-option>
+      <mat-option value="ORGANIZATION">{{ 'org.parties.partyType.organization' | transloco }}</mat-option>
+      <mat-option value="PERSON">{{ 'org.parties.partyType.person' | transloco }}</mat-option>
+    </mat-select>
+  </mat-form-field>
+
+  <mat-form-field>
+    <mat-label>{{ 'org.parties.filters.isInternal' | transloco }}</mat-label>
+    <mat-select formControlName="isInternal" data-testid="party-filter-internal">
+      <mat-option value="">{{ 'org.parties.filters.any' | transloco }}</mat-option>
+      <mat-option value="true">{{ 'org.parties.filters.internal' | transloco }}</mat-option>
+      <mat-option value="false">{{ 'org.parties.filters.external' | transloco }}</mat-option>
+    </mat-select>
+  </mat-form-field>
+</form>
+
+<nx-data-grid
+  [columns]="columns"
+  [fetch]="fetchFn"
+  [filters]="filters()"
+  (selectionChanged)="onSelectionChanged($event)"
+/>

@@ -1,0 +1,58 @@
+<form class="nx-legal-entity-form" [formGroup]="form" (ngSubmit)="onSubmit()">
+  @if (mode() === 'create') {
+    <mat-form-field subscriptSizing="dynamic">
+      <mat-label>{{ 'org.legalEntities.fields.legalName' | transloco }}</mat-label>
+      <input matInput type="text" data-testid="le-form-legal-name" formControlName="legalName" required />
+      @for (message of errorsFor('legalName'); track message) {
+        <mat-error>{{ message }}</mat-error>
+      }
+    </mat-form-field>
+
+    <mat-form-field subscriptSizing="dynamic">
+      <mat-label>{{ 'org.legalEntities.fields.displayName' | transloco }}</mat-label>
+      <input matInput type="text" data-testid="le-form-display-name" formControlName="displayName" />
+    </mat-form-field>
+
+    <mat-form-field subscriptSizing="dynamic">
+      <mat-label>{{ 'org.legalEntities.fields.groupId' | transloco }}</mat-label>
+      <input matInput type="text" data-testid="le-form-group-id" formControlName="groupId" required />
+      @for (message of errorsFor('groupId'); track message) {
+        <mat-error>{{ message }}</mat-error>
+      }
+    </mat-form-field>
+  }
+
+  <mat-form-field subscriptSizing="dynamic">
+    <mat-label>{{ 'org.legalEntities.fields.code' | transloco }}</mat-label>
+    <input matInput type="text" data-testid="le-form-code" formControlName="code" required />
+    @for (message of errorsFor('code'); track message) {
+      <mat-error>{{ message }}</mat-error>
+    }
+  </mat-form-field>
+
+  <mat-form-field subscriptSizing="dynamic">
+    <mat-label>{{ 'org.legalEntities.fields.currencyCode' | transloco }}</mat-label>
+    <input matInput type="text" data-testid="le-form-currency-code" formControlName="currencyCode" required />
+    @for (message of errorsFor('currencyCode'); track message) {
+      <mat-error>{{ message }}</mat-error>
+    }
+  </mat-form-field>
+
+  <mat-form-field subscriptSizing="dynamic">
+    <mat-label>{{ 'org.legalEntities.fields.countryCode' | transloco }}</mat-label>
+    <input matInput type="text" data-testid="le-form-country-code" formControlName="countryCode" required />
+    @for (message of errorsFor('countryCode'); track message) {
+      <mat-error>{{ message }}</mat-error>
+    }
+  </mat-form-field>
+
+  <div class="nx-legal-entity-form__actions">
+    <button mat-raised-button color="primary" type="submit" data-testid="le-form-submit" [disabled]="saving()">
+      @if (saving()) {
+        <mat-progress-spinner diameter="18" mode="indeterminate" />
+      } @else {
+        {{ 'common.save' | transloco }}
+      }
+    </button>
+  </div>
+</form>

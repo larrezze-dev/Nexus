@@ -12,7 +12,10 @@
     "notFound": "La risorsa richiesta non è stata trovata.",
     "concurrencyTitle": "Un altro utente ha modificato questo record",
     "concurrencyMessage": "Un altro utente ha salvato modifiche a questo record dopo che l'hai caricato. Ricarica per vedere l'ultima versione prima di continuare.",
-    "SAMPLE-R1": "Testo di esempio per la regola di business SAMPLE-R1 — da sostituire con il testo reale."
+    "SAMPLE-R1": "Testo di esempio per la regola di business SAMPLE-R1 — da sostituire con il testo reale.",
+    "ORG-R6": "L'utente SYSTEM non può essere modificato né disattivato.",
+    "ORG-R9": "Esiste già un utente con questa email.",
+    "ORG-R3": "Un magazzino con una business unit deve usare una business unit che appartiene alla stessa legal entity."
   },
   "shell": {
     "nav": {
@@ -40,7 +43,17 @@
     }
   },
   "nav": {
-    "account": "Il mio account"
+    "account": "Il mio account",
+    "users": "Utenti",
+    "parties": "Partner",
+    "org": {
+      "legalEntities": "Entità legali",
+      "businessUnits": "Unità di business"
+    },
+    "locations": "Sedi",
+    "warehouses": "Magazzini",
+    "orgTree": "Struttura organizzativa",
+    "orgCurrencies": "Valute"
   },
   "account": {
     "title": "Il mio account",
@@ -53,7 +66,10 @@
       "preferredLanguage": "Lingua preferita",
       "provisioned": "Predisposto",
       "permissions": "Permessi",
-      "noPermissions": "Nessun permesso ancora"
+      "noPermissions": "Nessun permesso ancora",
+      "userId": "ID utente",
+      "partyId": "ID party",
+      "businessUnitId": "ID unità di business"
     }
   },
   "breadcrumb": {
@@ -70,6 +86,197 @@
       "pending": "In attesa",
       "approved": "Approvato",
       "rejected": "Rifiutato"
+    },
+    "i18nCaptionEditor": {
+      "groupLabel": "Traduzioni della didascalia",
+      "deRequired": "Il tedesco è obbligatorio.",
+      "language": {
+        "de": "Tedesco",
+        "en": "Inglese",
+        "fr": "Francese",
+        "it": "Italiano",
+        "es": "Spagnolo"
+      }
+    },
+    "entityPicker": {
+      "placeholder": "Cerca…",
+      "noResults": "Nessun risultato"
+    }
+  },
+  "org": {
+    "users": {
+      "title": "Utenti",
+      "actions": {
+        "new": "Nuovo utente",
+        "deactivate": "Disattiva",
+        "clearBusinessUnit": "Cambia"
+      },
+      "detail": {
+        "newTitle": "Nuovo utente",
+        "editTitle": "Modifica utente",
+        "loading": "Caricamento…",
+        "systemUserNotice": "L'utente SYSTEM non può essere modificato né disattivato."
+      },
+      "fields": {
+        "oid": "ID oggetto (oid)",
+        "fullName": "Nome completo",
+        "email": "Email",
+        "preferredLanguage": "Lingua preferita",
+        "businessUnit": "Business unit"
+      }
+    },
+    "parties": {
+      "title": "Partner",
+      "actions": {
+        "new": "Nuovo partner",
+        "deactivate": "Disattiva"
+      },
+      "filters": {
+        "search": "Cerca",
+        "partyType": "Tipo",
+        "isInternal": "Interno",
+        "any": "Tutti",
+        "internal": "Interno",
+        "external": "Esterno"
+      },
+      "partyType": {
+        "organization": "Organizzazione",
+        "person": "Persona"
+      },
+      "detail": {
+        "newTitle": "Nuovo partner",
+        "editTitle": "Modifica partner",
+        "loading": "Caricamento…"
+      },
+      "fields": {
+        "partyType": "Tipo di partner",
+        "legalName": "Ragione sociale",
+        "displayName": "Nome visualizzato",
+        "taxId": "Partita IVA",
+        "erpCompanyCode": "Codice azienda ERP",
+        "isInternal": "Interno"
+      }
+    },
+    "legalEntities": {
+      "title": "Entità legali",
+      "new": "Nuova entità legale",
+      "newTitle": "Nuova entità legale",
+      "loading": "Caricamento…",
+      "empty": "Nessuna entità legale trovata.",
+      "deactivate": "Disattiva",
+      "confirmDeactivate": "Disattivare questa entità legale? L'operazione non può essere annullata.",
+      "fields": {
+        "legalName": "Ragione sociale",
+        "displayName": "Nome visualizzato",
+        "groupId": "Gruppo",
+        "code": "Codice",
+        "currencyCode": "Valuta",
+        "countryCode": "Paese",
+        "isActive": "Stato"
+      }
+    },
+    "businessUnits": {
+      "title": "Unità di business",
+      "new": "Nuova unità di business",
+      "newTitle": "Nuova unità di business",
+      "loading": "Caricamento…",
+      "empty": "Nessuna unità di business trovata.",
+      "deactivate": "Disattiva",
+      "confirmDeactivate": "Disattivare questa unità di business? L'operazione non può essere annullata.",
+      "fields": {
+        "legalName": "Ragione sociale",
+        "displayName": "Nome visualizzato",
+        "legalEntityId": "Entità legale",
+        "legalEntitySearch": "Cerca entità legale…",
+        "code": "Codice",
+        "caption": "Etichetta",
+        "costCenterCode": "Centro di costo",
+        "isActive": "Stato"
+      }
+    },
+    "tree": {
+      "title": "Struttura organizzativa",
+      "empty": "Nessuna struttura organizzativa ancora."
+    },
+    "currencies": {
+      "title": "Valute",
+      "empty": "Nessuna valuta disponibile.",
+      "columns": {
+        "code": "Codice",
+        "caption": "Nome",
+        "minorUnits": "Decimali",
+        "status": "Stato",
+        "action": "Azione"
+      },
+      "actions": {
+        "activate": "Attiva",
+        "deactivate": "Disattiva"
+      }
+    }
+  },
+  "locations": {
+    "title": "Sedi",
+    "actions": {
+      "create": "Nuova sede"
+    },
+    "list": {
+      "columns": {
+        "code": "Codice",
+        "name": "Nome",
+        "city": "Città",
+        "countryCode": "Paese",
+        "isActive": "Stato"
+      }
+    },
+    "detail": {
+      "title": {
+        "create": "Nuova sede",
+        "edit": "Modifica sede"
+      }
+    },
+    "fields": {
+      "code": "Codice",
+      "name": "Nome",
+      "street": "Via",
+      "postalCode": "CAP",
+      "city": "Città",
+      "region": "Regione",
+      "countryCode": "Codice paese"
+    }
+  },
+  "warehouses": {
+    "title": "Magazzini",
+    "actions": {
+      "create": "Nuovo magazzino",
+      "deactivate": "Disattiva"
+    },
+    "filters": {
+      "search": "Cerca",
+      "legalEntity": "Legal entity",
+      "businessUnit": "Business unit",
+      "isActive": "Stato",
+      "isActiveAll": "Tutti"
+    },
+    "list": {
+      "columns": {
+        "code": "Codice",
+        "caption": "Didascalia",
+        "isActive": "Stato"
+      }
+    },
+    "detail": {
+      "title": {
+        "create": "Nuovo magazzino",
+        "edit": "Modifica magazzino"
+      }
+    },
+    "fields": {
+      "code": "Codice",
+      "location": "Sede",
+      "legalEntity": "Legal entity",
+      "businessUnit": "Business unit",
+      "clear": "Rimuovi",
+      "current": "Attuale: {{value}}"
     }
   }
 }
