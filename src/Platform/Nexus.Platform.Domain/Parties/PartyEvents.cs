@@ -45,3 +45,11 @@ public sealed record PartyUpdated(
 {
     public override string EventType => "org.party.updated";
 }
+
+/// <summary><c>nexus.org.party.deactivated</c>.</summary>
+public sealed record PartyDeactivated(
+    Guid Id, string PartyType, string LegalName, string? DisplayName, string? TaxId, string? ErpCompanyCode, bool IsInternal, bool IsActive)
+    : PartyEvent(Id, PartyType, LegalName, DisplayName, TaxId, ErpCompanyCode, IsInternal, IsActive)
+{
+    public override string EventType => "org.party.deactivated";
+}

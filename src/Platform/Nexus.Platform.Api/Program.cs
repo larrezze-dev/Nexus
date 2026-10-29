@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Configuration;
 using Nexus.BuildingBlocks.Application;
 using Nexus.BuildingBlocks.Domain;
 using Nexus.BuildingBlocks.Persistence;
@@ -8,12 +9,29 @@ using Nexus.BuildingBlocks.Web.ErrorHandling;
 using Nexus.BuildingBlocks.Web.Identity;
 using Nexus.BuildingBlocks.Web.Observability;
 using Nexus.BuildingBlocks.Web.OpenApi;
+using Nexus.Platform.Api.Currencies;
+using Nexus.Platform.Api.Parties;
 using Nexus.Platform.Api.Session;
 using Nexus.Platform.Api.Users;
 using Nexus.Platform.Application.Users.CreateUser;
 using Nexus.Platform.Infrastructure;
 
 var builder = WebApplication.CreateBuilder(args);
+
+Console.WriteLine("DIAG-AUTH:[" + builder.Configuration["Nexus:Authentication:Authority"] + "]");
+Console.WriteLine("DIAG-ENV:[" + builder.Environment.EnvironmentName + "]");
+Console.WriteLine("DIAG-CONTENTROOT:[" + builder.Environment.ContentRootPath + "]");
+foreach (var src in ((IConfigurationRoot)builder.Configuration).Providers)
+{
+    Console.WriteLine("DIAG-PROVIDER:[" + src + "]");
+}
+foreach (var kv in builder.Configuration.AsEnumerable())
+{
+    if (kv.Key.StartsWith("Nexus", StringComparison.OrdinalIgnoreCase))
+    {
+        Console.WriteLine("DIAG-KV:[" + kv.Key + "]=[" + kv.Value + "]");
+    }
+}
 
 // Handlers and validators live in Nexus.Platform.Application; the API assembly is scanned too.
 builder.Services.AddNexusApplication(typeof(Program).Assembly, typeof(CreateUserCommand).Assembly);
@@ -34,6 +52,7 @@ builder.Services.AddNexusPersistence();
 builder.Services.AddNexusIdentityResolution();
 builder.Services.AddPlatformInfrastructure();
 builder.Services.AddUserConstraintViolations();
+builder.Services.AddPartyConstraintViolations();
 
 var app = builder.Build();
 
@@ -57,6 +76,8 @@ app.MapGet("/v1/me", GetMe.Handle)
     .WithScope("none");
 
 app.MapUserEndpoints();
+app.MapPartyEndpoints();
+app.MapCurrencyEndpoints();
 
 // Test-only diagnostic endpoint (ficha 0.5-B): exercises ResultExtensions.ToMinimalApiResult's
 // 422 application/problem+json mapping end to end against a real running host, instead of only
