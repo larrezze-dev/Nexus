@@ -1,8 +1,12 @@
 using Microsoft.Extensions.DependencyInjection;
 using Nexus.Platform.Application.Currencies;
+using Nexus.Platform.Application.Groups;
+using Nexus.Platform.Application.LegalEntities;
 using Nexus.Platform.Application.Parties;
 using Nexus.Platform.Application.Users;
 using Nexus.Platform.Infrastructure.Currencies;
+using Nexus.Platform.Infrastructure.Groups;
+using Nexus.Platform.Infrastructure.LegalEntities;
 using Nexus.Platform.Infrastructure.Parties;
 using Nexus.Platform.Infrastructure.Persistence;
 using Nexus.Platform.Infrastructure.Users;
@@ -33,6 +37,10 @@ public static class PlatformInfrastructureServiceCollectionExtensions
         services.AddScoped<IAppUserRepository, AppUserRepository>();
         services.AddScoped<IUserReadDb, UserReadDb>();
         services.AddScoped<ICurrencyRepository, CurrencyRepository>();
+        services.AddScoped<IGroupRepository, GroupRepository>();
+        services.AddScoped<IGroupReadDb, GroupReadDb>();
+        services.AddScoped<ILegalEntityRepository, LegalEntityRepository>();
+        services.AddScoped<ILegalEntityReadDb, LegalEntityReadDb>();
         services.AddScoped<ICurrencyReadDb, CurrencyReadDb>();
 
         return services;

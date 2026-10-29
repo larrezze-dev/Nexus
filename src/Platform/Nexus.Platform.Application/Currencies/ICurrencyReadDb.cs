@@ -23,6 +23,12 @@ public interface ICurrencyReadDb
     /// currency of any <c>Group</c> or the currency of any active <c>LegalEntity</c>.
     /// </summary>
     Task<bool> IsReferencedByActiveEntityAsync(string code, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Rule ORG-R7's other guard query (Group/LegalEntity create/update, before saving):
+    /// <see langword="true"/> only if <paramref name="code"/> exists and is active.
+    /// </summary>
+    Task<bool> IsActiveAsync(string code, CancellationToken cancellationToken);
 }
 
 /// <summary>Sortable fields of <c>GET /v1/currencies</c> (API names).</summary>

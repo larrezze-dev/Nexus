@@ -85,6 +85,17 @@ internal sealed class CurrencyReadDb : ICurrencyReadDb
             new { code },
             cancellationToken));
 
+    /// <summary>Rule ORG-R7's other guard query (Group/LegalEntity create/update).</summary>
+    public async Task<bool> IsActiveAsync(string code, CancellationToken cancellationToken)
+    {
+        var isActive = await _unitOfWork.Connection.ExecuteScalarAsync<bool?>(Command(
+            "SELECT is_active FROM org.currency WHERE code = @code",
+            new { code },
+            cancellationToken));
+
+        return isActive ?? false;
+    }
+
     private static Dictionary<string, string> Deserialize(string json) =>
         JsonSerializer.Deserialize<Dictionary<string, string>>(json) ?? new Dictionary<string, string>();
 
