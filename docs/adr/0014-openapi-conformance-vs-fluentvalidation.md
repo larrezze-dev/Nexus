@@ -46,3 +46,43 @@ Alcance explícito: esta decisión cubre solo los hallazgos de **forma** (las ca
 ## Cómo se verifica
 
 Con la decisión tomada: `dotnet run` real del servicio + `oasdiff breaking` contra `contracts/openapi/platform.yaml` (igual que este ADR lo reprodujo) vuelve a 0 hallazgos `error` nuevos (solo el ya aceptado de `/v1/me`, o ninguno si el transformer también resuelve seguridad).
+
+## Refinamiento de implementación (2026-10-29, nx-architect)
+
+Añadido tras implementar la decisión; no la reabre. Reproducido contra el servicio real con la receta de "Cómo se verifica" (`oasdiff` `tufin/oasdiff:v1.35.0-rc.1`).
+
+### Corrección del diagnóstico de "Contexto"
+
+Al reproducir los hallazgos uno a uno, dos categorías de la tabla no tienen la causa que se les atribuyó:
+
+- **`response-property-became-optional` (130) no viene de FluentValidation.** Es la dirección contraria: los DTO de respuesta son `record` posicionales, el generador marca *todas* sus propiedades como `required` (y el servicio las escribe siempre, también las `null`: no hay `WhenWritingNull`), mientras el contrato deja fuera de `required` las nulables y `createdAt`/`updatedAt` (p. ej. `BusinessUnit.required: [id, partyId, legalEntityId, code, captionI18n, isActive]`). El documento generado es exacto; el contrato es más laxo que el servicio en las respuestas. Ningún transformer puede cerrarlo sin hacer que el documento generado mienta. ⚑ **Pendiente de decisión de Luciano** (ver más abajo).
+- **`response-property-type-changed`/`-pattern-removed` (4, `minorUnits` de `Currency`) tampoco.** Viene de `JsonSerializerDefaults.Web` (`AllowReadingFromString`): el generador describe todo número como `[integer, string]` + patrón, cierto para la entrada pero falso para la salida (el servicio siempre escribe un número JSON). Se cierra la parte de tipo/patrón (abajo); queda `format: int16` (servicio, `short`) frente a sin `format` (contrato): mismo caso que el anterior, contrato más laxo en respuesta.
+
+### Mecanismo implementado
+
+- **`.ValidatedBy<TRequest>()`** (`Nexus.BuildingBlocks.Web.OpenApi`, mismo patrón que `RequirePermission`/`PermissionMetadata`): metadato de endpoint que declara qué comando/consulta valida su entrada. Hace falta **también para los cuerpos**, no solo para los parámetros de consulta: en este código ningún endpoint recibe el comando como cuerpo (reciben un DTO `*Request` del API y construyen el comando a mano), así que no hay ningún tipo CLR del que deducir el validador. Contrato de la declaración: cada miembro con reglas recibe sin transformar el valor del parámetro de ruta/consulta o de la propiedad del cuerpo con el mismo nombre (sin distinguir mayúsculas).
+- **`FluentValidationOpenApiOperationTransformer`**: resuelve `IValidator<TRequest>` del DI (igual que el dispatcher), lee las reglas con `CreateDescriptor()` y las proyecta por nombre a parámetros (`path`/`query`) y, si no, a propiedades del esquema del cuerpo (el componente, vía su referencia). Falla en la generación del documento si se declara un validador no registrado o si dos endpoints con validadores distintos comparten DTO de cuerpo.
+- **Mapeo:** `GreaterThan[OrEqualTo]`/`LessThan[OrEqualTo]` con constante → `[exclusive]minimum`/`[exclusive]maximum`; `InclusiveBetween`/`ExclusiveBetween` → ambos límites; `Length`/`MinimumLength`/`MaximumLength` → `minLength`/`maxLength`; `NotEmpty` → `minLength: 1`/`minItems: 1`; `Matches` (patrón constante, sin `RegexOptions`) → `pattern`.
+- **Política conservadora** (el documento nunca afirma una restricción que el servicio no aplique): se ignoran las reglas con `When`/`Unless`, las de otros rule sets, `RuleForEach`, rutas anidadas, `Must`/`Custom`/asíncronas y `Matches` con opciones. Nunca se infiere `required` de nivel superior: el validador ve el comando ya mapeado (con posibles valores por defecto, p. ej. `CreateGroupRequest.ConsolidationMethod = "FULL"`).
+- **`.Must(...)` no es introspectable** (es un delegado cerrado): se añaden dos reglas legibles en `Nexus.BuildingBlocks.Application.Validation` — `MustBeOneOf(values)` → `enum` y `MustContainNonBlankKeys(keys)` → `required` de las claves del diccionario. Siguen la convención de FluentValidation (`null` pasa; se combina con `NotNull()`). Los dos helpers compartidos `MustHaveGermanCaption()` y `MustBeSupportedLanguage()` se reescribieron sobre ellas (mismos mensajes, misma aceptación/rechazo), sin tocar ningún validador individual.
+- **`ResponseNumberOpenApiSchemaTransformer`**: quita la alternativa `string` y el patrón numérico solo en propiedades de tipos que no aparecen en ningún cuerpo de petición y cuyo `JsonNumberHandling` efectivo no incluye `WriteAsString`.
+
+### Resultado (servicio real vs. `contracts/openapi/platform.yaml`)
+
+| Momento | Resumen de `oasdiff breaking` |
+|---|---|
+| Antes (sin transformer, sin líneas nuevas en `oasdiff-err-ignore.txt`) | `261 changes: 214 error, 47 warning, 0 info` |
+| Transformer + helpers compartidos (sin líneas nuevas) | `221 changes: 174 error, 47 warning, 0 info` |
+| + 36 líneas de seguridad en `oasdiff-err-ignore.txt` | `185 changes: 138 error, 47 warning, 0 info` |
+
+Cerradas por completo: `request-parameter-min-set` (16), `request-parameter-max-set` (8), `request-property-pattern-added` (8), `new-required-request-property` (4), `api-security-anonymous-access-removed` (36, por lista), y 2 de 6 `became-enum` (`preferredLanguage`). Las 47 `warning` (comparación de ramas `allOf` de oasdiff) no hacen fallar el job y no cambian.
+
+### Lo que queda (138 `error`) y qué hace falta
+
+1. ⚑ **130 `response-property-became-optional` + 2 `response-property-type-changed` (`format: int16`)** — contrato más laxo que el servicio en respuestas. Opciones: (a) Gate C: el contrato añade esas propiedades a `required` (siguen siendo `type: [X, "null"]`) y `format: int16` a `minorUnits` — refleja lo que el servicio ya hace y da tipos no opcionales al cliente Angular generado; (b) relajar `required` en los DTO de respuesta del servicio (cambio de forma real, peor); (c) listas de excepciones (descartado por este mismo ADR). Recomendación: (a). No se decide aquí.
+2. **4 `became-enum` + 1 `pattern-added` — reglas `.Must(...)` opacas en validadores individuales**, fuera del alcance de este refinamiento. Una línea cada uno, comprobado en local (bajan a 0 con estos cambios): `CreateGroupValidator`/`UpdateGroupValidator` `ConsolidationMethod` → `.NotNull().MustBeOneOf(AllowedConsolidationMethods)`; `CreatePartyValidator` `PartyType` → `.NotNull().MustBeOneOf([...])`; `GetPartiesValidator` → `RuleFor(q => q.PartyType).MustBeOneOf([...])` sin el `When(... is not null)` (la regla ya deja pasar `null`); `UpdateCurrencyValidator` `Code` → `.Matches("^[A-Z]{3}$")`.
+3. **1 `request-parameter-pattern-added` en `GET /v1/currencies/{code}`** — no es un hueco de proyección: `GetCurrencyQuery` no tiene validador, así que el servicio de verdad no aplica el patrón del contrato (un código en minúsculas da 404, no 400). Requiere decidir en el track B si se añade `GetCurrencyValidator`.
+
+### Observación sobre la dirección del job (no se decide aquí)
+
+Con `base = servicio` y `revision = contrato`, oasdiff marca exactamente los casos en que el servicio es *más permisivo* que el contrato en peticiones y *más estricto* en respuestas — es decir, documento generado impreciso, no incumplimiento. Un incumplimiento real en la dirección contraria (el servicio rechaza una petición que el contrato permite, o devuelve algo que el contrato no admite) no produce ningún `error`. Lo que hace este transformer (que el documento generado diga la verdad) hace que los hallazgos restantes sean reales, pero no cubre ese otro sentido.
