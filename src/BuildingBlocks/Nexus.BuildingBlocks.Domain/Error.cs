@@ -16,4 +16,16 @@ public sealed record Error(string Code, string Message)
 {
     /// <summary>The absence of an error, used internally by successful <see cref="Result"/>s.</summary>
     public static readonly Error None = new(string.Empty, string.Empty);
+
+    /// <summary>Shape validation failure (<see cref="ErrorCodes.Validation"/>, 400).</summary>
+    public static Error Validation(string message) => new(ErrorCodes.Validation, message);
+
+    /// <summary>The addressed resource does not exist or is not visible (<see cref="ErrorCodes.NotFound"/>, 404).</summary>
+    public static Error NotFound(string message) => new(ErrorCodes.NotFound, message);
+
+    /// <summary>Stale optimistic-concurrency version (<see cref="ErrorCodes.Concurrency"/>, 409).</summary>
+    public static Error Concurrency(string message) => new(ErrorCodes.Concurrency, message);
+
+    /// <summary>The resource already exists with different content (<see cref="ErrorCodes.Conflict"/>, 409).</summary>
+    public static Error Conflict(string message) => new(ErrorCodes.Conflict, message);
 }

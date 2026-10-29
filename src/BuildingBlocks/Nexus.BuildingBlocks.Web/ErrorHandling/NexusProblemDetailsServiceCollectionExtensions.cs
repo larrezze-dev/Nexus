@@ -50,6 +50,7 @@ public static class NexusProblemDetailsServiceCollectionExtensions
             };
         });
 
+        services.AddOptions<ConstraintViolationOptions>();
         services.AddExceptionHandler<NexusExceptionHandler>();
 
         return services;
