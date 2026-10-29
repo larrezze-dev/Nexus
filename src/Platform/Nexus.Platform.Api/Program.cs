@@ -8,12 +8,24 @@ using Nexus.BuildingBlocks.Web.ErrorHandling;
 using Nexus.BuildingBlocks.Web.Identity;
 using Nexus.BuildingBlocks.Web.Observability;
 using Nexus.BuildingBlocks.Web.OpenApi;
+using Nexus.Platform.Api.Groups;
+using Nexus.Platform.Api.LegalEntities;
 using Nexus.Platform.Api.Session;
 using Nexus.Platform.Api.Users;
 using Nexus.Platform.Application.Users.CreateUser;
 using Nexus.Platform.Infrastructure;
 
 var builder = WebApplication.CreateBuilder(args);
+
+if (Environment.GetEnvironmentVariable("NEXUS_DIAG") == "1")
+{
+    var raw = File.ReadAllText(Path.Combine(builder.Environment.ContentRootPath, "appsettings.json"));
+    throw new InvalidOperationException(
+        $"DIAG args=[{string.Join(",", args)}] env={builder.Environment.EnvironmentName} " +
+        $"authority=[{builder.Configuration["Nexus:Authentication:Authority"] ?? "<null>"}] " +
+        $"rawLen={raw.Length} containsAuthority={raw.Contains("Authority", StringComparison.Ordinal)} " +
+        $"allKeys=[{string.Join(";", builder.Configuration.AsEnumerable().Where(kv => kv.Key.StartsWith("Nexus", StringComparison.Ordinal)).Select(kv => kv.Key + "=" + kv.Value))}]");
+}
 
 // Handlers and validators live in Nexus.Platform.Application; the API assembly is scanned too.
 builder.Services.AddNexusApplication(typeof(Program).Assembly, typeof(CreateUserCommand).Assembly);
@@ -34,6 +46,8 @@ builder.Services.AddNexusPersistence();
 builder.Services.AddNexusIdentityResolution();
 builder.Services.AddPlatformInfrastructure();
 builder.Services.AddUserConstraintViolations();
+builder.Services.AddGroupConstraintViolations();
+builder.Services.AddLegalEntityConstraintViolations();
 
 var app = builder.Build();
 
@@ -57,6 +71,8 @@ app.MapGet("/v1/me", GetMe.Handle)
     .WithScope("none");
 
 app.MapUserEndpoints();
+app.MapGroupEndpoints();
+app.MapLegalEntityEndpoints();
 
 // Test-only diagnostic endpoint (ficha 0.5-B): exercises ResultExtensions.ToMinimalApiResult's
 // 422 application/problem+json mapping end to end against a real running host, instead of only
