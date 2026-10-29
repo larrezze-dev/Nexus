@@ -51,7 +51,9 @@
       "businessUnits": "Unidades de negocio"
     },
     "locations": "Ubicaciones",
-    "warehouses": "Almacenes"
+    "warehouses": "Almacenes",
+    "orgTree": "Árbol de la organización",
+    "orgCurrencies": "Monedas"
   },
   "account": {
     "title": "Mi cuenta",
@@ -64,7 +66,10 @@
       "preferredLanguage": "Idioma preferido",
       "provisioned": "Provisionado",
       "permissions": "Permisos",
-      "noPermissions": "Sin permisos todavía"
+      "noPermissions": "Sin permisos todavía",
+      "userId": "ID de usuario",
+      "partyId": "ID de party",
+      "businessUnitId": "ID de la unidad de negocio"
     }
   },
   "breadcrumb": {
@@ -187,6 +192,25 @@
         "caption": "Etiqueta",
         "costCenterCode": "Centro de costo",
         "isActive": "Estado"
+      }
+    },
+    "tree": {
+      "title": "Árbol de la organización",
+      "empty": "Todavía no hay estructura organizativa."
+    },
+    "currencies": {
+      "title": "Monedas",
+      "empty": "No hay monedas disponibles.",
+      "columns": {
+        "code": "Código",
+        "caption": "Nombre",
+        "minorUnits": "Decimales",
+        "status": "Estado",
+        "action": "Acción"
+      },
+      "actions": {
+        "activate": "Activar",
+        "deactivate": "Desactivar"
       }
     }
   },
