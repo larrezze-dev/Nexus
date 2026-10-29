@@ -12,7 +12,9 @@
     "notFound": "No se encontró el recurso solicitado.",
     "concurrencyTitle": "Otro usuario ha modificado este registro",
     "concurrencyMessage": "Otro usuario guardó cambios en este registro después de que lo cargaras. Recarga para ver la última versión antes de continuar.",
-    "SAMPLE-R1": "Mensaje de ejemplo para la regla de negocio SAMPLE-R1 — sustituir por el texto real."
+    "SAMPLE-R1": "Mensaje de ejemplo para la regla de negocio SAMPLE-R1 — sustituir por el texto real.",
+    "ORG-R6": "El usuario SYSTEM no se puede editar ni desactivar.",
+    "ORG-R9": "Ya existe un usuario con este email."
   },
   "shell": {
     "nav": {
@@ -40,7 +42,9 @@
     }
   },
   "nav": {
-    "account": "Mi cuenta"
+    "account": "Mi cuenta",
+    "users": "Usuarios",
+    "parties": "Terceros"
   },
   "account": {
     "title": "Mi cuenta",
@@ -85,6 +89,61 @@
     "entityPicker": {
       "placeholder": "Buscar…",
       "noResults": "Sin resultados"
+    }
+  },
+  "org": {
+    "users": {
+      "title": "Usuarios",
+      "actions": {
+        "new": "Nuevo usuario",
+        "deactivate": "Desactivar",
+        "clearBusinessUnit": "Cambiar"
+      },
+      "detail": {
+        "newTitle": "Nuevo usuario",
+        "editTitle": "Editar usuario",
+        "loading": "Cargando…",
+        "systemUserNotice": "El usuario SYSTEM no se puede editar ni desactivar."
+      },
+      "fields": {
+        "oid": "ID de objeto (oid)",
+        "fullName": "Nombre completo",
+        "email": "Correo electrónico",
+        "preferredLanguage": "Idioma preferido",
+        "businessUnit": "Business unit"
+      }
+    },
+    "parties": {
+      "title": "Terceros",
+      "actions": {
+        "new": "Nuevo tercero",
+        "deactivate": "Desactivar"
+      },
+      "filters": {
+        "search": "Buscar",
+        "partyType": "Tipo",
+        "isInternal": "Interno",
+        "any": "Cualquiera",
+        "internal": "Interno",
+        "external": "Externo"
+      },
+      "partyType": {
+        "organization": "Organización",
+        "person": "Persona"
+      },
+      "detail": {
+        "newTitle": "Nuevo tercero",
+        "editTitle": "Editar tercero",
+        "loading": "Cargando…"
+      },
+      "fields": {
+        "partyType": "Tipo de tercero",
+        "legalName": "Razón social",
+        "displayName": "Nombre visible",
+        "taxId": "NIF/CIF",
+        "erpCompanyCode": "Código de sociedad ERP",
+        "isInternal": "Interno"
+      }
     }
   }
 }

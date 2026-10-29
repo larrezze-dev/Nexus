@@ -12,7 +12,9 @@
     "notFound": "The requested resource was not found.",
     "concurrencyTitle": "Someone else has modified this record",
     "concurrencyMessage": "Another user saved changes to this record after you loaded it. Reload to see the latest version before continuing.",
-    "SAMPLE-R1": "Example business rule message — replace with the real text for rule SAMPLE-R1."
+    "SAMPLE-R1": "Example business rule message — replace with the real text for rule SAMPLE-R1.",
+    "ORG-R6": "The SYSTEM user cannot be edited or deactivated.",
+    "ORG-R9": "A user with this email already exists."
   },
   "shell": {
     "nav": {
@@ -40,7 +42,9 @@
     }
   },
   "nav": {
-    "account": "My account"
+    "account": "My account",
+    "users": "Users",
+    "parties": "Parties"
   },
   "account": {
     "title": "My account",
@@ -85,6 +89,61 @@
     "entityPicker": {
       "placeholder": "Search…",
       "noResults": "No results"
+    }
+  },
+  "org": {
+    "users": {
+      "title": "Users",
+      "actions": {
+        "new": "New user",
+        "deactivate": "Deactivate",
+        "clearBusinessUnit": "Change"
+      },
+      "detail": {
+        "newTitle": "New user",
+        "editTitle": "Edit user",
+        "loading": "Loading…",
+        "systemUserNotice": "The SYSTEM user cannot be edited or deactivated."
+      },
+      "fields": {
+        "oid": "Object ID (oid)",
+        "fullName": "Full name",
+        "email": "Email",
+        "preferredLanguage": "Preferred language",
+        "businessUnit": "Business unit"
+      }
+    },
+    "parties": {
+      "title": "Parties",
+      "actions": {
+        "new": "New party",
+        "deactivate": "Deactivate"
+      },
+      "filters": {
+        "search": "Search",
+        "partyType": "Type",
+        "isInternal": "Internal",
+        "any": "Any",
+        "internal": "Internal",
+        "external": "External"
+      },
+      "partyType": {
+        "organization": "Organization",
+        "person": "Person"
+      },
+      "detail": {
+        "newTitle": "New party",
+        "editTitle": "Edit party",
+        "loading": "Loading…"
+      },
+      "fields": {
+        "partyType": "Party type",
+        "legalName": "Legal name",
+        "displayName": "Display name",
+        "taxId": "Tax ID",
+        "erpCompanyCode": "ERP company code",
+        "isInternal": "Internal"
+      }
     }
   }
 }
