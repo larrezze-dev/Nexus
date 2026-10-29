@@ -1,7 +1,7 @@
 # ADR-0014 · Conformidad OpenAPI del servicio vs. reglas de FluentValidation
 
-- **Estado:** Propuesto ⚑ abierto — bloquea el cierre de 0.4 track B5 (job `conformance`)
-- **Fecha:** 2026-10-29
+- **Estado:** Aceptado
+- **Fecha:** 2026-10-29 (decidido 2026-10-29)
 - **Decide:** Luciano Arrezze
 - **Afecta a:** `.github/workflows/ci.yml` (job `conformance`), `tools/oasdiff-err-ignore.txt`, `src/BuildingBlocks/Nexus.BuildingBlocks.Web/OpenApi/` (`PermissionOpenApiOperationTransformer` y hermanos), todo paso con endpoints validados por FluentValidation — en la práctica, 0.4 en adelante
 
@@ -23,9 +23,11 @@ El job `conformance` (añadido en 0.5 track B5) arranca el servicio real, descar
 
 Ninguno de estos 214 hallazgos es una regresión real de forma: el contrato (`contracts/openapi/platform.yaml`) describe exactamente lo que los handlers ya validan en tiempo de ejecución (confirmado leyendo cada validador citado arriba). El problema es que el documento que el servicio **genera y publica** en `/openapi/v1.json` no lo refleja, y el job `conformance` compara literalmente ese documento generado, no el comportamiento real — el mismo patrón que ya motivó la nota en `tools/oasdiff-err-ignore.txt` para la seguridad, ahora a una escala que una lista de excepciones manual no puede seguir absorbiendo línea a línea sin perder su propósito (el propio encabezado del fichero advierte contra "una línea para hacer desaparecer un hallazgo no examinado uno a uno"): cada paso futuro con FluentValidation añadirá su propio lote de hallazgos idénticos en naturaleza.
 
-## Decisión propuesta (a confirmar)
+## Decisión
 
 Construir un transformador de OpenAPI (`IOpenApiOperationTransformer`/`IOpenApiSchemaTransformer`, mismo mecanismo que ya usa `PermissionOpenApiOperationTransformer` en `Nexus.BuildingBlocks.Web/OpenApi/`) que inspeccione los `AbstractValidator<T>` de FluentValidation registrados para cada tipo de petición/respuesta y proyecte sus reglas al esquema generado: `RuleFor(...).GreaterThanOrEqualTo`/`InclusiveBetween` → `minimum`/`maximum`; `.Must(value => value is "A" or "B")` sobre una lista fija → `enum`; una regla de "no vacío"/presencia de una clave fija (como `MustHaveGermanCaption`) → `required`; patrones de regex ya usados en `.Matches(...)` → `pattern`. Esto cierra el gap de raíz, una vez, en el building block compartido — en vez de en cada servicio o en una lista de excepciones que crece sin límite.
+
+Alcance explícito: esta decisión cubre solo los hallazgos de **forma** (las categorías de la tabla de arriba salvo `api-security-anonymous-access-removed`). El gap de seguridad (`x-permission` sin `security`/`securitySchemes` estándar) es un problema distinto, ya aceptado desde 0.5 para `GET /v1/me` vía una línea en `tools/oasdiff-err-ignore.txt` cuyo propio encabezado ya anticipaba "cada endpoint protegido solo por `x-permission` necesitará su propia línea hasta que esa corrección llegue" — así que las 36 líneas nuevas de seguridad para los endpoints de 0.4 siguen ese patrón ya aceptado, no abren una decisión nueva.
 
 ## Alternativas descartadas (a valorar)
 
@@ -37,9 +39,9 @@ Construir un transformador de OpenAPI (`IOpenApiOperationTransformer`/`IOpenApiS
 
 ## Consecuencias
 
-- Con la decisión propuesta: un único punto de mantenimiento (el transformer) en vez de una lista de excepciones por endpoint; cada paso futuro con FluentValidation se beneficia automáticamente, sin trabajo adicional en su propio track B.
-- Coste: trabajo nivel 3 (nx-architect) en un building block compartido, antes de que 0.4 track B pueda cerrar su job `conformance` en verde sin más líneas de ignore-file.
-- Mientras este ADR esté en `Propuesto`, 0.4 track B5 no añade las 214 líneas al ignore-file ni debilita el job — se documenta aquí como hallazgo abierto y el cierre de B5 (PR, `Gate`) queda a la espera de esta decisión.
+- Un único punto de mantenimiento (el transformer) en vez de una lista de excepciones por endpoint; cada paso futuro con FluentValidation se beneficia automáticamente, sin trabajo adicional en su propio track B.
+- Coste: trabajo nivel 3 (nx-architect) en un building block compartido, antes de que 0.4 track B pueda cerrar su job `conformance` en verde.
+- Las 36 líneas de seguridad (`api-security-anonymous-access-removed`) para los endpoints nuevos de 0.4 sí se añaden a `tools/oasdiff-err-ignore.txt`, siguiendo el patrón ya aceptado para `GET /v1/me` — no requieren una decisión nueva.
 
 ## Cómo se verifica
 
