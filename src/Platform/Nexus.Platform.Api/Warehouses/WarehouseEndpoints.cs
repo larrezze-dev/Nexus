@@ -6,6 +6,7 @@ using Nexus.BuildingBlocks.Domain;
 using Nexus.BuildingBlocks.Web.Authorization;
 using Nexus.BuildingBlocks.Web.ErrorHandling;
 using Nexus.BuildingBlocks.Web.Http;
+using Nexus.BuildingBlocks.Web.OpenApi;
 using Nexus.Platform.Api.Users;
 using Nexus.Platform.Application.Warehouses;
 using Nexus.Platform.Application.Warehouses.CreateWarehouse;
@@ -30,11 +31,13 @@ public static class WarehouseEndpoints
 
         group.MapGet(string.Empty, ListWarehouses)
             .WithName("listWarehouses")
+            .ValidatedBy<GetWarehousesQuery>()
             .RequirePermission("ORG_STRUCTURE", PermissionAction.Read)
             .WithScope("none");
 
         group.MapPost(string.Empty, CreateWarehouse)
             .WithName("createWarehouse")
+            .ValidatedBy<CreateWarehouseCommand>()
             .RequirePermission("ORG_STRUCTURE", PermissionAction.Create)
             .WithScope("none")
             .WithRules("ORG-R3");
@@ -46,6 +49,7 @@ public static class WarehouseEndpoints
 
         group.MapPut("/{id:guid}", UpdateWarehouse)
             .WithName("updateWarehouse")
+            .ValidatedBy<UpdateWarehouseCommand>()
             .RequirePermission("ORG_STRUCTURE", PermissionAction.Update)
             .WithScope("none")
             .WithRules("ORG-R3");

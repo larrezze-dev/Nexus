@@ -6,6 +6,7 @@ using Nexus.BuildingBlocks.Domain;
 using Nexus.BuildingBlocks.Web.Authorization;
 using Nexus.BuildingBlocks.Web.ErrorHandling;
 using Nexus.BuildingBlocks.Web.Http;
+using Nexus.BuildingBlocks.Web.OpenApi;
 using Nexus.Platform.Api.Users;
 using Nexus.Platform.Application.Groups;
 using Nexus.Platform.Application.Groups.CreateGroup;
@@ -30,11 +31,13 @@ public static class GroupEndpoints
 
         group.MapGet(string.Empty, ListGroups)
             .WithName("listGroups")
+            .ValidatedBy<GetGroupsQuery>()
             .RequirePermission("ORG_STRUCTURE", PermissionAction.Read)
             .WithScope("none");
 
         group.MapPost(string.Empty, CreateGroup)
             .WithName("createGroup")
+            .ValidatedBy<CreateGroupCommand>()
             .RequirePermission("ORG_STRUCTURE", PermissionAction.Create)
             .WithScope("none")
             .WithRules("ORG-R1", "ORG-R7");
@@ -46,6 +49,7 @@ public static class GroupEndpoints
 
         group.MapPut("/{id:guid}", UpdateGroup)
             .WithName("updateGroup")
+            .ValidatedBy<UpdateGroupCommand>()
             .RequirePermission("ORG_STRUCTURE", PermissionAction.Update)
             .WithScope("none")
             .WithRules("ORG-R7");

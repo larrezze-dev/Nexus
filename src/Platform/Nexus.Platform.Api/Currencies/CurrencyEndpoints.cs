@@ -4,6 +4,7 @@ using Nexus.BuildingBlocks.Application.Paging;
 using Nexus.BuildingBlocks.Web.Authorization;
 using Nexus.BuildingBlocks.Web.ErrorHandling;
 using Nexus.BuildingBlocks.Web.Http;
+using Nexus.BuildingBlocks.Web.OpenApi;
 using Nexus.Platform.Api.Users;
 using Nexus.Platform.Application.Currencies;
 using Nexus.Platform.Application.Currencies.GetCurrencies;
@@ -29,6 +30,7 @@ public static class CurrencyEndpoints
 
         group.MapGet(string.Empty, ListCurrencies)
             .WithName("listCurrencies")
+            .ValidatedBy<GetCurrenciesQuery>()
             .RequirePermission("CURRENCY", PermissionAction.Read)
             .WithScope("none");
 
@@ -39,6 +41,7 @@ public static class CurrencyEndpoints
 
         group.MapPut("/{code}", UpdateCurrency)
             .WithName("updateCurrency")
+            .ValidatedBy<UpdateCurrencyCommand>()
             .RequirePermission("CURRENCY", PermissionAction.Update)
             .WithScope("none")
             .WithRules("ORG-R7");
