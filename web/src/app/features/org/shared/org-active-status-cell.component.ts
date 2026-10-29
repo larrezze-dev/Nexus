@@ -1,4 +1,4 @@
-import { Component } from '@angular/core';
+import { Component, signal } from '@angular/core';
 import type { ICellRendererAngularComp } from 'ag-grid-angular';
 import type { ICellRendererParams } from 'ag-grid-community';
 import { NxStatusBadgeComponent } from '../../../shared/ui/nx-status-badge/nx-status-badge.component';
@@ -17,17 +17,17 @@ import { NxStatusBadgeComponent } from '../../../shared/ui/nx-status-badge/nx-st
   selector: 'nx-org-active-status-cell',
   standalone: true,
   imports: [NxStatusBadgeComponent],
-  template: `<nx-status-badge [status]="status" />`,
+  template: `<nx-status-badge [status]="status()" />`,
 })
 export class OrgActiveStatusCellComponent<T> implements ICellRendererAngularComp {
-  protected status: 'active' | 'inactive' = 'inactive';
+  protected readonly status = signal<'active' | 'inactive'>('inactive');
 
   agInit(params: ICellRendererParams<T, boolean>): void {
-    this.status = params.value ? 'active' : 'inactive';
+    this.status.set(params.value ? 'active' : 'inactive');
   }
 
   refresh(params: ICellRendererParams<T, boolean>): boolean {
-    this.status = params.value ? 'active' : 'inactive';
+    this.status.set(params.value ? 'active' : 'inactive');
     return true;
   }
 }
