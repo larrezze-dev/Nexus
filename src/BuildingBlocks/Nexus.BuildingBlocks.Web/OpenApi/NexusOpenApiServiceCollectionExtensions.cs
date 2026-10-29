@@ -6,9 +6,17 @@ namespace Nexus.BuildingBlocks.Web.OpenApi;
 /// <summary>
 /// Registers the OpenAPI document generation (<c>Microsoft.AspNetCore.OpenApi</c>) that every
 /// NEXUS HTTP service exposes at <c>/openapi/{documentName}.json</c> (mapped with
-/// <c>app.MapOpenApi()</c>), with <see cref="PermissionOpenApiOperationTransformer"/> wired in
-/// so the generated document carries the same `x-permission`/`x-scope`/`x-rules` extensions as
-/// the committed contract (conventions-api.md §3).
+/// <c>app.MapOpenApi()</c>), with these transformers wired in:
+/// <list type="bullet">
+///   <item><see cref="PermissionOpenApiOperationTransformer"/>: the same
+///   `x-permission`/`x-scope`/`x-rules` extensions as the committed contract
+///   (conventions-api.md §3).</item>
+///   <item><see cref="FluentValidationOpenApiOperationTransformer"/>: the FluentValidation rules
+///   of each endpoint declared with <c>.ValidatedBy&lt;T&gt;()</c>, as schema constraints
+///   (ADR-0014).</item>
+///   <item><see cref="ResponseNumberOpenApiSchemaTransformer"/>: numbers in response-only types
+///   described as the JSON numbers the service actually writes (ADR-0014).</item>
+/// </list>
 /// </summary>
 public static class NexusOpenApiServiceCollectionExtensions
 {
@@ -22,6 +30,8 @@ public static class NexusOpenApiServiceCollectionExtensions
         services.AddOpenApi(documentName, options =>
         {
             options.AddOperationTransformer<PermissionOpenApiOperationTransformer>();
+            options.AddOperationTransformer<FluentValidationOpenApiOperationTransformer>();
+            options.AddSchemaTransformer<ResponseNumberOpenApiSchemaTransformer>();
         });
 
         return services;
