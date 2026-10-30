@@ -58,6 +58,16 @@ public sealed class UnitOfWork : IUnitOfWork
 
     public async Task BeginAsync(CancellationToken cancellationToken = default)
     {
+        // Idempotent while active: the permission filter (AccessPermissionChecker, step 0.6)
+        // opens the request's transaction before the handler runs, and the handler then calls
+        // BeginAsync on the same scoped instance. The second call must reuse the transaction
+        // (same connection, same SET LOCAL session) instead of failing or re-running BEGIN.
+        if (_state == State.Active)
+        {
+            return;
+        }
+
+        // Still single-use once finished: re-beginning after commit/rollback is a bug.
         if (_state != State.NotStarted)
         {
             throw new InvalidOperationException($"The unit of work is single-use and is already {_state}.");

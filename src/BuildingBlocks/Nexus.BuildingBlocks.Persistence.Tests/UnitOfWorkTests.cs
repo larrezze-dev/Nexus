@@ -252,6 +252,44 @@ public sealed class UnitOfWorkTests(PersistenceDatabaseFixture db) : IAsyncLifet
         await Should.ThrowAsync<InvalidOperationException>(() => uow.BeginAsync(Ct));
     }
 
+    // Step 0.6: the permission filter begins the request's transaction before the handler,
+    // which calls BeginAsync again on the same scoped instance; that second call is a no-op.
+    [Fact]
+    public async Task BeginAsync_WhileActive_IsANoOpThatKeepsTheSameTransactionAndSession()
+    {
+        await using var uow = db.CreateUnitOfWork(_dataSource, _userId, _correlationId);
+        await uow.BeginAsync(Ct);
+        var connection = uow.Connection;
+        var transaction = uow.Transaction;
+
+        await using (var cmd = new NpgsqlCommand("CREATE TEMP TABLE uow_marker (x int) ON COMMIT DROP", uow.Connection, uow.Transaction))
+        {
+            await cmd.ExecuteNonQueryAsync(Ct);
+        }
+
+        await uow.BeginAsync(Ct);
+
+        uow.IsActive.ShouldBeTrue();
+        uow.Connection.ShouldBeSameAs(connection);
+        uow.Transaction.ShouldBeSameAs(transaction);
+
+        await using (var cmd = new NpgsqlCommand(
+                         "SELECT current_setting('app.current_user_id', true), current_setting('app.correlation_id', true), " +
+                         "(SELECT count(*) FROM uow_marker)",
+                         uow.Connection,
+                         uow.Transaction))
+        await using (var reader = await cmd.ExecuteReaderAsync(Ct))
+        {
+            (await reader.ReadAsync(Ct)).ShouldBeTrue();
+            reader.GetString(0).ShouldBe(_userId.ToString("D"));
+            reader.GetString(1).ShouldBe(_correlationId.ToString("D"));
+            reader.GetInt64(2).ShouldBe(0); // same transaction: the temp table created before is still visible
+        }
+
+        await uow.CommitAsync(Ct);
+        await Should.ThrowAsync<InvalidOperationException>(() => uow.BeginAsync(Ct));
+    }
+
     // EV-R3 support: rows of one unit of work come out of ORDER BY (created_at, id) in raise order.
     [Fact]
     public async Task ManyEventsOfOneAggregate_KeepRaiseOrderUnderRelayOrdering()
