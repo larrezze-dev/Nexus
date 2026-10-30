@@ -1726,6 +1726,7 @@ paths:
               example:
                 id: "018f1a3c-7e3b-7c5a-9c2e-6a2f8e9b0c80"
                 partyId: "018f1a3c-7e3b-7c5a-9c2e-6a2f8e9b0c13"
+                oid: "a1b2c3d4-0000-0000-0000-000000000001"
                 fullName: "Jane Doe"
                 email: "jane.doe@nussli.ch"
                 preferredLanguage: "en"
@@ -1750,6 +1751,7 @@ paths:
               example:
                 id: "018f1a3c-7e3b-7c5a-9c2e-6a2f8e9b0c80"
                 partyId: "018f1a3c-7e3b-7c5a-9c2e-6a2f8e9b0c13"
+                oid: "a1b2c3d4-0000-0000-0000-000000000001"
                 fullName: "Jane Doe"
                 email: "jane.doe@nussli.ch"
                 preferredLanguage: "en"
@@ -1793,6 +1795,7 @@ paths:
               example:
                 id: "018f1a3c-7e3b-7c5a-9c2e-6a2f8e9b0c80"
                 partyId: "018f1a3c-7e3b-7c5a-9c2e-6a2f8e9b0c13"
+                oid: "a1b2c3d4-0000-0000-0000-000000000001"
                 fullName: "Jane Doe"
                 email: "jane.doe@nussli.ch"
                 preferredLanguage: "en"
@@ -1843,6 +1846,7 @@ paths:
               example:
                 id: "018f1a3c-7e3b-7c5a-9c2e-6a2f8e9b0c80"
                 partyId: "018f1a3c-7e3b-7c5a-9c2e-6a2f8e9b0c13"
+                oid: "a1b2c3d4-0000-0000-0000-000000000001"
                 fullName: "Jane Doe"
                 email: "jane.doe@nussli.ch"
                 preferredLanguage: "en"
@@ -1890,6 +1894,7 @@ paths:
               example:
                 id: "018f1a3c-7e3b-7c5a-9c2e-6a2f8e9b0c80"
                 partyId: "018f1a3c-7e3b-7c5a-9c2e-6a2f8e9b0c13"
+                oid: "a1b2c3d4-0000-0000-0000-000000000001"
                 fullName: "Jane Doe"
                 email: "jane.doe@nussli.ch"
                 preferredLanguage: "en"
@@ -2261,7 +2266,7 @@ components:
         updatedAt:
           type: string
           format: date-time
-      required: [id, partyType, legalName, isInternal, isActive]
+      required: [id, partyType, legalName, isInternal, isActive, displayName, taxId, erpCompanyCode, createdAt, updatedAt]
 
     PartyListItem:
       type: object
@@ -2342,7 +2347,7 @@ components:
         updatedAt:
           type: string
           format: date-time
-      required: [id, partyId, code, consolidationMethod, reportingCurrencyCode]
+      required: [id, partyId, code, consolidationMethod, reportingCurrencyCode, createdAt, updatedAt]
 
     GroupListItem:
       type: object
@@ -2423,7 +2428,7 @@ components:
         updatedAt:
           type: string
           format: date-time
-      required: [id, partyId, groupId, code, currencyCode, countryCode, isActive]
+      required: [id, partyId, groupId, code, currencyCode, countryCode, isActive, createdAt, updatedAt]
 
     LegalEntityListItem:
       type: object
@@ -2507,7 +2512,7 @@ components:
         updatedAt:
           type: string
           format: date-time
-      required: [id, partyId, legalEntityId, code, captionI18n, isActive]
+      required: [id, partyId, legalEntityId, code, captionI18n, isActive, costCenterCode, createdAt, updatedAt]
 
     BusinessUnitListItem:
       type: object
@@ -2590,7 +2595,7 @@ components:
         updatedAt:
           type: string
           format: date-time
-      required: [id, name, countryCode, isActive]
+      required: [id, name, countryCode, isActive, code, street, postalCode, city, region, createdAt, updatedAt]
 
     LocationListItem:
       type: object
@@ -2679,7 +2684,7 @@ components:
         updatedAt:
           type: string
           format: date-time
-      required: [id, locationId, legalEntityId, code, captionI18n, isActive]
+      required: [id, locationId, legalEntityId, code, captionI18n, isActive, businessUnitId, createdAt, updatedAt]
 
     WarehouseListItem:
       type: object
@@ -2765,7 +2770,7 @@ components:
         updatedAt:
           type: string
           format: date-time
-      required: [id, partyId, fullName, preferredLanguage, isActive]
+      required: [id, partyId, fullName, preferredLanguage, isActive, oid, email, businessUnitId, createdAt, updatedAt]
 
     UserListItem:
       type: object
@@ -2850,6 +2855,7 @@ components:
         minorUnits:
           type: integer
           minimum: 0
+          format: int16
         isActive:
           type: boolean
       required: [code, captionI18n, minorUnits, isActive]
@@ -2865,6 +2871,7 @@ components:
         minorUnits:
           type: integer
           minimum: 0
+          format: int16
         isActive:
           type: boolean
       required: [code, captionI18n, minorUnits, isActive]
@@ -2924,4 +2931,4 @@ components:
           description: Vacía hasta el paso 0.6.
           items:
             type: string
-      required: [subject, oid, displayName, preferredLanguage, provisioned, permissions]
+      required: [subject, oid, displayName, preferredLanguage, provisioned, permissions, email, userId, partyId, businessUnitId]
