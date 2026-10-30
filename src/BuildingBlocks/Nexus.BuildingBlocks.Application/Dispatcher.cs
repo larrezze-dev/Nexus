@@ -9,7 +9,8 @@ namespace Nexus.BuildingBlocks.Application;
 /// <see cref="ICommandHandler{TCommand,TResult}"/>/<see cref="IQueryHandler{TQuery,TResult}"/>
 /// for the request's runtime type via <see cref="IServiceProvider"/>, runs the matching
 /// <see cref="IValidator{T}"/> (if any) before calling the handler, and reports validation
-/// failures as <c>Result.Failure</c> with <see cref="Error.Code"/> <c>"validation"</c>.
+/// failures as <c>Result.Failure</c> with <see cref="Error.Code"/> <see cref="ErrorCodes.Validation"/>
+/// (<c>"validation"</c>), which the web layer maps to 400.
 ///
 /// Missing handler registrations are a programming error (a command/query with no handler
 /// wired up in DI), not a business outcome, so they throw instead of returning a
@@ -87,7 +88,7 @@ internal sealed class Dispatcher : IDispatcher
         }
 
         var message = string.Join("; ", validationResult.Errors.Select(failure => $"{failure.PropertyName}: {failure.ErrorMessage}"));
-        return Result.Failure<TResult>(new Error("validation", message));
+        return Result.Failure<TResult>(Error.Validation(message));
     }
 
     /// <summary>

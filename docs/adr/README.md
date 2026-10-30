@@ -19,5 +19,6 @@ Antes de lanzar 0.1 tienen que estar en `Aceptado` los ADR 0001–0010. El 0011 
 | [0011](0011-azure-hosting.md) | Hosting en Azure (cómputo, Kafka, ClickHouse) | Propuesto ⚑ abierto | 0.11 |
 | [0012](0012-solver-planning-model.md) | Interfaz y modelo de planificación del Solver | Propuesto | 4.4 |
 | [0013](0013-outbox-payload-column-type.md) | Tipo de columna para `outbox.message.payload` | Aceptado | 0.3, implementar antes de 0.4 |
+| [0014](0014-openapi-conformance-vs-fluentvalidation.md) | Conformidad OpenAPI del servicio vs. reglas de FluentValidation | Aceptado | 0.4 (track B5), todo paso con FluentValidation |
 
 Para un ADR nuevo: copiar `0000-template.md`, siguiente número libre, estado `Propuesto`, y añadir la fila aquí.

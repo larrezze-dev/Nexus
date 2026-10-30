@@ -1,6 +1,7 @@
-using System.Globalization;
-using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Http.HttpResults;
 using Nexus.BuildingBlocks.Application;
+using Nexus.BuildingBlocks.Web.ErrorHandling;
+using Nexus.Platform.Application.Session.GetCurrentUser;
 
 namespace Nexus.Platform.Api.Session;
 
@@ -13,74 +14,60 @@ public static class GetMe
     /// <summary>JWT claim carrying the email (Keycloak/Entra ID standard claim).</summary>
     private const string EmailClaim = "email";
 
-    /// <summary>JWT claim carrying the preferred UI language, when the IdP sends one.</summary>
-    private const string LocaleClaim = "locale";
-
-    /// <summary>Fallback `preferredLanguage` ("del token o `de`", ficha 0.5) when the token has
-    /// no <see cref="LocaleClaim"/>, or when it has one outside <see cref="SupportedLanguages"/>.</summary>
-    private const string DefaultPreferredLanguage = "de";
-
-    /// <summary>The exact `enum` the contract declares for `Me.preferredLanguage`
-    /// (contracts/openapi/platform.yaml). An IdP-supplied locale that isn't a 2-letter
-    /// prefix of one of these (e.g. Entra ID's `de-CH`, `en-US`, or an unsupported `pt`)
-    /// must fall back to <see cref="DefaultPreferredLanguage"/> instead of leaking out of
-    /// contract, since this response is never schema-validated at runtime.</summary>
-    private static readonly HashSet<string> SupportedLanguages = ["de", "en", "fr", "it", "es"];
-
     /// <summary>
-    /// Builds the <see cref="MeResponse"/> from the validated JWT. <see cref="ICurrentUser"/>
-    /// only exposes <c>Oid</c>/<c>Subject</c>/<c>UserId</c> (always <see langword="null"/> in
-    /// this step, BE-R1) - <paramref name="httpContext"/> is read directly for the other
-    /// claims (`name`, `email`, `locale`) because they are not part of that interface yet.
+    /// Builds the <see cref="MeResponse"/> (contract version 0.4):
     /// <list type="bullet">
-    ///   <item><c>subject</c>/<c>oid</c> are required non-null strings in the contract; an
-    ///   authenticated request always has at least a `sub` claim (the token would not have
-    ///   validated otherwise), so the empty-string fallback only guards the (today impossible)
-    ///   case of a missing `oid` claim.</item>
-    ///   <item><c>displayName</c> is required too: it falls back to `subject` when the token
-    ///   has no `name` claim.</item>
+    ///   <item>By the time this runs, <c>IdentityResolutionMiddleware</c> has already resolved
+    ///   the token's <c>oid</c> to an active <c>org.app_user</c>, or answered 403
+    ///   <c>user_not_provisioned</c> without calling this handler (ADR-0006). So the response is
+    ///   always <c>provisioned: true</c>, never 200 with <c>false</c>.</item>
+    ///   <item><c>userId</c>/<c>partyId</c>/<c>businessUnitId</c>/<c>preferredLanguage</c> come
+    ///   from <c>org.app_user</c>, read in a regular unit of work (<see cref="GetCurrentUserQuery"/>).
+    ///   If the user was deactivated between the resolution and that read, the answer is the
+    ///   same 403.</item>
+    ///   <item><c>subject</c>/<c>oid</c>/<c>displayName</c>/<c>email</c> stay token data, as the
+    ///   contract documents (<c>email</c>: "tomado del token, no de app_user");
+    ///   <c>displayName</c> falls back to <c>subject</c> without a <c>name</c> claim.</item>
+    ///   <item><c>permissions</c> stays empty until step 0.6.</item>
     /// </list>
     /// </summary>
-    public static IResult Handle(HttpContext httpContext, ICurrentUser currentUser)
+    public static async Task<Results<Ok<MeResponse>, ProblemHttpResult>> Handle(
+        HttpContext httpContext,
+        ICurrentUser currentUser,
+        IDispatcher dispatcher,
+        CancellationToken cancellationToken)
     {
-        var principal = httpContext.User;
+        ArgumentNullException.ThrowIfNull(httpContext);
+        ArgumentNullException.ThrowIfNull(currentUser);
+        ArgumentNullException.ThrowIfNull(dispatcher);
 
-        var subject = currentUser.Subject ?? string.Empty;
-        var oid = currentUser.Oid ?? string.Empty;
-        var displayName = principal.FindFirst(NameClaim)?.Value ?? subject;
-        var email = principal.FindFirst(EmailClaim)?.Value;
-        var preferredLanguage = NormalizePreferredLanguage(principal.FindFirst(LocaleClaim)?.Value);
-
-        var response = new MeResponse(
-            Subject: subject,
-            Oid: oid,
-            DisplayName: displayName,
-            Email: email,
-            UserId: null,
-            PartyId: null,
-            BusinessUnitId: null,
-            PreferredLanguage: preferredLanguage,
-            Provisioned: false,
-            Permissions: []);
-
-        return Results.Ok(response);
-    }
-
-    /// <summary>
-    /// Maps an IdP `locale` claim (e.g. `de-CH`, `en-US`, `pt`) to the contract's
-    /// `preferredLanguage` enum: the lower-cased 2-letter language prefix if it is one of
-    /// <see cref="SupportedLanguages"/>, otherwise <see cref="DefaultPreferredLanguage"/>.
-    /// </summary>
-    private static string NormalizePreferredLanguage(string? locale)
-    {
-        if (string.IsNullOrWhiteSpace(locale))
+        if (currentUser.UserId is null)
         {
-            return DefaultPreferredLanguage;
+            // Unreachable behind IdentityResolutionMiddleware; kept so the handler never
+            // reports an unresolved caller as provisioned if the pipeline is ever miswired.
+            return NexusProblems.UserNotProvisioned();
         }
 
-        var prefix = locale.Length >= 2 ? locale[..2] : locale;
-        var normalized = prefix.ToLower(CultureInfo.InvariantCulture);
+        var profile = await dispatcher.Send(new GetCurrentUserQuery(), cancellationToken);
+        if (profile.IsFailure)
+        {
+            return NexusProblems.UserNotProvisioned();
+        }
 
-        return SupportedLanguages.Contains(normalized) ? normalized : DefaultPreferredLanguage;
+        var principal = httpContext.User;
+        var subject = currentUser.Subject ?? string.Empty;
+        var me = profile.Value;
+
+        return TypedResults.Ok(new MeResponse(
+            Subject: subject,
+            Oid: currentUser.Oid ?? string.Empty,
+            DisplayName: principal.FindFirst(NameClaim)?.Value ?? subject,
+            Email: principal.FindFirst(EmailClaim)?.Value,
+            UserId: me.UserId,
+            PartyId: me.PartyId,
+            BusinessUnitId: me.BusinessUnitId,
+            PreferredLanguage: me.PreferredLanguage,
+            Provisioned: true,
+            Permissions: []));
     }
 }

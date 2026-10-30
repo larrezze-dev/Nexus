@@ -46,4 +46,18 @@ public interface ICurrentUser
     /// without a non-empty value (BE-R1).
     /// </summary>
     Guid? UserId { get; }
+
+    /// <summary>
+    /// The <c>org.party</c> (always a <c>PERSON</c>, ORG-R4) behind <see cref="UserId"/>:
+    /// <c>org.app_user.party_id</c>. Resolved together with <see cref="UserId"/>, from the same
+    /// row, so both are either set or <see langword="null"/>.
+    /// </summary>
+    Guid? PartyId { get; }
+
+    /// <summary>
+    /// The user's home business unit (<c>org.app_user.business_unit_id</c>). Optional in the
+    /// data model, so it can be <see langword="null"/> even for a resolved user; always
+    /// <see langword="null"/> when <see cref="UserId"/> is.
+    /// </summary>
+    Guid? BusinessUnitId { get; }
 }

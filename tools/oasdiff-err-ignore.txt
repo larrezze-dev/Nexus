@@ -35,3 +35,66 @@
 # endpoint, so a genuine regression — a currently `security`-documented endpoint losing
 # its requirement — still fails the job).
 GET /v1/me the endpoint no longer allows anonymous access and now only accepts `bearerAuth`
+
+# --- nexus-platform: step 0.4 org CRUD endpoints ---------------------------------------
+# Step 0.4 track B: same finding and same root cause as GET /v1/me above, now for every org
+# endpoint 0.4 implements. Each is guarded at runtime by .RequirePermission(...) (authenticated
+# + RESOURCE:ACTION), but PermissionOpenApiOperationTransformer only writes `x-permission`, never
+# a standard `security` requirement, so oasdiff reads the generated document as "anonymous
+# access allowed" while contracts/openapi/platform.yaml inherits the top-level `bearerAuth`.
+# Reproduced locally one by one (`oasdiff breaking` against the real service, ADR-0014 recipe);
+# 36 operations, one line each, as the GET /v1/me note anticipated. Not covered by ADR-0014
+# (which is about FluentValidation shape findings only): emitting standard `security` from the
+# service is a separate, still-open decision.
+
+# Business units (x-permission ORG_STRUCTURE:READ/CREATE/UPDATE)
+GET /v1/business-units the endpoint no longer allows anonymous access and now only accepts `bearerAuth`
+POST /v1/business-units the endpoint no longer allows anonymous access and now only accepts `bearerAuth`
+GET /v1/business-units/{id} the endpoint no longer allows anonymous access and now only accepts `bearerAuth`
+PUT /v1/business-units/{id} the endpoint no longer allows anonymous access and now only accepts `bearerAuth`
+POST /v1/business-units/{id}/deactivate the endpoint no longer allows anonymous access and now only accepts `bearerAuth`
+
+# Currencies (x-permission CURRENCY:READ/UPDATE; no create, currencies are seeded)
+GET /v1/currencies the endpoint no longer allows anonymous access and now only accepts `bearerAuth`
+GET /v1/currencies/{code} the endpoint no longer allows anonymous access and now only accepts `bearerAuth`
+PUT /v1/currencies/{code} the endpoint no longer allows anonymous access and now only accepts `bearerAuth`
+
+# Groups (x-permission ORG_STRUCTURE:READ/CREATE/UPDATE; no deactivate)
+GET /v1/groups the endpoint no longer allows anonymous access and now only accepts `bearerAuth`
+POST /v1/groups the endpoint no longer allows anonymous access and now only accepts `bearerAuth`
+GET /v1/groups/{id} the endpoint no longer allows anonymous access and now only accepts `bearerAuth`
+PUT /v1/groups/{id} the endpoint no longer allows anonymous access and now only accepts `bearerAuth`
+
+# Legal entities (x-permission ORG_STRUCTURE:READ/CREATE/UPDATE)
+GET /v1/legal-entities the endpoint no longer allows anonymous access and now only accepts `bearerAuth`
+POST /v1/legal-entities the endpoint no longer allows anonymous access and now only accepts `bearerAuth`
+GET /v1/legal-entities/{id} the endpoint no longer allows anonymous access and now only accepts `bearerAuth`
+PUT /v1/legal-entities/{id} the endpoint no longer allows anonymous access and now only accepts `bearerAuth`
+POST /v1/legal-entities/{id}/deactivate the endpoint no longer allows anonymous access and now only accepts `bearerAuth`
+
+# Locations (x-permission ORG_STRUCTURE:READ/CREATE/UPDATE; no deactivate)
+GET /v1/locations the endpoint no longer allows anonymous access and now only accepts `bearerAuth`
+POST /v1/locations the endpoint no longer allows anonymous access and now only accepts `bearerAuth`
+GET /v1/locations/{id} the endpoint no longer allows anonymous access and now only accepts `bearerAuth`
+PUT /v1/locations/{id} the endpoint no longer allows anonymous access and now only accepts `bearerAuth`
+
+# Parties (x-permission PARTY:READ/CREATE/UPDATE)
+GET /v1/parties the endpoint no longer allows anonymous access and now only accepts `bearerAuth`
+POST /v1/parties the endpoint no longer allows anonymous access and now only accepts `bearerAuth`
+GET /v1/parties/{id} the endpoint no longer allows anonymous access and now only accepts `bearerAuth`
+PUT /v1/parties/{id} the endpoint no longer allows anonymous access and now only accepts `bearerAuth`
+POST /v1/parties/{id}/deactivate the endpoint no longer allows anonymous access and now only accepts `bearerAuth`
+
+# Users (x-permission USER:READ/CREATE/UPDATE)
+GET /v1/users the endpoint no longer allows anonymous access and now only accepts `bearerAuth`
+POST /v1/users the endpoint no longer allows anonymous access and now only accepts `bearerAuth`
+GET /v1/users/{id} the endpoint no longer allows anonymous access and now only accepts `bearerAuth`
+PUT /v1/users/{id} the endpoint no longer allows anonymous access and now only accepts `bearerAuth`
+POST /v1/users/{id}/deactivate the endpoint no longer allows anonymous access and now only accepts `bearerAuth`
+
+# Warehouses (x-permission ORG_STRUCTURE:READ/CREATE/UPDATE)
+GET /v1/warehouses the endpoint no longer allows anonymous access and now only accepts `bearerAuth`
+POST /v1/warehouses the endpoint no longer allows anonymous access and now only accepts `bearerAuth`
+GET /v1/warehouses/{id} the endpoint no longer allows anonymous access and now only accepts `bearerAuth`
+PUT /v1/warehouses/{id} the endpoint no longer allows anonymous access and now only accepts `bearerAuth`
+POST /v1/warehouses/{id}/deactivate the endpoint no longer allows anonymous access and now only accepts `bearerAuth`

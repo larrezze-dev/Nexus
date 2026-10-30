@@ -6,8 +6,16 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="FluentValidation" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\Nexus.Platform.Domain\Nexus.Platform.Domain.csproj" />
     <ProjectReference Include="..\..\BuildingBlocks\Nexus.BuildingBlocks.Application\Nexus.BuildingBlocks.Application.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="Nexus.Platform.Tests" />
   </ItemGroup>
 
 </Project>
