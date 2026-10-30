@@ -30,12 +30,17 @@ CREATE TABLE test.rls_probe (
 ALTER TABLE test.rls_probe ENABLE ROW LEVEL SECURITY;
 ALTER TABLE test.rls_probe FORCE  ROW LEVEL SECURITY;
 
--- USAGE ON SCHEMA test was never granted to any service role by
--- V202610231002__test__probe.sql (0.3) either -- table-level grants alone
--- are not enough to reach a table in a schema without USAGE. Granted here,
--- scoped to this file, rather than touching the already-applied 0.3 file.
-GRANT USAGE ON SCHEMA test TO
-  svc_platform, svc_catalog, svc_operations, svc_commercial, svc_resources, svc_controlling, svc_field;
-
-GRANT INSERT, SELECT, UPDATE, DELETE ON test.rls_probe TO
-  svc_platform, svc_catalog, svc_operations, svc_commercial, svc_resources, svc_controlling, svc_field;
+-- No GRANT to any svc_* role here, on purpose (corrected after CI caught
+-- the regression this caused): V202610231002__test__probe.sql (0.3)
+-- deliberately holds `svc_platform`/`svc_catalog` to zero access on schema
+-- `test` ("defense in depth" -- see ForbidMutationTests.cs and
+-- RolePrivilegeTests.cs' SvcCatalog_CannotInsertIntoForeignSchema, which
+-- assert the exact "permission denied for schema test" message). Granting
+-- schema USAGE here to make rls_probe reachable would silently change that
+-- message for every service role holding it, breaking those exact-match
+-- assertions without changing what they're actually testing. RLS itself
+-- does not need a service-role grant to be exercised: FORCE ROW LEVEL
+-- SECURITY applies to nexus_owner too, so Track B drives this probe via the
+-- owner connection with varying `app.current_user_id`, the same pattern
+-- ForbidMutationTests.cs already uses for its owner-side checks
+-- (RuntimeTestSchema.OpenAsOwnerAsync).
