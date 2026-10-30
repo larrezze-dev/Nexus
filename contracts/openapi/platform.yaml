@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: NEXUS Platform API
-  version: "0.5.0"
+  version: "0.6.0"
   description: >
     Servicio `nexus-platform`: estructura organizativa (`org`) de NEXUS —
     directorio de Parties, Groups, Legal Entities, Business Units,
@@ -12,7 +12,10 @@ info:
     ejecutó; 0.5 (track C) solo amplió `servers`/`securitySchemes`
     (`oidc`), sin recrear esas dos operaciones. Las operaciones de
     tipos de cambio, conversión de moneda y direcciones/relaciones de
-    Party llegan en el paso 1.1.
+    Party llegan en el paso 1.1. El paso 0.6 añade autorización
+    (`docs/domain/access.md`): `Permission`, `Role`, `RoleAssignment`,
+    el alcance efectivo de un usuario, y completa `Me.permissions`
+    (vacío hasta ahora).
   contact:
     name: NEXUS Platform Team
     email: nexus-platform@nussli.ch
@@ -44,6 +47,10 @@ tags:
     description: Usuarios de la aplicación.
   - name: Currencies
     description: Catálogo de monedas.
+  - name: Roles
+    description: Catálogo de permisos y roles (RBAC, paso 0.6).
+  - name: RoleAssignments
+    description: Asignaciones de rol con alcance, y el alcance efectivo de un usuario (paso 0.6).
   - name: Me
     description: Información del usuario autenticado.
   - name: Health
@@ -2063,6 +2070,711 @@ paths:
           $ref: '_shared/components.yaml#/components/responses/PreconditionRequired'
 
   # ---------------------------------------------------------------------
+  # Permissions (catalog)
+  # ---------------------------------------------------------------------
+  /v1/permissions:
+    get:
+      operationId: listPermissions
+      summary: Listar el catálogo de permisos.
+      description: >
+        Catálogo de permisos registrados (`contracts/permissions.yaml`).
+        Paginado como el resto de listados (conventions-api.md §4) aunque
+        hoy sea un catálogo acotado (unas pocas docenas de filas).
+      tags: [Roles]
+      x-permission: "ROLE:READ"
+      x-scope: none
+      parameters:
+        - $ref: '_shared/components.yaml#/components/parameters/Page'
+        - $ref: '_shared/components.yaml#/components/parameters/PageSize'
+        - $ref: '_shared/components.yaml#/components/parameters/Sort'
+      responses:
+        '200':
+          description: Página del catálogo de permisos.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '_shared/components.yaml#/components/schemas/Page'
+                  - type: object
+                    properties:
+                      items:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/Permission'
+              example:
+                items:
+                  - code: "ROLE:READ"
+                    resourceType: "ROLE"
+                    action: "READ"
+                    captionI18n:
+                      de: "Rollen ansehen"
+                      en: "View roles"
+                page: 1
+                pageSize: 50
+                total: 17
+        '400':
+          $ref: '_shared/components.yaml#/components/responses/BadRequest'
+        '401':
+          $ref: '_shared/components.yaml#/components/responses/Unauthorized'
+        '403':
+          $ref: '_shared/components.yaml#/components/responses/Forbidden'
+
+  # ---------------------------------------------------------------------
+  # Roles
+  # ---------------------------------------------------------------------
+  /v1/roles:
+    get:
+      operationId: listRoles
+      summary: Listar roles.
+      description: Listar roles.
+      tags: [Roles]
+      x-permission: "ROLE:READ"
+      x-scope: none
+      parameters:
+        - $ref: '_shared/components.yaml#/components/parameters/Page'
+        - $ref: '_shared/components.yaml#/components/parameters/PageSize'
+        - $ref: '_shared/components.yaml#/components/parameters/Sort'
+        - $ref: '_shared/components.yaml#/components/parameters/Q'
+        - name: isActive
+          in: query
+          required: false
+          description: Filtra por estado activo/inactivo.
+          schema:
+            type: boolean
+          example: true
+      responses:
+        '200':
+          description: Página de roles.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '_shared/components.yaml#/components/schemas/Page'
+                  - type: object
+                    properties:
+                      items:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/RoleListItem'
+              example:
+                items:
+                  - id: "018f1a3c-7e3b-7c5a-9c2e-6a2f8e9b0d02"
+                    code: "ORG_ADMIN"
+                    captionI18n:
+                      de: "Organisationsadministrator"
+                      en: "Organization administrator"
+                    isSystem: true
+                    isActive: true
+                page: 1
+                pageSize: 50
+                total: 11
+        '400':
+          $ref: '_shared/components.yaml#/components/responses/BadRequest'
+        '401':
+          $ref: '_shared/components.yaml#/components/responses/Unauthorized'
+        '403':
+          $ref: '_shared/components.yaml#/components/responses/Forbidden'
+    post:
+      operationId: createRole
+      summary: Crear un rol.
+      description: >
+        Alta idempotente (`id` opcional, UUIDv7). `isSystem` siempre `false`
+        para roles creados por API (los 11 roles sembrados son `is_system =
+        true` y no se desactivan, ACC-R9). `x-scope: global` (añadido en
+        0.6, pendiente de formalizar en conventions-api.md §3): el actor
+        debe tener `ROLE:CREATE` concedido en una asignación `GLOBAL`, no en
+        cualquier alcance (a diferencia de ACC-R10, que solo cubre
+        listados/detalle) — el catálogo de roles es global, como
+        `org.currency`, y conceder esta escritura a un alcance más estrecho
+        permitiría a un `ORG_ADMIN` que recibe `SECURITY_ADMIN` en su propia
+        LE escalar editando la matriz de permisos global.
+      tags: [Roles]
+      x-permission: "ROLE:CREATE"
+      x-scope: global
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateRoleRequest'
+            example:
+              code: "MOBILE_SCANNER"
+              captionI18n:
+                de: "Mobiler Scanner"
+                en: "Mobile scanner"
+      responses:
+        '200':
+          description: Ya existía un rol con el mismo `id` y contenido idéntico.
+          headers:
+            ETag:
+              $ref: '#/components/headers/ETag'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Role'
+              example:
+                id: "018f1a3c-7e3b-7c5a-9c2e-6a2f8e9b0d20"
+                code: "MOBILE_SCANNER"
+                captionI18n:
+                  de: "Mobiler Scanner"
+                  en: "Mobile scanner"
+                description: null
+                isSystem: false
+                isActive: true
+                createdAt: "2026-10-30T09:00:00Z"
+                updatedAt: "2026-10-30T09:00:00Z"
+        '201':
+          description: Rol creado.
+          headers:
+            Location:
+              description: URL del nuevo recurso.
+              schema:
+                type: string
+              example: "/v1/roles/018f1a3c-7e3b-7c5a-9c2e-6a2f8e9b0d20"
+            ETag:
+              $ref: '#/components/headers/ETag'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Role'
+              example:
+                id: "018f1a3c-7e3b-7c5a-9c2e-6a2f8e9b0d20"
+                code: "MOBILE_SCANNER"
+                captionI18n:
+                  de: "Mobiler Scanner"
+                  en: "Mobile scanner"
+                description: null
+                isSystem: false
+                isActive: true
+                createdAt: "2026-10-30T09:00:00Z"
+                updatedAt: "2026-10-30T09:00:00Z"
+        '400':
+          $ref: '_shared/components.yaml#/components/responses/BadRequest'
+        '401':
+          $ref: '_shared/components.yaml#/components/responses/Unauthorized'
+        '403':
+          $ref: '_shared/components.yaml#/components/responses/Forbidden'
+        '404':
+          $ref: '_shared/components.yaml#/components/responses/NotFound'
+        '409':
+          $ref: '_shared/components.yaml#/components/responses/Conflict'
+        '422':
+          $ref: '_shared/components.yaml#/components/responses/UnprocessableEntity'
+
+  /v1/roles/{id}:
+    get:
+      operationId: getRole
+      summary: Obtener un rol por id.
+      description: Obtener un rol por id.
+      tags: [Roles]
+      x-permission: "ROLE:READ"
+      x-scope: none
+      parameters:
+        - $ref: '#/components/parameters/RoleId'
+      responses:
+        '200':
+          description: Rol encontrado.
+          headers:
+            ETag:
+              $ref: '#/components/headers/ETag'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Role'
+              example:
+                id: "018f1a3c-7e3b-7c5a-9c2e-6a2f8e9b0d02"
+                code: "ORG_ADMIN"
+                captionI18n:
+                  de: "Organisationsadministrator"
+                  en: "Organization administrator"
+                description: null
+                isSystem: true
+                isActive: true
+                createdAt: "2026-10-30T09:00:00Z"
+                updatedAt: "2026-10-30T09:00:00Z"
+        '400':
+          $ref: '_shared/components.yaml#/components/responses/BadRequest'
+        '401':
+          $ref: '_shared/components.yaml#/components/responses/Unauthorized'
+        '403':
+          $ref: '_shared/components.yaml#/components/responses/Forbidden'
+        '404':
+          $ref: '_shared/components.yaml#/components/responses/NotFound'
+    put:
+      operationId: updateRole
+      summary: Modificar un rol.
+      description: >
+        Solo `captionI18n` y `description`: `code` e `isSystem` son
+        inmutables tras la creación. `x-scope: global`: ver `createRole`.
+      tags: [Roles]
+      x-permission: "ROLE:UPDATE"
+      x-scope: global
+      parameters:
+        - $ref: '#/components/parameters/RoleId'
+        - $ref: '_shared/components.yaml#/components/parameters/IfMatch'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateRoleRequest'
+            example:
+              captionI18n:
+                de: "Organisationsadministrator"
+                en: "Organization administrator"
+              description: "Gestiona estructura, usuarios y asignaciones de su organización."
+      responses:
+        '200':
+          description: Rol modificado.
+          headers:
+            ETag:
+              $ref: '#/components/headers/ETag'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Role'
+              example:
+                id: "018f1a3c-7e3b-7c5a-9c2e-6a2f8e9b0d02"
+                code: "ORG_ADMIN"
+                captionI18n:
+                  de: "Organisationsadministrator"
+                  en: "Organization administrator"
+                description: "Gestiona estructura, usuarios y asignaciones de su organización."
+                isSystem: true
+                isActive: true
+                createdAt: "2026-10-30T09:00:00Z"
+                updatedAt: "2026-10-30T09:05:00Z"
+        '400':
+          $ref: '_shared/components.yaml#/components/responses/BadRequest'
+        '401':
+          $ref: '_shared/components.yaml#/components/responses/Unauthorized'
+        '403':
+          $ref: '_shared/components.yaml#/components/responses/Forbidden'
+        '404':
+          $ref: '_shared/components.yaml#/components/responses/NotFound'
+        '409':
+          $ref: '_shared/components.yaml#/components/responses/Conflict'
+        '422':
+          $ref: '_shared/components.yaml#/components/responses/UnprocessableEntity'
+        '428':
+          $ref: '_shared/components.yaml#/components/responses/PreconditionRequired'
+
+  /v1/roles/{id}/deactivate:
+    post:
+      operationId: deactivateRole
+      summary: Desactivar un rol.
+      description: >
+        Rechaza con 422 un rol con `isSystem = true` (ACC-R9): ninguno de los
+        11 roles sembrados se puede desactivar desde la API. `x-scope:
+        global`: ver `createRole`.
+      tags: [Roles]
+      x-permission: "ROLE:UPDATE"
+      x-scope: global
+      x-rules: [ACC-R9]
+      parameters:
+        - $ref: '#/components/parameters/RoleId'
+        - $ref: '_shared/components.yaml#/components/parameters/IfMatch'
+      responses:
+        '200':
+          description: Rol desactivado.
+          headers:
+            ETag:
+              $ref: '#/components/headers/ETag'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Role'
+              example:
+                id: "018f1a3c-7e3b-7c5a-9c2e-6a2f8e9b0d20"
+                code: "MOBILE_SCANNER"
+                captionI18n:
+                  de: "Mobiler Scanner"
+                  en: "Mobile scanner"
+                description: null
+                isSystem: false
+                isActive: false
+                createdAt: "2026-10-30T09:00:00Z"
+                updatedAt: "2026-10-30T09:10:00Z"
+        '400':
+          $ref: '_shared/components.yaml#/components/responses/BadRequest'
+        '401':
+          $ref: '_shared/components.yaml#/components/responses/Unauthorized'
+        '403':
+          $ref: '_shared/components.yaml#/components/responses/Forbidden'
+        '404':
+          $ref: '_shared/components.yaml#/components/responses/NotFound'
+        '409':
+          $ref: '_shared/components.yaml#/components/responses/Conflict'
+        '422':
+          $ref: '_shared/components.yaml#/components/responses/UnprocessableEntity'
+        '428':
+          $ref: '_shared/components.yaml#/components/responses/PreconditionRequired'
+
+  /v1/roles/{id}/permissions:
+    get:
+      operationId: getRolePermissions
+      summary: Permisos de un rol, en una fecha dada.
+      description: >
+        Historial de permisos (A10): sin `asOf`, los vigentes ahora;
+        con `asOf`, los vigentes en ese instante.
+      tags: [Roles]
+      x-permission: "ROLE:READ"
+      x-scope: none
+      parameters:
+        - $ref: '#/components/parameters/RoleId'
+        - name: asOf
+          in: query
+          required: false
+          description: Instante de consulta (ISO-8601 UTC). Por defecto, ahora.
+          schema:
+            type: string
+            format: date-time
+          example: "2026-10-01T00:00:00Z"
+        - $ref: '_shared/components.yaml#/components/parameters/Page'
+        - $ref: '_shared/components.yaml#/components/parameters/PageSize'
+        - $ref: '_shared/components.yaml#/components/parameters/Sort'
+      responses:
+        '200':
+          description: Página de permisos vigentes del rol en `asOf`.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '_shared/components.yaml#/components/schemas/Page'
+                  - type: object
+                    properties:
+                      items:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/PermissionGrant'
+              example:
+                items:
+                  - code: "ORG_STRUCTURE:READ"
+                    resourceType: "ORG_STRUCTURE"
+                    action: "READ"
+                    captionI18n:
+                      de: "Organisationsstruktur ansehen"
+                      en: "View org structure"
+                    validFrom: "2026-10-30T09:00:00Z"
+                    validTo: null
+                page: 1
+                pageSize: 50
+                total: 6
+        '400':
+          $ref: '_shared/components.yaml#/components/responses/BadRequest'
+        '401':
+          $ref: '_shared/components.yaml#/components/responses/Unauthorized'
+        '403':
+          $ref: '_shared/components.yaml#/components/responses/Forbidden'
+        '404':
+          $ref: '_shared/components.yaml#/components/responses/NotFound'
+    put:
+      operationId: updateRolePermissions
+      summary: Reemplazar la lista completa de permisos de un rol.
+      description: >
+        El cliente envía la lista completa deseada; el servidor calcula
+        altas y cierres (ACC-R7): cierra (`valid_to`) los permisos que ya no
+        están en la lista y abre filas nuevas para los que faltaban. Nunca
+        hay `UPDATE` de `permission_id` en una fila existente. `x-scope:
+        global`: ver `createRole`.
+      tags: [Roles]
+      x-permission: "ROLE:UPDATE"
+      x-scope: global
+      x-rules: [ACC-R7]
+      parameters:
+        - $ref: '#/components/parameters/RoleId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateRolePermissionsRequest'
+            example:
+              permissionCodes: ["ORG_STRUCTURE:READ", "CURRENCY:READ"]
+      responses:
+        '200':
+          description: Permisos vigentes del rol tras el reemplazo.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/PermissionGrant'
+              example:
+                - code: "ORG_STRUCTURE:READ"
+                  resourceType: "ORG_STRUCTURE"
+                  action: "READ"
+                  captionI18n:
+                    de: "Organisationsstruktur ansehen"
+                    en: "View org structure"
+                  validFrom: "2026-10-30T09:15:00Z"
+                  validTo: null
+        '400':
+          $ref: '_shared/components.yaml#/components/responses/BadRequest'
+        '401':
+          $ref: '_shared/components.yaml#/components/responses/Unauthorized'
+        '403':
+          $ref: '_shared/components.yaml#/components/responses/Forbidden'
+        '404':
+          $ref: '_shared/components.yaml#/components/responses/NotFound'
+        '422':
+          $ref: '_shared/components.yaml#/components/responses/UnprocessableEntity'
+
+  # ---------------------------------------------------------------------
+  # Role assignments
+  # ---------------------------------------------------------------------
+  /v1/role-assignments:
+    get:
+      operationId: listRoleAssignments
+      summary: Listar asignaciones de rol.
+      description: Listar asignaciones de rol.
+      tags: [RoleAssignments]
+      x-permission: "ROLE_ASSIGNMENT:READ"
+      x-scope: none
+      parameters:
+        - $ref: '_shared/components.yaml#/components/parameters/Page'
+        - $ref: '_shared/components.yaml#/components/parameters/PageSize'
+        - $ref: '_shared/components.yaml#/components/parameters/Sort'
+        - name: userId
+          in: query
+          required: false
+          description: Filtra por usuario.
+          schema:
+            $ref: '_shared/components.yaml#/components/schemas/UuidV7'
+        - name: roleId
+          in: query
+          required: false
+          description: Filtra por rol.
+          schema:
+            $ref: '_shared/components.yaml#/components/schemas/UuidV7'
+        - name: scopeType
+          in: query
+          required: false
+          description: Filtra por tipo de alcance.
+          schema:
+            type: string
+            enum: [GROUP, LEGAL_ENTITY, BUSINESS_UNIT, WAREHOUSE, PROJECT, GLOBAL]
+        - name: activeOn
+          in: query
+          required: false
+          description: Solo asignaciones vigentes en este instante. Por defecto, ahora.
+          schema:
+            type: string
+            format: date-time
+      responses:
+        '200':
+          description: Página de asignaciones.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '_shared/components.yaml#/components/schemas/Page'
+                  - type: object
+                    properties:
+                      items:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/RoleAssignmentListItem'
+              example:
+                items:
+                  - id: "018f1a3c-7e3b-7c5a-9c2e-6a2f8e9b0e03"
+                    userId: "00000000-0000-7000-8000-0000000b0712"
+                    roleId: "00000000-0000-7000-8000-0000000d0002"
+                    scopeType: LEGAL_ENTITY
+                    scopeEntityId: "00000000-0000-7000-8000-0000000b0301"
+                    validFrom: "2026-10-30T09:00:00Z"
+                    validTo: null
+                    source: SEED
+                page: 1
+                pageSize: 50
+                total: 1
+        '400':
+          $ref: '_shared/components.yaml#/components/responses/BadRequest'
+        '401':
+          $ref: '_shared/components.yaml#/components/responses/Unauthorized'
+        '403':
+          $ref: '_shared/components.yaml#/components/responses/Forbidden'
+    post:
+      operationId: createRoleAssignment
+      summary: Conceder un rol.
+      description: >
+        Alta idempotente (`id` opcional, UUIDv7). Quien concede necesita
+        `ROLE_ASSIGNMENT:CREATE` en un alcance que cubra el de destino
+        (ACC-R4); nadie modifica sus propias asignaciones (ACC-R5); alcance
+        `PROJECT` se rechaza con 422 hasta el paso 2.1 (ACC-R2).
+      tags: [RoleAssignments]
+      x-permission: "ROLE_ASSIGNMENT:CREATE"
+      x-scope: body.scopeEntityId
+      x-rules: [ACC-R1, ACC-R2, ACC-R4, ACC-R5]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateRoleAssignmentRequest'
+            example:
+              userId: "00000000-0000-7000-8000-0000000b0713"
+              roleId: "00000000-0000-7000-8000-0000000d0002"
+              scopeType: LEGAL_ENTITY
+              scopeEntityId: "00000000-0000-7000-8000-0000000b0302"
+              validFrom: "2026-10-30T09:00:00Z"
+      responses:
+        '200':
+          description: Ya existía una asignación con el mismo `id` y contenido idéntico.
+          headers:
+            ETag:
+              $ref: '#/components/headers/ETag'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RoleAssignment'
+              example:
+                id: "018f1a3c-7e3b-7c5a-9c2e-6a2f8e9b0e04"
+                userId: "00000000-0000-7000-8000-0000000b0713"
+                roleId: "00000000-0000-7000-8000-0000000d0002"
+                scopeType: LEGAL_ENTITY
+                scopeEntityId: "00000000-0000-7000-8000-0000000b0302"
+                validFrom: "2026-10-30T09:00:00Z"
+                validTo: null
+                grantedBy: "00000000-0000-7000-8000-0000000b0711"
+                source: MANUAL
+                sourceRefId: null
+                revokedBy: null
+                createdAt: "2026-10-30T09:00:00Z"
+                updatedAt: "2026-10-30T09:00:00Z"
+        '201':
+          description: Asignación creada.
+          headers:
+            Location:
+              description: URL del nuevo recurso.
+              schema:
+                type: string
+              example: "/v1/role-assignments/018f1a3c-7e3b-7c5a-9c2e-6a2f8e9b0e04"
+            ETag:
+              $ref: '#/components/headers/ETag'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RoleAssignment'
+              example:
+                id: "018f1a3c-7e3b-7c5a-9c2e-6a2f8e9b0e04"
+                userId: "00000000-0000-7000-8000-0000000b0713"
+                roleId: "00000000-0000-7000-8000-0000000d0002"
+                scopeType: LEGAL_ENTITY
+                scopeEntityId: "00000000-0000-7000-8000-0000000b0302"
+                validFrom: "2026-10-30T09:00:00Z"
+                validTo: null
+                grantedBy: "00000000-0000-7000-8000-0000000b0711"
+                source: MANUAL
+                sourceRefId: null
+                revokedBy: null
+                createdAt: "2026-10-30T09:00:00Z"
+                updatedAt: "2026-10-30T09:00:00Z"
+        '400':
+          $ref: '_shared/components.yaml#/components/responses/BadRequest'
+        '401':
+          $ref: '_shared/components.yaml#/components/responses/Unauthorized'
+        '403':
+          $ref: '_shared/components.yaml#/components/responses/Forbidden'
+        '404':
+          $ref: '_shared/components.yaml#/components/responses/NotFound'
+        '409':
+          $ref: '_shared/components.yaml#/components/responses/Conflict'
+        '422':
+          $ref: '_shared/components.yaml#/components/responses/UnprocessableEntity'
+
+  /v1/role-assignments/{id}/revoke:
+    post:
+      operationId: revokeRoleAssignment
+      summary: Revocar una asignación de rol.
+      description: >
+        Fija `validTo = now()` y `revokedBy` (ACC-R3): nunca se borra una
+        asignación. La asignación `SEED` `GLOBAL` de `SYSTEM` y la del primer
+        administrador no se pueden revocar desde la API (ACC-R6); nadie
+        revoca sus propias asignaciones (ACC-R5).
+      tags: [RoleAssignments]
+      x-permission: "ROLE_ASSIGNMENT:UPDATE"
+      x-scope: none
+      x-rules: [ACC-R3, ACC-R5, ACC-R6]
+      parameters:
+        - $ref: '#/components/parameters/RoleAssignmentId'
+        - $ref: '_shared/components.yaml#/components/parameters/IfMatch'
+      responses:
+        '200':
+          description: Asignación revocada.
+          headers:
+            ETag:
+              $ref: '#/components/headers/ETag'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RoleAssignment'
+              example:
+                id: "018f1a3c-7e3b-7c5a-9c2e-6a2f8e9b0e04"
+                userId: "00000000-0000-7000-8000-0000000b0713"
+                roleId: "00000000-0000-7000-8000-0000000d0002"
+                scopeType: LEGAL_ENTITY
+                scopeEntityId: "00000000-0000-7000-8000-0000000b0302"
+                validFrom: "2026-10-30T09:00:00Z"
+                validTo: "2026-10-30T10:00:00Z"
+                grantedBy: "00000000-0000-7000-8000-0000000b0711"
+                source: MANUAL
+                sourceRefId: null
+                revokedBy: "00000000-0000-7000-8000-0000000b0711"
+                createdAt: "2026-10-30T09:00:00Z"
+                updatedAt: "2026-10-30T10:00:00Z"
+        '400':
+          $ref: '_shared/components.yaml#/components/responses/BadRequest'
+        '401':
+          $ref: '_shared/components.yaml#/components/responses/Unauthorized'
+        '403':
+          $ref: '_shared/components.yaml#/components/responses/Forbidden'
+        '404':
+          $ref: '_shared/components.yaml#/components/responses/NotFound'
+        '409':
+          $ref: '_shared/components.yaml#/components/responses/Conflict'
+        '422':
+          $ref: '_shared/components.yaml#/components/responses/UnprocessableEntity'
+        '428':
+          $ref: '_shared/components.yaml#/components/responses/PreconditionRequired'
+
+  # ---------------------------------------------------------------------
+  # Effective scope
+  # ---------------------------------------------------------------------
+  /v1/users/{id}/effective-scope:
+    get:
+      operationId: getUserEffectiveScope
+      summary: Alcance efectivo de un usuario ("¿qué ve este usuario?").
+      description: >
+        Lee `access.effective_access_scope` dentro de una transacción de
+        solo lectura con `SET LOCAL app.current_user_id` fijado al usuario
+        consultado (domain/access.md §4). Exige `ROLE_ASSIGNMENT:READ`
+        propio del que consulta, no del usuario consultado.
+      tags: [RoleAssignments]
+      x-permission: "ROLE_ASSIGNMENT:READ"
+      x-scope: none
+      parameters:
+        - $ref: '#/components/parameters/UserId'
+      responses:
+        '200':
+          description: Alcance efectivo del usuario.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EffectiveScope'
+              example:
+                legalEntityIds: []
+                businessUnitIds: []
+                warehouseIds: ["00000000-0000-7000-8000-0000000b0601"]
+                projectIds: []
+        '401':
+          $ref: '_shared/components.yaml#/components/responses/Unauthorized'
+        '403':
+          $ref: '_shared/components.yaml#/components/responses/Forbidden'
+        '404':
+          $ref: '_shared/components.yaml#/components/responses/NotFound'
+
+  # ---------------------------------------------------------------------
   # Health
   # ---------------------------------------------------------------------
   /health:
@@ -2109,7 +2821,8 @@ paths:
         0.5). Si el `oid` no tiene un `app_user` activo, responde 403 con
         `Problem.code = "user_not_provisioned"` — nunca 200 con
         `provisioned: false` una vez exista la resolución. `permissions`
-        sigue vacía hasta el paso 0.6.
+        se completa en este paso (0.6): un array de `{code, scopes}` con
+        los alcances concedidos.
       tags: [Me]
       x-permission: "AUTHENTICATED"
       x-scope: none
@@ -2130,7 +2843,11 @@ paths:
                 businessUnitId: "00000000-0000-7000-8000-0000000b0401"
                 preferredLanguage: "de"
                 provisioned: true
-                permissions: []
+                permissions:
+                  - code: "ORG_STRUCTURE:READ"
+                    scopes:
+                      - scopeType: GLOBAL
+                        scopeEntityId: null
         '401':
           $ref: '_shared/components.yaml#/components/responses/Unauthorized'
         '403':
@@ -2237,6 +2954,20 @@ components:
         type: string
         pattern: '^[A-Z]{3}$'
       example: "CHF"
+    RoleId:
+      name: id
+      in: path
+      required: true
+      description: Id del rol.
+      schema:
+        $ref: '_shared/components.yaml#/components/schemas/UuidV7'
+    RoleAssignmentId:
+      name: id
+      in: path
+      required: true
+      description: Id de la asignación de rol.
+      schema:
+        $ref: '_shared/components.yaml#/components/schemas/UuidV7'
 
   schemas:
     # --- Party ------------------------------------------------------------
@@ -2928,7 +3659,257 @@ components:
           type: boolean
         permissions:
           type: array
-          description: Vacía hasta el paso 0.6.
+          description: >
+            Permisos del usuario autenticado con sus alcances concedidos
+            (paso 0.6). Cada entrada agrupa un código de permiso con la
+            lista de alcances en los que lo tiene (unión de sus
+            RoleAssignment vigentes que conceden ese permiso).
+          items:
+            $ref: '#/components/schemas/MePermission'
+      required: [subject, oid, displayName, preferredLanguage, provisioned, permissions, email, userId, partyId, businessUnitId]
+
+    # --- Permission / Role / RoleAssignment (step 0.6) ---------------------
+    Permission:
+      type: object
+      properties:
+        code:
+          type: string
+          example: "ROLE:READ"
+        resourceType:
+          type: string
+          example: "ROLE"
+        action:
+          type: string
+          enum: [CREATE, READ, UPDATE, DELETE, APPROVE, EXPORT]
+        captionI18n:
+          $ref: '_shared/components.yaml#/components/schemas/I18nText'
+      required: [code, resourceType, action, captionI18n]
+
+    PermissionGrant:
+      type: object
+      description: Un permiso concedido a un rol, con su ventana de vigencia (A10).
+      allOf:
+        - $ref: '#/components/schemas/Permission'
+        - type: object
+          properties:
+            validFrom:
+              type: string
+              format: date-time
+            validTo:
+              type: [string, "null"]
+              format: date-time
+          required: [validFrom, validTo]
+
+    Role:
+      type: object
+      properties:
+        id:
+          $ref: '_shared/components.yaml#/components/schemas/UuidV7'
+        code:
+          type: string
+        captionI18n:
+          $ref: '_shared/components.yaml#/components/schemas/I18nText'
+        description:
+          type: [string, "null"]
+        isSystem:
+          type: boolean
+        isActive:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      required: [id, code, captionI18n, description, isSystem, isActive, createdAt, updatedAt]
+
+    RoleListItem:
+      type: object
+      properties:
+        id:
+          $ref: '_shared/components.yaml#/components/schemas/UuidV7'
+        code:
+          type: string
+        captionI18n:
+          $ref: '_shared/components.yaml#/components/schemas/I18nText'
+        isSystem:
+          type: boolean
+        isActive:
+          type: boolean
+      required: [id, code, captionI18n, isSystem, isActive]
+
+    CreateRoleRequest:
+      type: object
+      properties:
+        id:
+          allOf:
+            - $ref: '_shared/components.yaml#/components/schemas/UuidV7'
+          description: Id opcional generado por el cliente (alta idempotente).
+        code:
+          type: string
+        captionI18n:
+          $ref: '_shared/components.yaml#/components/schemas/I18nText'
+        description:
+          type: [string, "null"]
+      required: [code, captionI18n]
+
+    UpdateRoleRequest:
+      type: object
+      description: "`code` e `isSystem` son inmutables tras la creación y no se exponen aquí."
+      properties:
+        captionI18n:
+          $ref: '_shared/components.yaml#/components/schemas/I18nText'
+        description:
+          type: [string, "null"]
+      required: [captionI18n]
+
+    UpdateRolePermissionsRequest:
+      type: object
+      properties:
+        permissionCodes:
+          type: array
           items:
             type: string
-      required: [subject, oid, displayName, preferredLanguage, provisioned, permissions, email, userId, partyId, businessUnitId]
+      required: [permissionCodes]
+
+    RoleAssignment:
+      type: object
+      properties:
+        id:
+          $ref: '_shared/components.yaml#/components/schemas/UuidV7'
+        userId:
+          $ref: '_shared/components.yaml#/components/schemas/UuidV7'
+        roleId:
+          $ref: '_shared/components.yaml#/components/schemas/UuidV7'
+        scopeType:
+          type: string
+          enum: [GROUP, LEGAL_ENTITY, BUSINESS_UNIT, WAREHOUSE, PROJECT, GLOBAL]
+        scopeEntityId:
+          type: [string, "null"]
+          format: uuid
+        validFrom:
+          type: string
+          format: date-time
+        validTo:
+          type: [string, "null"]
+          format: date-time
+        grantedBy:
+          $ref: '_shared/components.yaml#/components/schemas/UuidV7'
+        source:
+          type: string
+          enum: [MANUAL, RESOURCE_ASSIGNMENT, SEED]
+        sourceRefId:
+          type: [string, "null"]
+          format: uuid
+        revokedBy:
+          type: [string, "null"]
+          format: uuid
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      required: [id, userId, roleId, scopeType, scopeEntityId, validFrom, validTo, grantedBy, source, sourceRefId, revokedBy, createdAt, updatedAt]
+
+    RoleAssignmentListItem:
+      type: object
+      properties:
+        id:
+          $ref: '_shared/components.yaml#/components/schemas/UuidV7'
+        userId:
+          $ref: '_shared/components.yaml#/components/schemas/UuidV7'
+        roleId:
+          $ref: '_shared/components.yaml#/components/schemas/UuidV7'
+        scopeType:
+          type: string
+          enum: [GROUP, LEGAL_ENTITY, BUSINESS_UNIT, WAREHOUSE, PROJECT, GLOBAL]
+        scopeEntityId:
+          type: [string, "null"]
+          format: uuid
+        validFrom:
+          type: string
+          format: date-time
+        validTo:
+          type: [string, "null"]
+          format: date-time
+        source:
+          type: string
+          enum: [MANUAL, RESOURCE_ASSIGNMENT, SEED]
+      required: [id, userId, roleId, scopeType, scopeEntityId, validFrom, validTo, source]
+
+    CreateRoleAssignmentRequest:
+      type: object
+      description: >
+        `scopeEntityId` es obligatorio salvo con `scopeType: GLOBAL`
+        (ACC-R1); se valida en el servidor, no aquí.
+      properties:
+        id:
+          allOf:
+            - $ref: '_shared/components.yaml#/components/schemas/UuidV7'
+          description: Id opcional generado por el cliente (alta idempotente).
+        userId:
+          $ref: '_shared/components.yaml#/components/schemas/UuidV7'
+        roleId:
+          $ref: '_shared/components.yaml#/components/schemas/UuidV7'
+        scopeType:
+          type: string
+          enum: [GROUP, LEGAL_ENTITY, BUSINESS_UNIT, WAREHOUSE, PROJECT, GLOBAL]
+        scopeEntityId:
+          type: [string, "null"]
+          format: uuid
+        validFrom:
+          type: string
+          format: date-time
+        validTo:
+          type: [string, "null"]
+          format: date-time
+      required: [userId, roleId, scopeType, validFrom]
+
+    EffectiveScope:
+      type: object
+      description: >
+        Alcance efectivo agrupado por dimensión (domain/access.md §4,
+        `access.effective_access_scope`); la UI lo usa para pintar el árbol
+        LE → BU → Almacén y la lista de proyectos concedidos.
+      properties:
+        legalEntityIds:
+          type: array
+          items:
+            $ref: '_shared/components.yaml#/components/schemas/UuidV7'
+        businessUnitIds:
+          type: array
+          items:
+            $ref: '_shared/components.yaml#/components/schemas/UuidV7'
+        warehouseIds:
+          type: array
+          items:
+            $ref: '_shared/components.yaml#/components/schemas/UuidV7'
+        projectIds:
+          type: array
+          items:
+            $ref: '_shared/components.yaml#/components/schemas/UuidV7'
+      required: [legalEntityIds, businessUnitIds, warehouseIds, projectIds]
+
+    MePermissionScope:
+      type: object
+      properties:
+        scopeType:
+          type: string
+          enum: [GROUP, LEGAL_ENTITY, BUSINESS_UNIT, WAREHOUSE, PROJECT, GLOBAL]
+        scopeEntityId:
+          type: [string, "null"]
+          format: uuid
+      required: [scopeType, scopeEntityId]
+
+    MePermission:
+      type: object
+      properties:
+        code:
+          type: string
+          example: "ORG_STRUCTURE:UPDATE"
+        scopes:
+          type: array
+          items:
+            $ref: '#/components/schemas/MePermissionScope'
+      required: [code, scopes]

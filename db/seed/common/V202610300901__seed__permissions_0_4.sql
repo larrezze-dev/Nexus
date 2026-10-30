@@ -1,10 +1,5 @@
 -- Seeds the permission catalog entries introduced by step 0.4 (org core).
--- NOT a live Flyway migration yet: access.permission does not exist until
--- step 0.6. This file is picked up (renamed with a real V<ts>__ prefix) by
--- step 0.6's track C once that table exists. Flyway ignores this filename
--- today because it does not match its V.../R... naming pattern.
---
--- Columns match the real DDL (domain/access.md §3): id (uuid PK, no
+-- Columns match access.permission (domain/access.md §3): id (uuid PK, no
 -- DEFAULT), code, resource_type (not "resource"), action, caption_i18n
 -- (NOT NULL, "de" key required per conventions-database.md §5).
 

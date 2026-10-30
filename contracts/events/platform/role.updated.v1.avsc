@@ -1,0 +1,14 @@
+{
+  "type": "record",
+  "name": "RoleUpdated",
+  "namespace": "ch.nussli.nexus.platform",
+  "fields": [
+    {"name": "id", "type": {"type": "string", "logicalType": "uuid"}},
+    {"name": "code", "type": "string"},
+    {"name": "captionI18n", "type": {"type": "map", "values": "string"}},
+    {"name": "description", "type": ["null", "string"], "default": null},
+    {"name": "isSystem", "type": "boolean"},
+    {"name": "isActive", "type": "boolean"},
+    {"name": "permissionCodes", "type": {"type": "array", "items": "string"}}
+  ]
+}

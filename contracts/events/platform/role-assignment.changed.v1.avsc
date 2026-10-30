@@ -1,0 +1,19 @@
+{
+  "type": "record",
+  "name": "RoleAssignmentChanged",
+  "namespace": "ch.nussli.nexus.platform",
+  "fields": [
+    {"name": "id", "type": {"type": "string", "logicalType": "uuid"}},
+    {"name": "userId", "type": {"type": "string", "logicalType": "uuid"}},
+    {"name": "roleId", "type": {"type": "string", "logicalType": "uuid"}},
+    {"name": "scopeType", "type": "string"},
+    {"name": "scopeEntityId", "type": ["null", {"type": "string", "logicalType": "uuid"}], "default": null},
+    {"name": "validFrom", "type": {"type": "long", "logicalType": "timestamp-micros"}},
+    {"name": "validTo", "type": ["null", {"type": "long", "logicalType": "timestamp-micros"}], "default": null},
+    {"name": "grantedBy", "type": {"type": "string", "logicalType": "uuid"}},
+    {"name": "revokedBy", "type": ["null", {"type": "string", "logicalType": "uuid"}], "default": null},
+    {"name": "source", "type": "string"},
+    {"name": "sourceRefId", "type": ["null", {"type": "string", "logicalType": "uuid"}], "default": null},
+    {"name": "changeKind", "type": "string"}
+  ]
+}
