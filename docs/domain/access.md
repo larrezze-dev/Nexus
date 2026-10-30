@@ -87,7 +87,7 @@ CREATE INDEX ix_ra_source_ref  ON access.role_assignment (source_ref_id) WHERE s
 
 ## §4 Funciones de alcance (`R__access__scope_functions.sql`)
 
-Todas `STABLE SECURITY DEFINER`, propiedad de `nexus_owner`, con `search_path` fijo. `EXECUTE` concedido a todos los `svc_*`. Se evalúan en el instante de la sentencia (ADR-0004).
+Todas `STABLE SECURITY DEFINER`, propiedad de `nexus_owner`, con `search_path` fijo. `EXECUTE` concedido a todos los `svc_*`. Se evalúan en el instante de la sentencia (ADR-0004). Toda llamada a `access.visible_*()` que se envuelve en `(SELECT …)` para forzar un InitPlan (ADR-0004, `conventions-database.md §7`) necesita el *cast* explícito `::uuid[]`, o Postgres la interpreta como la forma de subconsulta de `ANY` en vez de la de array y falla con `operator does not exist: uuid = uuid[]` — verificado contra PostgreSQL 17 en el paso 0.6; de ahí el `::uuid[]` en `visible_business_units()`/`visible_warehouses()` más abajo.
 
 ```sql
 CREATE OR REPLACE FUNCTION access.current_user_id() RETURNS uuid
@@ -123,7 +123,7 @@ LANGUAGE sql STABLE SECURITY DEFINER SET search_path = access, org, pg_temp AS $
   WITH a AS (SELECT * FROM access.active_assignments())
   SELECT coalesce(array_agg(bu.id), '{}')
   FROM org.business_unit bu
-  WHERE bu.legal_entity_id = ANY (access.visible_legal_entities())
+  WHERE bu.legal_entity_id = ANY ((SELECT access.visible_legal_entities())::uuid[])
      OR bu.id IN (SELECT scope_entity_id FROM a WHERE scope_type = 'BUSINESS_UNIT')
 $$;
 
@@ -132,7 +132,7 @@ LANGUAGE sql STABLE SECURITY DEFINER SET search_path = access, org, pg_temp AS $
   WITH a AS (SELECT * FROM access.active_assignments())
   SELECT coalesce(array_agg(w.id), '{}')
   FROM org.warehouse w
-  WHERE w.legal_entity_id = ANY (access.visible_legal_entities())
+  WHERE w.legal_entity_id = ANY ((SELECT access.visible_legal_entities())::uuid[])
      OR w.business_unit_id IN (SELECT scope_entity_id FROM a WHERE scope_type = 'BUSINESS_UNIT')
      OR w.id IN (SELECT scope_entity_id FROM a WHERE scope_type = 'WAREHOUSE')
 $$;

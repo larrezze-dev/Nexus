@@ -28,7 +28,7 @@
 | Extensión | Dónde | Contenido |
 |---|---|---|
 | `x-permission` | Cada operación | `RESOURCE:ACTION`, p. ej. `ASSET_TYPE:CREATE`. `PUBLIC` solo en `/health`. `AUTHENTICATED` `[+]` para un endpoint que solo exige sesión válida, sin permiso concreto (p. ej. `GET /v1/me`, paso 0.5) |
-| `x-scope` | Operaciones con alcance | De dónde sale el alcance del permiso: `body.legalEntityId`, `path.projectId`, `none` |
+| `x-scope` | Operaciones con alcance | De dónde sale el alcance del permiso: `body.legalEntityId`, `path.projectId`, `none` (sin alcance: `has_permission` se llama sin argumentos de entidad — ACC-R10 restringe esto a listados/detalle), `global` `[+]` (paso 0.6: el actor debe tener el permiso en una asignación `GLOBAL`, no en cualquier alcance; para catálogos sin Mandant cuya escritura no debe poder delegarse a un alcance más estrecho, p. ej. `ROLE:CREATE`/`ROLE:UPDATE`) |
 | `x-rules` | Operaciones con reglas de negocio | Lista de ids de regla que puede devolver en 422 |
 
 ## §4 Paginación, orden y filtros
