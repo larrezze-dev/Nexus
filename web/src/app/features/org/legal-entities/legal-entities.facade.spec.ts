@@ -14,6 +14,8 @@ const legalEntity: LegalEntity = {
   currencyCode: 'CHF',
   countryCode: 'CH',
   isActive: true,
+  createdAt: '2026-10-18T16:20:00Z',
+  updatedAt: '2026-10-18T16:20:00Z',
 };
 
 const listItem: LegalEntityListItem = {

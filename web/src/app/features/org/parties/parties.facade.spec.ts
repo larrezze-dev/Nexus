@@ -16,6 +16,8 @@ const party: Party = {
   erpCompanyCode: null,
   isInternal: false,
   isActive: true,
+  createdAt: '2026-10-18T16:20:00Z',
+  updatedAt: '2026-10-18T16:20:00Z',
 };
 
 describe('PartiesFacade', () => {

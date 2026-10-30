@@ -23,6 +23,8 @@ const businessUnit: BusinessUnit = {
   captionI18n: { de: 'Vermietung', en: 'Rental' },
   costCenterCode: 'CC-100',
   isActive: true,
+  createdAt: '2026-10-18T16:20:00Z',
+  updatedAt: '2026-10-18T16:20:00Z',
 };
 
 function createFixture(): ComponentFixture<BusinessUnitFormComponent> {

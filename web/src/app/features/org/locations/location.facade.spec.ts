@@ -10,8 +10,14 @@ const location: Location = {
   id: '018f1a3c-7e3b-7c5a-9c2e-6a2f8e9b0c60',
   code: 'LOC-ZH',
   name: 'Zürich Lagerhalle',
+  street: 'Hardturmstrasse 1',
+  postalCode: '8005',
+  city: 'Zürich',
+  region: 'ZH',
   countryCode: 'CH',
   isActive: true,
+  createdAt: '2026-10-18T16:20:00Z',
+  updatedAt: '2026-10-18T16:20:00Z',
 };
 
 const listItem: LocationListItem = {

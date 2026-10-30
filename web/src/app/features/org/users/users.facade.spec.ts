@@ -16,6 +16,8 @@ const user: User = {
   businessUnitId: null,
   oid: 'oid-1',
   isActive: true,
+  createdAt: '2026-10-18T16:20:00Z',
+  updatedAt: '2026-10-18T16:20:00Z',
 };
 
 describe('UsersFacade', () => {
