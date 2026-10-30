@@ -21,7 +21,7 @@ Antes de lanzar 0.1 deben estar en `Aceptado` los ADR 0001–0010 (`docs/adr/REA
 | [0.3](F0/0.3-base-de-datos.md) | BD: roles, Flyway, Outbox, UnitOfWork | C → B | 0.2 | 0.5 | ADR-0001/2/8/9 | En revisión | |
 | [0.4](F0/0.4-nucleo-organizativo.md) | Núcleo organizativo (S10) | C → B ∥ F | 0.3, 0.5 | 0.7 | ADR-0003, ORG-Q1, ADR-0014 | Aprobado | 2026-10-30 |
 | [0.5](F0/0.5-auth-gateway-shell.md) | Autenticación, Gateway y shell Angular | C → B ∥ F | 0.2 | 0.3 | ADR-0006, ADR-0010 | En revisión | |
-| [0.6](F0/0.6-rbac-rls.md) | RBAC + RLS (A6) | C → B ∥ F | 0.4 | 0.7 | ADR-0004 | Pendiente | |
+| [0.6](F0/0.6-rbac-rls.md) | RBAC + RLS (A6) | C → B ∥ F | 0.4 | 0.7 | ADR-0004 | Gate C | |
 | [0.7](F0/0.7-outbox-relay-kafka.md) | Relay, Schema Registry, consumidores, DLQ (A7) | C → B ∥ S | 0.3 | 0.4, 0.6 | ADR-0008 | Pendiente | |
 | [0.8](F0/0.8-proyecciones-clickhouse.md) | Proyecciones ClickHouse y auditoría | C → S ∥ F | 0.7 | 0.9, 0.10 | — | Pendiente | |
 | [0.9](F0/0.9-aprobaciones.md) | Workflow de aprobaciones (A8) | C → B ∥ S ∥ F | 0.6, 0.7 | 0.8, 0.10 | WF-Q1, WF-Q2 | Pendiente | |

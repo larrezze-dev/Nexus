@@ -12,11 +12,13 @@ namespace Nexus.BuildingBlocks.Testing;
 ///   <item>One group, two legal entities (<see cref="LegalEntityA"/> in CHF/CH,
 ///   <see cref="LegalEntityB"/> in EUR/DE), one business unit, one location and one warehouse
 ///   in each (<see cref="WarehouseA"/>, <see cref="WarehouseB"/>).</item>
-///   <item>Three users, each with its <c>PERSON</c> party and a fixed <c>oid</c>
+///   <item>Four users, each with its <c>PERSON</c> party and a fixed <c>oid</c>
 ///   (<c>external_subject</c>) a test can put in a JWT (<see cref="TestJwtIssuer"/>):
-///   <see cref="Admin"/> (meant as GLOBAL scope), <see cref="UserA"/> (LE-A) and
-///   <see cref="WhA"/> (only WH-A). The scopes themselves are granted from step 0.6 on, when
-///   <c>access</c> exists; until then the three are plain active users.</item>
+///   <see cref="Admin"/> (GLOBAL), <see cref="UserA"/> (LE-A), <see cref="UserB"/> (LE-B)
+///   and <see cref="WhA"/> (only WH-A). Since step 0.6, each also gets the matching
+///   <c>access.role_assignment</c> (<c>SYSTEM_ADMIN</c>/<c>ORG_ADMIN</c>/<c>ORG_ADMIN</c>/
+///   <c>WAREHOUSE_OPERATOR</c>), resolved by role <c>code</c> against the roles
+///   <c>db/seed/common</c> seeds (applied by <see cref="ApplyCommonSeedAsync"/> above).</item>
 ///   <item><see cref="UnprovisionedOid"/>: an <c>oid</c> with no <c>app_user</c>.</item>
 /// </list>
 /// Ids are fresh UUIDv7s per fixture instance; codes and oids are fixed (each fixture has its
@@ -57,6 +59,8 @@ public sealed class OrgFixture : IAsyncLifetime
     public OrgTestUser Admin { get; } = new(NewId(), NewId(), "00000000-0000-7000-8000-00000000f001", "admin@test.nexus.local", "Admin Test");
 
     public OrgTestUser UserA { get; } = new(NewId(), NewId(), "00000000-0000-7000-8000-00000000f002", "usera@test.nexus.local", "User A Test");
+
+    public OrgTestUser UserB { get; } = new(NewId(), NewId(), "00000000-0000-7000-8000-00000000f003", "userb@test.nexus.local", "User B Test");
 
     public OrgTestUser WhA { get; } = new(NewId(), NewId(), "00000000-0000-7000-8000-00000000f004", "wha@test.nexus.local", "Warehouse A Test");
 
@@ -160,7 +164,7 @@ public sealed class OrgFixture : IAsyncLifetime
                 "WH-" + suffix);
         }
 
-        foreach (var (user, businessUnit) in new[] { (Admin, (Guid?)null), (UserA, BusinessUnitA.Id), (WhA, BusinessUnitA.Id) })
+        foreach (var (user, businessUnit) in new[] { (Admin, (Guid?)null), (UserA, BusinessUnitA.Id), (UserB, BusinessUnitB.Id), (WhA, BusinessUnitA.Id) })
         {
             await Exec(PartySql, user.PartyId, "PERSON", user.FullName);
             await Exec(
@@ -171,6 +175,26 @@ public sealed class OrgFixture : IAsyncLifetime
                 businessUnit,
                 user.Oid,
                 user.Email);
+        }
+
+        // Step 0.6: grant the matching access.role_assignment to each user, mirroring
+        // db/seed/dev/V202610300904__seed__access_dev.sql. Role ids are resolved by
+        // code against the roles db/seed/common seeds already applied above
+        // (ApplyCommonSeedAsync).
+        const string AssignmentSql =
+            "INSERT INTO access.role_assignment (id, user_id, role_id, scope_type, scope_entity_id, valid_from, valid_to, granted_by, source, source_ref_id, revoked_by, created_at, created_by, updated_at, updated_by) " +
+            "VALUES ($1, $2, (SELECT id FROM access.role WHERE code = $3), $4, $5, now(), NULL, " +
+            "'00000000-0000-7000-8000-000000000001', 'SEED', NULL, NULL, " + Std + ")";
+
+        foreach (var (user, roleCode, scopeType, scopeEntityId) in new (OrgTestUser User, string RoleCode, string ScopeType, Guid? ScopeEntityId)[]
+                 {
+                     (Admin, "SYSTEM_ADMIN", "GLOBAL", null),
+                     (UserA, "ORG_ADMIN", "LEGAL_ENTITY", LegalEntityA.Id),
+                     (UserB, "ORG_ADMIN", "LEGAL_ENTITY", LegalEntityB.Id),
+                     (WhA, "WAREHOUSE_OPERATOR", "WAREHOUSE", WarehouseA),
+                 })
+        {
+            await Exec(AssignmentSql, NewId(), user.Id, roleCode, scopeType, scopeEntityId);
         }
 
         await transaction.CommitAsync();

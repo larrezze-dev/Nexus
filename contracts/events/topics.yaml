@@ -147,3 +147,15 @@ topics:
     event: deactivated
     version: 1
     compatibility: BACKWARD
+  - name: nexus.platform.role-assignment.changed
+    context: platform
+    aggregate: role-assignment
+    event: changed
+    version: 1
+    compatibility: BACKWARD
+  - name: nexus.platform.role.updated
+    context: platform
+    aggregate: role
+    event: updated
+    version: 1
+    compatibility: BACKWARD

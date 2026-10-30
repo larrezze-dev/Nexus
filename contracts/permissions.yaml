@@ -26,55 +26,85 @@ permissions:
   - code: PARTY:READ
     resource: PARTY
     action: READ
-    defaultRoles: []
+    defaultRoles: ["SYSTEM_ADMIN", "ORG_ADMIN", "PROJECT_MANAGER", "SALES", "HR_ADMIN", "VIEWER"]
     step: "0.4"
   - code: PARTY:CREATE
     resource: PARTY
     action: CREATE
-    defaultRoles: []
+    defaultRoles: ["SYSTEM_ADMIN", "ORG_ADMIN", "SALES"]
     step: "0.4"
   - code: PARTY:UPDATE
     resource: PARTY
     action: UPDATE
-    defaultRoles: []
+    defaultRoles: ["SYSTEM_ADMIN", "ORG_ADMIN", "SALES"]
     step: "0.4"
   - code: ORG_STRUCTURE:READ
     resource: ORG_STRUCTURE
     action: READ
-    defaultRoles: []
+    defaultRoles: ["SYSTEM_ADMIN", "ORG_ADMIN", "WAREHOUSE_OPERATOR", "PROJECT_MANAGER", "CONTROLLER", "VIEWER"]
     step: "0.4"
   - code: ORG_STRUCTURE:CREATE
     resource: ORG_STRUCTURE
     action: CREATE
-    defaultRoles: []
+    defaultRoles: ["SYSTEM_ADMIN", "ORG_ADMIN"]
     step: "0.4"
   - code: ORG_STRUCTURE:UPDATE
     resource: ORG_STRUCTURE
     action: UPDATE
-    defaultRoles: []
+    defaultRoles: ["SYSTEM_ADMIN", "ORG_ADMIN"]
     step: "0.4"
   - code: USER:READ
     resource: USER
     action: READ
-    defaultRoles: []
+    defaultRoles: ["SYSTEM_ADMIN", "SECURITY_ADMIN", "ORG_ADMIN", "HR_ADMIN"]
     step: "0.4"
   - code: USER:CREATE
     resource: USER
     action: CREATE
-    defaultRoles: []
+    defaultRoles: ["SYSTEM_ADMIN", "ORG_ADMIN", "HR_ADMIN"]
     step: "0.4"
   - code: USER:UPDATE
     resource: USER
     action: UPDATE
-    defaultRoles: []
+    defaultRoles: ["SYSTEM_ADMIN", "ORG_ADMIN", "HR_ADMIN"]
     step: "0.4"
   - code: CURRENCY:READ
     resource: CURRENCY
     action: READ
-    defaultRoles: []
+    defaultRoles: ["SYSTEM_ADMIN", "CATALOG_ADMIN", "WAREHOUSE_OPERATOR", "PROJECT_MANAGER", "SALES", "CONTROLLER", "VIEWER"]
     step: "0.4"
   - code: CURRENCY:UPDATE
     resource: CURRENCY
     action: UPDATE
-    defaultRoles: []
+    defaultRoles: ["SYSTEM_ADMIN", "CONTROLLER"]
     step: "0.4"
+  - code: ROLE:READ
+    resource: ROLE
+    action: READ
+    defaultRoles: ["SYSTEM_ADMIN", "SECURITY_ADMIN"]
+    step: "0.6"
+  - code: ROLE:CREATE
+    resource: ROLE
+    action: CREATE
+    defaultRoles: ["SYSTEM_ADMIN", "SECURITY_ADMIN"]
+    step: "0.6"
+  - code: ROLE:UPDATE
+    resource: ROLE
+    action: UPDATE
+    defaultRoles: ["SYSTEM_ADMIN", "SECURITY_ADMIN"]
+    step: "0.6"
+  - code: ROLE_ASSIGNMENT:READ
+    resource: ROLE_ASSIGNMENT
+    action: READ
+    defaultRoles: ["SYSTEM_ADMIN", "SECURITY_ADMIN", "ORG_ADMIN"]
+    step: "0.6"
+  - code: ROLE_ASSIGNMENT:CREATE
+    resource: ROLE_ASSIGNMENT
+    action: CREATE
+    defaultRoles: ["SYSTEM_ADMIN", "SECURITY_ADMIN", "ORG_ADMIN"]
+    step: "0.6"
+  - code: ROLE_ASSIGNMENT:UPDATE
+    resource: ROLE_ASSIGNMENT
+    action: UPDATE
+    defaultRoles: ["SYSTEM_ADMIN", "SECURITY_ADMIN", "ORG_ADMIN"]
+    step: "0.6"
