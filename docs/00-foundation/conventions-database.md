@@ -121,7 +121,7 @@ Ejemplo: perfil `LE+WH` → `USING (<término LE> OR <término WH>)`, mismo `WIT
 
 `GLOBAL` = sin RLS. Solo para catálogos de grupo sin Mandant (UoM, taxonomía, roles) y la **estructura organizativa** (`org.group`, `org.legal_entity`, `org.business_unit`, `org.warehouse`, `org.location`).
 
-El `(SELECT …)` envolvente es obligatorio: convierte la función en un *InitPlan* que se evalúa **una vez por sentencia**, no una vez por fila.
+El `(SELECT …)` envolvente es obligatorio: convierte la función en un *InitPlan* que se evalúa **una vez por sentencia**, no una vez por fila. **Importante** (encontrado y verificado contra PostgreSQL 17 en el paso 0.6): `col = ANY ((SELECT func()))` sin más no compila cuando `func()` devuelve un array — Postgres interpreta un `(SELECT …)` a secas dentro de `ANY(...)` como la forma de subconsulta de `ANY` (que compara fila a fila contra una columna escalar), no como la forma de array, así que busca un operador `uuid = uuid[]` y falla. Hay que forzar el *cast* explícito al tipo array para que deje de leerse como subconsulta y mantenga el InitPlan: `ANY ((SELECT func())::uuid[])`. La plantilla de abajo ya lleva el *cast*; cualquier otra llamada a `access.visible_*()` envuelta en `(SELECT …)` (incluso dentro de las propias funciones de `domain/access.md §4`) necesita el mismo *cast*.
 
 **Por qué la estructura organizativa es `GLOBAL`** `[+]`: las funciones `access.visible_*()` leen la jerarquía de `org`. Si esas tablas tuvieran RLS, la política se llamaría a sí misma. Saber que existe un almacén no es sensible; lo sensible son sus movimientos, que sí llevan RLS. La UI filtra las listas de estructura por alcance para no mostrar ruido.
 
@@ -137,8 +137,8 @@ ALTER TABLE <s>.<t> FORCE  ROW LEVEL SECURITY;
 
 DROP POLICY IF EXISTS rls_<t> ON <s>.<t>;
 CREATE POLICY rls_<t> ON <s>.<t>
-  USING      (legal_entity_id = ANY ((SELECT access.visible_legal_entities())))
-  WITH CHECK (legal_entity_id = ANY ((SELECT access.visible_legal_entities())));
+  USING      (legal_entity_id = ANY ((SELECT access.visible_legal_entities())::uuid[]))
+  WITH CHECK (legal_entity_id = ANY ((SELECT access.visible_legal_entities())::uuid[]));
 ```
 
 Las políticas van en migraciones **repetibles** `R__<contexto>__rls.sql`.
