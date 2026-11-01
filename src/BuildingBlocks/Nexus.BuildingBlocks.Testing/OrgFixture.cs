@@ -1,4 +1,5 @@
 using Npgsql;
+using NpgsqlTypes;
 using Xunit;
 
 namespace Nexus.BuildingBlocks.Testing;
@@ -72,6 +73,123 @@ public sealed class OrgFixture : IAsyncLifetime
     }
 
     public ValueTask DisposeAsync() => Database.DisposeAsync();
+
+    /// <summary>
+    /// Runs <paramref name="action"/> against an owner connection (<see
+    /// cref="PostgresFixture.OpenAsOwnerAsync"/> -- needed for tables such as
+    /// <c>test.rls_probe</c> that have no <c>GRANT</c> to any <c>svc_*</c> role at all) with
+    /// <c>app.current_user_id</c> <c>SET LOCAL</c>'d to <paramref name="userId"/>, so
+    /// <c>access</c>'s <c>visible_*</c> functions and any RLS policy built on them resolve as
+    /// that user would see them. Always <c>ROLLBACK</c>s afterwards (read-only test helper:
+    /// never commits, so test data never leaks between tests), then disposes the connection.
+    /// </summary>
+    public async Task<T> AsUser<T>(Guid userId, Func<NpgsqlConnection, Task<T>> action)
+    {
+        await using var connection = await Database.OpenAsOwnerAsync();
+        await using var transaction = await connection.BeginTransactionAsync();
+
+        await using (var setConfig = new NpgsqlCommand("SELECT set_config('app.current_user_id', $1, true)", connection))
+        {
+            setConfig.Parameters.Add(new NpgsqlParameter { Value = userId.ToString("D") });
+            await setConfig.ExecuteNonQueryAsync();
+        }
+
+        var result = await action(connection);
+        await transaction.RollbackAsync();
+        return result;
+    }
+
+    /// <summary>Overload of <see cref="AsUser{T}"/> for actions with no return value.</summary>
+    public Task AsUser(Guid userId, Func<NpgsqlConnection, Task> action) =>
+        AsUser<object?>(userId, async connection =>
+        {
+            await action(connection);
+            return null;
+        });
+
+    /// <summary>
+    /// Like <see cref="AsUser{T}"/>, but with no <c>app.current_user_id</c> set at all (the
+    /// "anonymous"/no-session case some RLS policies also need covered). Same owner connection,
+    /// same always-<c>ROLLBACK</c> contract.
+    /// </summary>
+    public async Task<T> AsNoUser<T>(Func<NpgsqlConnection, Task<T>> action)
+    {
+        await using var connection = await Database.OpenAsOwnerAsync();
+        await using var transaction = await connection.BeginTransactionAsync();
+        var result = await action(connection);
+        await transaction.RollbackAsync();
+        return result;
+    }
+
+    /// <summary>Overload of <see cref="AsNoUser{T}"/> for actions with no return value.</summary>
+    public Task AsNoUser(Func<NpgsqlConnection, Task> action) =>
+        AsNoUser<object?>(async connection =>
+        {
+            await action(connection);
+            return null;
+        });
+
+    /// <summary>
+    /// Bulk-inserts <paramref name="count"/> rows into <c>access.role_assignment</c> via a binary
+    /// <c>COPY</c> (as the owner -- these are seed inserts, not an RLS-filtered read, so no
+    /// <c>app.current_user_id</c> is needed), for the ADR-0004 benchmark's two shapes:
+    /// <list type="bullet">
+    ///   <item>Pathological: one user, <paramref name="count"/> assignments
+    ///   (<c>userIdFactory: _ => sameUserId</c>).</item>
+    ///   <item>Realistic: <paramref name="count"/> assignments spread one per user
+    ///   (<c>userIdFactory: i => someExistingUserId[i]</c>; the caller is responsible for those
+    ///   users already existing in <c>org.app_user</c>, the FK <c>role_assignment</c> requires).</item>
+    /// </list>
+    /// <paramref name="scopeEntityIdFactory"/> must return <c>null</c> for every row when
+    /// <paramref name="scopeType"/> is <c>GLOBAL</c> (the only case the DDL's
+    /// <c>(scope_type = 'GLOBAL') = (scope_entity_id IS NULL)</c> check allows).
+    /// </summary>
+    public async Task SeedManyRoleAssignmentsAsync(
+        Func<int, Guid> userIdFactory,
+        Guid roleId,
+        string scopeType,
+        Func<int, Guid?> scopeEntityIdFactory,
+        int count)
+    {
+        await using var connection = await Database.OpenAsOwnerAsync();
+        await using var writer = await connection.BeginBinaryImportAsync(
+            "COPY access.role_assignment " +
+            "(id, user_id, role_id, scope_type, scope_entity_id, valid_from, valid_to, granted_by, source, source_ref_id, revoked_by, created_at, created_by, updated_at, updated_by) " +
+            "FROM STDIN (FORMAT BINARY)");
+
+        var now = DateTimeOffset.UtcNow;
+        for (var i = 0; i < count; i++)
+        {
+            await writer.StartRowAsync();
+            await writer.WriteAsync(NewId(), NpgsqlDbType.Uuid); // id
+            await writer.WriteAsync(userIdFactory(i), NpgsqlDbType.Uuid); // user_id
+            await writer.WriteAsync(roleId, NpgsqlDbType.Uuid); // role_id
+            await writer.WriteAsync(scopeType, NpgsqlDbType.Text); // scope_type
+
+            var scopeEntityId = scopeEntityIdFactory(i);
+            if (scopeEntityId is { } id)
+            {
+                await writer.WriteAsync(id, NpgsqlDbType.Uuid);
+            }
+            else
+            {
+                await writer.WriteNullAsync();
+            }
+
+            await writer.WriteAsync(now, NpgsqlDbType.TimestampTz); // valid_from
+            await writer.WriteNullAsync(); // valid_to
+            await writer.WriteAsync(SystemUserId, NpgsqlDbType.Uuid); // granted_by
+            await writer.WriteAsync("SEED", NpgsqlDbType.Text); // source
+            await writer.WriteNullAsync(); // source_ref_id
+            await writer.WriteNullAsync(); // revoked_by
+            await writer.WriteAsync(now, NpgsqlDbType.TimestampTz); // created_at
+            await writer.WriteAsync(SystemUserId, NpgsqlDbType.Uuid); // created_by
+            await writer.WriteAsync(now, NpgsqlDbType.TimestampTz); // updated_at
+            await writer.WriteAsync(SystemUserId, NpgsqlDbType.Uuid); // updated_by
+        }
+
+        await writer.CompleteAsync();
+    }
 
     private static Guid NewId() => Guid.CreateVersion7();
 

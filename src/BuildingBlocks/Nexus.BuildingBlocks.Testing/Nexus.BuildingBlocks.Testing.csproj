@@ -18,6 +18,8 @@
     <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" />
     <!-- WebAppFixture<TProgram> wraps WebApplicationFactory<TProgram>. -->
     <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" />
+    <!-- RlsAssertions.AssertInvisible renders Shouldly-style failure messages. -->
+    <PackageReference Include="Shouldly" />
   </ItemGroup>
 
   <ItemGroup>
