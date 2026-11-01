@@ -87,6 +87,17 @@
         "asOf": "As of",
         "resource": "Resource"
       }
+    },
+    "effectiveScope": {
+      "title": "What does this user see?",
+      "back": "Back to user",
+      "loading": "Loading…",
+      "legalEntities": "Legal entities",
+      "businessUnits": "Business units",
+      "warehouses": "Warehouses",
+      "projects": "Projects",
+      "projectsEmpty": "No projects (not part of the model yet before step 2.1).",
+      "empty": "No scope is visible for this user."
     }
   },
   "account": {
@@ -149,7 +160,38 @@
         "newTitle": "New user",
         "editTitle": "Edit user",
         "loading": "Loading…",
-        "systemUserNotice": "The SYSTEM user cannot be edited or deactivated."
+        "systemUserNotice": "The SYSTEM user cannot be edited or deactivated.",
+        "tabs": {
+          "general": "General",
+          "assignments": "Assignments"
+        },
+        "assignments": {
+          "effectiveScopeLink": "What does this user see?",
+          "grantTitle": "New assignment",
+          "change": "Change",
+          "fields": {
+            "role": "Role",
+            "scopeType": "Scope type",
+            "scopeEntity": "Entity",
+            "validFrom": "Valid from",
+            "validTo": "Valid to"
+          },
+          "scopeTypes": {
+            "LEGAL_ENTITY": "Legal entity",
+            "BUSINESS_UNIT": "Business unit",
+            "WAREHOUSE": "Warehouse",
+            "GLOBAL": "Global"
+          },
+          "grant": "Grant",
+          "listTitle": "Current assignments",
+          "empty": "No assignments yet.",
+          "sources": {
+            "MANUAL": "Manual",
+            "RESOURCE_ASSIGNMENT": "Resource assignment",
+            "SEED": "Seed data"
+          },
+          "revoke": "Revoke"
+        }
       },
       "fields": {
         "oid": "Object ID (oid)",

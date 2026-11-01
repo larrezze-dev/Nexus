@@ -109,7 +109,38 @@
         "newTitle": "Neuer Benutzer",
         "editTitle": "Benutzer bearbeiten",
         "loading": "Wird geladen…",
-        "systemUserNotice": "Der SYSTEM-Benutzer kann nicht bearbeitet oder deaktiviert werden."
+        "systemUserNotice": "Der SYSTEM-Benutzer kann nicht bearbeitet oder deaktiviert werden.",
+        "tabs": {
+          "general": "Allgemein",
+          "assignments": "Zuweisungen"
+        },
+        "assignments": {
+          "effectiveScopeLink": "Was sieht dieser Benutzer?",
+          "grantTitle": "Neue Zuweisung",
+          "change": "Ändern",
+          "fields": {
+            "role": "Rolle",
+            "scopeType": "Geltungsbereich",
+            "scopeEntity": "Objekt",
+            "validFrom": "Gültig von",
+            "validTo": "Gültig bis"
+          },
+          "scopeTypes": {
+            "LEGAL_ENTITY": "Rechtseinheit",
+            "BUSINESS_UNIT": "Business Unit",
+            "WAREHOUSE": "Lager",
+            "GLOBAL": "Global"
+          },
+          "grant": "Zuweisen",
+          "listTitle": "Aktuelle Zuweisungen",
+          "empty": "Keine Zuweisungen vorhanden.",
+          "sources": {
+            "MANUAL": "Manuell",
+            "RESOURCE_ASSIGNMENT": "Ressourcenzuweisung",
+            "SEED": "Saatdaten"
+          },
+          "revoke": "Entziehen"
+        }
       },
       "fields": {
         "oid": "Objekt-ID (oid)",
@@ -198,6 +229,17 @@
         "asOf": "Stand am",
         "resource": "Ressource"
       }
+    },
+    "effectiveScope": {
+      "title": "Was sieht dieser Benutzer?",
+      "back": "Zurück zum Benutzer",
+      "loading": "Wird geladen…",
+      "legalEntities": "Rechtseinheiten",
+      "businessUnits": "Business Units",
+      "warehouses": "Lager",
+      "projects": "Projekte",
+      "projectsEmpty": "Keine Projekte (noch nicht Teil des Modells vor Schritt 2.1).",
+      "empty": "Für diesen Benutzer ist kein Geltungsbereich sichtbar."
     }
   },
   "account": {

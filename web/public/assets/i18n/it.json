@@ -87,6 +87,17 @@
         "asOf": "Alla data del",
         "resource": "Risorsa"
       }
+    },
+    "effectiveScope": {
+      "title": "Cosa vede questo utente?",
+      "back": "Torna all'utente",
+      "loading": "Caricamento…",
+      "legalEntities": "Entità legali",
+      "businessUnits": "Unità di business",
+      "warehouses": "Magazzini",
+      "projects": "Progetti",
+      "projectsEmpty": "Nessun progetto (non ancora parte del modello prima del passo 2.1).",
+      "empty": "Nessun ambito visibile per questo utente."
     }
   },
   "account": {
@@ -149,7 +160,38 @@
         "newTitle": "Nuovo utente",
         "editTitle": "Modifica utente",
         "loading": "Caricamento…",
-        "systemUserNotice": "L'utente SYSTEM non può essere modificato né disattivato."
+        "systemUserNotice": "L'utente SYSTEM non può essere modificato né disattivato.",
+        "tabs": {
+          "general": "Generale",
+          "assignments": "Assegnazioni"
+        },
+        "assignments": {
+          "effectiveScopeLink": "Cosa vede questo utente?",
+          "grantTitle": "Nuova assegnazione",
+          "change": "Cambia",
+          "fields": {
+            "role": "Ruolo",
+            "scopeType": "Tipo di ambito",
+            "scopeEntity": "Entità",
+            "validFrom": "Valido dal",
+            "validTo": "Valido fino al"
+          },
+          "scopeTypes": {
+            "LEGAL_ENTITY": "Entità legale",
+            "BUSINESS_UNIT": "Unità di business",
+            "WAREHOUSE": "Magazzino",
+            "GLOBAL": "Globale"
+          },
+          "grant": "Assegna",
+          "listTitle": "Assegnazioni attuali",
+          "empty": "Nessuna assegnazione al momento.",
+          "sources": {
+            "MANUAL": "Manuale",
+            "RESOURCE_ASSIGNMENT": "Assegnazione risorsa",
+            "SEED": "Dati di base"
+          },
+          "revoke": "Revoca"
+        }
       },
       "fields": {
         "oid": "ID oggetto (oid)",

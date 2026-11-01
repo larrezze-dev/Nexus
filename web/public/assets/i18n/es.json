@@ -87,6 +87,17 @@
         "asOf": "A fecha de",
         "resource": "Recurso"
       }
+    },
+    "effectiveScope": {
+      "title": "¿Qué ve este usuario?",
+      "back": "Volver al usuario",
+      "loading": "Cargando…",
+      "legalEntities": "Entidades legales",
+      "businessUnits": "Unidades de negocio",
+      "warehouses": "Almacenes",
+      "projects": "Proyectos",
+      "projectsEmpty": "Sin proyectos (todavía no forman parte del modelo antes del paso 2.1).",
+      "empty": "No hay ningún alcance visible para este usuario."
     }
   },
   "account": {
@@ -149,7 +160,38 @@
         "newTitle": "Nuevo usuario",
         "editTitle": "Editar usuario",
         "loading": "Cargando…",
-        "systemUserNotice": "El usuario SYSTEM no se puede editar ni desactivar."
+        "systemUserNotice": "El usuario SYSTEM no se puede editar ni desactivar.",
+        "tabs": {
+          "general": "General",
+          "assignments": "Asignaciones"
+        },
+        "assignments": {
+          "effectiveScopeLink": "¿Qué ve este usuario?",
+          "grantTitle": "Nueva asignación",
+          "change": "Cambiar",
+          "fields": {
+            "role": "Rol",
+            "scopeType": "Tipo de alcance",
+            "scopeEntity": "Entidad",
+            "validFrom": "Válido desde",
+            "validTo": "Válido hasta"
+          },
+          "scopeTypes": {
+            "LEGAL_ENTITY": "Entidad legal",
+            "BUSINESS_UNIT": "Unidad de negocio",
+            "WAREHOUSE": "Almacén",
+            "GLOBAL": "Global"
+          },
+          "grant": "Conceder",
+          "listTitle": "Asignaciones actuales",
+          "empty": "Todavía no hay asignaciones.",
+          "sources": {
+            "MANUAL": "Manual",
+            "RESOURCE_ASSIGNMENT": "Asignación de recurso",
+            "SEED": "Datos semilla"
+          },
+          "revoke": "Revocar"
+        }
       },
       "fields": {
         "oid": "ID de objeto (oid)",

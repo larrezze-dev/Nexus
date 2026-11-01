@@ -87,6 +87,17 @@
         "asOf": "À la date du",
         "resource": "Ressource"
       }
+    },
+    "effectiveScope": {
+      "title": "Que voit cet utilisateur ?",
+      "back": "Retour à l'utilisateur",
+      "loading": "Chargement…",
+      "legalEntities": "Entités juridiques",
+      "businessUnits": "Unités commerciales",
+      "warehouses": "Entrepôts",
+      "projects": "Projets",
+      "projectsEmpty": "Aucun projet (ne fait pas encore partie du modèle avant l'étape 2.1).",
+      "empty": "Aucun périmètre visible pour cet utilisateur."
     }
   },
   "account": {
@@ -149,7 +160,38 @@
         "newTitle": "Nouvel utilisateur",
         "editTitle": "Modifier l'utilisateur",
         "loading": "Chargement…",
-        "systemUserNotice": "L'utilisateur SYSTEM ne peut pas être modifié ni désactivé."
+        "systemUserNotice": "L'utilisateur SYSTEM ne peut pas être modifié ni désactivé.",
+        "tabs": {
+          "general": "Général",
+          "assignments": "Attributions"
+        },
+        "assignments": {
+          "effectiveScopeLink": "Que voit cet utilisateur ?",
+          "grantTitle": "Nouvelle attribution",
+          "change": "Changer",
+          "fields": {
+            "role": "Rôle",
+            "scopeType": "Type de périmètre",
+            "scopeEntity": "Entité",
+            "validFrom": "Valide à partir de",
+            "validTo": "Valide jusqu'à"
+          },
+          "scopeTypes": {
+            "LEGAL_ENTITY": "Entité juridique",
+            "BUSINESS_UNIT": "Unité commerciale",
+            "WAREHOUSE": "Entrepôt",
+            "GLOBAL": "Global"
+          },
+          "grant": "Attribuer",
+          "listTitle": "Attributions actuelles",
+          "empty": "Aucune attribution pour le moment.",
+          "sources": {
+            "MANUAL": "Manuel",
+            "RESOURCE_ASSIGNMENT": "Attribution de ressource",
+            "SEED": "Données d'amorçage"
+          },
+          "revoke": "Révoquer"
+        }
       },
       "fields": {
         "oid": "ID d'objet (oid)",

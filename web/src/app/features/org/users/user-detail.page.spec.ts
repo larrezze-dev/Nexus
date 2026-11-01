@@ -1,12 +1,44 @@
-import { TestBed } from '@angular/core/testing';
+import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { ActivatedRoute, convertToParamMap } from '@angular/router';
 import { provideNoopAnimations } from '@angular/platform-browser/animations';
 import { provideTransloco } from '@jsverse/transloco';
 import { signal } from '@angular/core';
+import { RoleAssignmentsFacade } from '../../access/role-assignments/role-assignments.facade';
 import { UserDetailPage } from './user-detail.page';
 import { SYSTEM_USER_ID, UsersFacade } from './users.facade';
 
-function setup(paramMap: Record<string, string>, facadeOverrides: Partial<Record<string, unknown>> = {}) {
+/**
+ * `MatTabGroup` only renders a tab's content once it has been activated at least once (it is
+ * not an `*ngIf`-style conditional on the data, it's `mat-tab-body`'s own lazy-portal
+ * behaviour) — "Asignaciones" is never the default-selected tab, so tests asserting on its
+ * content must select it first. `ngOnInit`'s chained `await`s (`facade.load()`, optionally
+ * `describeBusinessUnit()`, then `assignmentsFacade.list()`) also don't reliably settle within
+ * a single `fixture.whenStable()` wait once a third `await` is in the chain in this test
+ * environment, so this polls microtask/macrotask turns until one of the tab's terminal states
+ * (the empty-state marker or the rendered list) shows up in the DOM, instead of guessing how
+ * many turns the chain needs.
+ */
+async function flushUntilAssignmentsLoaded(fixture: ComponentFixture<UserDetailPage>): Promise<void> {
+  const root = fixture.nativeElement as HTMLElement;
+  const tabs = root.querySelectorAll<HTMLElement>('[role="tab"]');
+  tabs[1]?.click();
+  fixture.detectChanges();
+
+  for (let i = 0; i < 20; i++) {
+    if (root.querySelector('[data-testid="assignments-empty"], [data-testid="assignments-list"]')) {
+      return;
+    }
+    await Promise.resolve();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    fixture.detectChanges();
+  }
+}
+
+function setup(
+  paramMap: Record<string, string>,
+  facadeOverrides: Partial<Record<string, unknown>> = {},
+  assignmentsFacadeOverrides: Partial<Record<string, unknown>> = {},
+) {
   const facade = {
     selected: signal(null),
     loading: signal(false),
@@ -24,12 +56,27 @@ function setup(paramMap: Record<string, string>, facadeOverrides: Partial<Record
     ...facadeOverrides,
   };
 
+  const assignmentsFacade = {
+    loading: signal(false),
+    list: vi.fn().mockResolvedValue([]),
+    canRevoke: vi.fn().mockReturnValue(false),
+    create: vi.fn(),
+    revoke: vi.fn(),
+    getEffectiveScope: vi.fn(),
+    searchRoles: vi.fn(),
+    searchLegalEntities: vi.fn(),
+    searchBusinessUnits: vi.fn(),
+    searchWarehouses: vi.fn(),
+    ...assignmentsFacadeOverrides,
+  };
+
   TestBed.configureTestingModule({
     imports: [UserDetailPage],
     providers: [
       provideNoopAnimations(),
       ...provideTransloco({ config: { availableLangs: ['en'], defaultLang: 'en' } }),
       { provide: UsersFacade, useValue: facade },
+      { provide: RoleAssignmentsFacade, useValue: assignmentsFacade },
       {
         provide: ActivatedRoute,
         useValue: { snapshot: { paramMap: convertToParamMap(paramMap) } },
@@ -38,7 +85,7 @@ function setup(paramMap: Record<string, string>, facadeOverrides: Partial<Record
   });
 
   const fixture = TestBed.createComponent(UserDetailPage);
-  return { fixture, facade };
+  return { fixture, facade, assignmentsFacade };
 }
 
 describe('UserDetailPage', () => {
@@ -113,5 +160,71 @@ describe('UserDetailPage', () => {
     const error = (fixture.nativeElement as HTMLElement).querySelector('[data-testid="user-email-error"]');
     expect(error?.textContent).toContain('already exists');
     expect(facade.create).not.toHaveBeenCalled();
+  });
+
+  it('does not render the "Asignaciones" tab for a brand-new (not-yet-saved) user', async () => {
+    const { fixture } = setup({});
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    expect(fixture.componentInstance['isNew']()).toBe(true);
+    const text = (fixture.nativeElement as HTMLElement).textContent ?? '';
+    expect(text).not.toContain('org.users.detail.tabs.assignments');
+  });
+
+  it('loads the user\'s role assignments once it exists and shows the empty state', async () => {
+    const user = {
+      id: 'u-1',
+      fullName: 'Jane Doe',
+      email: 'jane@example.com',
+      oid: 'oid-1',
+      preferredLanguage: 'en' as const,
+      businessUnitId: null,
+      partyId: 'p-1',
+      isActive: true,
+    };
+    const { fixture, assignmentsFacade } = setup({ id: 'u-1' }, { selected: signal(user) });
+
+    fixture.detectChanges();
+    await flushUntilAssignmentsLoaded(fixture);
+
+    expect(assignmentsFacade.list).toHaveBeenCalledWith('u-1');
+    const empty = (fixture.nativeElement as HTMLElement).querySelector('[data-testid="assignments-empty"]');
+    expect(empty).not.toBeNull();
+  });
+
+  it('only offers "Revocar" on rows the facade knows an ETag for (contract gap)', async () => {
+    const user = {
+      id: 'u-1',
+      fullName: 'Jane Doe',
+      email: 'jane@example.com',
+      oid: 'oid-1',
+      preferredLanguage: 'en' as const,
+      businessUnitId: null,
+      partyId: 'p-1',
+      isActive: true,
+    };
+    const assignment = {
+      id: 'ra-1',
+      roleId: 'role-1',
+      userId: 'u-1',
+      scopeType: 'LEGAL_ENTITY' as const,
+      scopeEntityId: 'le-1',
+      source: 'SEED' as const,
+      validFrom: '2026-01-01T00:00:00Z',
+      validTo: null,
+    };
+    const { fixture, assignmentsFacade } = setup(
+      { id: 'u-1' },
+      { selected: signal(user) },
+      { list: vi.fn().mockResolvedValue([assignment]), canRevoke: vi.fn().mockReturnValue(false) },
+    );
+
+    fixture.detectChanges();
+    await flushUntilAssignmentsLoaded(fixture);
+
+    const revokeButton = (fixture.nativeElement as HTMLElement).querySelector('[data-testid="assignment-revoke-ra-1"]');
+    expect(revokeButton).toBeNull();
   });
 });

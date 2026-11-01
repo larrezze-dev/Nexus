@@ -18,69 +18,201 @@
       <p role="status">{{ 'org.users.detail.systemUserNotice' | transloco }}</p>
     }
 
-    <form [formGroup]="form" (ngSubmit)="save()">
-      <mat-form-field>
-        <mat-label>{{ 'org.users.fields.oid' | transloco }}</mat-label>
-        <input matInput formControlName="oid" data-testid="user-oid-input" />
-      </mat-form-field>
+    <mat-tab-group>
+      <mat-tab [label]="'org.users.detail.tabs.general' | transloco">
+        <form [formGroup]="form" (ngSubmit)="save()">
+          <mat-form-field>
+            <mat-label>{{ 'org.users.fields.oid' | transloco }}</mat-label>
+            <input matInput formControlName="oid" data-testid="user-oid-input" />
+          </mat-form-field>
 
-      <mat-form-field>
-        <mat-label>{{ 'org.users.fields.fullName' | transloco }}</mat-label>
-        <input matInput formControlName="fullName" data-testid="user-full-name-input" />
-      </mat-form-field>
+          <mat-form-field>
+            <mat-label>{{ 'org.users.fields.fullName' | transloco }}</mat-label>
+            <input matInput formControlName="fullName" data-testid="user-full-name-input" />
+          </mat-form-field>
 
-      <mat-form-field>
-        <mat-label>{{ 'org.users.fields.email' | transloco }}</mat-label>
-        <input matInput type="email" formControlName="email" data-testid="user-email-input" />
-      </mat-form-field>
-      @if (facade.fieldErrors()?.email) {
-        <p role="alert" data-testid="user-email-error">{{ facade.fieldErrors()?.email }}</p>
-      }
-
-      <mat-form-field>
-        <mat-label>{{ 'org.users.fields.preferredLanguage' | transloco }}</mat-label>
-        <mat-select formControlName="preferredLanguage" data-testid="user-language-select">
-          @for (option of languageOptions; track option.code) {
-            <mat-option [value]="option.code">{{ option.label }}</mat-option>
+          <mat-form-field>
+            <mat-label>{{ 'org.users.fields.email' | transloco }}</mat-label>
+            <input matInput type="email" formControlName="email" data-testid="user-email-input" />
+          </mat-form-field>
+          @if (facade.fieldErrors()?.email) {
+            <p role="alert" data-testid="user-email-error">{{ facade.fieldErrors()?.email }}</p>
           }
-        </mat-select>
-      </mat-form-field>
 
-      <div class="nx-user-detail-page__business-unit">
-        <p>{{ 'org.users.fields.businessUnit' | transloco }}</p>
-        @if (businessUnitLabel()) {
-          <p data-testid="user-business-unit-current">{{ businessUnitLabel() }}</p>
-          <button mat-button type="button" (click)="clearBusinessUnit()">
-            {{ 'org.users.actions.clearBusinessUnit' | transloco }}
-          </button>
-        } @else {
-          <nx-entity-picker
-            [search]="searchBusinessUnits"
-            [displayWith]="displayBusinessUnit"
-            (selected)="onBusinessUnitSelected($event)"
-          />
-        }
-      </div>
+          <mat-form-field>
+            <mat-label>{{ 'org.users.fields.preferredLanguage' | transloco }}</mat-label>
+            <mat-select formControlName="preferredLanguage" data-testid="user-language-select">
+              @for (option of languageOptions; track option.code) {
+                <mat-option [value]="option.code">{{ option.label }}</mat-option>
+              }
+            </mat-select>
+          </mat-form-field>
 
-      <div class="nx-user-detail-page__actions">
-        <button mat-flat-button color="primary" type="submit" [disabled]="facade.saving()" data-testid="user-save-button">
-          {{ 'common.save' | transloco }}
-        </button>
-        <a mat-button routerLink="..">{{ 'common.cancel' | transloco }}</a>
+          <div class="nx-user-detail-page__business-unit">
+            <p>{{ 'org.users.fields.businessUnit' | transloco }}</p>
+            @if (businessUnitLabel()) {
+              <p data-testid="user-business-unit-current">{{ businessUnitLabel() }}</p>
+              <button mat-button type="button" (click)="clearBusinessUnit()">
+                {{ 'org.users.actions.clearBusinessUnit' | transloco }}
+              </button>
+            } @else {
+              <nx-entity-picker
+                [search]="searchBusinessUnits"
+                [displayWith]="displayBusinessUnit"
+                (selected)="onBusinessUnitSelected($event)"
+              />
+            }
+          </div>
 
-        @if (!isNew() && !isSystemUser()) {
-          <button
-            mat-button
-            type="button"
-            color="warn"
-            *nxCan="'USER:DEACTIVATE'"
-            (click)="deactivate()"
-            data-testid="user-deactivate-button"
-          >
-            {{ 'org.users.actions.deactivate' | transloco }}
-          </button>
-        }
-      </div>
-    </form>
+          <div class="nx-user-detail-page__actions">
+            <button mat-flat-button color="primary" type="submit" [disabled]="facade.saving()" data-testid="user-save-button">
+              {{ 'common.save' | transloco }}
+            </button>
+            <a mat-button routerLink="..">{{ 'common.cancel' | transloco }}</a>
+
+            @if (!isNew() && !isSystemUser()) {
+              <button
+                mat-button
+                type="button"
+                color="warn"
+                *nxCan="'USER:DEACTIVATE'"
+                (click)="deactivate()"
+                data-testid="user-deactivate-button"
+              >
+                {{ 'org.users.actions.deactivate' | transloco }}
+              </button>
+            }
+          </div>
+        </form>
+      </mat-tab>
+
+      @if (!isNew()) {
+        <mat-tab [label]="'org.users.detail.tabs.assignments' | transloco">
+          <div class="nx-user-detail-page__assignments">
+            <a mat-button [routerLink]="['/access/users', facade.selected()?.id, 'effective-scope']">
+              {{ 'org.users.detail.assignments.effectiveScopeLink' | transloco }}
+            </a>
+
+            <form
+              *nxCan="'ROLE_ASSIGNMENT:CREATE'"
+              [formGroup]="grantForm"
+              (ngSubmit)="grantAssignment()"
+              class="nx-user-detail-page__grant-form"
+            >
+              <h2>{{ 'org.users.detail.assignments.grantTitle' | transloco }}</h2>
+
+              <div>
+                <p>{{ 'org.users.detail.assignments.fields.role' | transloco }}</p>
+                @if (roleLabel()) {
+                  <p data-testid="assignment-role-current">{{ roleLabel() }}</p>
+                  <button mat-button type="button" (click)="clearRole()">
+                    {{ 'org.users.detail.assignments.change' | transloco }}
+                  </button>
+                } @else {
+                  <nx-entity-picker
+                    [search]="searchRoles"
+                    [displayWith]="displayRole"
+                    (selected)="onRoleSelected($event)"
+                    data-testid="assignment-role-picker"
+                  />
+                }
+              </div>
+
+              <mat-form-field>
+                <mat-label>{{ 'org.users.detail.assignments.fields.scopeType' | transloco }}</mat-label>
+                <mat-select
+                  formControlName="scopeType"
+                  data-testid="assignment-scope-type-select"
+                  (selectionChange)="onScopeTypeChanged()"
+                >
+                  @for (type of scopeTypes; track type) {
+                    <mat-option [value]="type">
+                      {{ 'org.users.detail.assignments.scopeTypes.' + type | transloco }}
+                    </mat-option>
+                  }
+                </mat-select>
+              </mat-form-field>
+
+              @if (grantForm.controls.scopeType.value !== 'GLOBAL') {
+                <div>
+                  <p>{{ 'org.users.detail.assignments.fields.scopeEntity' | transloco }}</p>
+                  @if (scopeEntityLabel()) {
+                    <p data-testid="assignment-scope-entity-current">{{ scopeEntityLabel() }}</p>
+                    <button mat-button type="button" (click)="clearScopeEntity()">
+                      {{ 'org.users.detail.assignments.change' | transloco }}
+                    </button>
+                  } @else if (grantForm.controls.scopeType.value === 'LEGAL_ENTITY') {
+                    <nx-entity-picker
+                      [search]="searchLegalEntities"
+                      [displayWith]="displayLegalEntity"
+                      (selected)="onLegalEntityScopeSelected($event)"
+                      data-testid="assignment-scope-entity-picker"
+                    />
+                  } @else if (grantForm.controls.scopeType.value === 'BUSINESS_UNIT') {
+                    <nx-entity-picker
+                      [search]="searchBusinessUnitsForScope"
+                      [displayWith]="displayBusinessUnitForScope"
+                      (selected)="onBusinessUnitScopeSelected($event)"
+                      data-testid="assignment-scope-entity-picker"
+                    />
+                  } @else {
+                    <nx-entity-picker
+                      [search]="searchWarehouses"
+                      [displayWith]="displayWarehouse"
+                      (selected)="onWarehouseScopeSelected($event)"
+                      data-testid="assignment-scope-entity-picker"
+                    />
+                  }
+                </div>
+              }
+
+              <mat-form-field>
+                <mat-label>{{ 'org.users.detail.assignments.fields.validFrom' | transloco }}</mat-label>
+                <input matInput type="date" formControlName="validFrom" data-testid="assignment-valid-from-input" />
+              </mat-form-field>
+
+              <mat-form-field>
+                <mat-label>{{ 'org.users.detail.assignments.fields.validTo' | transloco }}</mat-label>
+                <input matInput type="date" formControlName="validTo" data-testid="assignment-valid-to-input" />
+              </mat-form-field>
+
+              <button mat-flat-button color="primary" type="submit" data-testid="assignment-grant-button">
+                {{ 'org.users.detail.assignments.grant' | transloco }}
+              </button>
+            </form>
+
+            <h2>{{ 'org.users.detail.assignments.listTitle' | transloco }}</h2>
+            @if (assignmentsFacade.loading()) {
+              <p>{{ 'org.users.detail.loading' | transloco }}</p>
+            } @else if (assignments().length === 0) {
+              <p data-testid="assignments-empty">{{ 'org.users.detail.assignments.empty' | transloco }}</p>
+            } @else {
+              <ul class="nx-user-detail-page__assignment-list" data-testid="assignments-list">
+                @for (assignment of assignments(); track assignment.id) {
+                  <li>
+                    <span>{{ 'org.users.detail.assignments.scopeTypes.' + assignment.scopeType | transloco }}</span>
+                    <span>{{ assignment.validFrom.slice(0, 10) }}</span>
+                    <span>{{ assignment.validTo ? assignment.validTo.slice(0, 10) : '—' }}</span>
+                    <span>{{ 'org.users.detail.assignments.sources.' + assignment.source | transloco }}</span>
+                    @if (assignmentsFacade.canRevoke(assignment.id)) {
+                      <button
+                        mat-button
+                        type="button"
+                        color="warn"
+                        *nxCan="'ROLE_ASSIGNMENT:UPDATE'"
+                        (click)="revokeAssignment(assignment.id)"
+                        [attr.data-testid]="'assignment-revoke-' + assignment.id"
+                      >
+                        {{ 'org.users.detail.assignments.revoke' | transloco }}
+                      </button>
+                    }
+                  </li>
+                }
+              </ul>
+            }
+          </div>
+        </mat-tab>
+      }
+    </mat-tab-group>
   }
 </div>
