@@ -20,5 +20,6 @@ Antes de lanzar 0.1 tienen que estar en `Aceptado` los ADR 0001–0010. El 0011 
 | [0012](0012-solver-planning-model.md) | Interfaz y modelo de planificación del Solver | Propuesto | 4.4 |
 | [0013](0013-outbox-payload-column-type.md) | Tipo de columna para `outbox.message.payload` | Aceptado | 0.3, implementar antes de 0.4 |
 | [0014](0014-openapi-conformance-vs-fluentvalidation.md) | Conformidad OpenAPI del servicio vs. reglas de FluentValidation | Aceptado | 0.4 (track B5), todo paso con FluentValidation |
+| [0015](0015-has-permission-group-scope.md) | Cobertura de alcance `GROUP` en `access.has_permission` (ACC-R4) | Propuesto | nada (0.6-B aplica fail-closed mientras tanto) |
 
 Para un ADR nuevo: copiar `0000-template.md`, siguiente número libre, estado `Propuesto`, y añadir la fila aquí.
