@@ -18,5 +18,7 @@ internal static class RoleAssignmentConstraintViolations
             .AddNexusConstraintViolation(RoleAssignmentErrors.UserForeignKey, RoleAssignmentErrors.UserNotFound)
             .AddNexusConstraintViolation(RoleAssignmentErrors.RoleForeignKey, RoleAssignmentErrors.RoleNotFound)
             // Two concurrent idempotent creates with the same client id: the loser sees a conflict.
-            .AddNexusConstraintViolation(RoleAssignmentErrors.PrimaryKey, RoleAssignmentErrors.IdAlreadyUsed);
+            .AddNexusConstraintViolation(RoleAssignmentErrors.PrimaryKey, RoleAssignmentErrors.IdAlreadyUsed)
+            // Backstop only: the create handler already rejects a past validTo (same error).
+            .AddNexusConstraintViolation(RoleAssignmentErrors.ValidToNotBeforeCreatedAtCheck, RoleAssignmentErrors.ValidToInPast);
 }

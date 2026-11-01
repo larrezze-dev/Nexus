@@ -195,6 +195,43 @@ public sealed class RoleApiTests : IClassFixture<PlatformApiFixture>
         response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
     }
 
+    [Fact(DisplayName = "ACC-R7: an overlapping role_permission window (concurrent add of the same code) is a 409, not a 500")]
+    public async Task Update_role_permissions_overlapping_an_unseen_grant_is_a_409_concurrency()
+    {
+        using var admin = _fixture.CreateClientFor(Org.Admin.Oid);
+        var created = await CreateAsync(admin, NewRole());
+
+        // Stand-in for the winner of a race: a grant of ROLE:READ the handler does not see as
+        // current (it reads valid_to IS NULL) but whose window still covers now(). Opening
+        // [now, infinity) for the same code then hits the EXCLUDE constraint, exactly as the
+        // loser of two concurrent PUTs adding the same code would.
+        await _fixture.Database.ScalarAsync<object>(
+            "INSERT INTO access.role_permission (id, role_id, permission_id, valid_from, valid_to, granted_by) " +
+            "VALUES ($1, $2, (SELECT id FROM access.permission WHERE code = 'ROLE:READ'), now() - interval '1 hour', now() + interval '1 day', $3)",
+            Guid.CreateVersion7(),
+            created.Id,
+            Org.Admin.Id);
+
+        var response = await admin.PutAsJsonAsync(
+            new Uri($"/v1/roles/{created.Id}/permissions", UriKind.Relative),
+            new { permissionCodes = new List<string> { "ROLE:READ" } },
+            Ct);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.Conflict);
+        (await ReadAsync(response)).GetProperty("code").GetString().ShouldBe("CONCURRENCY");
+    }
+
+    [Fact(DisplayName = "The role_permission EXCLUDE constraint has the name RoleErrors maps")]
+    public async Task Role_permission_exclusion_constraint_name_is_pinned()
+    {
+        var definition = await _fixture.Database.ScalarAsync<string>(
+            "SELECT pg_get_constraintdef(oid) FROM pg_constraint WHERE conrelid = 'access.role_permission'::regclass AND conname = $1",
+            Nexus.Platform.Application.Roles.RoleErrors.RolePermissionOverlapExclusion);
+
+        definition.ShouldNotBeNull();
+        definition.ShouldStartWith("EXCLUDE USING gist");
+    }
+
     // --- helpers ---------------------------------------------------------------------------
 
     private static CreateRole NewRole()

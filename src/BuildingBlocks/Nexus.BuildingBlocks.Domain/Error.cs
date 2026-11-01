@@ -26,6 +26,12 @@ public sealed record Error(string Code, string Message)
     /// <summary>Stale optimistic-concurrency version (<see cref="ErrorCodes.Concurrency"/>, 409).</summary>
     public static Error Concurrency(string message) => new(ErrorCodes.Concurrency, message);
 
+    /// <summary>
+    /// The caller is authenticated and holds the endpoint's permission, but a check that can only
+    /// run once the target row is loaded denies it (<see cref="ErrorCodes.Forbidden"/>, 403).
+    /// </summary>
+    public static Error Forbidden(string message) => new(ErrorCodes.Forbidden, message);
+
     /// <summary>The resource already exists with different content (<see cref="ErrorCodes.Conflict"/>, 409).</summary>
     public static Error Conflict(string message) => new(ErrorCodes.Conflict, message);
 }

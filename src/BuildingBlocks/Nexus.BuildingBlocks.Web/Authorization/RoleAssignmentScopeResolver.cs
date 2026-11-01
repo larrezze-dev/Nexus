@@ -9,6 +9,8 @@ namespace Nexus.BuildingBlocks.Web.Authorization;
 /// <c>access.has_permission</c> arguments that implement ACC-R4: "the granter needs
 /// <c>ROLE_ASSIGNMENT:CREATE</c> in a scope that covers the target scope". Coverage follows the
 /// hierarchy GLOBAL ⊃ GROUP ⊃ LEGAL_ENTITY ⊃ BUSINESS_UNIT ⊃ WAREHOUSE (PROJECT stands apart).
+/// Also used, through <c>IRoleAssignmentScopeChecker</c>, for the scope of an existing row
+/// (<c>revokeRoleAssignment</c>'s <c>ROLE_ASSIGNMENT:UPDATE</c> covering check).
 /// <para>
 /// A <see langword="null"/> result means "no basis to grant": the caller treats it as
 /// <c>has_permission</c> returning false (403). Malformed input never throws: ACC-R1/ACC-R2
@@ -96,8 +98,10 @@ internal static class RoleAssignmentScopeResolver
                         transaction,
                         cancellationToken: cancellationToken));
 
-                // Unknown BU: keep just the id, so only GLOBAL (or an exact BU grant) covers it
-                // and a GLOBAL admin still reaches the handler's ACC-R2 422 instead of a 403.
+                // Unknown BU: keep just the id, so only GLOBAL (or an exact BU grant) covers it.
+                // A GLOBAL admin therefore gets past this filter and receives the create
+                // handler's ACC-R2 422 (scopeEntityId must exist, checked against
+                // org.business_unit there); anyone else gets a 403 here.
                 return new PermissionTarget(legalEntityId, id, null, null);
             }
 
@@ -110,6 +114,7 @@ internal static class RoleAssignmentScopeResolver
                         transaction,
                         cancellationToken: cancellationToken));
 
+                // Unknown warehouse: same as an unknown BU above (GLOBAL → handler's ACC-R2 422).
                 return new PermissionTarget(owner?.LegalEntityId, owner?.BusinessUnitId, id, null);
             }
 

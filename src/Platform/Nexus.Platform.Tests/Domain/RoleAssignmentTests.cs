@@ -124,6 +124,41 @@ public sealed class RoleAssignmentTests
         assignment.DomainEvents.Count.ShouldBe(eventCountAfterFirstRevoke);
     }
 
+    [Fact(DisplayName = "ACC-R3: revoking an active assignment with a future validTo pulls validTo in to now")]
+    public void Revoke_an_active_assignment_with_a_future_valid_to_revokes_it()
+    {
+        var now = DateTimeOffset.UtcNow;
+        var assignment = RoleAssignment.Create(
+            Id, UserId, RoleId, RoleAssignment.ScopeGlobal, null, now.AddDays(-1), now.AddYears(1), GrantedBy).Value;
+        var revokedBy = Guid.CreateVersion7();
+
+        var result = assignment.Revoke(revokedBy, now);
+
+        result.IsSuccess.ShouldBeTrue();
+        result.Value.ShouldBeTrue();
+        assignment.ValidTo.ShouldBe(now);
+        assignment.RevokedBy.ShouldBe(revokedBy);
+        assignment.DomainEvents[^1].ShouldBeOfType<RoleAssignmentChanged>().ChangeKind.ShouldBe("REVOKED");
+    }
+
+    [Fact(DisplayName = "ACC-R3: revoking an assignment whose validTo has already passed is a no-op")]
+    public void Revoke_an_already_expired_assignment_is_idempotent()
+    {
+        var now = DateTimeOffset.UtcNow;
+        var expiredAt = now.AddDays(-1);
+        var assignment = RoleAssignment.Create(
+            Id, UserId, RoleId, RoleAssignment.ScopeGlobal, null, now.AddDays(-10), expiredAt, GrantedBy).Value;
+        var eventCount = assignment.DomainEvents.Count;
+
+        var result = assignment.Revoke(Guid.CreateVersion7(), now);
+
+        result.IsSuccess.ShouldBeTrue();
+        result.Value.ShouldBeFalse();
+        assignment.ValidTo.ShouldBe(expiredAt);
+        assignment.RevokedBy.ShouldBeNull();
+        assignment.DomainEvents.Count.ShouldBe(eventCount);
+    }
+
     /// <summary>
     /// A SEED/GLOBAL assignment as it would be loaded from the database (there is no public
     /// factory for that shape: only the seed SQL creates one, never the API). Built through

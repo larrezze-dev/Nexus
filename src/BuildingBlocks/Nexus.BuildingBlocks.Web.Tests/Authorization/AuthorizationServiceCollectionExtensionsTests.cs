@@ -52,4 +52,15 @@ public sealed class AuthorizationServiceCollectionExtensionsTests
         descriptor.ImplementationType.ShouldBe(typeof(AccessPermissionChecker));
         descriptor.Lifetime.ShouldBe(ServiceLifetime.Scoped);
     }
+
+    [Fact]
+    public void AddNexusAuthorization_Registers_AccessPermissionChecker_As_The_Scoped_RoleAssignmentScopeChecker()
+    {
+        var services = new ServiceCollection();
+        services.AddNexusAuthorization(new ConfigurationBuilder().Build());
+
+        var descriptor = services.Single(d => d.ServiceType == typeof(Nexus.BuildingBlocks.Application.IRoleAssignmentScopeChecker));
+        descriptor.ImplementationType.ShouldBe(typeof(AccessPermissionChecker));
+        descriptor.Lifetime.ShouldBe(ServiceLifetime.Scoped);
+    }
 }

@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Nexus.BuildingBlocks.Application;
 
 namespace Nexus.BuildingBlocks.Web.Authorization;
 
@@ -30,6 +31,13 @@ public static class AuthorizationServiceCollectionExtensions
         // call runs inside the request's own transaction). A singleton would capture one
         // request's unit of work forever.
         services.AddScoped<IPermissionChecker, AccessPermissionChecker>();
+
+        // Same implementation, for handlers that check a loaded row's role-assignment scope
+        // (e.g. revokeRoleAssignment). Always enforced, regardless of EnforcePermissions: it is
+        // a handler-level rule (like ACC-R5/ACC-R6), not the endpoint filter, and it fails
+        // closed. A separate registration (not a forward to IPermissionChecker) so a test that
+        // swaps the filter's checker never silently swaps this one too.
+        services.AddScoped<IRoleAssignmentScopeChecker, AccessPermissionChecker>();
 
         return services;
     }

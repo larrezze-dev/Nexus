@@ -14,5 +14,8 @@ internal static class RoleConstraintViolations
         services
             .AddNexusConstraintViolation(RoleErrors.CodeUniqueConstraint, RoleErrors.CodeAlreadyUsed)
             // Two concurrent idempotent creates with the same client id: the loser sees a conflict.
-            .AddNexusConstraintViolation(RoleErrors.RolePrimaryKey, RoleErrors.IdAlreadyUsed);
+            .AddNexusConstraintViolation(RoleErrors.RolePrimaryKey, RoleErrors.IdAlreadyUsed)
+            // Two concurrent PUT .../permissions adding the same code: the loser's new grant
+            // overlaps the winner's (ACC-R7 never lets two windows of one grant overlap).
+            .AddNexusConstraintViolation(RoleErrors.RolePermissionOverlapExclusion, RoleErrors.PermissionGrantOverlap);
 }

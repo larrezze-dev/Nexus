@@ -67,6 +67,7 @@ internal sealed class NexusProblemType
         var wellKnown = error.Code switch
         {
             ErrorCodes.Validation => Validation,
+            ErrorCodes.Forbidden => Forbidden,
             ErrorCodes.NotFound => NotFound,
             ErrorCodes.Concurrency => Concurrency,
             ErrorCodes.Conflict => Conflict,

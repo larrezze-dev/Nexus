@@ -118,8 +118,13 @@ public sealed class RoleAssignment : AggregateRoot<Guid>
 
     /// <summary>
     /// Revokes the assignment: sets <see cref="ValidTo"/> to <paramref name="now"/> and
-    /// <see cref="RevokedBy"/>, never deletes the row (ACC-R3). Idempotent: an already-revoked
-    /// assignment is returned unchanged (<see langword="false"/>, no new event). Checked in this
+    /// <see cref="RevokedBy"/>, never deletes the row (ACC-R3). Idempotent: an assignment that no
+    /// longer grants anything as of <paramref name="now"/> - already revoked
+    /// (<see cref="RevokedBy"/> set) or already expired (<see cref="ValidTo"/> &lt;=
+    /// <paramref name="now"/>) - is returned unchanged (<see langword="false"/>, no new event).
+    /// A still-active assignment that merely carries a <b>future</b> <see cref="ValidTo"/> (a
+    /// time-boxed grant, e.g. ACC-R8's <c>FIELD_CAPTURE</c>) is <b>not</b> "already revoked": its
+    /// <see cref="ValidTo"/> is pulled in to <paramref name="now"/>. Checked in this
     /// order: ACC-R5 (nobody revokes their own assignment) before ACC-R6 (the seeded SYSTEM/first
     /// administrator GLOBAL grant can never be revoked through the API) - both can be true of the
     /// same row at once (e.g. SYSTEM revoking its own seeded GLOBAL grant), and ACC-R5 is checked
@@ -127,7 +132,7 @@ public sealed class RoleAssignment : AggregateRoot<Guid>
     /// </summary>
     public Result<bool> Revoke(Guid revokedBy, DateTimeOffset now)
     {
-        if (ValidTo is not null)
+        if (RevokedBy is not null || (ValidTo is { } validTo && validTo <= now))
         {
             return Result.Success(false);
         }

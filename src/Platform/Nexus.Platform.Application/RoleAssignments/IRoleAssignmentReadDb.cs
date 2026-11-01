@@ -16,6 +16,17 @@ public interface IRoleAssignmentReadDb
     /// </summary>
     Task<PagedResult<RoleAssignmentListItem>> ListAsync(
         int page, int pageSize, IReadOnlyList<SortField> sort, RoleAssignmentFilter filter, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// ACC-R2: whether <paramref name="scopeEntityId"/> is a row of the table that
+    /// <paramref name="scopeType"/> names (<c>GROUP</c> → <c>org."group"</c>,
+    /// <c>LEGAL_ENTITY</c> → <c>org.legal_entity</c>, <c>BUSINESS_UNIT</c> →
+    /// <c>org.business_unit</c>, <c>WAREHOUSE</c> → <c>org.warehouse</c>). Read under the
+    /// caller's RLS session, like every other read: a row the caller cannot see counts as
+    /// missing. Any other scope type (<c>GLOBAL</c> has no entity, <c>PROJECT</c> is rejected
+    /// earlier) answers <see langword="false"/>.
+    /// </summary>
+    Task<bool> ScopeEntityExistsAsync(string scopeType, Guid scopeEntityId, CancellationToken cancellationToken);
 }
 
 /// <summary>

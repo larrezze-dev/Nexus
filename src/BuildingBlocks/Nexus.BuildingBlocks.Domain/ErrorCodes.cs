@@ -7,6 +7,8 @@ namespace Nexus.BuildingBlocks.Domain;
 /// handler can report them through <see cref="Result"/> instead of throwing:
 /// <list type="bullet">
 ///   <item><see cref="Validation"/> → 400 (shape validation, produced by the dispatcher).</item>
+///   <item><see cref="Forbidden"/> → 403 (a row-level authorization check in a handler, after
+///   the endpoint's permission filter already let the request through).</item>
 ///   <item><see cref="NotFound"/> → 404 (never distinguishes "missing" from "hidden by RLS").</item>
 ///   <item><see cref="Concurrency"/> → 409 (the <c>If-Match</c> version is stale, BE-R3).</item>
 ///   <item><see cref="Conflict"/> → 409 (idempotent create with the same id but different
@@ -18,6 +20,8 @@ namespace Nexus.BuildingBlocks.Domain;
 public static class ErrorCodes
 {
     public const string Validation = "validation";
+
+    public const string Forbidden = "forbidden";
 
     public const string NotFound = "not_found";
 

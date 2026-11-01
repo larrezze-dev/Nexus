@@ -9,8 +9,12 @@ namespace Nexus.Platform.Application.RoleAssignments.CreateRoleAssignment;
 /// <c>POST /v1/role-assignments</c> (<c>createRoleAssignment</c>): idempotent create (client-
 /// supplied UUIDv7 <see cref="Id"/>). ACC-R4 (the granter's own scope must cover the target
 /// scope) is already enforced by <c>AccessPermissionChecker</c> on the endpoint's permission
-/// filter (<c>x-scope: body.scopeEntityId</c>) before this handler ever runs; ACC-R1/ACC-R2/
-/// ACC-R5 are enforced by <see cref="RoleAssignment.Create"/> itself.
+/// filter (<c>x-scope: body.scopeEntityId</c>) before this handler ever runs; ACC-R1/ACC-R5 and
+/// ACC-R2's "PROJECT is rejected before step 2.1" are enforced by
+/// <see cref="RoleAssignment.Create"/> itself; ACC-R2's "scopeEntityId exists in the table
+/// scopeType names" needs a database lookup and is enforced by the handler
+/// (<see cref="IRoleAssignmentReadDb.ScopeEntityExistsAsync"/>). A <c>validTo</c> that is not in
+/// the future is rejected by the handler too (time-dependent, so not in the pure validator).
 /// </summary>
 public sealed record CreateRoleAssignmentCommand(
     Guid? Id,
@@ -53,19 +57,25 @@ internal sealed class CreateRoleAssignmentHandler : ICommandHandler<CreateRoleAs
 {
     private readonly IRequestTransaction _transaction;
     private readonly IRoleAssignmentRepository _assignments;
+    private readonly IRoleAssignmentReadDb _reads;
     private readonly ICurrentUser _currentUser;
     private readonly IIdGenerator _ids;
+    private readonly TimeProvider _timeProvider;
 
     public CreateRoleAssignmentHandler(
         IRequestTransaction transaction,
         IRoleAssignmentRepository assignments,
+        IRoleAssignmentReadDb reads,
         ICurrentUser currentUser,
-        IIdGenerator ids)
+        IIdGenerator ids,
+        TimeProvider timeProvider)
     {
         _transaction = transaction;
         _assignments = assignments;
+        _reads = reads;
         _currentUser = currentUser;
         _ids = ids;
+        _timeProvider = timeProvider;
     }
 
     public async Task<Result<CreateRoleAssignmentResult>> Handle(CreateRoleAssignmentCommand command, CancellationToken cancellationToken)
@@ -75,6 +85,13 @@ internal sealed class CreateRoleAssignmentHandler : ICommandHandler<CreateRoleAs
         if (command.Id is { } requestedId && await _assignments.GetByIdAsync(requestedId, cancellationToken) is { } existing)
         {
             return await ReplayAsync(command, existing, cancellationToken);
+        }
+
+        // The DDL's CHECK (valid_to IS NULL OR valid_to >= created_at): a validTo that is not
+        // in the future would otherwise surface as a raw CHECK violation (500).
+        if (command.ValidTo is { } validTo && validTo <= _timeProvider.GetUtcNow())
+        {
+            return Result.Failure<CreateRoleAssignmentResult>(RoleAssignmentErrors.ValidToInPast);
         }
 
         var assignmentResult = RoleAssignment.Create(
@@ -92,6 +109,15 @@ internal sealed class CreateRoleAssignmentHandler : ICommandHandler<CreateRoleAs
         }
 
         var assignment = assignmentResult.Value;
+
+        // ACC-R2: Create already rejected PROJECT and checked ACC-R1, so a non-null
+        // scopeEntityId here belongs to GROUP/LEGAL_ENTITY/BUSINESS_UNIT/WAREHOUSE.
+        if (assignment.ScopeEntityId is { } scopeEntityId
+            && !await _reads.ScopeEntityExistsAsync(assignment.ScopeType, scopeEntityId, cancellationToken))
+        {
+            return Result.Failure<CreateRoleAssignmentResult>(RoleAssignmentErrors.ScopeEntityNotFound(assignment.ScopeType));
+        }
+
         _assignments.Add(assignment);
 
         // userId/roleId existence is enforced by the database at this point; their violations

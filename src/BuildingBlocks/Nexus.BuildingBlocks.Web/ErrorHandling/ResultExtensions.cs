@@ -15,6 +15,7 @@ namespace Nexus.BuildingBlocks.Web.ErrorHandling;
 ///   <item>The well-known <see cref="ErrorCodes"/> → their own status, with the stable
 ///   upper-case <c>code</c> of <see cref="NexusProblemType"/>:
 ///   <see cref="ErrorCodes.Validation"/> → 400 <c>VALIDATION</c>,
+///   <see cref="ErrorCodes.Forbidden"/> → 403 <c>FORBIDDEN</c>,
 ///   <see cref="ErrorCodes.NotFound"/> → 404 <c>NOT_FOUND</c>,
 ///   <see cref="ErrorCodes.Concurrency"/> → 409 <c>CONCURRENCY</c>,
 ///   <see cref="ErrorCodes.Conflict"/> → 409 <c>CONFLICT</c>.</item>

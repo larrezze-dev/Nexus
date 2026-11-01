@@ -1,6 +1,7 @@
 using System.Text.Json;
 using Dapper;
 using Microsoft.AspNetCore.Http;
+using Nexus.BuildingBlocks.Application;
 using Nexus.BuildingBlocks.Persistence;
 
 namespace Nexus.BuildingBlocks.Web.Authorization;
@@ -22,8 +23,14 @@ namespace Nexus.BuildingBlocks.Web.Authorization;
 /// </list>
 /// Any other value throws: an endpoint declaring a scope this checker does not understand is a
 /// programming error, and silently checking "any scope" instead would widen access.
+/// <para>
+/// Also the <see cref="IRoleAssignmentScopeChecker"/> handlers use once they have loaded a row
+/// (e.g. <c>revokeRoleAssignment</c>): same <see cref="RoleAssignmentScopeResolver"/>, same
+/// <c>has_permission</c> call, so the body-scoped filter path and the row-scoped handler path
+/// cannot drift apart.
+/// </para>
 /// </summary>
-internal sealed class AccessPermissionChecker : IPermissionChecker
+internal sealed class AccessPermissionChecker : IPermissionChecker, IRoleAssignmentScopeChecker
 {
     internal const string ScopeNone = "none";
     internal const string ScopeGlobal = "global";
@@ -60,6 +67,33 @@ internal sealed class AccessPermissionChecker : IPermissionChecker
                 $"Unsupported permission scope '{other}' on endpoint requiring '{permission.Permission}'."),
         };
 
+        return await HasPermissionAsync(permission.Permission, target, cancellationToken);
+    }
+
+    public async Task<bool> HasPermissionCoveringAsync(
+        string permission,
+        string scopeType,
+        Guid? scopeEntityId,
+        CancellationToken cancellationToken)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(permission);
+        ArgumentException.ThrowIfNullOrWhiteSpace(scopeType);
+
+        await _unitOfWork.BeginAsync(cancellationToken);
+
+        var target = await RoleAssignmentScopeResolver.ResolveAsync(
+            scopeType,
+            scopeEntityId,
+            _unitOfWork.Connection,
+            _unitOfWork.Transaction,
+            cancellationToken);
+
+        return await HasPermissionAsync(permission, target, cancellationToken);
+    }
+
+    private async Task<bool> HasPermissionAsync(string permission, PermissionTarget? target, CancellationToken cancellationToken)
+    {
+        // No resolvable target: no basis to grant (fail closed).
         if (target is not { } t)
         {
             return false;
@@ -70,7 +104,7 @@ internal sealed class AccessPermissionChecker : IPermissionChecker
                 HasPermissionSql,
                 new
                 {
-                    permission = permission.Permission,
+                    permission,
                     legalEntityId = t.LegalEntityId,
                     businessUnitId = t.BusinessUnitId,
                     warehouseId = t.WarehouseId,

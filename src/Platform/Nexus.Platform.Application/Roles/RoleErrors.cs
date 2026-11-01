@@ -16,11 +16,26 @@ public static class RoleErrors
     /// <summary>Primary key hit by two concurrent idempotent creates with the same client id.</summary>
     public const string RolePrimaryKey = "role_pkey";
 
+    /// <summary>
+    /// <c>EXCLUDE USING gist (role_id WITH =, permission_id WITH =, tstzrange(valid_from,
+    /// coalesce(valid_to,'infinity')) WITH &amp;&amp;)</c> on <c>access.role_permission</c>. Unnamed in
+    /// the DDL; this is PostgreSQL's generated name (pinned by a catalog test).
+    /// </summary>
+    public const string RolePermissionOverlapExclusion = "role_permission_role_id_permission_id_tstzrange_excl";
+
     public static readonly Error CodeAlreadyUsed =
         Error.Conflict("Another role already has this code.");
 
     public static readonly Error IdAlreadyUsed =
         Error.Conflict("A role with this id already exists with different content.");
+
+    /// <summary>
+    /// <c>PUT /v1/roles/{id}/permissions</c> tried to open a grant whose validity window overlaps
+    /// another grant of the same permission on the same role that it did not see as current -
+    /// in practice, two concurrent updates adding the same code. The caller re-reads and retries.
+    /// </summary>
+    public static readonly Error PermissionGrantOverlap =
+        Error.Concurrency("The role's permissions were changed concurrently by another request; reload them and retry.");
 
     public static Error NotFound(Guid id) => Error.NotFound($"Role '{id}' does not exist.");
 

@@ -3,6 +3,7 @@ using Dapper;
 using Nexus.BuildingBlocks.Application.Paging;
 using Nexus.BuildingBlocks.Persistence;
 using Nexus.Platform.Application.RoleAssignments;
+using Nexus.Platform.Domain.RoleAssignments;
 
 namespace Nexus.Platform.Infrastructure.RoleAssignments;
 
@@ -94,6 +95,27 @@ internal sealed class RoleAssignmentReadDb : IRoleAssignmentReadDb
 
         var where = new StringBuilder("WHERE ").Append(string.Join(" AND ", clauses));
         return (where.ToString(), parameters);
+    }
+
+    public async Task<bool> ScopeEntityExistsAsync(string scopeType, Guid scopeEntityId, CancellationToken cancellationToken)
+    {
+        // Fixed SQL per scope type (never concatenated from input); the id is a parameter.
+        var sql = scopeType switch
+        {
+            RoleAssignment.ScopeGroup => "SELECT EXISTS (SELECT 1 FROM org.\"group\" WHERE id = @id)",
+            RoleAssignment.ScopeLegalEntity => "SELECT EXISTS (SELECT 1 FROM org.legal_entity WHERE id = @id)",
+            RoleAssignment.ScopeBusinessUnit => "SELECT EXISTS (SELECT 1 FROM org.business_unit WHERE id = @id)",
+            RoleAssignment.ScopeWarehouse => "SELECT EXISTS (SELECT 1 FROM org.warehouse WHERE id = @id)",
+            _ => null,
+        };
+
+        if (sql is null)
+        {
+            return false;
+        }
+
+        return await _unitOfWork.Connection.ExecuteScalarAsync<bool>(
+            Command(sql, new { id = scopeEntityId }, cancellationToken));
     }
 
     private CommandDefinition Command(string sql, object? parameters, CancellationToken cancellationToken) =>
