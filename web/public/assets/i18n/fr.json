@@ -92,9 +92,7 @@
       "title": "Que voit cet utilisateur ?",
       "back": "Retour à l'utilisateur",
       "loading": "Chargement…",
-      "legalEntities": "Entités juridiques",
-      "businessUnits": "Unités commerciales",
-      "warehouses": "Entrepôts",
+      "visible": "Visible",
       "projects": "Projets",
       "projectsEmpty": "Aucun projet (ne fait pas encore partie du modèle avant l'étape 2.1).",
       "empty": "Aucun périmètre visible pour cet utilisateur."
@@ -180,7 +178,9 @@
             "LEGAL_ENTITY": "Entité juridique",
             "BUSINESS_UNIT": "Unité commerciale",
             "WAREHOUSE": "Entrepôt",
-            "GLOBAL": "Global"
+            "GLOBAL": "Global",
+            "GROUP": "Groupe",
+            "PROJECT": "Projet"
           },
           "grant": "Attribuer",
           "listTitle": "Attributions actuelles",

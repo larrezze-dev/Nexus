@@ -92,9 +92,7 @@
       "title": "What does this user see?",
       "back": "Back to user",
       "loading": "Loading…",
-      "legalEntities": "Legal entities",
-      "businessUnits": "Business units",
-      "warehouses": "Warehouses",
+      "visible": "Visible",
       "projects": "Projects",
       "projectsEmpty": "No projects (not part of the model yet before step 2.1).",
       "empty": "No scope is visible for this user."
@@ -180,7 +178,9 @@
             "LEGAL_ENTITY": "Legal entity",
             "BUSINESS_UNIT": "Business unit",
             "WAREHOUSE": "Warehouse",
-            "GLOBAL": "Global"
+            "GLOBAL": "Global",
+            "GROUP": "Group",
+            "PROJECT": "Project"
           },
           "grant": "Grant",
           "listTitle": "Current assignments",

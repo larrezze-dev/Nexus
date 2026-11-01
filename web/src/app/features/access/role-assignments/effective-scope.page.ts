@@ -47,8 +47,11 @@ const ICON_BY_KIND: Readonly<Record<OrgTreeNodeKind, string>> = {
 
     @if (loading()) {
       <mat-spinner diameter="32" />
+      <p>{{ 'access.effectiveScope.loading' | transloco }}</p>
     } @else if (error()) {
       <p role="alert">{{ error() }}</p>
+    } @else if (isEmpty()) {
+      <p data-testid="effective-scope-empty">{{ 'access.effectiveScope.empty' | transloco }}</p>
     } @else {
       <mat-tree [dataSource]="dataSource" [treeControl]="treeControl" class="nx-effective-scope-tree">
         <mat-nested-tree-node *matTreeNodeDef="let node">
@@ -155,9 +158,18 @@ export class EffectiveScopePage implements OnInit {
     return ICON_BY_KIND[node.kind];
   }
 
-  /** A `Group` node has no scope type of its own (`ACC-R1`); it reads as visible when at
-   * least one descendant does, so the tree doesn't grey out a group whose entire content is
-   * in scope. */
+  /** True when the user has zero visible entities across every dimension
+   * (`legalEntityIds`/`businessUnitIds`/`warehouseIds`/`projectIds` all empty) — shown as an
+   * explicit empty-state message instead of a tree that is entirely greyed out. */
+  protected isEmpty(): boolean {
+    return this.visibleIds.size === 0 && this.projectIds().length === 0;
+  }
+
+  /** `GROUP` is not offered as a grant option in this repo yet — no Groups picker/facade
+   * exists to back it (see the `GrantableScopeType` doc comment in
+   * `features/org/users/user-detail.page.ts`) — but a `Group` node can still appear here from
+   * the org tree itself, so it reads as visible when at least one descendant does, rather
+   * than greying out a group whose entire content is in scope. */
   protected isVisible(node: OrgTreeNode): boolean {
     if (node.kind === 'group') {
       return node.children.some((child) => this.isVisible(child));

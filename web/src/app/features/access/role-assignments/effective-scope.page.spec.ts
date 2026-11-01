@@ -86,14 +86,33 @@ describe('EffectiveScopePage', () => {
     expect(fixture.componentInstance['isVisible'](group)).toBe(true);
   });
 
-  it('shows the empty-state message, not an error, when projectIds is empty', async () => {
+  it('shows the overall empty-state message, not an error, when nothing is visible at all', async () => {
     const { fixture } = setup([]);
+
+    fixture.detectChanges();
+    await flushUntilLoaded(fixture);
+
+    const empty = (fixture.nativeElement as HTMLElement).querySelector('[data-testid="effective-scope-empty"]');
+    expect(empty).not.toBeNull();
+    expect(fixture.nativeElement.querySelector('[role="alert"]')).toBeNull();
+  });
+
+  it('shows the projects-specific empty-state message when only projectIds is empty', async () => {
+    const legalEntity: OrgTreeNode = { id: 'le1', kind: 'legalEntity', code: 'LE-CH', label: 'LE-CH', isActive: true, children: [] };
+
+    const { fixture } = setup([legalEntity], {
+      legalEntityIds: ['le1'],
+      businessUnitIds: [],
+      warehouseIds: [],
+      projectIds: [],
+    });
 
     fixture.detectChanges();
     await flushUntilLoaded(fixture);
 
     const empty = (fixture.nativeElement as HTMLElement).querySelector('[data-testid="effective-scope-projects-empty"]');
     expect(empty).not.toBeNull();
+    expect(fixture.nativeElement.querySelector('[data-testid="effective-scope-empty"]')).toBeNull();
     expect(fixture.nativeElement.querySelector('[role="alert"]')).toBeNull();
   });
 });

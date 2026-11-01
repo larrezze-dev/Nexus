@@ -92,9 +92,7 @@
       "title": "¿Qué ve este usuario?",
       "back": "Volver al usuario",
       "loading": "Cargando…",
-      "legalEntities": "Entidades legales",
-      "businessUnits": "Unidades de negocio",
-      "warehouses": "Almacenes",
+      "visible": "Visible",
       "projects": "Proyectos",
       "projectsEmpty": "Sin proyectos (todavía no forman parte del modelo antes del paso 2.1).",
       "empty": "No hay ningún alcance visible para este usuario."
@@ -180,7 +178,9 @@
             "LEGAL_ENTITY": "Entidad legal",
             "BUSINESS_UNIT": "Unidad de negocio",
             "WAREHOUSE": "Almacén",
-            "GLOBAL": "Global"
+            "GLOBAL": "Global",
+            "GROUP": "Grupo",
+            "PROJECT": "Proyecto"
           },
           "grant": "Conceder",
           "listTitle": "Asignaciones actuales",

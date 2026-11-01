@@ -184,4 +184,21 @@ describe('RoleDetailPage', () => {
     expect(fixture.componentInstance['canEditPermissions']()).toBe(false);
     expect(facade.getPermissions).toHaveBeenCalledWith(role.id, new Date('2026-01-01').toISOString());
   });
+
+  it('keeps the matrix editable ("now" semantics) when the picked asOf date is today', async () => {
+    const facade = createFacadeStub(role);
+    const fixture = await setupPage({ id: role.id }, facade);
+    fixture.detectChanges();
+    await fixture.whenStable();
+    facade.getPermissions.mockClear();
+
+    const now = new Date();
+    const todayOnly = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+
+    await fixture.componentInstance['onAsOfChange'](todayOnly);
+
+    expect(fixture.componentInstance['asOf']()).toBe('');
+    expect(fixture.componentInstance['readOnlyMatrix']()).toBe(false);
+    expect(facade.getPermissions).toHaveBeenCalledWith(role.id, undefined);
+  });
 });

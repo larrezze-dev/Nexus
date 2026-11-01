@@ -92,9 +92,7 @@
       "title": "Cosa vede questo utente?",
       "back": "Torna all'utente",
       "loading": "Caricamento…",
-      "legalEntities": "Entità legali",
-      "businessUnits": "Unità di business",
-      "warehouses": "Magazzini",
+      "visible": "Visibile",
       "projects": "Progetti",
       "projectsEmpty": "Nessun progetto (non ancora parte del modello prima del passo 2.1).",
       "empty": "Nessun ambito visibile per questo utente."
@@ -180,7 +178,9 @@
             "LEGAL_ENTITY": "Entità legale",
             "BUSINESS_UNIT": "Unità di business",
             "WAREHOUSE": "Magazzino",
-            "GLOBAL": "Globale"
+            "GLOBAL": "Globale",
+            "GROUP": "Gruppo",
+            "PROJECT": "Progetto"
           },
           "grant": "Assegna",
           "listTitle": "Assegnazioni attuali",

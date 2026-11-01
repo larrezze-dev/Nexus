@@ -6,8 +6,9 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatSelectModule } from '@angular/material/select';
 import { MatTabsModule } from '@angular/material/tabs';
-import { TranslocoModule } from '@jsverse/transloco';
+import { TranslocoModule, TranslocoService } from '@jsverse/transloco';
 import { LANGUAGE_OPTIONS } from '../../../core/i18n/supported-languages';
+import { isProblem } from '../../../core/http/problem';
 import { NxI18nService } from '../../../core/i18n/nx-i18n.service';
 import { NxCanDirective } from '../../../shared/auth/can.directive';
 import { NxEntityPickerComponent } from '../../../shared/ui/nx-entity-picker/nx-entity-picker.component';
@@ -77,6 +78,7 @@ export class UserDetailPage implements OnInit {
   protected readonly facade = inject(UsersFacade);
   protected readonly assignmentsFacade = inject(RoleAssignmentsFacade);
   private readonly i18n = inject(NxI18nService);
+  private readonly transloco = inject(TranslocoService);
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
 
@@ -105,6 +107,11 @@ export class UserDetailPage implements OnInit {
   protected readonly roleLabel = signal<string | null>(null);
   protected readonly scopeEntityId = signal<string | null>(null);
   protected readonly scopeEntityLabel = signal<string | null>(null);
+
+  /** Errors for the grant form specifically — kept separate from `facade.error()`/
+   * `facade.fieldErrors()`, which belong to the "General" tab's `User` form. */
+  protected readonly assignmentSaveError = signal<string | null>(null);
+  protected readonly assignmentFieldErrors = signal<Readonly<Record<string, readonly string[]>>>({});
 
   protected readonly grantForm = new FormGroup<GrantForm>({
     scopeType: new FormControl<GrantableScopeType>('LEGAL_ENTITY', { nonNullable: true }),
@@ -260,9 +267,21 @@ export class UserDetailPage implements OnInit {
     this.clearScopeEntity();
   }
 
+  /** Whether the grant form has everything required to submit: a role, and — unless
+   * `scopeType` is `GLOBAL` (`ACC-R1`: no entity at all) — a scope entity too. Drives
+   * `assignment-grant-button`'s `disabled` state so a missing pick disables the button
+   * instead of a silent no-op on submit. */
+  protected canSubmitAssignment(): boolean {
+    if (!this.roleId()) {
+      return false;
+    }
+    const scopeType = this.grantForm.controls.scopeType.value;
+    return scopeType === 'GLOBAL' || !!this.scopeEntityId();
+  }
+
   protected async grantAssignment(): Promise<void> {
     const id = this.route.snapshot.paramMap.get('id');
-    if (!id || this.grantForm.invalid) {
+    if (!id || this.grantForm.invalid || !this.canSubmitAssignment()) {
       this.grantForm.markAllAsTouched();
       return;
     }
@@ -272,9 +291,6 @@ export class UserDetailPage implements OnInit {
     }
     const value = this.grantForm.getRawValue();
     const scopeType = value.scopeType;
-    if (scopeType !== 'GLOBAL' && !this.scopeEntityId()) {
-      return;
-    }
 
     const request: CreateRoleAssignmentRequest = {
       roleId,
@@ -285,12 +301,18 @@ export class UserDetailPage implements OnInit {
       validTo: value.validTo ? `${value.validTo}T00:00:00Z` : null,
     };
 
-    await this.assignmentsFacade.create(request);
-    await this.loadAssignments(id);
+    this.assignmentSaveError.set(null);
+    this.assignmentFieldErrors.set({});
+    try {
+      await this.assignmentsFacade.create(request);
+      await this.loadAssignments(id);
 
-    this.clearRole();
-    this.clearScopeEntity();
-    this.grantForm.reset({ scopeType: 'LEGAL_ENTITY', validFrom: '', validTo: '' });
+      this.clearRole();
+      this.clearScopeEntity();
+      this.grantForm.reset({ scopeType: 'LEGAL_ENTITY', validFrom: '', validTo: '' });
+    } catch (error: unknown) {
+      this.handleAssignmentError(error);
+    }
   }
 
   /** Only shown in the template for rows where `assignmentsFacade.canRevoke(id)` is true
@@ -300,7 +322,43 @@ export class UserDetailPage implements OnInit {
     if (!id) {
       return;
     }
-    await this.assignmentsFacade.revoke(assignmentId);
-    await this.loadAssignments(id);
+    this.assignmentSaveError.set(null);
+    this.assignmentFieldErrors.set({});
+    try {
+      await this.assignmentsFacade.revoke(assignmentId);
+      await this.loadAssignments(id);
+    } catch (error: unknown) {
+      this.handleAssignmentError(error);
+    }
+  }
+
+  /** Same 400/422/409 hand-off with `errorInterceptor` as `LegalEntityDetailPage`'s
+   * `handleSaveError`: 400 -> per-field messages, 422 -> translated business-rule message
+   * (e.g. `ACC-R1`/`ACC-R2`/`ACC-R5`), 409 -> `errorInterceptor`'s dialog already handled it. */
+  private handleAssignmentError(error: unknown): void {
+    const httpError = error as { status?: number; error?: unknown } | undefined;
+    const body = httpError?.error;
+
+    if (httpError?.status === 400 && isProblem(body) && body.errors) {
+      this.assignmentFieldErrors.set(body.errors);
+      this.assignmentSaveError.set(this.transloco.translate('errors.validation'));
+      return;
+    }
+
+    if (httpError?.status === 422 && isProblem(body)) {
+      this.assignmentSaveError.set(this.i18n.translateErrorCode(body.code));
+      return;
+    }
+
+    if (httpError?.status === 409) {
+      // `errorInterceptor` already opened the concurrency dialog; nothing else to show here.
+      return;
+    }
+
+    this.assignmentSaveError.set(this.transloco.translate('errors.generic'));
+  }
+
+  protected assignmentErrorsFor(field: string): readonly string[] {
+    return this.assignmentFieldErrors()[field] ?? [];
   }
 }

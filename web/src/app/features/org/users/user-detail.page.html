@@ -101,6 +101,10 @@
             >
               <h2>{{ 'org.users.detail.assignments.grantTitle' | transloco }}</h2>
 
+              @if (assignmentSaveError()) {
+                <p role="alert" data-testid="assignment-save-error">{{ assignmentSaveError() }}</p>
+              }
+
               <div>
                 <p>{{ 'org.users.detail.assignments.fields.role' | transloco }}</p>
                 @if (roleLabel()) {
@@ -115,6 +119,9 @@
                     (selected)="onRoleSelected($event)"
                     data-testid="assignment-role-picker"
                   />
+                }
+                @for (message of assignmentErrorsFor('roleId'); track message) {
+                  <p role="alert">{{ message }}</p>
                 }
               </div>
 
@@ -163,6 +170,9 @@
                       data-testid="assignment-scope-entity-picker"
                     />
                   }
+                  @for (message of assignmentErrorsFor('scopeEntityId'); track message) {
+                    <p role="alert">{{ message }}</p>
+                  }
                 </div>
               }
 
@@ -170,13 +180,25 @@
                 <mat-label>{{ 'org.users.detail.assignments.fields.validFrom' | transloco }}</mat-label>
                 <input matInput type="date" formControlName="validFrom" data-testid="assignment-valid-from-input" />
               </mat-form-field>
+              @for (message of assignmentErrorsFor('validFrom'); track message) {
+                <p role="alert" data-testid="assignment-valid-from-error">{{ message }}</p>
+              }
 
               <mat-form-field>
                 <mat-label>{{ 'org.users.detail.assignments.fields.validTo' | transloco }}</mat-label>
                 <input matInput type="date" formControlName="validTo" data-testid="assignment-valid-to-input" />
               </mat-form-field>
+              @for (message of assignmentErrorsFor('validTo'); track message) {
+                <p role="alert" data-testid="assignment-valid-to-error">{{ message }}</p>
+              }
 
-              <button mat-flat-button color="primary" type="submit" data-testid="assignment-grant-button">
+              <button
+                mat-flat-button
+                color="primary"
+                type="submit"
+                [disabled]="!canSubmitAssignment()"
+                data-testid="assignment-grant-button"
+              >
                 {{ 'org.users.detail.assignments.grant' | transloco }}
               </button>
             </form>

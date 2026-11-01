@@ -175,8 +175,20 @@ export class RoleDetailPage implements OnInit {
   }
 
   protected async onAsOfChange(value: string): Promise<void> {
-    this.asOf.set(value);
+    // Picking *today's* date would otherwise convert to a midnight-UTC timestamp (`loadPermissionHistory`),
+    // which can be earlier than "now" and would hide same-day permission changes while also making the
+    // matrix read-only — not what a user picking "today" expects. Treat it exactly like no date picked
+    // ("now", editable) instead. Compared as date-only strings to sidestep timezone edge cases that a
+    // full-timestamp comparison would run into.
+    this.asOf.set(this.isToday(value) ? '' : value);
     await this.loadPermissionHistory();
+  }
+
+  /** `value` is the date-only (`YYYY-MM-DD`) string from an `<input type="date">`. */
+  private isToday(value: string): boolean {
+    const now = new Date();
+    const todayOnly = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+    return value === todayOnly;
   }
 
   private async loadPermissionHistory(): Promise<void> {

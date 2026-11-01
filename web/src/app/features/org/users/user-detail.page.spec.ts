@@ -227,4 +227,164 @@ describe('UserDetailPage', () => {
     const revokeButton = (fixture.nativeElement as HTMLElement).querySelector('[data-testid="assignment-revoke-ra-1"]');
     expect(revokeButton).toBeNull();
   });
+
+  const existingUser = {
+    id: 'u-1',
+    fullName: 'Jane Doe',
+    email: 'jane@example.com',
+    oid: 'oid-1',
+    preferredLanguage: 'en' as const,
+    businessUnitId: null,
+    partyId: 'p-1',
+    isActive: true,
+  };
+
+  it('disables the grant submit button until a role and a scope entity are both picked', async () => {
+    const { fixture } = setup({ id: 'u-1' }, { selected: signal(existingUser) });
+    fixture.detectChanges();
+    await flushUntilAssignmentsLoaded(fixture);
+
+    const root = fixture.nativeElement as HTMLElement;
+    const getButton = () => root.querySelector<HTMLButtonElement>('[data-testid="assignment-grant-button"]');
+
+    expect(getButton()?.disabled).toBe(true);
+
+    fixture.componentInstance['onRoleSelected']({
+      id: 'role-1',
+      code: 'ADMIN',
+      captionI18n: { de: 'Admin' },
+      isSystem: false,
+      isActive: true,
+    });
+    fixture.detectChanges();
+    // `scopeType` defaults to `LEGAL_ENTITY`, which still needs an entity picked.
+    expect(getButton()?.disabled).toBe(true);
+
+    fixture.componentInstance['onLegalEntityScopeSelected']({
+      id: 'le-1',
+      code: 'LE-CH',
+      countryCode: 'CH',
+      currencyCode: 'CHF',
+      groupId: 'g-1',
+      isActive: true,
+    });
+    fixture.detectChanges();
+    expect(getButton()?.disabled).toBe(false);
+  });
+
+  it('does not disable the submit button on GLOBAL scope once only a role is picked', async () => {
+    const { fixture } = setup({ id: 'u-1' }, { selected: signal(existingUser) });
+    fixture.detectChanges();
+    await flushUntilAssignmentsLoaded(fixture);
+
+    fixture.componentInstance['grantForm'].controls.scopeType.setValue('GLOBAL');
+    fixture.componentInstance['onRoleSelected']({
+      id: 'role-1',
+      code: 'ADMIN',
+      captionI18n: { de: 'Admin' },
+      isSystem: false,
+      isActive: true,
+    });
+    fixture.detectChanges();
+
+    const button = (fixture.nativeElement as HTMLElement).querySelector<HTMLButtonElement>(
+      '[data-testid="assignment-grant-button"]',
+    );
+    expect(button?.disabled).toBe(false);
+  });
+
+  it('shows a translated 422 business-rule error and does not reset the grant form when create() rejects', async () => {
+    const createError = { status: 422, error: { code: 'ACC-R1', title: 'Business rule violated' } };
+    const { fixture, assignmentsFacade } = setup(
+      { id: 'u-1' },
+      { selected: signal(existingUser) },
+      { create: vi.fn().mockRejectedValue(createError) },
+    );
+    fixture.detectChanges();
+    await flushUntilAssignmentsLoaded(fixture);
+
+    fixture.componentInstance['grantForm'].controls.scopeType.setValue('GLOBAL');
+    fixture.componentInstance['grantForm'].controls.validFrom.setValue('2026-01-01');
+    fixture.componentInstance['onRoleSelected']({
+      id: 'role-1',
+      code: 'ADMIN',
+      captionI18n: { de: 'Admin' },
+      isSystem: false,
+      isActive: true,
+    });
+
+    await fixture.componentInstance['grantAssignment']();
+    fixture.detectChanges();
+
+    expect(assignmentsFacade.create).toHaveBeenCalled();
+    const error = (fixture.nativeElement as HTMLElement).querySelector('[data-testid="assignment-save-error"]');
+    expect(error).not.toBeNull();
+    expect(error?.textContent?.trim().length).toBeGreaterThan(0);
+    // The role picker still shows the previously-picked role: a failed grant doesn't silently
+    // reset the form the user just filled in.
+    expect(fixture.componentInstance['roleId']()).toBe('role-1');
+  });
+
+  it('shows per-field 400 errors and the validation summary when create() rejects with a 400', async () => {
+    const createError = {
+      status: 400,
+      error: { errors: { validFrom: ['validFrom must be before validTo'] } },
+    };
+    const { fixture, assignmentsFacade } = setup(
+      { id: 'u-1' },
+      { selected: signal(existingUser) },
+      { create: vi.fn().mockRejectedValue(createError) },
+    );
+    fixture.detectChanges();
+    await flushUntilAssignmentsLoaded(fixture);
+
+    fixture.componentInstance['grantForm'].controls.scopeType.setValue('GLOBAL');
+    fixture.componentInstance['grantForm'].controls.validFrom.setValue('2026-01-01');
+    fixture.componentInstance['onRoleSelected']({
+      id: 'role-1',
+      code: 'ADMIN',
+      captionI18n: { de: 'Admin' },
+      isSystem: false,
+      isActive: true,
+    });
+
+    await fixture.componentInstance['grantAssignment']();
+    fixture.detectChanges();
+
+    expect(assignmentsFacade.create).toHaveBeenCalled();
+    const fieldError = (fixture.nativeElement as HTMLElement).querySelector('[data-testid="assignment-valid-from-error"]');
+    expect(fieldError?.textContent).toContain('validFrom must be before validTo');
+  });
+
+  it('surfaces a revoke() failure instead of leaving an unhandled rejection', async () => {
+    const assignment = {
+      id: 'ra-1',
+      roleId: 'role-1',
+      userId: 'u-1',
+      scopeType: 'LEGAL_ENTITY' as const,
+      scopeEntityId: 'le-1',
+      source: 'SEED' as const,
+      validFrom: '2026-01-01T00:00:00Z',
+      validTo: null,
+    };
+    const revokeError = { status: 422, error: { code: 'ACC-R2' } };
+    const { fixture, assignmentsFacade } = setup(
+      { id: 'u-1' },
+      { selected: signal(existingUser) },
+      {
+        list: vi.fn().mockResolvedValue([assignment]),
+        canRevoke: vi.fn().mockReturnValue(true),
+        revoke: vi.fn().mockRejectedValue(revokeError),
+      },
+    );
+    fixture.detectChanges();
+    await flushUntilAssignmentsLoaded(fixture);
+
+    await expect(fixture.componentInstance['revokeAssignment']('ra-1')).resolves.toBeUndefined();
+    fixture.detectChanges();
+
+    expect(assignmentsFacade.revoke).toHaveBeenCalledWith('ra-1');
+    const error = (fixture.nativeElement as HTMLElement).querySelector('[data-testid="assignment-save-error"]');
+    expect(error).not.toBeNull();
+  });
 });

@@ -129,7 +129,9 @@
             "LEGAL_ENTITY": "Rechtseinheit",
             "BUSINESS_UNIT": "Business Unit",
             "WAREHOUSE": "Lager",
-            "GLOBAL": "Global"
+            "GLOBAL": "Global",
+            "GROUP": "Gruppe",
+            "PROJECT": "Projekt"
           },
           "grant": "Zuweisen",
           "listTitle": "Aktuelle Zuweisungen",
@@ -234,9 +236,7 @@
       "title": "Was sieht dieser Benutzer?",
       "back": "Zurück zum Benutzer",
       "loading": "Wird geladen…",
-      "legalEntities": "Rechtseinheiten",
-      "businessUnits": "Business Units",
-      "warehouses": "Lager",
+      "visible": "Sichtbar",
       "projects": "Projekte",
       "projectsEmpty": "Keine Projekte (noch nicht Teil des Modells vor Schritt 2.1).",
       "empty": "Für diesen Benutzer ist kein Geltungsbereich sichtbar."
