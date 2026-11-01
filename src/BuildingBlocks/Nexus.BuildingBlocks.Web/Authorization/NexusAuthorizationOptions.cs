@@ -8,12 +8,13 @@ public sealed class NexusAuthorizationOptions
     public const string SectionName = "Nexus:Authorization";
 
     /// <summary>
-    /// When <see langword="false"/> (the default in step 0.5), <see cref="PermissionEndpointFilter"/>
-    /// only relies on the authentication pipeline already run by `RequireAuthorization()`
-    /// (401 if the caller is not authenticated) and lets every authenticated request through,
-    /// regardless of its actual permissions. Step 0.6 turns this on and replaces
-    /// <see cref="IPermissionChecker"/>'s default "always allow" implementation with a real one
-    /// backed by `access.has_permission` (domain/access.md §4).
+    /// When <see langword="true"/>, <see cref="PermissionEndpointFilter"/> asks
+    /// <see cref="IPermissionChecker"/> (<see cref="AccessPermissionChecker"/>, backed by
+    /// `access.has_permission`, domain/access.md §4) and answers 403 when it denies. Services
+    /// turn it on in their appsettings.json (nexus-platform since step 0.6). When
+    /// <see langword="false"/> (the code default, kept so a host that forgets the setting does
+    /// not need a database just to boot), the filter only relies on the 401 from
+    /// `RequireAuthorization()` and lets every authenticated request through.
     /// </summary>
     public bool EnforcePermissions { get; set; }
 }

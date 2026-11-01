@@ -1,4 +1,3 @@
-using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
@@ -41,21 +40,16 @@ public sealed class AuthorizationServiceCollectionExtensionsTests
     }
 
     [Fact]
-    public async Task AddNexusAuthorization_Registers_AlwaysAllow_By_Default()
+    public void AddNexusAuthorization_Registers_AccessPermissionChecker_As_Scoped()
     {
         var configuration = new ConfigurationBuilder().Build();
 
         var services = new ServiceCollection();
         services.AddNexusAuthorization(configuration);
-        using var provider = services.BuildServiceProvider();
 
-        var checker = provider.GetRequiredService<IPermissionChecker>();
-        var allowed = await checker.HasPermissionAsync(
-            new DefaultHttpContext(),
-            new PermissionMetadata("ASSET_TYPE", PermissionAction.Create),
-            scope: null,
-            CancellationToken.None);
-
-        allowed.ShouldBeTrue();
+        // Scoped: it shares the request's scoped IUnitOfWork; a singleton would capture one.
+        var descriptor = services.Single(d => d.ServiceType == typeof(IPermissionChecker));
+        descriptor.ImplementationType.ShouldBe(typeof(AccessPermissionChecker));
+        descriptor.Lifetime.ShouldBe(ServiceLifetime.Scoped);
     }
 }

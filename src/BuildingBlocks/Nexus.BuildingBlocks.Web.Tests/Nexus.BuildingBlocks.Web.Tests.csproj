@@ -24,6 +24,9 @@
   <ItemGroup>
     <ProjectReference Include="..\Nexus.BuildingBlocks.Web\Nexus.BuildingBlocks.Web.csproj" />
     <ProjectReference Include="..\Nexus.BuildingBlocks.Domain\Nexus.BuildingBlocks.Domain.csproj" />
+    <!-- OrgFixture/PostgresFixture: AccessPermissionChecker and RoleAssignmentScopeResolver run
+         against a real database with every migration applied (step 0.6). -->
+    <ProjectReference Include="..\Nexus.BuildingBlocks.Testing\Nexus.BuildingBlocks.Testing.csproj" />
   </ItemGroup>
 
   <ItemGroup>
