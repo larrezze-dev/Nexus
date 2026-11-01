@@ -17,7 +17,10 @@ describe('AccountPage', () => {
       businessUnitId: null,
       preferredLanguage: 'es',
       provisioned: true,
-      permissions: ['ASSET_TYPE:READ', 'ASSET_TYPE:CREATE'],
+      permissions: [
+        { code: 'ASSET_TYPE:READ', scopes: [{ scopeType: 'GLOBAL', scopeEntityId: null }] },
+        { code: 'ASSET_TYPE:CREATE', scopes: [{ scopeType: 'GLOBAL', scopeEntityId: null }] },
+      ],
     };
     const load = vi.fn();
 
@@ -47,6 +50,7 @@ describe('AccountPage', () => {
     expect(text).toContain('Jane Doe');
     expect(text).toContain('jane@example.com');
     expect(text).toContain('es');
-    expect(text).toContain('ASSET_TYPE:READ, ASSET_TYPE:CREATE');
+    expect(text).toContain('ASSET_TYPE:READ');
+    expect(text).toContain('ASSET_TYPE:CREATE');
   });
 });

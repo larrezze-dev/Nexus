@@ -16,7 +16,7 @@ const me: Me = {
   businessUnitId: null,
   preferredLanguage: 'fr',
   provisioned: false,
-  permissions: ['ASSET_TYPE:READ'],
+  permissions: [{ code: 'ASSET_TYPE:READ', scopes: [{ scopeType: 'GLOBAL', scopeEntityId: null }] }],
 };
 
 describe('AccountFacade', () => {
@@ -52,7 +52,9 @@ describe('AccountFacade', () => {
     expect(facade.loading()).toBe(false);
     expect(facade.error()).toBeNull();
     expect(setInitialLanguage).toHaveBeenCalledWith('fr');
-    expect(setPermissions).toHaveBeenCalledWith(['ASSET_TYPE:READ']);
+    expect(setPermissions).toHaveBeenCalledWith([
+      { code: 'ASSET_TYPE:READ', scopes: [{ scopeType: 'GLOBAL', scopeEntityId: null }] },
+    ]);
   });
 
   it('exposes an error and does not call the F5 hooks when the request fails', async () => {

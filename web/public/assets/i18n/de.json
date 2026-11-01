@@ -2,7 +2,9 @@
   "common": {
     "cancel": "Abbrechen",
     "reload": "Neu laden",
-    "save": "Speichern"
+    "save": "Speichern",
+    "yes": "Ja",
+    "no": "Nein"
   },
   "errors": {
     "generic": "Etwas ist schiefgelaufen. Bitte versuchen Sie es erneut.",
@@ -53,7 +55,10 @@
     "locations": "Standorte",
     "warehouses": "Warehouses",
     "orgTree": "Organisationsstruktur",
-    "orgCurrencies": "Währungen"
+    "orgCurrencies": "Währungen",
+    "access": {
+      "roles": "Rollen"
+    }
   },
   "org": {
     "legalEntities": {
@@ -104,7 +109,40 @@
         "newTitle": "Neuer Benutzer",
         "editTitle": "Benutzer bearbeiten",
         "loading": "Wird geladen…",
-        "systemUserNotice": "Der SYSTEM-Benutzer kann nicht bearbeitet oder deaktiviert werden."
+        "systemUserNotice": "Der SYSTEM-Benutzer kann nicht bearbeitet oder deaktiviert werden.",
+        "tabs": {
+          "general": "Allgemein",
+          "assignments": "Zuweisungen"
+        },
+        "assignments": {
+          "effectiveScopeLink": "Was sieht dieser Benutzer?",
+          "grantTitle": "Neue Zuweisung",
+          "change": "Ändern",
+          "fields": {
+            "role": "Rolle",
+            "scopeType": "Geltungsbereich",
+            "scopeEntity": "Objekt",
+            "validFrom": "Gültig von",
+            "validTo": "Gültig bis"
+          },
+          "scopeTypes": {
+            "LEGAL_ENTITY": "Rechtseinheit",
+            "BUSINESS_UNIT": "Business Unit",
+            "WAREHOUSE": "Lager",
+            "GLOBAL": "Global",
+            "GROUP": "Gruppe",
+            "PROJECT": "Projekt"
+          },
+          "grant": "Zuweisen",
+          "listTitle": "Aktuelle Zuweisungen",
+          "empty": "Keine Zuweisungen vorhanden.",
+          "sources": {
+            "MANUAL": "Manuell",
+            "RESOURCE_ASSIGNMENT": "Ressourcenzuweisung",
+            "SEED": "Saatdaten"
+          },
+          "revoke": "Entziehen"
+        }
       },
       "fields": {
         "oid": "Objekt-ID (oid)",
@@ -164,6 +202,44 @@
         "activate": "Aktivieren",
         "deactivate": "Deaktivieren"
       }
+    }
+  },
+  "access": {
+    "roles": {
+      "title": "Rollen",
+      "new": "Neue Rolle",
+      "newTitle": "Neue Rolle",
+      "loading": "Wird geladen…",
+      "empty": "Keine Rollen gefunden.",
+      "confirmDeactivate": "Diese Rolle deaktivieren? Dies kann nicht widerrufen werden.",
+      "fields": {
+        "code": "Code",
+        "captionI18n": "Bezeichnung",
+        "description": "Beschreibung",
+        "isSystem": "Systemrolle",
+        "isActive": "Status"
+      },
+      "tabs": {
+        "general": "Allgemein",
+        "permissionHistory": "Berechtigungsverlauf"
+      },
+      "actions": {
+        "deactivate": "Deaktivieren",
+        "save": "Speichern"
+      },
+      "permissionMatrix": {
+        "asOf": "Stand am",
+        "resource": "Ressource"
+      }
+    },
+    "effectiveScope": {
+      "title": "Was sieht dieser Benutzer?",
+      "back": "Zurück zum Benutzer",
+      "loading": "Wird geladen…",
+      "visible": "Sichtbar",
+      "projects": "Projekte",
+      "projectsEmpty": "Keine Projekte (noch nicht Teil des Modells vor Schritt 2.1).",
+      "empty": "Für diesen Benutzer ist kein Geltungsbereich sichtbar."
     }
   },
   "account": {

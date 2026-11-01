@@ -2,7 +2,9 @@
   "common": {
     "cancel": "Annulla",
     "reload": "Ricarica",
-    "save": "Salva"
+    "save": "Salva",
+    "yes": "Sì",
+    "no": "No"
   },
   "errors": {
     "generic": "Qualcosa è andato storto. Riprova.",
@@ -53,7 +55,48 @@
     "locations": "Sedi",
     "warehouses": "Magazzini",
     "orgTree": "Struttura organizzativa",
-    "orgCurrencies": "Valute"
+    "orgCurrencies": "Valute",
+    "access": {
+      "roles": "Ruoli"
+    }
+  },
+  "access": {
+    "roles": {
+      "title": "Ruoli",
+      "new": "Nuovo ruolo",
+      "newTitle": "Nuovo ruolo",
+      "loading": "Caricamento…",
+      "empty": "Nessun ruolo trovato.",
+      "confirmDeactivate": "Disattivare questo ruolo? Questa azione non può essere annullata.",
+      "fields": {
+        "code": "Codice",
+        "captionI18n": "Denominazione",
+        "description": "Descrizione",
+        "isSystem": "Ruolo di sistema",
+        "isActive": "Stato"
+      },
+      "tabs": {
+        "general": "Generale",
+        "permissionHistory": "Storico permessi"
+      },
+      "actions": {
+        "deactivate": "Disattiva",
+        "save": "Salva"
+      },
+      "permissionMatrix": {
+        "asOf": "Alla data del",
+        "resource": "Risorsa"
+      }
+    },
+    "effectiveScope": {
+      "title": "Cosa vede questo utente?",
+      "back": "Torna all'utente",
+      "loading": "Caricamento…",
+      "visible": "Visibile",
+      "projects": "Progetti",
+      "projectsEmpty": "Nessun progetto (non ancora parte del modello prima del passo 2.1).",
+      "empty": "Nessun ambito visibile per questo utente."
+    }
   },
   "account": {
     "title": "Il mio account",
@@ -115,7 +158,40 @@
         "newTitle": "Nuovo utente",
         "editTitle": "Modifica utente",
         "loading": "Caricamento…",
-        "systemUserNotice": "L'utente SYSTEM non può essere modificato né disattivato."
+        "systemUserNotice": "L'utente SYSTEM non può essere modificato né disattivato.",
+        "tabs": {
+          "general": "Generale",
+          "assignments": "Assegnazioni"
+        },
+        "assignments": {
+          "effectiveScopeLink": "Cosa vede questo utente?",
+          "grantTitle": "Nuova assegnazione",
+          "change": "Cambia",
+          "fields": {
+            "role": "Ruolo",
+            "scopeType": "Tipo di ambito",
+            "scopeEntity": "Entità",
+            "validFrom": "Valido dal",
+            "validTo": "Valido fino al"
+          },
+          "scopeTypes": {
+            "LEGAL_ENTITY": "Entità legale",
+            "BUSINESS_UNIT": "Unità di business",
+            "WAREHOUSE": "Magazzino",
+            "GLOBAL": "Globale",
+            "GROUP": "Gruppo",
+            "PROJECT": "Progetto"
+          },
+          "grant": "Assegna",
+          "listTitle": "Assegnazioni attuali",
+          "empty": "Nessuna assegnazione al momento.",
+          "sources": {
+            "MANUAL": "Manuale",
+            "RESOURCE_ASSIGNMENT": "Assegnazione risorsa",
+            "SEED": "Dati di base"
+          },
+          "revoke": "Revoca"
+        }
       },
       "fields": {
         "oid": "ID oggetto (oid)",

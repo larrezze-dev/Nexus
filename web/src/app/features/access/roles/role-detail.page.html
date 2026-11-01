@@ -1,0 +1,146 @@
+<div class="nx-role-detail-page">
+  @if (mode() === 'create') {
+    <header class="nx-role-detail-page__header">
+      <h1>{{ 'access.roles.newTitle' | transloco }}</h1>
+    </header>
+  } @else if (loading()) {
+    <p>{{ 'access.roles.loading' | transloco }}</p>
+  } @else if (entity(); as current) {
+    <header class="nx-role-detail-page__header">
+      <h1>{{ current.code }}</h1>
+      <nx-status-badge [status]="current.isActive ? 'active' : 'inactive'" />
+      @if (current.isSystem) {
+        <span data-testid="role-detail-system-badge">{{ 'access.roles.fields.isSystem' | transloco }}</span>
+      }
+      @if (current.isActive && !current.isSystem) {
+        <button
+          mat-stroked-button
+          type="button"
+          data-testid="role-detail-deactivate"
+          *nxCan="'ROLE:UPDATE'"
+          [disabled]="saving()"
+          (click)="onDeactivate()"
+        >
+          {{ 'access.roles.actions.deactivate' | transloco }}
+        </button>
+      }
+    </header>
+  }
+
+  @if (saveError()) {
+    <p role="alert" data-testid="role-detail-save-error">{{ saveError() }}</p>
+  }
+
+  @if (mode() === 'create' || entity()) {
+    <mat-tab-group>
+      <mat-tab [label]="'access.roles.tabs.general' | transloco">
+        <form class="nx-role-detail-page__form" [formGroup]="form" (ngSubmit)="onSave()">
+          <mat-form-field subscriptSizing="dynamic">
+            <mat-label>{{ 'access.roles.fields.code' | transloco }}</mat-label>
+            <input matInput type="text" data-testid="role-form-code" formControlName="code" required />
+            @for (message of errorsFor('code'); track message) {
+              <mat-error>{{ message }}</mat-error>
+            }
+          </mat-form-field>
+
+          <nx-i18n-caption-editor formControlName="captionI18n" data-testid="role-form-caption" />
+
+          <mat-form-field subscriptSizing="dynamic">
+            <mat-label>{{ 'access.roles.fields.description' | transloco }}</mat-label>
+            <textarea matInput data-testid="role-form-description" formControlName="description"></textarea>
+          </mat-form-field>
+
+          <div class="nx-role-detail-page__actions">
+            <button
+              mat-raised-button
+              color="primary"
+              type="submit"
+              data-testid="role-form-submit"
+              [disabled]="saving()"
+            >
+              @if (saving()) {
+                <mat-progress-spinner diameter="18" mode="indeterminate" />
+              } @else {
+                {{ 'access.roles.actions.save' | transloco }}
+              }
+            </button>
+          </div>
+        </form>
+      </mat-tab>
+
+      <mat-tab [label]="'access.roles.tabs.permissionHistory' | transloco" [disabled]="mode() === 'create'">
+        <div class="nx-role-detail-page__permissions">
+          <div class="nx-role-detail-page__permissions-toolbar">
+            <label for="role-permissions-as-of">{{ 'access.roles.permissionMatrix.asOf' | transloco }}</label>
+            <input
+              id="role-permissions-as-of"
+              type="date"
+              data-testid="role-permissions-as-of"
+              #asOfInput
+              [value]="asOf()"
+              (change)="onAsOfChange(asOfInput.value)"
+            />
+          </div>
+
+          @if (permissionsError()) {
+            <p role="alert" data-testid="role-permissions-error">{{ permissionsError() }}</p>
+          }
+
+          @if (loadingPermissions()) {
+            <p>{{ 'access.roles.loading' | transloco }}</p>
+          } @else {
+            <table class="nx-role-detail-page__matrix" data-testid="role-permission-matrix">
+              <thead>
+                <tr>
+                  <th>{{ 'access.roles.permissionMatrix.resource' | transloco }}</th>
+                  @for (action of matrixColumns(); track action) {
+                    <th>{{ action }}</th>
+                  }
+                </tr>
+              </thead>
+              <tbody>
+                @for (row of matrixRows(); track row.resourceType) {
+                  <tr>
+                    <td>{{ row.resourceType }}</td>
+                    @for (action of matrixColumns(); track action) {
+                      <td>
+                        @if (row.cells.get(action); as permission) {
+                          <input
+                            type="checkbox"
+                            [attr.data-testid]="'role-permission-cell-' + permission.code"
+                            [checked]="isGranted(permission)"
+                            [disabled]="!canEditPermissions()"
+                            (change)="toggleGrant(permission)"
+                          />
+                        }
+                      </td>
+                    }
+                  </tr>
+                }
+              </tbody>
+            </table>
+
+            @if (!readOnlyMatrix()) {
+              <div class="nx-role-detail-page__permissions-actions" *nxCan="'ROLE:UPDATE'">
+                <button
+                  mat-raised-button
+                  color="primary"
+                  type="button"
+                  data-testid="role-permissions-save"
+                  [disabled]="savingPermissions()"
+                  (click)="onSavePermissions()"
+                >
+                  @if (savingPermissions()) {
+                    <mat-progress-spinner diameter="18" mode="indeterminate" />
+                  } @else {
+                    {{ 'access.roles.actions.save' | transloco }}
+                  }
+                </button>
+              </div>
+            }
+          }
+        </div>
+      </mat-tab>
+    </mat-tab-group>
+  }
+</div>
