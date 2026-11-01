@@ -2,7 +2,9 @@
   "common": {
     "cancel": "Cancelar",
     "reload": "Recargar",
-    "save": "Guardar"
+    "save": "Guardar",
+    "yes": "Sí",
+    "no": "No"
   },
   "errors": {
     "generic": "Algo salió mal. Inténtalo de nuevo.",
@@ -53,7 +55,39 @@
     "locations": "Ubicaciones",
     "warehouses": "Almacenes",
     "orgTree": "Árbol de la organización",
-    "orgCurrencies": "Monedas"
+    "orgCurrencies": "Monedas",
+    "access": {
+      "roles": "Roles"
+    }
+  },
+  "access": {
+    "roles": {
+      "title": "Roles",
+      "new": "Nuevo rol",
+      "newTitle": "Nuevo rol",
+      "loading": "Cargando…",
+      "empty": "No se encontraron roles.",
+      "confirmDeactivate": "¿Desactivar este rol? Esta acción no se puede revertir.",
+      "fields": {
+        "code": "Código",
+        "captionI18n": "Denominación",
+        "description": "Descripción",
+        "isSystem": "Rol de sistema",
+        "isActive": "Estado"
+      },
+      "tabs": {
+        "general": "General",
+        "permissionHistory": "Historial de permisos"
+      },
+      "actions": {
+        "deactivate": "Desactivar",
+        "save": "Guardar"
+      },
+      "permissionMatrix": {
+        "asOf": "A fecha de",
+        "resource": "Recurso"
+      }
+    }
   },
   "account": {
     "title": "Mi cuenta",

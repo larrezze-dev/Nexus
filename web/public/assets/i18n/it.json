@@ -2,7 +2,9 @@
   "common": {
     "cancel": "Annulla",
     "reload": "Ricarica",
-    "save": "Salva"
+    "save": "Salva",
+    "yes": "Sì",
+    "no": "No"
   },
   "errors": {
     "generic": "Qualcosa è andato storto. Riprova.",
@@ -53,7 +55,39 @@
     "locations": "Sedi",
     "warehouses": "Magazzini",
     "orgTree": "Struttura organizzativa",
-    "orgCurrencies": "Valute"
+    "orgCurrencies": "Valute",
+    "access": {
+      "roles": "Ruoli"
+    }
+  },
+  "access": {
+    "roles": {
+      "title": "Ruoli",
+      "new": "Nuovo ruolo",
+      "newTitle": "Nuovo ruolo",
+      "loading": "Caricamento…",
+      "empty": "Nessun ruolo trovato.",
+      "confirmDeactivate": "Disattivare questo ruolo? Questa azione non può essere annullata.",
+      "fields": {
+        "code": "Codice",
+        "captionI18n": "Denominazione",
+        "description": "Descrizione",
+        "isSystem": "Ruolo di sistema",
+        "isActive": "Stato"
+      },
+      "tabs": {
+        "general": "Generale",
+        "permissionHistory": "Storico permessi"
+      },
+      "actions": {
+        "deactivate": "Disattiva",
+        "save": "Salva"
+      },
+      "permissionMatrix": {
+        "asOf": "Alla data del",
+        "resource": "Risorsa"
+      }
+    }
   },
   "account": {
     "title": "Il mio account",

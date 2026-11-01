@@ -2,7 +2,9 @@
   "common": {
     "cancel": "Annuler",
     "reload": "Recharger",
-    "save": "Enregistrer"
+    "save": "Enregistrer",
+    "yes": "Oui",
+    "no": "Non"
   },
   "errors": {
     "generic": "Une erreur est survenue. Veuillez réessayer.",
@@ -53,7 +55,39 @@
     "locations": "Sites",
     "warehouses": "Entrepôts",
     "orgTree": "Arborescence de l'organisation",
-    "orgCurrencies": "Devises"
+    "orgCurrencies": "Devises",
+    "access": {
+      "roles": "Rôles"
+    }
+  },
+  "access": {
+    "roles": {
+      "title": "Rôles",
+      "new": "Nouveau rôle",
+      "newTitle": "Nouveau rôle",
+      "loading": "Chargement…",
+      "empty": "Aucun rôle trouvé.",
+      "confirmDeactivate": "Désactiver ce rôle ? Cette action est irréversible.",
+      "fields": {
+        "code": "Code",
+        "captionI18n": "Libellé",
+        "description": "Description",
+        "isSystem": "Rôle système",
+        "isActive": "Statut"
+      },
+      "tabs": {
+        "general": "Général",
+        "permissionHistory": "Historique des permissions"
+      },
+      "actions": {
+        "deactivate": "Désactiver",
+        "save": "Enregistrer"
+      },
+      "permissionMatrix": {
+        "asOf": "À la date du",
+        "resource": "Ressource"
+      }
+    }
   },
   "account": {
     "title": "Mon compte",

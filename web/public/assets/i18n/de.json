@@ -2,7 +2,9 @@
   "common": {
     "cancel": "Abbrechen",
     "reload": "Neu laden",
-    "save": "Speichern"
+    "save": "Speichern",
+    "yes": "Ja",
+    "no": "Nein"
   },
   "errors": {
     "generic": "Etwas ist schiefgelaufen. Bitte versuchen Sie es erneut.",
@@ -53,7 +55,10 @@
     "locations": "Standorte",
     "warehouses": "Warehouses",
     "orgTree": "Organisationsstruktur",
-    "orgCurrencies": "Währungen"
+    "orgCurrencies": "Währungen",
+    "access": {
+      "roles": "Rollen"
+    }
   },
   "org": {
     "legalEntities": {
@@ -163,6 +168,35 @@
       "actions": {
         "activate": "Aktivieren",
         "deactivate": "Deaktivieren"
+      }
+    }
+  },
+  "access": {
+    "roles": {
+      "title": "Rollen",
+      "new": "Neue Rolle",
+      "newTitle": "Neue Rolle",
+      "loading": "Wird geladen…",
+      "empty": "Keine Rollen gefunden.",
+      "confirmDeactivate": "Diese Rolle deaktivieren? Dies kann nicht widerrufen werden.",
+      "fields": {
+        "code": "Code",
+        "captionI18n": "Bezeichnung",
+        "description": "Beschreibung",
+        "isSystem": "Systemrolle",
+        "isActive": "Status"
+      },
+      "tabs": {
+        "general": "Allgemein",
+        "permissionHistory": "Berechtigungsverlauf"
+      },
+      "actions": {
+        "deactivate": "Deaktivieren",
+        "save": "Speichern"
+      },
+      "permissionMatrix": {
+        "asOf": "Stand am",
+        "resource": "Ressource"
       }
     }
   },

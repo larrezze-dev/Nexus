@@ -2,7 +2,9 @@
   "common": {
     "cancel": "Cancel",
     "reload": "Reload",
-    "save": "Save"
+    "save": "Save",
+    "yes": "Yes",
+    "no": "No"
   },
   "errors": {
     "generic": "Something went wrong. Please try again.",
@@ -53,7 +55,39 @@
     "locations": "Locations",
     "warehouses": "Warehouses",
     "orgTree": "Organization tree",
-    "orgCurrencies": "Currencies"
+    "orgCurrencies": "Currencies",
+    "access": {
+      "roles": "Roles"
+    }
+  },
+  "access": {
+    "roles": {
+      "title": "Roles",
+      "new": "New role",
+      "newTitle": "New role",
+      "loading": "Loading…",
+      "empty": "No roles found.",
+      "confirmDeactivate": "Deactivate this role? This cannot be undone.",
+      "fields": {
+        "code": "Code",
+        "captionI18n": "Caption",
+        "description": "Description",
+        "isSystem": "System role",
+        "isActive": "Status"
+      },
+      "tabs": {
+        "general": "General",
+        "permissionHistory": "Permission history"
+      },
+      "actions": {
+        "deactivate": "Deactivate",
+        "save": "Save"
+      },
+      "permissionMatrix": {
+        "asOf": "As of",
+        "resource": "Resource"
+      }
+    }
   },
   "account": {
     "title": "My account",
