@@ -14,11 +14,14 @@ using Nexus.Platform.Api.Groups;
 using Nexus.Platform.Api.LegalEntities;
 using Nexus.Platform.Api.Locations;
 using Nexus.Platform.Api.Parties;
+using Nexus.Platform.Api.RoleAssignments;
+using Nexus.Platform.Api.Roles;
 using Nexus.Platform.Api.Session;
 using Nexus.Platform.Api.Users;
 using Nexus.Platform.Api.Warehouses;
 using Nexus.Platform.Application.Users.CreateUser;
 using Nexus.Platform.Infrastructure;
+using Nexus.Platform.Infrastructure.RoleAssignments;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -40,6 +43,7 @@ builder.Services.Configure<NexusPersistenceOptions>(builder.Configuration.GetSec
 builder.Services.AddNexusPersistence();
 builder.Services.AddNexusIdentityResolution();
 builder.Services.AddPlatformInfrastructure();
+builder.Services.AddRoleAssignmentInfrastructure();
 builder.Services.AddUserConstraintViolations();
 builder.Services.AddPartyConstraintViolations();
 builder.Services.AddGroupConstraintViolations();
@@ -47,6 +51,8 @@ builder.Services.AddLegalEntityConstraintViolations();
 builder.Services.AddBusinessUnitConstraintViolations();
 builder.Services.AddWarehouseConstraintViolations();
 builder.Services.AddLocationConstraintViolations();
+builder.Services.AddRoleConstraintViolations();
+builder.Services.AddRoleAssignmentConstraintViolations();
 
 var app = builder.Build();
 
@@ -80,6 +86,8 @@ app.MapLegalEntityEndpoints();
 app.MapBusinessUnitEndpoints();
 app.MapWarehouseEndpoints();
 app.MapLocationEndpoints();
+app.MapRoleEndpoints();
+app.MapRoleAssignmentEndpoints();
 
 // Test-only diagnostic endpoint (ficha 0.5-B): exercises ResultExtensions.ToMinimalApiResult's
 // 422 application/problem+json mapping end to end against a real running host, instead of only
