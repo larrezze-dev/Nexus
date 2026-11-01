@@ -58,6 +58,9 @@ app.UseNexusProblemDetails();
 app.UseAuthentication();
 app.UseAuthorization();
 app.UseNexusIdentityResolution();
+// x-scope: body.* endpoints (POST /v1/role-assignments, ACC-R4): the permission filter runs
+// after model binding has consumed the body, so it must be re-readable.
+app.UseNexusPermissionBodyBuffering();
 
 app.MapOpenApi();
 
@@ -88,6 +91,31 @@ app.MapGet(
         () => Result.Failure(new Error("TST-R1", "test")).ToMinimalApiResult())
     .ExcludeFromDescription();
 
+// Test-only diagnostic endpoints (ficha 0.6-B): prove AccessPermissionChecker's x-scope handling
+// end to end (JWT -> identity -> unit of work -> access.has_permission -> 200/403). Reaching the
+// handler means the filter allowed the call. Excluded from the OpenAPI document like the one above.
+app.MapGet("/v1/_diagnostics/permission-check/none", () => Results.Ok())
+    .RequirePermission("ROLE", PermissionAction.Create)
+    .WithScope("none")
+    .ExcludeFromDescription();
+
+app.MapGet("/v1/_diagnostics/permission-check/global", () => Results.Ok())
+    .RequirePermission("ROLE", PermissionAction.Create)
+    .WithScope("global")
+    .ExcludeFromDescription();
+
+// Same body shape and scope as POST /v1/role-assignments (ACC-R4); echoes the bound body to
+// prove model binding still sees it after the filter re-read it.
+app.MapPost(
+        "/v1/_diagnostics/permission-check/role-assignment-scope",
+        (DiagnosticRoleAssignmentScope body) => Results.Ok(body))
+    .RequirePermission("ROLE_ASSIGNMENT", PermissionAction.Create)
+    .WithScope("body.scopeEntityId")
+    .ExcludeFromDescription();
+
 app.Run();
 
 public partial class Program;
+
+/// <summary>Body of the role-assignment-scope diagnostic endpoint (test-only).</summary>
+internal sealed record DiagnosticRoleAssignmentScope(string ScopeType, Guid? ScopeEntityId);
