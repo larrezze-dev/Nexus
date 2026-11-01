@@ -95,7 +95,19 @@ public sealed class MeEndpointTests : IClassFixture<PlatformApiFixture>
         body.GetProperty("partyId").GetGuid().ShouldBe(Org.UserA.PartyId);
         body.GetProperty("businessUnitId").GetGuid().ShouldBe(Org.BusinessUnitA.Id);
         body.GetProperty("preferredLanguage").GetString().ShouldBe("de");
-        body.GetProperty("permissions").GetArrayLength().ShouldBe(0);
+
+        // Org.UserA is seeded as ORG_ADMIN at LEGAL_ENTITY scope (LegalEntityA): its permissions
+        // are non-empty and each carries that scope (step 0.6: access.active_assignments() joined
+        // to access.role_permission/access.permission).
+        var permissions = body.GetProperty("permissions");
+        permissions.GetArrayLength().ShouldBeGreaterThan(0);
+
+        var orgStructureRead = permissions.EnumerateArray()
+            .Single(p => p.GetProperty("code").GetString() == "ORG_STRUCTURE:READ");
+        var orgStructureReadScopes = orgStructureRead.GetProperty("scopes").EnumerateArray().ToList();
+        orgStructureReadScopes.ShouldContain(s =>
+            s.GetProperty("scopeType").GetString() == "LEGAL_ENTITY"
+            && s.GetProperty("scopeEntityId").GetGuid() == Org.LegalEntityA.Id);
     }
 
     [Fact(DisplayName = "ADR-0006: preferredLanguage comes from org.app_user, not from the token's locale claim")]
@@ -113,6 +125,18 @@ public sealed class MeEndpointTests : IClassFixture<PlatformApiFixture>
         var body = (await response.Content.ReadFromJsonAsync<JsonDocument>(TestContext.Current.CancellationToken))!.RootElement;
         body.GetProperty("preferredLanguage").GetString().ShouldBe("de");
         body.GetProperty("businessUnitId").ValueKind.ShouldBe(JsonValueKind.Null);
+
+        // Org.Admin is seeded as SYSTEM_ADMIN at GLOBAL scope: scopeType "GLOBAL" and a null
+        // scopeEntityId on every permission it holds.
+        var permissions = body.GetProperty("permissions");
+        permissions.GetArrayLength().ShouldBeGreaterThan(0);
+
+        var orgStructureRead = permissions.EnumerateArray()
+            .Single(p => p.GetProperty("code").GetString() == "ORG_STRUCTURE:READ");
+        var orgStructureReadScopes = orgStructureRead.GetProperty("scopes").EnumerateArray().ToList();
+        orgStructureReadScopes.ShouldContain(s =>
+            s.GetProperty("scopeType").GetString() == "GLOBAL"
+            && s.GetProperty("scopeEntityId").ValueKind == JsonValueKind.Null);
     }
 
     [Fact(DisplayName = "Public endpoints never resolve identity: /health with an unprovisioned token is 200")]

@@ -28,7 +28,8 @@ public static class GetMe
     ///   <item><c>subject</c>/<c>oid</c>/<c>displayName</c>/<c>email</c> stay token data, as the
     ///   contract documents (<c>email</c>: "tomado del token, no de app_user");
     ///   <c>displayName</c> falls back to <c>subject</c> without a <c>name</c> claim.</item>
-    ///   <item><c>permissions</c> stays empty until step 0.6.</item>
+    ///   <item><c>permissions</c> (since step 0.6) is the caller's currently granted permissions,
+    ///   grouped by code, each with its scopes (<see cref="GetCurrentUserQuery"/>).</item>
     /// </list>
     /// </summary>
     public static async Task<Results<Ok<MeResponse>, ProblemHttpResult>> Handle(
@@ -58,6 +59,12 @@ public static class GetMe
         var subject = currentUser.Subject ?? string.Empty;
         var me = profile.Value;
 
+        var permissions = me.Permissions
+            .Select(p => new MePermissionResponse(
+                p.Code,
+                p.Scopes.Select(s => new MePermissionScopeResponse(s.ScopeType, s.ScopeEntityId)).ToList()))
+            .ToList();
+
         return TypedResults.Ok(new MeResponse(
             Subject: subject,
             Oid: currentUser.Oid ?? string.Empty,
@@ -68,6 +75,6 @@ public static class GetMe
             BusinessUnitId: me.BusinessUnitId,
             PreferredLanguage: me.PreferredLanguage,
             Provisioned: true,
-            Permissions: []));
+            Permissions: permissions));
     }
 }

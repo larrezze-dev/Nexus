@@ -9,8 +9,10 @@ namespace Nexus.Platform.Api.Session;
 /// built (otherwise 403 <c>user_not_provisioned</c>): <see cref="UserId"/>, <see cref="PartyId"/>
 /// and <see cref="PreferredLanguage"/> are always set and <see cref="Provisioned"/> is always
 /// <see langword="true"/>; <see cref="BusinessUnitId"/> is optional in the data model.
-/// <see cref="Permissions"/> stays empty until step 0.6. The nullable types are kept because the
-/// contract declares those properties as nullable.
+/// Since step 0.6, <see cref="Permissions"/> carries the caller's real, currently granted
+/// permissions (grouped by code, each with its scopes), read from <c>access.active_assignments()</c>
+/// joined to <c>access.role_permission</c>/<c>access.permission</c>. The nullable types are kept
+/// because the contract declares those properties as nullable.
 /// </para>
 /// </summary>
 public sealed record MeResponse(
@@ -23,4 +25,13 @@ public sealed record MeResponse(
     Guid? BusinessUnitId,
     string PreferredLanguage,
     bool Provisioned,
-    IReadOnlyList<string> Permissions);
+    IReadOnlyList<MePermissionResponse> Permissions);
+
+/// <summary>One of the caller's permissions (`MePermission` schema): a code plus every scope
+/// at which it is currently granted, one entry per distinct <see cref="Code"/>.</summary>
+public sealed record MePermissionResponse(string Code, IReadOnlyList<MePermissionScopeResponse> Scopes);
+
+/// <summary>A scope at which a permission is granted (`MePermissionScope` schema).
+/// <see cref="ScopeEntityId"/> is <see langword="null"/> only when <see cref="ScopeType"/> is
+/// <c>GLOBAL</c>.</summary>
+public sealed record MePermissionScopeResponse(string ScopeType, Guid? ScopeEntityId);
