@@ -2,6 +2,8 @@ import { Routes } from '@angular/router';
 import { authGuard } from './core/auth/auth.guard';
 import { nexusHttpRoutes } from './core/http/http.routes';
 import { AuthenticatedShellComponent } from './core/layout/authenticated-shell.component';
+import { accessRolesRoutes } from './features/access/roles/roles.routes';
+import { accessRoleAssignmentsRoutes } from './features/access/role-assignments/role-assignments.routes';
 import { orgCurrenciesRoutes } from './features/org/currencies/currencies.routes';
 import { locationsRoutes } from './features/org/locations/locations.routes';
 import { orgRoutes } from './features/org/org.routes';
@@ -34,6 +36,8 @@ export const routes: Routes = [
       ...usersRoutes,
       ...partiesRoutes,
       ...orgCurrenciesRoutes,
+      ...accessRolesRoutes,
+      ...accessRoleAssignmentsRoutes,
     ],
   },
 ];
