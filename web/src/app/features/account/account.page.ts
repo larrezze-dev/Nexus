@@ -54,7 +54,11 @@ import { AccountFacade } from './account.facade';
           @if (me.permissions.length === 0) {
             {{ 'account.fields.noPermissions' | transloco }}
           } @else {
-            {{ me.permissions.join(', ') }}
+            <ul>
+              @for (permission of me.permissions; track permission.code) {
+                <li>{{ permission.code }}</li>
+              }
+            </ul>
           }
         </dd>
       </dl>

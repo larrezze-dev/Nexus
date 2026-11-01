@@ -1,4 +1,5 @@
 import { Injectable, signal } from '@angular/core';
+import { MePermission } from '../../api/platform/models/me-permission';
 
 /**
  * Holds the permissions of the current user, as consulted by `*nxCan`
@@ -8,29 +9,25 @@ import { Injectable, signal } from '@angular/core';
  * here never substitutes for the server enforcing (or rejecting) the
  * underlying request.
  *
- * Step 0.5: `GET /v1/me` always answers `permissions: []` (see
- * `contracts/openapi/platform.yaml`, `Me` schema), so there is nothing real
- * to check yet. `has()` special-cases an empty list to `true` so every
- * `*nxCan` lets its content through, matching the step card verbatim:
- * "en 0.5 la lista está vacía y la directiva deja pasar todo mientras
- * `/me.permissions` no exista". Step 0.6 hardens this once the backend
- * actually returns permissions.
- *
- * Wiring the real `/v1/me` response into `setPermissions()` is explicitly
- * OUT of this subtask's scope: it is done by the F5 integration subtask,
- * once the `ng-openapi-gen`-generated `platform` client exists in this
- * worktree (it does not yet, in 0.5 track F / core/auth + shared/auth).
+ * `GET /v1/me` answers `permissions: MePermission[]` (`code` + `scopes`,
+ * see `contracts/openapi/platform.yaml`, `Me`/`MePermission` schemas).
+ * `AccountFacade.load()` feeds that list straight into `setPermissions()`,
+ * which keeps only each entry's `code` — this store does not need to be
+ * scope-aware for `*nxCan` (a future step may add scope-aware UI; until
+ * then this only checks membership by `code`). `has()` still special-cases
+ * an empty list to `true` so every `*nxCan` lets its content through while
+ * no permission data is loaded yet (e.g. before `/v1/me` resolves).
  */
 @Injectable({ providedIn: 'root' })
 export class PermissionsStore {
   private readonly permissionsSignal = signal<string[]>([]);
 
-  /** Current permission list. Empty until F5 calls `setPermissions()`. */
+  /** Current permission list. Empty until `setPermissions()` is called. */
   readonly permissions = this.permissionsSignal.asReadonly();
 
-  /** Called by the `/v1/me` integration (F5) once that client exists. */
-  setPermissions(permissions: string[]): void {
-    this.permissionsSignal.set(permissions);
+  /** Called by `AccountFacade.load()` once `GET /v1/me` resolves. */
+  setPermissions(permissions: MePermission[]): void {
+    this.permissionsSignal.set(permissions.map((permission) => permission.code));
   }
 
   /**
