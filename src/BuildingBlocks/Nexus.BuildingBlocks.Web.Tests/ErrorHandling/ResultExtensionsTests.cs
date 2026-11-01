@@ -50,6 +50,26 @@ public sealed class ResultExtensionsTests
     }
 
     [Fact]
+    public async Task ToMinimalApiResult_On_Forbidden_Error_Produces_403_FORBIDDEN()
+    {
+        var httpContext = new DefaultHttpContext
+        {
+            RequestServices = RequestServices,
+            Response = { Body = new MemoryStream() },
+        };
+
+        var result = Result.Failure(Error.Forbidden("Not your scope.")).ToMinimalApiResult();
+        await result.ExecuteAsync(httpContext);
+
+        httpContext.Response.StatusCode.ShouldBe(403);
+        httpContext.Response.Body.Position = 0;
+        using var document = await JsonDocument.ParseAsync(
+            httpContext.Response.Body,
+            cancellationToken: TestContext.Current.CancellationToken);
+        document.RootElement.GetProperty("code").GetString().ShouldBe("FORBIDDEN");
+    }
+
+    [Fact]
     public async Task ToMinimalApiResult_On_Success_Runs_The_OnSuccess_Branch()
     {
         var httpContext = new DefaultHttpContext

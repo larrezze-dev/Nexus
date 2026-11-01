@@ -192,6 +192,29 @@ public sealed class PostgresFixture : IAsyncLifetime
     }
 
     /// <summary>
+    /// Opens a connection as <c>nexus_migrator</c> already switched to <c>nexus_owner</c> (the
+    /// owner of every object), for tests that need to act as the schema owner rather than as a
+    /// <c>svc_*</c> service role -- e.g. tables with no <c>GRANT</c> to any <c>svc_*</c> role at
+    /// all, by design (see <c>db/test-migrations</c>'s own comments on <c>test.*</c> fixtures).
+    /// </summary>
+    public async Task<NpgsqlConnection> OpenAsOwnerAsync(CancellationToken cancellationToken = default)
+    {
+        var connection = new NpgsqlConnection(GetConnectionString("nexus_migrator"));
+        try
+        {
+            await connection.OpenAsync(cancellationToken);
+            await using var setRole = new NpgsqlCommand("SET ROLE nexus_owner", connection);
+            await setRole.ExecuteNonQueryAsync(cancellationToken);
+            return connection;
+        }
+        catch
+        {
+            await connection.DisposeAsync();
+            throw;
+        }
+    }
+
+    /// <summary>
     /// Runs the real <c>db/bootstrap/00_roles.sql</c> inside the Postgres container itself (it
     /// needs a local Unix-socket, trust-authenticated <c>psql -U postgres</c>, exactly like the
     /// <c>docker-entrypoint-initdb.d</c> mechanism it documents itself as written for) with the

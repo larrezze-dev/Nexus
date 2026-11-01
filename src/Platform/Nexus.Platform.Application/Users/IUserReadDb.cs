@@ -22,8 +22,20 @@ public interface IUserReadDb
     Task<CurrentUserProfile?> GetActiveProfileAsync(Guid userId, CancellationToken cancellationToken);
 }
 
-/// <summary>The NEXUS part of <c>GET /v1/me</c> (the rest comes from the token).</summary>
-public sealed record CurrentUserProfile(Guid UserId, Guid PartyId, Guid? BusinessUnitId, string PreferredLanguage);
+/// <summary>The NEXUS part of <c>GET /v1/me</c> (the rest comes from the token). Since step 0.6,
+/// <see cref="Permissions"/> carries the caller's currently granted permissions, grouped by code.</summary>
+public sealed record CurrentUserProfile(
+    Guid UserId,
+    Guid PartyId,
+    Guid? BusinessUnitId,
+    string PreferredLanguage,
+    IReadOnlyList<CurrentUserPermissionGrant> Permissions);
+
+/// <summary>One permission the caller currently holds, with every scope that grants it.</summary>
+public sealed record CurrentUserPermissionGrant(string Code, IReadOnlyList<CurrentUserPermissionScope> Scopes);
+
+/// <summary>A scope (`access.role_assignment.scope_type`/`scope_entity_id`) granting a permission.</summary>
+public sealed record CurrentUserPermissionScope(string ScopeType, Guid? ScopeEntityId);
 
 /// <summary>Sortable fields of <c>GET /v1/users</c> (API names).</summary>
 public static class UserSortFields

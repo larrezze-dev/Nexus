@@ -14,11 +14,14 @@ using Nexus.Platform.Api.Groups;
 using Nexus.Platform.Api.LegalEntities;
 using Nexus.Platform.Api.Locations;
 using Nexus.Platform.Api.Parties;
+using Nexus.Platform.Api.RoleAssignments;
+using Nexus.Platform.Api.Roles;
 using Nexus.Platform.Api.Session;
 using Nexus.Platform.Api.Users;
 using Nexus.Platform.Api.Warehouses;
 using Nexus.Platform.Application.Users.CreateUser;
 using Nexus.Platform.Infrastructure;
+using Nexus.Platform.Infrastructure.RoleAssignments;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -40,6 +43,7 @@ builder.Services.Configure<NexusPersistenceOptions>(builder.Configuration.GetSec
 builder.Services.AddNexusPersistence();
 builder.Services.AddNexusIdentityResolution();
 builder.Services.AddPlatformInfrastructure();
+builder.Services.AddRoleAssignmentInfrastructure();
 builder.Services.AddUserConstraintViolations();
 builder.Services.AddPartyConstraintViolations();
 builder.Services.AddGroupConstraintViolations();
@@ -47,6 +51,8 @@ builder.Services.AddLegalEntityConstraintViolations();
 builder.Services.AddBusinessUnitConstraintViolations();
 builder.Services.AddWarehouseConstraintViolations();
 builder.Services.AddLocationConstraintViolations();
+builder.Services.AddRoleConstraintViolations();
+builder.Services.AddRoleAssignmentConstraintViolations();
 
 var app = builder.Build();
 
@@ -58,6 +64,9 @@ app.UseNexusProblemDetails();
 app.UseAuthentication();
 app.UseAuthorization();
 app.UseNexusIdentityResolution();
+// x-scope: body.* endpoints (POST /v1/role-assignments, ACC-R4): the permission filter runs
+// after model binding has consumed the body, so it must be re-readable.
+app.UseNexusPermissionBodyBuffering();
 
 app.MapOpenApi();
 
@@ -77,6 +86,8 @@ app.MapLegalEntityEndpoints();
 app.MapBusinessUnitEndpoints();
 app.MapWarehouseEndpoints();
 app.MapLocationEndpoints();
+app.MapRoleEndpoints();
+app.MapRoleAssignmentEndpoints();
 
 // Test-only diagnostic endpoint (ficha 0.5-B): exercises ResultExtensions.ToMinimalApiResult's
 // 422 application/problem+json mapping end to end against a real running host, instead of only
@@ -88,6 +99,31 @@ app.MapGet(
         () => Result.Failure(new Error("TST-R1", "test")).ToMinimalApiResult())
     .ExcludeFromDescription();
 
+// Test-only diagnostic endpoints (ficha 0.6-B): prove AccessPermissionChecker's x-scope handling
+// end to end (JWT -> identity -> unit of work -> access.has_permission -> 200/403). Reaching the
+// handler means the filter allowed the call. Excluded from the OpenAPI document like the one above.
+app.MapGet("/v1/_diagnostics/permission-check/none", () => Results.Ok())
+    .RequirePermission("ROLE", PermissionAction.Create)
+    .WithScope("none")
+    .ExcludeFromDescription();
+
+app.MapGet("/v1/_diagnostics/permission-check/global", () => Results.Ok())
+    .RequirePermission("ROLE", PermissionAction.Create)
+    .WithScope("global")
+    .ExcludeFromDescription();
+
+// Same body shape and scope as POST /v1/role-assignments (ACC-R4); echoes the bound body to
+// prove model binding still sees it after the filter re-read it.
+app.MapPost(
+        "/v1/_diagnostics/permission-check/role-assignment-scope",
+        (DiagnosticRoleAssignmentScope body) => Results.Ok(body))
+    .RequirePermission("ROLE_ASSIGNMENT", PermissionAction.Create)
+    .WithScope("body.scopeEntityId")
+    .ExcludeFromDescription();
+
 app.Run();
 
 public partial class Program;
+
+/// <summary>Body of the role-assignment-scope diagnostic endpoint (test-only).</summary>
+internal sealed record DiagnosticRoleAssignmentScope(string ScopeType, Guid? ScopeEntityId);

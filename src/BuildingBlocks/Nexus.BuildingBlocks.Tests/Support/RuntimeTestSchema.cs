@@ -62,7 +62,7 @@ internal static class RuntimeTestSchema
                 return;
             }
 
-            await using var connection = await OpenAsOwnerAsync(db, cancellationToken);
+            await using var connection = await db.OpenAsOwnerAsync(cancellationToken);
             await using var command = new NpgsqlCommand(Ddl, connection);
             await command.ExecuteNonQueryAsync(cancellationToken);
             _createdFor = db;
@@ -73,21 +73,13 @@ internal static class RuntimeTestSchema
         }
     }
 
-    /// <summary>A connection as <c>nexus_migrator</c> already switched to <c>nexus_owner</c> (the owner of every object).</summary>
-    public static async Task<NpgsqlConnection> OpenAsOwnerAsync(PostgresFixture db, CancellationToken cancellationToken)
-    {
-        var connection = new NpgsqlConnection(db.GetConnectionString("nexus_migrator"));
-        try
-        {
-            await connection.OpenAsync(cancellationToken);
-            await using var setRole = new NpgsqlCommand("SET ROLE nexus_owner", connection);
-            await setRole.ExecuteNonQueryAsync(cancellationToken);
-            return connection;
-        }
-        catch
-        {
-            await connection.DisposeAsync();
-            throw;
-        }
-    }
+    /// <summary>
+    /// A connection as <c>nexus_migrator</c> already switched to <c>nexus_owner</c> (the owner of
+    /// every object). Forwards to <see cref="PostgresFixture.OpenAsOwnerAsync"/> -- moved there
+    /// in step 0.6 so <c>Nexus.BuildingBlocks.Testing</c> helpers (e.g. <c>OrgFixture.AsUser</c>)
+    /// can use it too -- kept here as a thin wrapper so existing callers in this project do not
+    /// need to change.
+    /// </summary>
+    public static Task<NpgsqlConnection> OpenAsOwnerAsync(PostgresFixture db, CancellationToken cancellationToken) =>
+        db.OpenAsOwnerAsync(cancellationToken);
 }

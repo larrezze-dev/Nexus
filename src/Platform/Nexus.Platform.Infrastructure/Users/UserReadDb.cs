@@ -91,7 +91,34 @@ internal sealed class UserReadDb : IUserReadDb
             new { userId },
             cancellationToken));
 
-        return row is null ? null : new CurrentUserProfile(row.UserId, row.PartyId, row.BusinessUnitId, row.PreferredLanguage);
+        if (row is null)
+        {
+            return null;
+        }
+
+        // access.active_assignments() is SECURITY DEFINER and filters by access.current_user_id()
+        // itself (the GUC this same transaction's SET LOCAL already set), so no parameter is
+        // needed here; no RLS is involved (access has none, conventions-database.md §7).
+        var permissionRows = await _unitOfWork.Connection.QueryAsync<PermissionRow>(Command(
+            """
+            SELECT p.code AS Code, a.scope_type AS ScopeType, a.scope_entity_id AS ScopeEntityId
+            FROM access.active_assignments() a
+            JOIN access.role_permission rp ON rp.role_id = a.role_id
+                 AND rp.valid_from <= now() AND (rp.valid_to IS NULL OR rp.valid_to > now())
+            JOIN access.permission p ON p.id = rp.permission_id
+            ORDER BY p.code
+            """,
+            null,
+            cancellationToken));
+
+        var permissions = permissionRows
+            .GroupBy(r => r.Code, StringComparer.Ordinal)
+            .Select(g => new CurrentUserPermissionGrant(
+                g.Key,
+                g.Select(r => new CurrentUserPermissionScope(r.ScopeType, r.ScopeEntityId)).Distinct().ToList()))
+            .ToList();
+
+        return new CurrentUserProfile(row.UserId, row.PartyId, row.BusinessUnitId, row.PreferredLanguage, permissions);
     }
 
     private CommandDefinition Command(string sql, object? parameters, CancellationToken cancellationToken) =>
@@ -157,5 +184,14 @@ internal sealed class UserReadDb : IUserReadDb
         public Guid? BusinessUnitId { get; set; }
 
         public string PreferredLanguage { get; set; } = string.Empty;
+    }
+
+    private sealed class PermissionRow
+    {
+        public string Code { get; set; } = string.Empty;
+
+        public string ScopeType { get; set; } = string.Empty;
+
+        public Guid? ScopeEntityId { get; set; }
     }
 }

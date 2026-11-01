@@ -26,7 +26,9 @@ public interface IRequestTransaction
     /// <summary><see langword="true"/> between a successful <see cref="BeginAsync"/> and commit/rollback.</summary>
     bool IsActive { get; }
 
-    /// <summary>Opens the connection and transaction and stamps the RLS session (BE-R1).</summary>
+    /// <summary>Opens the connection and transaction and stamps the RLS session (BE-R1).
+    /// A no-op if already active (e.g. the permission filter began it before the handler);
+    /// throws once the transaction was committed or rolled back (single-use).</summary>
     Task BeginAsync(CancellationToken cancellationToken = default);
 
     /// <summary>Saves pending changes, writes their events to the outbox and commits, atomically.</summary>

@@ -5,6 +5,8 @@ using Nexus.Platform.Application.Groups;
 using Nexus.Platform.Application.LegalEntities;
 using Nexus.Platform.Application.Locations;
 using Nexus.Platform.Application.Parties;
+using Nexus.Platform.Application.Permissions;
+using Nexus.Platform.Application.Roles;
 using Nexus.Platform.Application.Users;
 using Nexus.Platform.Application.Warehouses;
 using Nexus.Platform.Infrastructure.BusinessUnits;
@@ -13,7 +15,9 @@ using Nexus.Platform.Infrastructure.Groups;
 using Nexus.Platform.Infrastructure.LegalEntities;
 using Nexus.Platform.Infrastructure.Locations;
 using Nexus.Platform.Infrastructure.Parties;
+using Nexus.Platform.Infrastructure.Permissions;
 using Nexus.Platform.Infrastructure.Persistence;
+using Nexus.Platform.Infrastructure.Roles;
 using Nexus.Platform.Infrastructure.Users;
 using Nexus.Platform.Infrastructure.Warehouses;
 
@@ -37,6 +41,7 @@ public static class PlatformInfrastructureServiceCollectionExtensions
         ArgumentNullException.ThrowIfNull(services);
 
         services.AddScoped<OrgDbContext>();
+        services.AddScoped<AccessDbContext>();
 
         services.AddScoped<IPartyRepository, PartyRepository>();
         services.AddScoped<IPartyReadDb, PartyReadDb>();
@@ -55,6 +60,12 @@ public static class PlatformInfrastructureServiceCollectionExtensions
         services.AddScoped<IWarehouseReadDb, WarehouseReadDb>();
         services.AddScoped<ILocationRepository, LocationRepository>();
         services.AddScoped<ILocationReadDb, LocationReadDb>();
+
+        services.AddScoped<IRoleRepository, RoleRepository>();
+        services.AddScoped<IRoleReadDb, RoleReadDb>();
+        services.AddScoped<IRolePermissionRepository, RolePermissionRepository>();
+        services.AddScoped<IRolePermissionReadDb, RolePermissionReadDb>();
+        services.AddScoped<IPermissionReadDb, PermissionReadDb>();
 
         return services;
     }
