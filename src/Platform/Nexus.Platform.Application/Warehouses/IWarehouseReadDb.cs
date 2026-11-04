@@ -11,12 +11,18 @@ public interface IWarehouseReadDb
     Task<WarehouseDetails?> GetByIdAsync(Guid id, CancellationToken cancellationToken);
 
     /// <summary>
-    /// One page of warehouses ordered by <paramref name="sort"/> (fields of
-    /// <see cref="WarehouseSortFields.Allowed"/>), then by id for a stable order, filtered by
-    /// <paramref name="filter"/>. An empty <paramref name="sort"/> orders by code.
+    /// <b>Every</b> warehouse matching <paramref name="filter"/>, ordered by
+    /// <paramref name="sort"/> (fields of <see cref="WarehouseSortFields.Allowed"/>), then by id
+    /// for a stable order. An empty <paramref name="sort"/> orders by code.
+    /// <para>
+    /// Deliberately unpaginated: <c>listWarehouses</c> must first drop the rows whose scope the
+    /// caller's <c>ORG_STRUCTURE:READ</c> does not cover (<c>org</c> has no RLS) and only then
+    /// paginate, so <c>total</c> counts what the caller can see. <c>org.warehouse</c> is master
+    /// data (hundreds of rows), not a high-volume table.
+    /// </para>
     /// </summary>
-    Task<PagedResult<WarehouseListItem>> ListAsync(
-        int page, int pageSize, IReadOnlyList<SortField> sort, WarehouseFilter filter, CancellationToken cancellationToken);
+    Task<IReadOnlyList<WarehouseListItem>> ListAllAsync(
+        IReadOnlyList<SortField> sort, WarehouseFilter filter, CancellationToken cancellationToken);
 }
 
 /// <summary><c>GET /v1/warehouses</c> query parameters (<c>q</c>, <c>legalEntityId</c>, <c>businessUnitId</c>, <c>isActive</c>).</summary>

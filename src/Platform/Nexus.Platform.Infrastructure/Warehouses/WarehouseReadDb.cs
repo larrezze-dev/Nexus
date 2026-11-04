@@ -48,23 +48,16 @@ internal sealed class WarehouseReadDb : IWarehouseReadDb
         return row?.ToDetails();
     }
 
-    public async Task<PagedResult<WarehouseListItem>> ListAsync(
-        int page, int pageSize, IReadOnlyList<SortField> sort, WarehouseFilter filter, CancellationToken cancellationToken)
+    public async Task<IReadOnlyList<WarehouseListItem>> ListAllAsync(
+        IReadOnlyList<SortField> sort, WarehouseFilter filter, CancellationToken cancellationToken)
     {
         var (where, parameters) = BuildWhere(filter);
-
-        var total = await _unitOfWork.Connection.ExecuteScalarAsync<long>(Command(
-            $"SELECT count(*) FROM org.warehouse w {where}",
-            parameters,
-            cancellationToken));
 
         var orderBy = sort.Count == 0
             ? SortColumns[WarehouseSortFields.Code]
             : string.Join(", ", sort.Select(f => SortColumns[f.Field] + (f.Descending ? " DESC" : " ASC")));
 
-        parameters.Add("limit", pageSize);
-        parameters.Add("offset", (long)(page - 1) * pageSize);
-
+        // No LIMIT/OFFSET: the handler filters by scope coverage first (see IWarehouseReadDb.ListAllAsync).
         var rows = await _unitOfWork.Connection.QueryAsync<ListRow>(Command(
             $"""
              SELECT w.id AS Id, w.legal_entity_id AS LegalEntityId, w.business_unit_id AS BusinessUnitId,
@@ -72,16 +65,13 @@ internal sealed class WarehouseReadDb : IWarehouseReadDb
              FROM org.warehouse w
              {where}
              ORDER BY {orderBy}, w.id
-             LIMIT @limit OFFSET @offset
              """,
             parameters,
             cancellationToken));
 
-        var items = rows
+        return rows
             .Select(r => new WarehouseListItem(r.Id, r.LegalEntityId, r.BusinessUnitId, r.Code, I18nJson.Parse(r.CaptionI18nJson), r.IsActive))
             .ToList();
-
-        return new PagedResult<WarehouseListItem>(items, page, pageSize, total);
     }
 
     private static (string Where, DynamicParameters Parameters) BuildWhere(WarehouseFilter filter)

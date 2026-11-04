@@ -45,34 +45,27 @@ internal sealed class BusinessUnitReadDb : IBusinessUnitReadDb
         return row?.ToDetails();
     }
 
-    public async Task<PagedResult<BusinessUnitListItem>> ListAsync(
-        int page, int pageSize, IReadOnlyList<SortField> sort, CancellationToken cancellationToken)
+    public async Task<IReadOnlyList<BusinessUnitListItem>> ListAllAsync(
+        IReadOnlyList<SortField> sort, CancellationToken cancellationToken)
     {
-        var total = await _unitOfWork.Connection.ExecuteScalarAsync<long>(Command(
-            "SELECT count(*) FROM org.business_unit",
-            null,
-            cancellationToken));
-
         var orderBy = sort.Count == 0
             ? SortColumns[BusinessUnitSortFields.Code]
             : string.Join(", ", sort.Select(f => SortColumns[f.Field] + (f.Descending ? " DESC" : " ASC")));
 
+        // No LIMIT/OFFSET: the handler filters by scope coverage first (see IBusinessUnitReadDb.ListAllAsync).
         var rows = await _unitOfWork.Connection.QueryAsync<ListRow>(Command(
             $"""
              SELECT b.id AS Id, b.legal_entity_id AS LegalEntityId, b.code AS Code,
                     b.caption_i18n::text AS CaptionI18nJson, b.is_active AS IsActive
              FROM org.business_unit b
              ORDER BY {orderBy}, b.id
-             LIMIT @limit OFFSET @offset
              """,
-            new { limit = pageSize, offset = (long)(page - 1) * pageSize },
+            null,
             cancellationToken));
 
-        var items = rows
+        return rows
             .Select(r => new BusinessUnitListItem(r.Id, r.LegalEntityId, r.Code, I18nJson.Parse(r.CaptionI18nJson), r.IsActive))
             .ToList();
-
-        return new PagedResult<BusinessUnitListItem>(items, page, pageSize, total);
     }
 
     public Task<Guid?> FindLegalEntityIdAsync(Guid businessUnitId, CancellationToken cancellationToken) =>

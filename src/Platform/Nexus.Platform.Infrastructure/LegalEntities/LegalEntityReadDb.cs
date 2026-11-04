@@ -47,37 +47,28 @@ internal sealed class LegalEntityReadDb : ILegalEntityReadDb
         return row?.ToDetails();
     }
 
-    public async Task<PagedResult<LegalEntityListItem>> ListAsync(
-        int page,
-        int pageSize,
+    public async Task<IReadOnlyList<LegalEntityListItem>> ListAllAsync(
         IReadOnlyList<SortField> sort,
         CancellationToken cancellationToken)
     {
-        var total = await _unitOfWork.Connection.ExecuteScalarAsync<long>(Command(
-            "SELECT count(*) FROM org.legal_entity",
-            null,
-            cancellationToken));
-
         var orderBy = sort.Count == 0
             ? SortColumns[LegalEntitySortFields.Code]
             : string.Join(", ", sort.Select(f => SortColumns[f.Field] + (f.Descending ? " DESC" : " ASC")));
 
+        // No LIMIT/OFFSET: the handler filters by scope coverage first (see ILegalEntityReadDb.ListAllAsync).
         var rows = await _unitOfWork.Connection.QueryAsync<ListRow>(Command(
             $"""
              SELECT le.id AS Id, le.group_id AS GroupId, le.code AS Code, le.currency_code AS CurrencyCode,
                     le.country_code AS CountryCode, le.is_active AS IsActive
              FROM org.legal_entity le
              ORDER BY {orderBy}, le.id
-             LIMIT @limit OFFSET @offset
              """,
-            new { limit = pageSize, offset = (long)(page - 1) * pageSize },
+            null,
             cancellationToken));
 
-        var items = rows
+        return rows
             .Select(r => new LegalEntityListItem(r.Id, r.GroupId, r.Code, r.CurrencyCode, r.CountryCode, r.IsActive))
             .ToList();
-
-        return new PagedResult<LegalEntityListItem>(items, page, pageSize, total);
     }
 
     public async Task<bool> HasActiveChildrenAsync(Guid legalEntityId, CancellationToken cancellationToken) =>

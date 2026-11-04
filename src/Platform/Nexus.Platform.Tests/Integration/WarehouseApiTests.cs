@@ -123,7 +123,80 @@ public sealed class WarehouseApiTests : IClassFixture<PlatformApiFixture>
         (await ReadAsync(sameParent)).GetProperty("businessUnitId").GetGuid().ShouldBe(Org.BusinessUnitA.Id);
     }
 
+    [Fact(DisplayName = "ACC-R10 on listWarehouses: rows are filtered like getWarehouse (LE-A ORG_ADMIN: only LE-A; WH-A operator: only WH-A; GLOBAL: all)")]
+    public async Task List_warehouses_is_filtered_by_the_callers_coverage()
+    {
+        using var admin = _fixture.CreateClientFor(Org.Admin.Oid);
+        using var userA = _fixture.CreateClientFor(Org.UserA.Oid);
+        using var whA = _fixture.CreateClientFor(Org.WhA.Oid);
+
+        var all = await ListAsync(admin, "pageSize=200");
+        all.Ids.ShouldContain(Org.WarehouseA);
+        all.Ids.ShouldContain(Org.WarehouseB);
+        all.Total.ShouldBe(await _fixture.Database.ScalarAsync<long>("SELECT count(*) FROM org.warehouse"));
+
+        var ofA = await ListAsync(userA, "pageSize=200");
+        ofA.Ids.ShouldContain(Org.WarehouseA);
+        ofA.Ids.ShouldNotContain(Org.WarehouseB);
+        ofA.Items.ShouldAllBe(w => w.GetProperty("legalEntityId").GetGuid() == Org.LegalEntityA.Id);
+        ofA.Total.ShouldBe(await _fixture.Database.ScalarAsync<long>(
+            "SELECT count(*) FROM org.warehouse WHERE legal_entity_id = $1", Org.LegalEntityA.Id));
+
+        // Same answer as getWarehouse for a WAREHOUSE-scoped grant: its own warehouse, nothing else.
+        var ofWhA = await ListAsync(whA, "pageSize=200");
+        ofWhA.Ids.ShouldBe([Org.WarehouseA]);
+        ofWhA.Total.ShouldBe(1);
+    }
+
+    [Fact(DisplayName = "ACC-R10 on listWarehouses: pagination and total apply to the coverage-filtered rows, not the unfiltered ones")]
+    public async Task List_warehouses_paginates_and_counts_after_coverage_filtering()
+    {
+        using var admin = _fixture.CreateClientFor(Org.Admin.Oid);
+        var tag = "PG" + Guid.NewGuid().ToString("N")[..10].ToUpperInvariant();
+
+        // 3 warehouses in LE-A, 2 in LE-B, all matching q=tag: only the first 3 are UserA's to see.
+        var inLeA = new List<Guid>();
+        for (var i = 0; i < 3; i++)
+        {
+            inLeA.Add((await CreateAsync(admin, NewWarehouse() with { Code = $"WH-{tag}-A{i}" })).Id);
+        }
+
+        for (var i = 0; i < 2; i++)
+        {
+            await CreateAsync(admin, NewWarehouse() with { Code = $"WH-{tag}-B{i}", LegalEntityId = Org.LegalEntityB.Id, LocationId = Org.LocationB });
+        }
+
+        (await ListAsync(admin, $"q={tag}&pageSize=2")).Total.ShouldBe(5);
+
+        using var userA = _fixture.CreateClientFor(Org.UserA.Oid);
+        var page1 = await ListAsync(userA, $"q={tag}&pageSize=2&page=1");
+        var page2 = await ListAsync(userA, $"q={tag}&pageSize=2&page=2");
+        var page3 = await ListAsync(userA, $"q={tag}&pageSize=2&page=3");
+
+        page1.Total.ShouldBe(3);
+        page2.Total.ShouldBe(3);
+        page3.Total.ShouldBe(3);
+        page1.Ids.Count.ShouldBe(2);
+        page2.Ids.Count.ShouldBe(1);
+        page3.Ids.ShouldBeEmpty();
+        page1.Ids.Concat(page2.Ids).ShouldBe(inLeA, ignoreOrder: true);
+
+        // The SQL-level filters still apply before the scope filter.
+        (await ListAsync(userA, $"q={tag}&legalEntityId={Org.LegalEntityB.Id}")).Total.ShouldBe(0);
+    }
+
     // --- helpers ---------------------------------------------------------------------------
+
+    private static async Task<ListPage> ListAsync(HttpClient client, string query)
+    {
+        var response = await client.GetAsync(new Uri("/v1/warehouses?" + query, UriKind.Relative), Ct);
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
+        var body = await ReadAsync(response);
+        var items = body.GetProperty("items").EnumerateArray().Select(e => e.Clone()).ToList();
+        return new ListPage(body.GetProperty("total").GetInt64(), items, items.Select(e => e.GetProperty("id").GetGuid()).ToList());
+    }
+
+    private sealed record ListPage(long Total, IReadOnlyList<JsonElement> Items, IReadOnlyList<Guid> Ids);
 
     /// <summary>A valid, unique create request (own code), in LE-A/LOC-A, no business unit set.</summary>
     private CreateWarehouse NewWarehouse()

@@ -12,11 +12,17 @@ public interface IBusinessUnitReadDb
     Task<BusinessUnitDetails?> GetByIdAsync(Guid id, CancellationToken cancellationToken);
 
     /// <summary>
-    /// One page of business units ordered by <paramref name="sort"/> (fields of
+    /// <b>Every</b> business unit, ordered by <paramref name="sort"/> (fields of
     /// <see cref="BusinessUnitSortFields.Allowed"/>), then by id for a stable order. An empty
     /// <paramref name="sort"/> orders by code.
+    /// <para>
+    /// Deliberately unpaginated: <c>listBusinessUnits</c> must first drop the rows whose scope
+    /// the caller's <c>ORG_STRUCTURE:READ</c> does not cover (<c>org</c> has no RLS) and only
+    /// then paginate, so <c>total</c> counts what the caller can see. <c>org.business_unit</c>
+    /// is master data (tens to hundreds of rows), not a high-volume table.
+    /// </para>
     /// </summary>
-    Task<PagedResult<BusinessUnitListItem>> ListAsync(int page, int pageSize, IReadOnlyList<SortField> sort, CancellationToken cancellationToken);
+    Task<IReadOnlyList<BusinessUnitListItem>> ListAllAsync(IReadOnlyList<SortField> sort, CancellationToken cancellationToken);
 
     /// <summary>
     /// The <c>legal_entity_id</c> of the business unit <paramref name="businessUnitId"/>, or
