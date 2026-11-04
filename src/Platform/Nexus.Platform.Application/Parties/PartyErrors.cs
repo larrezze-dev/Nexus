@@ -16,6 +16,13 @@ public static class PartyErrors
     public static readonly Error IdAlreadyUsed =
         Error.Conflict("A party with this id already exists with different content.");
 
+    /// <summary>
+    /// ACC-R10 on a party write: the party backs a legal entity, business unit or group (ORG-R1)
+    /// whose scope the caller's <c>PARTY:UPDATE</c> does not cover.
+    /// </summary>
+    public static readonly Error ScopeNotCovered =
+        Error.Forbidden("Your PARTY:UPDATE permission does not cover the legal entity, business unit or group this party belongs to.");
+
     public static Error NotFound(Guid id) => Error.NotFound($"Party '{id}' does not exist.");
 
     public static readonly Error StaleVersion =

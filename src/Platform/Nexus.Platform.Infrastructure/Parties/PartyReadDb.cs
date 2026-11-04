@@ -94,6 +94,24 @@ internal sealed class PartyReadDb : IPartyReadDb
         return new PagedResult<PartyListItem>(items, page, pageSize, total);
     }
 
+    public async Task<IReadOnlyList<PartyBackedOrgEntity>> FindBackedOrgEntitiesAsync(Guid partyId, CancellationToken cancellationToken)
+    {
+        // One round trip over the three tables that own an internal party (ORG-R1); each branch
+        // uses the index behind its table's UNIQUE (party_id) constraint.
+        var rows = await _unitOfWork.Connection.QueryAsync<BackedRow>(Command(
+            """
+            SELECT 'LEGAL_ENTITY' AS ScopeType, id AS EntityId FROM org.legal_entity WHERE party_id = @partyId
+            UNION ALL
+            SELECT 'BUSINESS_UNIT', id FROM org.business_unit WHERE party_id = @partyId
+            UNION ALL
+            SELECT 'GROUP', id FROM org."group" WHERE party_id = @partyId
+            """,
+            new { partyId },
+            cancellationToken));
+
+        return rows.Select(r => new PartyBackedOrgEntity(r.ScopeType, r.EntityId)).ToList();
+    }
+
     private static string BuildWhere(string? partyType, bool? isInternal, string? q)
     {
         var clauses = new List<string>();
@@ -148,6 +166,13 @@ internal sealed class PartyReadDb : IPartyReadDb
             DateTime.SpecifyKind(CreatedAt, DateTimeKind.Utc),
             DateTime.SpecifyKind(UpdatedAt, DateTimeKind.Utc),
             new PartyVersion(checked((uint)Version)));
+    }
+
+    private sealed class BackedRow
+    {
+        public string ScopeType { get; set; } = string.Empty;
+
+        public Guid EntityId { get; set; }
     }
 
     private sealed class ListRow
