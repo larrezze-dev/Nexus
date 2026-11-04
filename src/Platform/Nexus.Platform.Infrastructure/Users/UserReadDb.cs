@@ -121,6 +121,23 @@ internal sealed class UserReadDb : IUserReadDb
         return new CurrentUserProfile(row.UserId, row.PartyId, row.BusinessUnitId, row.PreferredLanguage, permissions);
     }
 
+    public Task<bool> HasActiveGlobalAssignmentAsync(Guid userId, CancellationToken cancellationToken) =>
+        // Same joins and validity window as access.active_assignments(), scoped to userId.
+        _unitOfWork.Connection.ExecuteScalarAsync<bool>(Command(
+            """
+            SELECT EXISTS (
+              SELECT 1
+              FROM access.role_assignment ra
+              JOIN org.app_user u ON u.id = ra.user_id AND u.is_active
+              JOIN access.role r  ON r.id = ra.role_id AND r.is_active
+              WHERE ra.user_id = @userId
+                AND ra.scope_type = 'GLOBAL'
+                AND ra.valid_from <= now()
+                AND (ra.valid_to IS NULL OR ra.valid_to > now()))
+            """,
+            new { userId },
+            cancellationToken));
+
     private CommandDefinition Command(string sql, object? parameters, CancellationToken cancellationToken) =>
         new(sql, parameters, _unitOfWork.Transaction, cancellationToken: cancellationToken);
 

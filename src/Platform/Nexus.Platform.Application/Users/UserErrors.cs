@@ -47,6 +47,14 @@ public static class UserErrors
     public static readonly Error OidChangeRequiresGlobal =
         Error.Forbidden("Changing a user's oid requires the USER:UPDATE permission at GLOBAL scope.");
 
+    /// <summary>
+    /// Deactivating a user who holds an active <c>GLOBAL</c> role assignment (a global
+    /// administrator) requires <c>USER:UPDATE</c> at <c>GLOBAL</c> scope: otherwise a holder of
+    /// <c>USER:UPDATE</c> in a single legal entity could lock every global administrator out.
+    /// </summary>
+    public static readonly Error DeactivateGlobalUserRequiresGlobal =
+        Error.Forbidden("Deactivating a user with a GLOBAL role assignment requires the USER:UPDATE permission at GLOBAL scope.");
+
     public static Error NotFound(Guid id) => Error.NotFound($"User '{id}' does not exist.");
 
     public static readonly Error StaleVersion =

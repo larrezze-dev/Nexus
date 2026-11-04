@@ -252,6 +252,54 @@ public sealed class UsersApiTests : IClassFixture<PlatformApiFixture>
         body.GetProperty("oid").GetString().ShouldBe(user.Request.Oid);
     }
 
+    [Fact(DisplayName = "deactivateUser: an ORG_ADMIN of LE-A cannot deactivate the GLOBAL admin (403, still active and able to sign in)")]
+    public async Task Org_admin_cannot_deactivate_the_global_admin()
+    {
+        using var admin = _fixture.CreateClientFor(Org.Admin.Oid);
+        using var userA = _fixture.CreateClientFor(Org.UserA.Oid);
+        var etag = await ETagOfAsync(admin, Org.Admin.Id);
+
+        var response = await DeactivateAsync(userA, Org.Admin.Id, etag);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
+        (await ReadAsync(response)).GetProperty("code").GetString().ShouldBe("FORBIDDEN");
+        (await Scalar<bool>("SELECT is_active FROM org.app_user WHERE id = $1", Org.Admin.Id)).ShouldBeTrue();
+        (await ETagOfAsync(admin, Org.Admin.Id)).ShouldBe(etag);
+        (await admin.GetAsync(new Uri("/v1/me", UriKind.Relative), Ct)).StatusCode.ShouldBe(HttpStatusCode.OK);
+    }
+
+    [Fact(DisplayName = "deactivateUser: a user with a GLOBAL assignment needs a GLOBAL caller (LE-A ORG_ADMIN 403, GLOBAL admin 200)")]
+    public async Task Deactivating_a_global_user_needs_a_global_caller()
+    {
+        using var admin = _fixture.CreateClientFor(Org.Admin.Oid);
+        using var userA = _fixture.CreateClientFor(Org.UserA.Oid);
+        var user = await CreateAsync(admin, NewUser());
+        await GrantAsync(admin, user.Id, SystemAdminRoleId, "GLOBAL", null);
+        var etag = await ETagOfAsync(admin, user.Id); // the grant does not touch app_user, but re-read anyway
+
+        (await DeactivateAsync(userA, user.Id, etag)).StatusCode.ShouldBe(HttpStatusCode.Forbidden);
+        (await Scalar<bool>("SELECT is_active FROM org.app_user WHERE id = $1", user.Id)).ShouldBeTrue();
+
+        var response = await DeactivateAsync(admin, user.Id, etag);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
+        (await ReadAsync(response)).GetProperty("isActive").GetBoolean().ShouldBeFalse();
+    }
+
+    [Fact(DisplayName = "deactivateUser: an ORG_ADMIN of LE-A can still deactivate an ordinary user with no GLOBAL assignment (200)")]
+    public async Task Org_admin_can_deactivate_an_ordinary_user()
+    {
+        using var admin = _fixture.CreateClientFor(Org.Admin.Oid);
+        using var userA = _fixture.CreateClientFor(Org.UserA.Oid);
+        var user = await CreateAsync(admin, NewUser());
+        await GrantAsync(admin, user.Id, OrgAdminRoleId, "LEGAL_ENTITY", Org.LegalEntityA.Id);
+
+        var response = await DeactivateAsync(userA, user.Id, user.ETag);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
+        (await ReadAsync(response)).GetProperty("isActive").GetBoolean().ShouldBeFalse();
+    }
+
     [Fact(DisplayName = "ORG-R6: the SYSTEM user is never deactivated (422 ORG-R6)")]
     public async Task Deactivate_system_user_is_rejected()
     {
@@ -502,6 +550,21 @@ public sealed class UsersApiTests : IClassFixture<PlatformApiFixture>
             Email: $"user.{tag}@test.nexus.local",
             PreferredLanguage: "en",
             BusinessUnitId: Org.BusinessUnitA.Id);
+    }
+
+    private static readonly Guid SystemAdminRoleId = new("00000000-0000-7000-8000-0000000d0001");
+
+    private static readonly Guid OrgAdminRoleId = new("00000000-0000-7000-8000-0000000d0002");
+
+    // validFrom backdated: has_permission compares it with PostgreSQL now() (the container clock),
+    // which can lag the test host by a few ms; a grant "from now" could not be active yet.
+    private static async Task GrantAsync(HttpClient admin, Guid userId, Guid roleId, string scopeType, Guid? scopeEntityId)
+    {
+        var grant = await admin.PostAsJsonAsync(
+            new Uri("/v1/role-assignments", UriKind.Relative),
+            new { userId, roleId, scopeType, scopeEntityId, validFrom = DateTimeOffset.UtcNow.AddMinutes(-1) },
+            Ct);
+        grant.StatusCode.ShouldBe(HttpStatusCode.Created);
     }
 
     private static UpdateUser ToUpdate(CreateUser request) =>

@@ -20,6 +20,14 @@ public interface IUserReadDb
 
     /// <summary>The profile <c>GET /v1/me</c> needs, for an active user; <see langword="null"/> otherwise.</summary>
     Task<CurrentUserProfile?> GetActiveProfileAsync(Guid userId, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// <see langword="true"/> if <paramref name="userId"/> currently holds an active
+    /// <c>GLOBAL</c>-scoped role assignment: the same notion of "active" as
+    /// <c>access.active_assignments()</c> (active user, active role, inside
+    /// <c>valid_from</c>/<c>valid_to</c>), but for that user instead of the caller.
+    /// </summary>
+    Task<bool> HasActiveGlobalAssignmentAsync(Guid userId, CancellationToken cancellationToken);
 }
 
 /// <summary>The NEXUS part of <c>GET /v1/me</c> (the rest comes from the token). Since step 0.6,
