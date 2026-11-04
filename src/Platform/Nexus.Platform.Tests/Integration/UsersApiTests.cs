@@ -158,6 +158,100 @@ public sealed class UsersApiTests : IClassFixture<PlatformApiFixture>
         (await Scalar<string>("SELECT legal_name FROM org.party WHERE id = $1", OrgFixture.SystemUserId)).ShouldBe("SYSTEM");
     }
 
+    [Fact(DisplayName = "oid remapping: an ORG_ADMIN of LE-A cannot put an oid it controls on the GLOBAL admin (403, nothing changes)")]
+    public async Task Org_admin_cannot_take_over_the_global_admin_by_changing_its_oid()
+    {
+        // The concrete escalation: USER:UPDATE is held by ORG_ADMIN in any scope (x-scope: none),
+        // and the oid is what maps an IdP login to an app_user (ADR-0006). Writing an oid the
+        // attacker controls (a second IdP account: not UserA's own, which the UNIQUE constraint
+        // would reject anyway) onto Admin's row would make that login resolve to the
+        // SYSTEM_ADMIN GLOBAL user.
+        using var admin = _fixture.CreateClientFor(Org.Admin.Oid);
+        using var userA = _fixture.CreateClientFor(Org.UserA.Oid);
+        var etag = await ETagOfAsync(admin, Org.Admin.Id);
+        var attackerOid = "attacker-" + Guid.NewGuid().ToString("N");
+
+        var response = await PutAsync(userA, Org.Admin.Id, etag, new UpdateUser(
+            Oid: attackerOid, FullName: Org.Admin.FullName, Email: Org.Admin.Email, PreferredLanguage: "de", BusinessUnitId: null));
+
+        response.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
+        (await ReadAsync(response)).GetProperty("code").GetString().ShouldBe("FORBIDDEN");
+        (await Scalar<string>("SELECT external_subject FROM org.app_user WHERE id = $1", Org.Admin.Id)).ShouldBe(Org.Admin.Oid);
+        (await ETagOfAsync(admin, Org.Admin.Id)).ShouldBe(etag);
+        using (var attacker = _fixture.CreateClientFor(attackerOid))
+        {
+            (await attacker.GetAsync(new Uri("/v1/me", UriKind.Relative), Ct)).StatusCode.ShouldBe(HttpStatusCode.Forbidden);
+        }
+    }
+
+    [Theory(DisplayName = "oid remapping: an ORG_ADMIN of LE-A cannot change or clear another user's oid (403, nothing changes)")]
+    [InlineData("change")]
+    [InlineData("clear")]
+    public async Task Org_admin_cannot_change_a_users_oid(string kind)
+    {
+        using var admin = _fixture.CreateClientFor(Org.Admin.Oid);
+        using var userA = _fixture.CreateClientFor(Org.UserA.Oid);
+        var user = await CreateAsync(admin, NewUser());
+        var newOid = kind == "change" ? "oid-" + Guid.NewGuid().ToString("N") : null;
+
+        var response = await PutAsync(userA, user.Id, user.ETag, ToUpdate(user.Request) with { Oid = newOid });
+
+        response.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
+        (await ReadAsync(response)).GetProperty("code").GetString().ShouldBe("FORBIDDEN");
+        (await Scalar<string>("SELECT external_subject FROM org.app_user WHERE id = $1", user.Id)).ShouldBe(user.Request.Oid);
+        (await OutboxAsync(user.Id)).Select(e => e.EventType).ShouldBe(["org.user.created"]);
+    }
+
+    [Fact(DisplayName = "oid remapping: an ORG_ADMIN of LE-A cannot give an oid to a user that has none (403)")]
+    public async Task Org_admin_cannot_set_an_oid_on_a_user_without_one()
+    {
+        using var admin = _fixture.CreateClientFor(Org.Admin.Oid);
+        using var userA = _fixture.CreateClientFor(Org.UserA.Oid);
+        var user = await CreateAsync(admin, NewUser());
+        var cleared = await PutAsync(admin, user.Id, user.ETag, ToUpdate(user.Request) with { Oid = null });
+        cleared.StatusCode.ShouldBe(HttpStatusCode.OK);
+
+        var response = await PutAsync(userA, user.Id, cleared.Headers.ETag!.Tag, ToUpdate(user.Request) with { Oid = "oid-" + Guid.NewGuid().ToString("N") });
+
+        response.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
+        (await Scalar<string>("SELECT external_subject FROM org.app_user WHERE id = $1", user.Id)).ShouldBeNull();
+    }
+
+    [Fact(DisplayName = "oid remapping: a GLOBAL admin can change a user's oid (200)")]
+    public async Task Global_admin_can_change_a_users_oid()
+    {
+        using var admin = _fixture.CreateClientFor(Org.Admin.Oid);
+        var user = await CreateAsync(admin, NewUser());
+        var newOid = "oid-" + Guid.NewGuid().ToString("N");
+
+        var response = await PutAsync(admin, user.Id, user.ETag, ToUpdate(user.Request) with { Oid = newOid });
+
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
+        (await ReadAsync(response)).GetProperty("oid").GetString().ShouldBe(newOid);
+        (await Scalar<string>("SELECT external_subject FROM org.app_user WHERE id = $1", user.Id)).ShouldBe(newOid);
+    }
+
+    [Fact(DisplayName = "oid remapping: an ORG_ADMIN of LE-A can still edit a user's other fields when the oid is unchanged (200)")]
+    public async Task Org_admin_can_edit_other_fields_with_the_same_oid()
+    {
+        using var admin = _fixture.CreateClientFor(Org.Admin.Oid);
+        using var userA = _fixture.CreateClientFor(Org.UserA.Oid);
+        var user = await CreateAsync(admin, NewUser());
+        var update = ToUpdate(user.Request) with
+        {
+            FullName = user.Request.FullName + " Renamed",
+            Email = $"renamed.{Guid.NewGuid():N}@test.nexus.local",
+        };
+
+        var response = await PutAsync(userA, user.Id, user.ETag, update);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
+        var body = await ReadAsync(response);
+        body.GetProperty("fullName").GetString().ShouldBe(update.FullName);
+        body.GetProperty("email").GetString().ShouldBe(update.Email);
+        body.GetProperty("oid").GetString().ShouldBe(user.Request.Oid);
+    }
+
     [Fact(DisplayName = "ORG-R6: the SYSTEM user is never deactivated (422 ORG-R6)")]
     public async Task Deactivate_system_user_is_rejected()
     {

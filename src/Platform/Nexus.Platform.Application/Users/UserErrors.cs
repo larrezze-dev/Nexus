@@ -39,6 +39,14 @@ public static class UserErrors
     public static readonly Error IdAlreadyUsed =
         Error.Conflict("A user with this id already exists with different content.");
 
+    /// <summary>
+    /// Changing a user's <c>oid</c> remaps which IdP login signs in as that user (ADR-0006), so
+    /// it requires <c>USER:UPDATE</c> at <c>GLOBAL</c> scope, whatever scope the caller's
+    /// ordinary <c>USER:UPDATE</c> is held in.
+    /// </summary>
+    public static readonly Error OidChangeRequiresGlobal =
+        Error.Forbidden("Changing a user's oid requires the USER:UPDATE permission at GLOBAL scope.");
+
     public static Error NotFound(Guid id) => Error.NotFound($"User '{id}' does not exist.");
 
     public static readonly Error StaleVersion =
