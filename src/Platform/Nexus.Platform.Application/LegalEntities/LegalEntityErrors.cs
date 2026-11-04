@@ -34,6 +34,13 @@ public static class LegalEntityErrors
 
     public static Error NotFound(Guid id) => Error.NotFound($"Legal entity '{id}' does not exist.");
 
+    /// <summary>
+    /// ACC-R10 on a detail/write endpoint: the caller's <c>ORG_STRUCTURE</c> permission does not
+    /// cover this legal entity.
+    /// </summary>
+    public static readonly Error ScopeNotCovered =
+        Error.Forbidden("Your ORG_STRUCTURE permission does not cover this legal entity.");
+
     public static readonly Error StaleVersion =
         Error.Concurrency("The legal entity has changed since the ETag sent in If-Match was obtained.");
 

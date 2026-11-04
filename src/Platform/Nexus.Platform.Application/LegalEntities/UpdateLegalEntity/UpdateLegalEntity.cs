@@ -10,6 +10,12 @@ namespace Nexus.Platform.Application.LegalEntities.UpdateLegalEntity;
 /// <c>PUT /v1/legal-entities/{id}</c> (<c>updateLegalEntity</c>), full replacement guarded by
 /// <c>If-Match</c> (<see cref="ExpectedVersion"/>). Never touches the legal entity's party or
 /// its <c>groupId</c> (the contract's <c>UpdateLegalEntityRequest</c> has neither).
+/// <para>
+/// Scope (ACC-R10): the contract declares <c>x-scope: none</c>, so the permission filter only
+/// checks the permission in <i>some</i> scope, and <c>org</c> has no RLS. Once the row is loaded
+/// this handler checks that the caller's permission covers this legal entity (the row's own id
+/// is its <c>legal_entity_id</c>: LE, GROUP and GLOBAL grants cover it) and answers 403 otherwise.
+/// </para>
 /// </summary>
 public sealed record UpdateLegalEntityCommand(
     Guid Id,
@@ -30,15 +36,27 @@ internal sealed class UpdateLegalEntityValidator : AbstractValidator<UpdateLegal
 
 internal sealed class UpdateLegalEntityHandler : ICommandHandler<UpdateLegalEntityCommand, LegalEntityDetails>
 {
+    private const string UpdatePermission = "ORG_STRUCTURE:UPDATE";
+
     private readonly IRequestTransaction _transaction;
     private readonly ILegalEntityRepository _legalEntities;
     private readonly ICurrencyReadDb _currencies;
 
-    public UpdateLegalEntityHandler(IRequestTransaction transaction, ILegalEntityRepository legalEntities, ICurrencyReadDb currencies)
+    // IRoleAssignmentScopeChecker carries its historical name (introduced for role assignments),
+    // but it is the generic check "does the caller's permission, via access.has_permission, cover
+    // this scope" (GLOBAL > GROUP > LEGAL_ENTITY > BUSINESS_UNIT > WAREHOUSE): reused as-is.
+    private readonly IRoleAssignmentScopeChecker _scopeChecker;
+
+    public UpdateLegalEntityHandler(
+        IRequestTransaction transaction,
+        ILegalEntityRepository legalEntities,
+        ICurrencyReadDb currencies,
+        IRoleAssignmentScopeChecker scopeChecker)
     {
         _transaction = transaction;
         _legalEntities = legalEntities;
         _currencies = currencies;
+        _scopeChecker = scopeChecker;
     }
 
     public async Task<Result<LegalEntityDetails>> Handle(UpdateLegalEntityCommand command, CancellationToken cancellationToken)
@@ -55,6 +73,12 @@ internal sealed class UpdateLegalEntityHandler : ICommandHandler<UpdateLegalEnti
         if (current != command.ExpectedVersion)
         {
             return Result.Failure<LegalEntityDetails>(LegalEntityErrors.StaleVersion);
+        }
+
+        // Before any business rule or change (and before the idempotent no-op on deactivate).
+        if (!await _scopeChecker.HasPermissionCoveringAsync(UpdatePermission, "LEGAL_ENTITY", legalEntity.Id, cancellationToken))
+        {
+            return Result.Failure<LegalEntityDetails>(LegalEntityErrors.ScopeNotCovered);
         }
 
         // Rule ORG-R7: only re-checked if the currency actually changes.

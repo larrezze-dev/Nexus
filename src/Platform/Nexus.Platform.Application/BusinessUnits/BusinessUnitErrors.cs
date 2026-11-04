@@ -30,6 +30,13 @@ public static class BusinessUnitErrors
 
     public static Error NotFound(Guid id) => Error.NotFound($"Business unit '{id}' does not exist.");
 
+    /// <summary>
+    /// ACC-R10 on a detail/write endpoint: the caller's <c>ORG_STRUCTURE</c> permission does not
+    /// cover this business unit's own scope (its legal entity or itself).
+    /// </summary>
+    public static readonly Error ScopeNotCovered =
+        Error.Forbidden("Your ORG_STRUCTURE permission does not cover the scope of this business unit.");
+
     public static readonly Error StaleVersion =
         Error.Concurrency("The business unit has changed since the ETag sent in If-Match was obtained.");
 }

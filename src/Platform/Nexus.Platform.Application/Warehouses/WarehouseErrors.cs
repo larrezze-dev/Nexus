@@ -41,6 +41,13 @@ public static class WarehouseErrors
 
     public static Error NotFound(Guid id) => Error.NotFound($"Warehouse '{id}' does not exist.");
 
+    /// <summary>
+    /// ACC-R10 on a detail/write endpoint: the caller's <c>ORG_STRUCTURE</c> permission does not
+    /// cover this warehouse's own scope (its legal entity, business unit or itself).
+    /// </summary>
+    public static readonly Error ScopeNotCovered =
+        Error.Forbidden("Your ORG_STRUCTURE permission does not cover the scope of this warehouse.");
+
     public static readonly Error StaleVersion =
         Error.Concurrency("The warehouse has changed since the ETag sent in If-Match was obtained.");
 }
