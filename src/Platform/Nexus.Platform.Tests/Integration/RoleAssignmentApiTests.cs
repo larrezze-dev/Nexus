@@ -112,6 +112,17 @@ public sealed class RoleAssignmentApiTests : IClassFixture<PlatformApiFixture>
         (await ReadAsync(response)).GetProperty("code").GetString().ShouldBe("ACC-R2");
     }
 
+    [Fact(DisplayName = "An unknown scopeType filter is a 400 VALIDATION on list (contract enum)")]
+    public async Task List_with_unknown_scope_type_is_a_validation_error()
+    {
+        using var admin = _fixture.CreateClientFor(Org.Admin.Oid);
+
+        var response = await admin.GetAsync(new Uri("/v1/role-assignments?scopeType=COUNTRY", UriKind.Relative), Ct);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
+        (await ReadAsync(response)).GetProperty("code").GetString().ShouldBe("VALIDATION");
+    }
+
     [Fact(DisplayName = "ACC-R5: a user cannot grant a role assignment to themselves")]
     public async Task Create_self_grant_is_rejected()
     {
