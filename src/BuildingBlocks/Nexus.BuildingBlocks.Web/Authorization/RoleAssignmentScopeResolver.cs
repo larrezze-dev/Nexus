@@ -119,14 +119,14 @@ internal static class RoleAssignmentScopeResolver
             }
 
             case "GROUP":
-                // Fail closed: only a GLOBAL grant covers a GROUP target here. has_permission has
-                // no group parameter -- it derives the group from p_legal_entity_id -- and any LE
-                // passed to reach the GROUP clause also satisfies its LEGAL_ENTITY clause. Passing
-                // "some LE of the group" would therefore let an ORG_ADMIN of one LE grant a
-                // GROUP-scoped role covering every sibling LE: a privilege escalation. A
-                // GROUP-scoped granter is (temporarily) refused; see the proposed ADR on a
-                // p_group_id parameter for has_permission.
-                return PermissionTarget.GlobalOnly();
+                // ADR-0015 (Aceptado): only p_group_id is passed. has_permission's GROUP clause
+                // compares against it directly, and with no legal entity/BU/warehouse/project
+                // passed, none of the narrower clauses can match -- so only a GLOBAL grant or a
+                // GROUP grant on this exact group covers it. An ORG_ADMIN of one LE of the group
+                // gets false (no escalation to the whole group), and since the function's "no
+                // scope given" catch-all also requires p_group_id IS NULL, a GROUP-only call is
+                // never mistaken for the listing-only "any scope" form (ACC-R10).
+                return new PermissionTarget(null, null, null, null, GroupId: id);
 
             case "PROJECT":
                 // Projects live in nexus-operations; the platform cannot resolve their LE

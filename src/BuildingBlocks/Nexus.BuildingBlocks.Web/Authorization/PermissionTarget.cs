@@ -1,16 +1,22 @@
 namespace Nexus.BuildingBlocks.Web.Authorization;
 
 /// <summary>
-/// The four scope arguments of <c>access.has_permission(p_permission, p_legal_entity_id,
-/// p_business_unit_id, p_warehouse_id, p_project_id)</c> (domain/access.md §4).
+/// The five scope arguments of <c>access.has_permission(p_permission, p_legal_entity_id,
+/// p_business_unit_id, p_warehouse_id, p_project_id, p_group_id)</c> (domain/access.md §4).
+/// <para>
+/// <see cref="GroupId"/> (ADR-0015) is only set for a <c>GROUP</c> target, and then alone: it
+/// feeds the function's GROUP clause directly, so no legal entity is passed and the
+/// LEGAL_ENTITY clause cannot match.
+/// </para>
 /// </summary>
 internal readonly record struct PermissionTarget(
     Guid? LegalEntityId,
     Guid? BusinessUnitId,
     Guid? WarehouseId,
-    Guid? ProjectId)
+    Guid? ProjectId,
+    Guid? GroupId = null)
 {
-    /// <summary>All four <c>NULL</c>: "does the caller hold the permission in any scope?"
+    /// <summary>All five <c>NULL</c>: "does the caller hold the permission in any scope?"
     /// (the listing-only form, ACC-R10).</summary>
     public static PermissionTarget AnyScope => default;
 
@@ -25,6 +31,12 @@ internal readonly record struct PermissionTarget(
     /// WAREHOUSE/PROJECT clauses can only match an assignment whose <c>scope_entity_id</c>
     /// literally equals this value, and no real row will ever hold a freshly generated random
     /// GUID. That leaves <c>scope_type = 'GLOBAL'</c> as the only clause that can match.
+    /// </para>
+    /// <para>
+    /// <see cref="GroupId"/> stays <c>NULL</c> on purpose: the non-NULL legal entity already
+    /// defeats the catch-all, and the GROUP clause compares against
+    /// <c>coalesce(p_group_id, group of p_legal_entity_id)</c>, i.e. the group of a legal entity
+    /// that does not exist, which is <c>NULL</c> and matches nothing.
     /// </para>
     /// <para>
     /// <see cref="Guid.NewGuid"/> (random v4), not UUIDv7: this value is never stored, and full

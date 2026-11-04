@@ -146,12 +146,15 @@ LANGUAGE sql STABLE SECURITY DEFINER SET search_path = access, org, pg_temp AS $
 $$;
 
 -- RBAC. Sin parámetros de alcance = "¿tiene este permiso en algún alcance?" (solo para listados, ACC-R10).
+-- p_group_id (ADR-0015): destino GROUP. Se pasa solo, sin LE, para que la cláusula LEGAL_ENTITY no pueda activarse.
+DROP FUNCTION IF EXISTS access.has_permission(text, uuid, uuid, uuid, uuid);  -- firma anterior a ADR-0015
 CREATE OR REPLACE FUNCTION access.has_permission(
   p_permission      text,
   p_legal_entity_id uuid DEFAULT NULL,
   p_business_unit_id uuid DEFAULT NULL,
   p_warehouse_id    uuid DEFAULT NULL,
-  p_project_id      uuid DEFAULT NULL)
+  p_project_id      uuid DEFAULT NULL,
+  p_group_id        uuid DEFAULT NULL)
 RETURNS boolean
 LANGUAGE sql STABLE SECURITY DEFINER SET search_path = access, org, pg_temp AS $$
   WITH a AS (
@@ -169,8 +172,8 @@ LANGUAGE sql STABLE SECURITY DEFINER SET search_path = access, org, pg_temp AS $
   SELECT EXISTS (
     SELECT 1 FROM a, target t
     WHERE a.scope_type = 'GLOBAL'
-       OR (t.le IS NULL AND t.bu IS NULL AND t.wh IS NULL AND t.prj IS NULL)
-       OR (a.scope_type = 'GROUP'         AND a.scope_entity_id = t.grp)
+       OR (t.le IS NULL AND t.bu IS NULL AND t.wh IS NULL AND t.prj IS NULL AND p_group_id IS NULL)
+       OR (a.scope_type = 'GROUP'         AND a.scope_entity_id = coalesce(p_group_id, t.grp))
        OR (a.scope_type = 'LEGAL_ENTITY'  AND a.scope_entity_id = t.le)
        OR (a.scope_type = 'BUSINESS_UNIT' AND a.scope_entity_id = t.bu)
        OR (a.scope_type = 'WAREHOUSE'     AND a.scope_entity_id = t.wh)
@@ -184,6 +187,8 @@ CREATE OR REPLACE VIEW access.effective_access_scope AS
   UNION ALL SELECT 'WAREHOUSE',     unnest(access.visible_warehouses())
   UNION ALL SELECT 'PROJECT',       unnest(access.visible_projects());
 ```
+
+Cobertura de un destino `GROUP` (ACC-R4, ADR-0015): sin `p_group_id`, la cláusula `GROUP` compara con el grupo del `p_legal_entity_id` recibido, y ese mismo LE activa también la cláusula `LEGAL_ENTITY`; por eso "cubre el grupo G" se pregunta pasando **solo** `p_group_id => G`. Así únicamente una asignación `GLOBAL` o una `GROUP` sobre G devuelven `true`; un `ORG_ADMIN` de un LE de G recibe `false`. La cláusula "sin alcance" exige también `p_group_id IS NULL`: si no, una llamada con solo `p_group_id` caería en la forma de listado ("cualquier alcance") y cualquier titular del permiso en algún alcance cubriría todos los grupos.
 
 Para la pantalla "¿qué ve este usuario?", `nexus-platform` abre una transacción con `SET LOCAL app.current_user_id = '<usuario consultado>'` y lee la vista. Solo con permiso `ROLE_ASSIGNMENT:READ` y en una transacción de solo lectura.
 

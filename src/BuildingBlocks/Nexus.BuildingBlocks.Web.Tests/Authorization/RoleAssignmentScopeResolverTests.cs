@@ -30,6 +30,7 @@ public sealed class RoleAssignmentScopeResolverTests(AccessPermissionDatabase db
         t.BusinessUnitId.ShouldBe(t.LegalEntityId);
         t.WarehouseId.ShouldBe(t.LegalEntityId);
         t.ProjectId.ShouldBe(t.LegalEntityId);
+        t.GroupId.ShouldBeNull();
     }
 
     [Fact]
@@ -78,12 +79,20 @@ public sealed class RoleAssignmentScopeResolverTests(AccessPermissionDatabase db
         (await Resolve("WAREHOUSE", unknown)).ShouldBe(new PermissionTarget(null, null, unknown, null));
     }
 
-    // Fail closed: any LE of the group would also satisfy has_permission's LEGAL_ENTITY clause,
-    // letting a single-LE admin grant a group-wide role.
+    // ADR-0015: only p_group_id, never an LE of the group -- an LE would also satisfy
+    // has_permission's LEGAL_ENTITY clause and let a single-LE admin grant a group-wide role.
     [Fact]
-    public async Task Group_IsCoveredOnlyByGlobal()
+    public async Task Group_PassesOnlyTheGroup()
     {
-        ShouldBeGlobalOnly(await Resolve("GROUP", Org.GroupId));
+        (await Resolve("GROUP", Org.GroupId))
+            .ShouldBe(new PermissionTarget(null, null, null, null, GroupId: Org.GroupId));
+    }
+
+    [Fact]
+    public async Task UnknownGroup_KeepsOnlyTheId()
+    {
+        var unknown = Guid.CreateVersion7();
+        (await Resolve("GROUP", unknown)).ShouldBe(new PermissionTarget(null, null, null, null, GroupId: unknown));
     }
 
     [Fact]

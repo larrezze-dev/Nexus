@@ -68,12 +68,21 @@ LANGUAGE sql STABLE SECURITY DEFINER SET search_path = access, org, pg_temp AS $
   FROM access.active_assignments() WHERE scope_type = 'PROJECT'
 $$;
 
+-- ADR-0015: p_group_id lets a caller ask "covers GROUP G" without passing any
+-- legal entity, so the LEGAL_ENTITY clause cannot match (an LE admin must not
+-- cover its whole group). CREATE OR REPLACE with a different parameter list
+-- would add a second overload and leave the old 5-argument one callable, so
+-- the old signature is dropped explicitly first (IF EXISTS: idempotent on
+-- every repeatable re-run).
+DROP FUNCTION IF EXISTS access.has_permission(text, uuid, uuid, uuid, uuid);
+
 CREATE OR REPLACE FUNCTION access.has_permission(
   p_permission      text,
   p_legal_entity_id uuid DEFAULT NULL,
   p_business_unit_id uuid DEFAULT NULL,
   p_warehouse_id    uuid DEFAULT NULL,
-  p_project_id      uuid DEFAULT NULL)
+  p_project_id      uuid DEFAULT NULL,
+  p_group_id        uuid DEFAULT NULL)
 RETURNS boolean
 LANGUAGE sql STABLE SECURITY DEFINER SET search_path = access, org, pg_temp AS $$
   WITH a AS (
@@ -91,8 +100,10 @@ LANGUAGE sql STABLE SECURITY DEFINER SET search_path = access, org, pg_temp AS $
   SELECT EXISTS (
     SELECT 1 FROM a, target t
     WHERE a.scope_type = 'GLOBAL'
-       OR (t.le IS NULL AND t.bu IS NULL AND t.wh IS NULL AND t.prj IS NULL)
-       OR (a.scope_type = 'GROUP'         AND a.scope_entity_id = t.grp)
+       -- "Any scope" (ACC-R10 listing form) only when NO scope argument is
+       -- given, p_group_id included: a GROUP-only call must not fall in here.
+       OR (t.le IS NULL AND t.bu IS NULL AND t.wh IS NULL AND t.prj IS NULL AND p_group_id IS NULL)
+       OR (a.scope_type = 'GROUP'         AND a.scope_entity_id = coalesce(p_group_id, t.grp))
        OR (a.scope_type = 'LEGAL_ENTITY'  AND a.scope_entity_id = t.le)
        OR (a.scope_type = 'BUSINESS_UNIT' AND a.scope_entity_id = t.bu)
        OR (a.scope_type = 'WAREHOUSE'     AND a.scope_entity_id = t.wh)
@@ -115,7 +126,7 @@ REVOKE EXECUTE ON FUNCTION access.visible_legal_entities() FROM PUBLIC;
 REVOKE EXECUTE ON FUNCTION access.visible_business_units() FROM PUBLIC;
 REVOKE EXECUTE ON FUNCTION access.visible_warehouses() FROM PUBLIC;
 REVOKE EXECUTE ON FUNCTION access.visible_projects() FROM PUBLIC;
-REVOKE EXECUTE ON FUNCTION access.has_permission(text, uuid, uuid, uuid, uuid) FROM PUBLIC;
+REVOKE EXECUTE ON FUNCTION access.has_permission(text, uuid, uuid, uuid, uuid, uuid) FROM PUBLIC;
 
 -- svc_platform already has USAGE ON SCHEMA access (granted in
 -- V202610300800__access__core.sql); every other business service role only
@@ -135,7 +146,7 @@ GRANT EXECUTE ON FUNCTION access.visible_warehouses() TO
   svc_platform, svc_catalog, svc_operations, svc_commercial, svc_resources, svc_controlling, svc_field, svc_solver;
 GRANT EXECUTE ON FUNCTION access.visible_projects() TO
   svc_platform, svc_catalog, svc_operations, svc_commercial, svc_resources, svc_controlling, svc_field, svc_solver;
-GRANT EXECUTE ON FUNCTION access.has_permission(text, uuid, uuid, uuid, uuid) TO
+GRANT EXECUTE ON FUNCTION access.has_permission(text, uuid, uuid, uuid, uuid, uuid) TO
   svc_platform, svc_catalog, svc_operations, svc_commercial, svc_resources, svc_controlling, svc_field, svc_solver;
 
 GRANT SELECT ON access.effective_access_scope TO svc_platform;
