@@ -198,8 +198,14 @@ public sealed class AccessPermissionCheckerTests(AccessPermissionDatabase db) : 
         (await HasPermissionSql(db.GroupAdminUserId, "SELECT access.has_permission('ROLE_ASSIGNMENT:CREATE', p_group_id => $1)", Org.GroupId)).ShouldBeTrue();
     }
 
-    // The repeatable migration must DROP the old 5-argument overload, not leave it callable
-    // next to the new one (CREATE OR REPLACE with a new parameter list adds an overload).
+    // Confirms the migrated database ends up with exactly one overload. This fixture always
+    // migrates from a clean database, so it never has the old 5-argument signature to begin
+    // with -- it cannot, by itself, prove the DROP FUNCTION IF EXISTS actually removes a
+    // pre-existing overload on a database that previously ran the old version of this
+    // repeatable migration. That upgrade path (old 5-arg file -> new 6-arg file -> re-running
+    // the new file again, Flyway-repeatable-style) was verified by hand against a throwaway
+    // Postgres 17 container during this change's review: exactly one overload (6 arguments)
+    // survives, with PUBLIC having no EXECUTE and all svc_* roles having it. Not automated here.
     [Fact]
     public async Task HasPermission_HasExactlyOneOverload_TheSixArgumentOne()
     {
