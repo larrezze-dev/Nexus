@@ -1,4 +1,5 @@
 using System.Text.Json;
+using Nexus.BuildingBlocks.Application;
 using Nexus.BuildingBlocks.Persistence;
 using Nexus.BuildingBlocks.Persistence.Outbox;
 using Npgsql;
@@ -52,7 +53,7 @@ public sealed class PostgresFixtureTests(PostgresFixture db)
     public async Task UnitOfWork_EmitsTestEvent_WrittenToOutbox_ValidatedAgainstRealAvscContract()
     {
         var schemaProvider = new FileSystemEventSchemaProvider(RepoRoot.Find("contracts/events/_test"));
-        var writer = new OutboxWriter(schemaProvider, new TestIdGenerator(), TimeProvider.System);
+        var writer = new OutboxWriter(schemaProvider, new TestIdGenerator(), RoundedSystemTimeProvider.Instance);
         var dataSource = db.GetServiceDataSource("svc_platform");
         var userId = Guid.CreateVersion7();
         var correlationId = Guid.CreateVersion7();

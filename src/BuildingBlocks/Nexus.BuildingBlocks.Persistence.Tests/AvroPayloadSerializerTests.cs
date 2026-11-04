@@ -1,5 +1,6 @@
 using System.Text.Json;
 using Avro;
+using Nexus.BuildingBlocks.Application;
 using Nexus.BuildingBlocks.Domain;
 using Nexus.BuildingBlocks.Persistence.Outbox;
 using Shouldly;
@@ -92,7 +93,7 @@ public sealed class AvroPayloadSerializerTests
     private static Probe Valid() => new(
         Guid.NewGuid(),
         12.34m,
-        DateTimeOffset.UtcNow,
+        RoundedSystemTimeProvider.Instance.GetUtcNow(),
         new DateOnly(2025, 10, 23),
         3,
         ["a", "b"],

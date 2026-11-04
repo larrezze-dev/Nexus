@@ -5,6 +5,7 @@ using Avro;
 using Avro.Generic;
 using Avro.IO;
 using Microsoft.EntityFrameworkCore;
+using Nexus.BuildingBlocks.Application;
 using Nexus.BuildingBlocks.Persistence.Outbox;
 using Npgsql;
 using Shouldly;
@@ -102,7 +103,7 @@ public sealed class UnitOfWorkTests(PersistenceDatabaseFixture db) : IAsyncLifet
             await using var ctx = new WidgetDbContext(uow);
             var widget = Widget.Create(widgetId, "draft");
             ctx.Widgets.Add(widget);
-            widget.Rename("final", 1m, DateTimeOffset.UtcNow);
+            widget.Rename("final", 1m, RoundedSystemTimeProvider.Instance.GetUtcNow());
 
             await Should.ThrowAsync<SimulatedFailureException>(() => uow.CommitAsync(Ct));
             uow.IsActive.ShouldBeFalse();
@@ -145,7 +146,7 @@ public sealed class UnitOfWorkTests(PersistenceDatabaseFixture db) : IAsyncLifet
             await using var ctx = new WidgetDbContext(uow);
             var widget = Widget.Create(widgetId, "draft");
             ctx.Widgets.Add(widget);
-            widget.Rename("ok", 1m, DateTimeOffset.UtcNow); // valid event in the same unit of work
+            widget.Rename("ok", 1m, RoundedSystemTimeProvider.Instance.GetUtcNow()); // valid event in the same unit of work
             widget.RenameWithInvalidPayload();
 
             var ex = await Should.ThrowAsync<EventPayloadSchemaException>(() => uow.CommitAsync(Ct));
@@ -217,7 +218,7 @@ public sealed class UnitOfWorkTests(PersistenceDatabaseFixture db) : IAsyncLifet
             _dataSource,
             new TestCurrentUser(Guid.CreateVersion7(), isAuthenticated: false),
             new CorrelationContext { CorrelationId = _correlationId },
-            new OutboxWriter(db.SchemaProvider, new TestIdGenerator(), TimeProvider.System));
+            new OutboxWriter(db.SchemaProvider, new TestIdGenerator(), RoundedSystemTimeProvider.Instance));
         await Should.ThrowAsync<InvalidOperationException>(() => anonymous.BeginAsync(Ct));
 
         await using var uncorrelated = db.CreateUnitOfWork(_dataSource, _userId, Guid.Empty);
@@ -235,7 +236,7 @@ public sealed class UnitOfWorkTests(PersistenceDatabaseFixture db) : IAsyncLifet
             _dataSource,
             new TestCurrentUser(userId is null ? null : Guid.Parse(userId, CultureInfo.InvariantCulture)),
             new CorrelationContext { CorrelationId = _correlationId },
-            new OutboxWriter(db.SchemaProvider, new TestIdGenerator(), TimeProvider.System));
+            new OutboxWriter(db.SchemaProvider, new TestIdGenerator(), RoundedSystemTimeProvider.Instance));
 
         await Should.ThrowAsync<InvalidOperationException>(() => unresolved.BeginAsync(Ct));
     }
@@ -304,7 +305,7 @@ public sealed class UnitOfWorkTests(PersistenceDatabaseFixture db) : IAsyncLifet
             ctx.Widgets.Add(widget);
             for (var i = 1; i <= 40; i++)
             {
-                widget.Rename($"n{i}", 1m, DateTimeOffset.UtcNow);
+                widget.Rename($"n{i}", 1m, RoundedSystemTimeProvider.Instance.GetUtcNow());
             }
 
             await uow.CommitAsync(Ct);
@@ -376,7 +377,7 @@ public sealed class UnitOfWorkTests(PersistenceDatabaseFixture db) : IAsyncLifet
             await using var ctx = new WidgetDbContext(uow);
             var widget = Widget.Create(widgetId, "a");
             ctx.Widgets.Add(widget);
-            widget.Rename("b", 2m, DateTimeOffset.UtcNow);
+            widget.Rename("b", 2m, RoundedSystemTimeProvider.Instance.GetUtcNow());
             uow.AddEventsFrom(widget); // also tracked: must not duplicate
             await uow.CommitAsync(Ct);
         }
@@ -414,11 +415,11 @@ public sealed class UnitOfWorkTests(PersistenceDatabaseFixture db) : IAsyncLifet
             await second.BeginAsync(Ct);
             await using var secondCtx = new WidgetDbContext(second);
             var fresh = await secondCtx.Widgets.SingleAsync(w => w.Id == widgetId, Ct);
-            fresh.Rename("v1", 1m, DateTimeOffset.UtcNow);
+            fresh.Rename("v1", 1m, RoundedSystemTimeProvider.Instance.GetUtcNow());
             await second.CommitAsync(Ct);
         }
 
-        stale.Rename("v2", 2m, DateTimeOffset.UtcNow);
+        stale.Rename("v2", 2m, RoundedSystemTimeProvider.Instance.GetUtcNow());
         await Should.ThrowAsync<DbUpdateConcurrencyException>(() => first.CommitAsync(Ct));
 
         (await db.ScalarAsync<string>("SELECT name FROM uow_test.widget WHERE id = $1", widgetId)).ShouldBe("v1");
@@ -463,7 +464,7 @@ public sealed class UnitOfWorkTests(PersistenceDatabaseFixture db) : IAsyncLifet
             await using var ctx = new WidgetDbContext(uow);
             var widget = Widget.Create(widgetId, "x");
             ctx.Widgets.Add(widget);
-            widget.Rename("y", expected, DateTimeOffset.UtcNow);
+            widget.Rename("y", expected, RoundedSystemTimeProvider.Instance.GetUtcNow());
             await uow.CommitAsync(Ct);
         }
 
@@ -485,7 +486,7 @@ public sealed class UnitOfWorkTests(PersistenceDatabaseFixture db) : IAsyncLifet
         }
 
         // Round trip through Avro's own JSON decoder, as the relay (step 0.7) will read it.
-        var schema = db.SchemaProvider.GetSchema(new WidgetRenamed(widgetId, "y", DateTimeOffset.UtcNow, expected, new Dictionary<string, string>(), null));
+        var schema = db.SchemaProvider.GetSchema(new WidgetRenamed(widgetId, "y", RoundedSystemTimeProvider.Instance.GetUtcNow(), expected, new Dictionary<string, string>(), null));
         var record = new GenericDatumReader<GenericRecord>(schema, schema).Read(null!, new JsonDecoder(schema, stored));
         var avroPrice = (AvroDecimal)record["price"];
         avroPrice.Scale.ShouldBe(4);

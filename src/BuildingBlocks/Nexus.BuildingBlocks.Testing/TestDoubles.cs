@@ -25,5 +25,5 @@ public sealed class TestCurrentUser(
 /// <summary>Minimal <see cref="IIdGenerator"/> for tests: real UUIDv7s, just not wired through DI.</summary>
 public sealed class TestIdGenerator : IIdGenerator
 {
-    public Guid NewId() => Guid.CreateVersion7(TimeProvider.System.GetUtcNow());
+    public Guid NewId() => Guid.CreateVersion7(RoundedSystemTimeProvider.Instance.GetUtcNow());
 }
