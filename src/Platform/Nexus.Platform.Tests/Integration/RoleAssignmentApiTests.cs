@@ -341,6 +341,70 @@ public sealed class RoleAssignmentApiTests : IClassFixture<PlatformApiFixture>
         warehouseIds.ShouldBe([Org.WarehouseA]);
     }
 
+    [Fact(DisplayName = "ACC-R10 on listRoleAssignments: an ORG_ADMIN of LE-A does not see an assignment scoped to LE-B; a GLOBAL admin does")]
+    public async Task List_only_returns_assignments_the_caller_covers()
+    {
+        var (userBAssignmentId, _) = await GetSeededAssignmentAsync(Org.UserB.Id, "LEGAL_ENTITY");
+        var (userAAssignmentId, _) = await GetSeededAssignmentAsync(Org.UserA.Id, "LEGAL_ENTITY");
+        var (whAAssignmentId, _) = await GetSeededAssignmentAsync(Org.WhA.Id, "WAREHOUSE");
+
+        using var userA = _fixture.CreateClientFor(Org.UserA.Oid);
+        var seenByUserA = await ListAsync(userA, "pageSize=200");
+
+        var idsSeenByUserA = seenByUserA.Items.Select(i => i.GetProperty("id").GetGuid()).ToList();
+        idsSeenByUserA.ShouldNotContain(userBAssignmentId);
+        idsSeenByUserA.ShouldContain(userAAssignmentId);
+        idsSeenByUserA.ShouldContain(whAAssignmentId); // WH-A lies beneath LE-A: covered.
+
+        // Nothing outside LE-A's subtree leaks, whatever other tests of this class created.
+        var leASubtree = new HashSet<Guid> { Org.LegalEntityA.Id, Org.BusinessUnitA.Id, Org.WarehouseA };
+        foreach (var item in seenByUserA.Items)
+        {
+            item.GetProperty("scopeType").GetString().ShouldNotBe("GLOBAL");
+            leASubtree.ShouldContain(item.GetProperty("scopeEntityId").GetGuid());
+        }
+
+        seenByUserA.Total.ShouldBe(seenByUserA.Items.Count);
+
+        using var admin = _fixture.CreateClientFor(Org.Admin.Oid);
+        var idsSeenByAdmin = (await ListAsync(admin, "pageSize=200")).Items.Select(i => i.GetProperty("id").GetGuid()).ToList();
+        idsSeenByAdmin.ShouldContain(userBAssignmentId);
+        idsSeenByAdmin.ShouldContain(userAAssignmentId);
+    }
+
+    [Fact(DisplayName = "ACC-R10 on listRoleAssignments: pagination and total apply to the coverage-filtered rows, not the unfiltered ones")]
+    public async Task List_paginates_and_counts_after_coverage_filtering()
+    {
+        using var admin = _fixture.CreateClientFor(Org.Admin.Oid);
+        var subjectId = await CreateUserAsync(admin);
+
+        // 2 assignments inside LE-A's subtree, 3 inside LE-B's: only the first 2 are UserA's to see.
+        var inLeA = new List<Guid>
+        {
+            (await CreateAsync(admin, subjectId, ViewerRoleId, "LEGAL_ENTITY", Org.LegalEntityA.Id, DateTimeOffset.UtcNow, null)).Id,
+            (await CreateAsync(admin, subjectId, ViewerRoleId, "WAREHOUSE", Org.WarehouseA, DateTimeOffset.UtcNow, null)).Id,
+        };
+        await CreateAsync(admin, subjectId, ViewerRoleId, "LEGAL_ENTITY", Org.LegalEntityB.Id, DateTimeOffset.UtcNow, null);
+        await CreateAsync(admin, subjectId, ViewerRoleId, "BUSINESS_UNIT", Org.BusinessUnitB.Id, DateTimeOffset.UtcNow, null);
+        await CreateAsync(admin, subjectId, ViewerRoleId, "WAREHOUSE", Org.WarehouseB, DateTimeOffset.UtcNow, null);
+
+        (await ListAsync(admin, $"userId={subjectId}&pageSize=1")).Total.ShouldBe(5);
+
+        using var userA = _fixture.CreateClientFor(Org.UserA.Oid);
+        var page1 = await ListAsync(userA, $"userId={subjectId}&pageSize=1&page=1");
+        var page2 = await ListAsync(userA, $"userId={subjectId}&pageSize=1&page=2");
+        var page3 = await ListAsync(userA, $"userId={subjectId}&pageSize=1&page=3");
+
+        page1.Total.ShouldBe(2);
+        page2.Total.ShouldBe(2);
+        page3.Total.ShouldBe(2);
+        page1.Items.Count.ShouldBe(1);
+        page2.Items.Count.ShouldBe(1);
+        page3.Items.ShouldBeEmpty();
+        new[] { page1.Items[0].GetProperty("id").GetGuid(), page2.Items[0].GetProperty("id").GetGuid() }
+            .ShouldBe(inLeA, ignoreOrder: true);
+    }
+
     [Fact(DisplayName = "getUserEffectiveScope: an unknown user is a 404")]
     public async Task Get_effective_scope_of_an_unknown_user_is_not_found()
     {
@@ -362,6 +426,27 @@ public sealed class RoleAssignmentApiTests : IClassFixture<PlatformApiFixture>
             Ct);
         response.StatusCode.ShouldBe(HttpStatusCode.Created);
         return ((await ReadAsync(response)).GetProperty("id").GetGuid(), response.Headers.ETag!.Tag);
+    }
+
+    /// <summary><c>listRoleAssignments</c> with <paramref name="query"/>: its items and <c>total</c>.</summary>
+    private static async Task<(IReadOnlyList<JsonElement> Items, long Total)> ListAsync(HttpClient client, string query)
+    {
+        var response = await client.GetAsync(new Uri($"/v1/role-assignments?{query}", UriKind.Relative), Ct);
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
+        var body = await ReadAsync(response);
+        return (body.GetProperty("items").EnumerateArray().ToList(), body.GetProperty("total").GetInt64());
+    }
+
+    /// <summary>A fresh user (own oid/email), so a test can count its assignments without interference.</summary>
+    private static async Task<Guid> CreateUserAsync(HttpClient admin)
+    {
+        var tag = Guid.NewGuid().ToString("N");
+        var response = await admin.PostAsJsonAsync(
+            new Uri("/v1/users", UriKind.Relative),
+            new { oid = "oid-" + tag, fullName = "Assignment Subject " + tag, email = $"subject.{tag}@test.nexus.local", preferredLanguage = "en" },
+            Ct);
+        response.StatusCode.ShouldBe(HttpStatusCode.Created);
+        return (await ReadAsync(response)).GetProperty("id").GetGuid();
     }
 
     /// <summary>A role assignment <see cref="OrgFixture"/> seeded for <paramref name="userId"/>, with its current ETag.</summary>

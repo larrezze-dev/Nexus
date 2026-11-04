@@ -10,12 +10,20 @@ namespace Nexus.Platform.Application.RoleAssignments;
 public interface IRoleAssignmentReadDb
 {
     /// <summary>
-    /// One page of role assignments ordered by <paramref name="sort"/> (fields of
-    /// <see cref="RoleAssignmentSortFields.Allowed"/>), then by id for a stable order, filtered
-    /// by <paramref name="filter"/>. An empty <paramref name="sort"/> orders by <c>validFrom</c>.
+    /// <b>Every</b> role assignment matching <paramref name="filter"/>, ordered by
+    /// <paramref name="sort"/> (fields of <see cref="RoleAssignmentSortFields.Allowed"/>), then by
+    /// id for a stable order. An empty <paramref name="sort"/> orders by <c>validFrom</c>.
+    /// <para>
+    /// Deliberately unpaginated: <c>listRoleAssignments</c> must first drop the rows whose scope
+    /// the caller's own <c>ROLE_ASSIGNMENT:READ</c> does not cover (a per-row
+    /// <c>access.has_permission</c> check, since <c>access</c> has no RLS) and only then paginate,
+    /// so that <c>total</c> counts what the caller can actually see. Paginating here first would
+    /// return short pages and a <c>total</c> that leaks the size of other scopes.
+    /// <c>access.role_assignment</c> is a small security catalog, not a high-volume table.
+    /// </para>
     /// </summary>
-    Task<PagedResult<RoleAssignmentListItem>> ListAsync(
-        int page, int pageSize, IReadOnlyList<SortField> sort, RoleAssignmentFilter filter, CancellationToken cancellationToken);
+    Task<IReadOnlyList<RoleAssignmentListItem>> ListAllAsync(
+        IReadOnlyList<SortField> sort, RoleAssignmentFilter filter, CancellationToken cancellationToken);
 
     /// <summary>
     /// ACC-R2: whether <paramref name="scopeEntityId"/> is a row of the table that

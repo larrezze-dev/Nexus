@@ -13,13 +13,16 @@ namespace Nexus.Platform.Application.RoleAssignments.GetRoleAssignments;
 /// to "now" (<see cref="TimeProvider"/>) when the caller omits it: the endpoint always answers
 /// "assignments active at this instant".
 /// <para>
-/// KNOWN LIMITATION (Gate C, not fixed here): the contract declares <c>x-scope: none</c> and
-/// ACC-R10 assumes "RLS filters the rows" of a listing, but <c>access</c> deliberately has no
-/// RLS (it is the security schema itself). So any holder of <c>ROLE_ASSIGNMENT:READ</c>, in any
-/// scope, lists every assignment of every legal entity. Narrowing it needs either a contract
-/// change (<c>x-scope</c>) or a scoping rule for list results that is not written in
-/// <c>docs/</c> yet - both belong to Gate C. <c>revokeRoleAssignment</c> (a write) does check
-/// the row's scope; <c>getUserEffectiveScope</c>'s broad visibility is intentional (contract).
+/// Scope: the contract declares <c>x-scope: none</c>, so the permission filter only checks that
+/// the caller holds <c>ROLE_ASSIGNMENT:READ</c> <i>somewhere</i> (ACC-R10's coarse gate for
+/// listings). ACC-R10 then relies on RLS to narrow a listing's rows, but <c>access</c>
+/// deliberately has no RLS (it is the security schema itself). So this handler narrows the rows
+/// itself, with the same mechanism <c>revokeRoleAssignment</c> uses: it loads every assignment
+/// matching the filters (unpaginated), keeps only those whose own scope the caller's
+/// <c>ROLE_ASSIGNMENT:READ</c> <b>covers</b> (<see cref="IRoleAssignmentScopeChecker"/>,
+/// GLOBAL ⊃ GROUP ⊃ LEGAL_ENTITY ⊃ BUSINESS_UNIT ⊃ WAREHOUSE), and only then paginates, so
+/// <c>total</c> is the count the caller can see. A GLOBAL caller still sees every row.
+/// <c>getUserEffectiveScope</c>'s broad visibility stays intentional (contract).
 /// </para>
 /// </summary>
 public sealed record GetRoleAssignmentsQuery(
@@ -49,14 +52,22 @@ internal sealed class GetRoleAssignmentsValidator : AbstractValidator<GetRoleAss
 
 internal sealed class GetRoleAssignmentsHandler : IQueryHandler<GetRoleAssignmentsQuery, PagedResult<RoleAssignmentListItem>>
 {
+    private const string ReadPermission = "ROLE_ASSIGNMENT:READ";
+
     private readonly IRequestTransaction _transaction;
     private readonly IRoleAssignmentReadDb _readDb;
+    private readonly IRoleAssignmentScopeChecker _scopeChecker;
     private readonly TimeProvider _timeProvider;
 
-    public GetRoleAssignmentsHandler(IRequestTransaction transaction, IRoleAssignmentReadDb readDb, TimeProvider timeProvider)
+    public GetRoleAssignmentsHandler(
+        IRequestTransaction transaction,
+        IRoleAssignmentReadDb readDb,
+        IRoleAssignmentScopeChecker scopeChecker,
+        TimeProvider timeProvider)
     {
         _transaction = transaction;
         _readDb = readDb;
+        _scopeChecker = scopeChecker;
         _timeProvider = timeProvider;
     }
 
@@ -66,14 +77,40 @@ internal sealed class GetRoleAssignmentsHandler : IQueryHandler<GetRoleAssignmen
         SortSpec.TryParse(query.Sort, RoleAssignmentSortFields.Allowed, out var sort, out _);
 
         await _transaction.BeginAsync(cancellationToken);
-        var page = await _readDb.ListAsync(
-            query.Page,
-            query.PageSize,
+
+        var candidates = await _readDb.ListAllAsync(
             sort,
             new RoleAssignmentFilter(query.UserId, query.RoleId, query.ScopeType, query.ActiveOn ?? _timeProvider.GetUtcNow()),
             cancellationToken);
+
+        // One has_permission call per distinct (scopeType, scopeEntityId): many assignments share
+        // a scope (e.g. every grant in one legal entity), and the answer only depends on it.
+        var coverage = new Dictionary<(string ScopeType, Guid? ScopeEntityId), bool>();
+        var visible = new List<RoleAssignmentListItem>(candidates.Count);
+        foreach (var candidate in candidates)
+        {
+            var key = (candidate.ScopeType, candidate.ScopeEntityId);
+            if (!coverage.TryGetValue(key, out var covered))
+            {
+                covered = await _scopeChecker.HasPermissionCoveringAsync(
+                    ReadPermission, candidate.ScopeType, candidate.ScopeEntityId, cancellationToken);
+                coverage[key] = covered;
+            }
+
+            if (covered)
+            {
+                visible.Add(candidate);
+            }
+        }
+
         await _transaction.CommitAsync(cancellationToken);
 
-        return Result.Success(page);
+        // Paginate only after filtering: total is what this caller can see, never the unfiltered count.
+        var items = visible
+            .Skip((int)Math.Min((long)(query.Page - 1) * query.PageSize, int.MaxValue))
+            .Take(query.PageSize)
+            .ToList();
+
+        return Result.Success(new PagedResult<RoleAssignmentListItem>(items, query.Page, query.PageSize, visible.Count));
     }
 }

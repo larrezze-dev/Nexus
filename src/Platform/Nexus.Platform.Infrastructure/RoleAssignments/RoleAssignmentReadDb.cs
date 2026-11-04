@@ -29,23 +29,17 @@ internal sealed class RoleAssignmentReadDb : IRoleAssignmentReadDb
         _unitOfWork = unitOfWork;
     }
 
-    public async Task<PagedResult<RoleAssignmentListItem>> ListAsync(
-        int page, int pageSize, IReadOnlyList<SortField> sort, RoleAssignmentFilter filter, CancellationToken cancellationToken)
+    public async Task<IReadOnlyList<RoleAssignmentListItem>> ListAllAsync(
+        IReadOnlyList<SortField> sort, RoleAssignmentFilter filter, CancellationToken cancellationToken)
     {
         var (where, parameters) = BuildWhere(filter);
-
-        var total = await _unitOfWork.Connection.ExecuteScalarAsync<long>(Command(
-            $"SELECT count(*) FROM access.role_assignment ra {where}",
-            parameters,
-            cancellationToken));
 
         var orderBy = sort.Count == 0
             ? SortColumns[RoleAssignmentSortFields.ValidFrom]
             : string.Join(", ", sort.Select(f => SortColumns[f.Field] + (f.Descending ? " DESC" : " ASC")));
 
-        parameters.Add("limit", pageSize);
-        parameters.Add("offset", (long)(page - 1) * pageSize);
-
+        // No LIMIT/OFFSET: the handler filters by scope coverage first, then paginates
+        // (see IRoleAssignmentReadDb.ListAllAsync).
         var rows = await _unitOfWork.Connection.QueryAsync<ListRow>(Command(
             $"""
              SELECT ra.id AS Id, ra.user_id AS UserId, ra.role_id AS RoleId, ra.scope_type AS ScopeType,
@@ -54,16 +48,13 @@ internal sealed class RoleAssignmentReadDb : IRoleAssignmentReadDb
              FROM access.role_assignment ra
              {where}
              ORDER BY {orderBy}, ra.id
-             LIMIT @limit OFFSET @offset
              """,
             parameters,
             cancellationToken));
 
-        var items = rows
+        return rows
             .Select(r => new RoleAssignmentListItem(r.Id, r.UserId, r.RoleId, r.ScopeType, r.ScopeEntityId, r.ValidFrom, r.ValidTo, r.Source))
             .ToList();
-
-        return new PagedResult<RoleAssignmentListItem>(items, page, pageSize, total);
     }
 
     private static (string Where, DynamicParameters Parameters) BuildWhere(RoleAssignmentFilter filter)

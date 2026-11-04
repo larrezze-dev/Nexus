@@ -29,8 +29,9 @@ public static class RoleAssignmentEndpoints
 
         var group = app.MapGroup("/v1/role-assignments").WithTags("RoleAssignments");
 
-        // KNOWN LIMITATION (Gate C): x-scope none + no RLS on access = any ROLE_ASSIGNMENT:READ
-        // holder lists every assignment system-wide. See GetRoleAssignmentsQuery.
+        // x-scope none is only the coarse gate: access has no RLS, so the handler keeps just the
+        // rows whose scope the caller's ROLE_ASSIGNMENT:READ covers (per-row coverage check, same
+        // mechanism as revoke) before paginating. See GetRoleAssignmentsQuery.
         group.MapGet(string.Empty, ListRoleAssignments)
             .WithName("listRoleAssignments")
             .ValidatedBy<GetRoleAssignmentsQuery>()
