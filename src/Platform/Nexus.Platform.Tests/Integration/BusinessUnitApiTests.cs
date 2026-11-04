@@ -159,7 +159,7 @@ public sealed class BusinessUnitApiTests : IClassFixture<PlatformApiFixture>
                 roleId = new Guid("00000000-0000-7000-8000-0000000d0002"), // ORG_ADMIN
                 scopeType = "BUSINESS_UNIT",
                 scopeEntityId = Org.BusinessUnitA.Id,
-                validFrom = DateTimeOffset.UtcNow,
+                validFrom = DateTimeOffset.UtcNow.AddMinutes(-1) /* backdated: PostgreSQL now() may lag the host clock */,
             },
             Ct);
         grant.StatusCode.ShouldBe(HttpStatusCode.Created);

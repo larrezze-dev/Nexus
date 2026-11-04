@@ -271,7 +271,7 @@ public sealed class WarehouseApiTests : IClassFixture<PlatformApiFixture>
 
         var grant = await admin.PostAsJsonAsync(
             new Uri("/v1/role-assignments", UriKind.Relative),
-            new { userId, roleId = OrgAdminRoleId, scopeType = "WAREHOUSE", scopeEntityId = warehouseId, validFrom = DateTimeOffset.UtcNow },
+            new { userId, roleId = OrgAdminRoleId, scopeType = "WAREHOUSE", scopeEntityId = warehouseId, validFrom = DateTimeOffset.UtcNow.AddMinutes(-1) /* backdated: PostgreSQL now() may lag the host clock */ },
             Ct);
         grant.StatusCode.ShouldBe(HttpStatusCode.Created);
         return oid;
