@@ -120,3 +120,19 @@ GET /v1/role-assignments the endpoint no longer allows anonymous access and now 
 POST /v1/role-assignments the endpoint no longer allows anonymous access and now only accepts `bearerAuth`
 POST /v1/role-assignments/{id}/revoke the endpoint no longer allows anonymous access and now only accepts `bearerAuth`
 GET /v1/users/{id}/effective-scope the endpoint no longer allows anonymous access and now only accepts `bearerAuth`
+
+# --- nexus-platform: PUT /v1/roles/{id}/permissions response (allOf artifact) -----------
+# Not a backend/contract mismatch: the service's PermissionGrantResponse is a flat object
+# requiring code, resourceType, action, captionI18n, validFrom, validTo; the contract's
+# PermissionGrant requires the same six fields split across `allOf: [Permission, {validFrom,
+# validTo}]`. Without flattening, oasdiff compares the two literally and reports the required
+# properties as "removed" (same allOf comparison artifact as the warnings ADR-0014 notes; here it
+# is an ERR because the allOf sits on array items). Reproduced locally; only these six lines,
+# only this operation. Deferred debt: `--flatten-allof` makes these disappear but exposes ~64
+# other real findings across the 0.4/0.6 endpoints, to be handled as a separate piece of work.
+PUT /v1/roles/{id}/permissions removed the required property `items/action` from the response with the `200` status
+PUT /v1/roles/{id}/permissions removed the required property `items/captionI18n` from the response with the `200` status
+PUT /v1/roles/{id}/permissions removed the required property `items/code` from the response with the `200` status
+PUT /v1/roles/{id}/permissions removed the required property `items/resourceType` from the response with the `200` status
+PUT /v1/roles/{id}/permissions removed the required property `items/validFrom` from the response with the `200` status
+PUT /v1/roles/{id}/permissions removed the required property `items/validTo` from the response with the `200` status
