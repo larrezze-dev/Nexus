@@ -91,6 +91,24 @@ public sealed class LegalEntityApiTests : IClassFixture<PlatformApiFixture>
         (await DeactivateAsync(admin, created.Id, updated.Headers.ETag!.Tag)).StatusCode.ShouldBe(HttpStatusCode.OK);
     }
 
+    [Fact(DisplayName = "ACC-R4/ACC-R10 (intentional): a WAREHOUSE-scoped grant does not cover its own warehouse's parent legal entity (403)")]
+    public async Task Warehouse_scoped_grant_does_not_cover_its_parent_legal_entity()
+    {
+        // INTENTIONAL, do not "fix": coverage only flows downwards (GLOBAL ⊃ GROUP ⊃ LEGAL_ENTITY
+        // ⊃ BUSINESS_UNIT ⊃ WAREHOUSE). WhA holds ORG_STRUCTURE:READ on WH-A only, so it can read
+        // WH-A but not LE-A, even though LE-A owns WH-A. If this ever turns into a 200, a narrow
+        // grant has started to leak upwards: that needs an explicit decision, not a silent change.
+        using var whA = _fixture.CreateClientFor(Org.WhA.Oid);
+        (await whA.GetAsync(new Uri($"/v1/warehouses/{Org.WarehouseA}", UriKind.Relative), Ct)).StatusCode.ShouldBe(HttpStatusCode.OK);
+        (await _fixture.Database.ScalarAsync<Guid>("SELECT legal_entity_id FROM org.warehouse WHERE id = $1", Org.WarehouseA))
+            .ShouldBe(Org.LegalEntityA.Id);
+
+        var response = await whA.GetAsync(LegalEntityUri(Org.LegalEntityA.Id), Ct);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
+        (await ReadAsync(response)).GetProperty("code").GetString().ShouldBe("FORBIDDEN");
+    }
+
     [Fact(DisplayName = "ACC-R10 on listLegalEntities: rows are filtered like getLegalEntity (LE-A ORG_ADMIN: only LE-A; GLOBAL: all)")]
     public async Task List_legal_entities_is_filtered_by_the_callers_coverage()
     {
