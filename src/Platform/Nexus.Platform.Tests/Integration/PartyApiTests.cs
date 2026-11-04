@@ -114,6 +114,40 @@ public sealed class PartyApiTests : IClassFixture<PlatformApiFixture>
         (await PutAsync(admin, groupPartyId, before.ETag, before.ToUpdate())).StatusCode.ShouldBe(HttpStatusCode.OK);
     }
 
+    [Fact(DisplayName = "ACC-R10 on party writes (ADR-0015): a GROUP-scoped grant covers the group's own party and its legal entities' parties (200)")]
+    public async Task Group_scoped_grant_covers_the_group_party()
+    {
+        using var admin = _fixture.CreateClientFor(Org.Admin.Oid);
+        var tag = Guid.NewGuid().ToString("N");
+        var oid = "oid-" + tag;
+        var user = await admin.PostAsJsonAsync(
+            new Uri("/v1/users", UriKind.Relative),
+            new { oid, fullName = "Group Admin " + tag, email = $"groupadmin.{tag}@test.nexus.local", preferredLanguage = "en" },
+            Ct);
+        user.StatusCode.ShouldBe(HttpStatusCode.Created);
+        var grant = await admin.PostAsJsonAsync(
+            new Uri("/v1/role-assignments", UriKind.Relative),
+            new
+            {
+                userId = (await ReadAsync(user)).GetProperty("id").GetGuid(),
+                roleId = new Guid("00000000-0000-7000-8000-0000000d0002"), // ORG_ADMIN
+                scopeType = "GROUP",
+                scopeEntityId = Org.GroupId,
+                validFrom = DateTimeOffset.UtcNow.AddMinutes(-1), // PostgreSQL now() may lag the host clock
+            },
+            Ct);
+        grant.StatusCode.ShouldBe(HttpStatusCode.Created);
+
+        using var groupAdmin = _fixture.CreateClientFor(oid);
+        var groupPartyId = await _fixture.Database.ScalarAsync<Guid>("SELECT party_id FROM org.\"group\" WHERE id = $1", Org.GroupId);
+        var groupParty = await GetAsync(groupAdmin, groupPartyId);
+        var leB = await GetAsync(groupAdmin, Org.LegalEntityB.PartyId);
+
+        // Same content: the fixture's rows keep their values.
+        (await PutAsync(groupAdmin, groupPartyId, groupParty.ETag, groupParty.ToUpdate())).StatusCode.ShouldBe(HttpStatusCode.OK);
+        (await PutAsync(groupAdmin, leB.Id, leB.ETag, leB.ToUpdate())).StatusCode.ShouldBe(HttpStatusCode.OK);
+    }
+
     [Fact(DisplayName = "Party writes: a party backing no org entity stays unscoped (the LE-A and LE-B ORG_ADMINs can both update it: 200)")]
     public async Task External_party_stays_unscoped()
     {
