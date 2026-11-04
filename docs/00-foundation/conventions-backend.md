@@ -63,7 +63,7 @@ group.MapPost("/", CreateAssetType.Handle)
      .RequirePermission("ASSET_TYPE", PermissionAction.Create);
 ```
 
-- El filtro llama a `access.has_permission(resource, action, legal_entity_id, warehouse_id, project_id)` dentro de la transacción de la petición (`domain/access.md §4`). El alcance se toma del cuerpo o de la ruta según indique el endpoint.
+- El filtro llama a `access.has_permission(permission, legal_entity_id, business_unit_id, warehouse_id, project_id, group_id)` dentro de la transacción de la petición (`domain/access.md §4`). El alcance se toma del cuerpo o de la ruta según indique el endpoint.
 - Para listados, el permiso se comprueba sin alcance (`has_permission('ASSET_TYPE','READ')` = ¿tiene el permiso en algún alcance?) y RLS filtra las filas.
 - Sin caché de permisos entre peticiones. Una revocación aplica en la siguiente petición.
 - Mismo nombre de permiso en el OpenAPI: extensión `x-permission: ASSET_TYPE:CREATE` (`conventions-api.md §3`).

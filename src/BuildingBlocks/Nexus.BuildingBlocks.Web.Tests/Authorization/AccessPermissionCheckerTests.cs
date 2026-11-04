@@ -2,6 +2,7 @@ using System.Text;
 using Microsoft.AspNetCore.Http;
 using Nexus.BuildingBlocks.Testing;
 using Nexus.BuildingBlocks.Web.Authorization;
+using Npgsql;
 using Shouldly;
 
 namespace Nexus.BuildingBlocks.Web.Tests.Authorization;
@@ -10,7 +11,8 @@ namespace Nexus.BuildingBlocks.Web.Tests.Authorization;
 /// <see cref="AccessPermissionChecker"/> against a real <c>access.has_permission</c>, a real
 /// <c>UnitOfWork</c> as <c>svc_platform</c> and <see cref="OrgFixture"/>'s seeded assignments:
 /// Admin = SYSTEM_ADMIN GLOBAL; UserA = ORG_ADMIN LE-A; WhA = WAREHOUSE_OPERATOR WH-A;
-/// BU admin = ORG_ADMIN BU-A (<see cref="AccessPermissionDatabase"/>).
+/// BU admin = ORG_ADMIN BU-A; group admin = ORG_ADMIN GROUP (<see cref="OrgFixture.GroupId"/>)
+/// (<see cref="AccessPermissionDatabase"/>).
 /// </summary>
 public sealed class AccessPermissionCheckerTests(AccessPermissionDatabase db) : IClassFixture<AccessPermissionDatabase>
 {
@@ -145,6 +147,91 @@ public sealed class AccessPermissionCheckerTests(AccessPermissionDatabase db) : 
     {
         (await CheckGrant(Org.UserA.Id, "GROUP", Org.GroupId)).ShouldBeFalse();
         (await CheckGrant(Org.UserA.Id, "GLOBAL", null)).ShouldBeFalse();
+    }
+
+    // ---- GROUP targets (ADR-0015) --------------------------------------------------------------
+
+    [Fact]
+    public async Task Grant_GroupAdminCoversItsOwnGroupAndEverythingBelowIt()
+    {
+        (await CheckGrant(db.GroupAdminUserId, "GROUP", Org.GroupId)).ShouldBeTrue();
+        (await CheckGrant(db.GroupAdminUserId, "LEGAL_ENTITY", Org.LegalEntityA.Id)).ShouldBeTrue();
+        (await CheckGrant(db.GroupAdminUserId, "LEGAL_ENTITY", Org.LegalEntityB.Id)).ShouldBeTrue();
+        (await CheckGrant(db.GroupAdminUserId, "BUSINESS_UNIT", Org.BusinessUnitB.Id)).ShouldBeTrue();
+        (await CheckGrant(db.GroupAdminUserId, "WAREHOUSE", Org.WarehouseB)).ShouldBeTrue();
+    }
+
+    [Fact]
+    public async Task Grant_GroupAdminDoesNotCoverAnotherGroupOrGlobal()
+    {
+        (await CheckGrant(db.GroupAdminUserId, "GROUP", db.OtherGroupId)).ShouldBeFalse();
+        (await CheckGrant(db.GroupAdminUserId, "GROUP", Guid.CreateVersion7())).ShouldBeFalse();
+        (await CheckGrant(db.GroupAdminUserId, "GLOBAL", null)).ShouldBeFalse();
+    }
+
+    // The catch-all fix ADR-0015's text did not spell out: a GROUP target sets ONLY p_group_id,
+    // leaving the four original arguments NULL. If has_permission's "no scope given" clause did
+    // not also require p_group_id IS NULL, that call would mean "the permission in any scope"
+    // and every holder of ROLE_ASSIGNMENT:CREATE anywhere (LE, BU) would cover every group.
+    // These granters hold the permission only through LEGAL_ENTITY/BUSINESS_UNIT assignments.
+    [Fact]
+    public async Task Grant_GroupOnlyTarget_IsNotTreatedAsAnyScope()
+    {
+        (await CheckGrant(Org.UserA.Id, "GROUP", db.OtherGroupId)).ShouldBeFalse();
+        (await CheckGrant(Org.UserA.Id, "GROUP", Guid.CreateVersion7())).ShouldBeFalse();
+        (await CheckGrant(db.BuAdminUserId, "GROUP", Org.GroupId)).ShouldBeFalse();
+        (await CheckGrant(db.BuAdminUserId, "GROUP", db.OtherGroupId)).ShouldBeFalse();
+
+        // Same users, same permission, with no scope at all: the catch-all does apply there,
+        // so the false above is the p_group_id guard, not a missing permission.
+        (await Check(Org.UserA.Id, RoleAssignmentCreate, "none")).ShouldBeTrue();
+        (await Check(db.BuAdminUserId, RoleAssignmentCreate, "none")).ShouldBeTrue();
+    }
+
+    // The same guard at the SQL level, as svc_platform, by named argument.
+    [Fact]
+    public async Task HasPermission_WithOnlyPGroupId_IsNotTheAnyScopeForm()
+    {
+        (await HasPermissionSql(Org.UserA.Id, "SELECT access.has_permission('ROLE_ASSIGNMENT:CREATE')", null)).ShouldBeTrue();
+        (await HasPermissionSql(Org.UserA.Id, "SELECT access.has_permission('ROLE_ASSIGNMENT:CREATE', p_group_id => $1)", db.OtherGroupId)).ShouldBeFalse();
+        (await HasPermissionSql(Org.UserA.Id, "SELECT access.has_permission('ROLE_ASSIGNMENT:CREATE', p_group_id => $1)", Org.GroupId)).ShouldBeFalse();
+        (await HasPermissionSql(db.GroupAdminUserId, "SELECT access.has_permission('ROLE_ASSIGNMENT:CREATE', p_group_id => $1)", Org.GroupId)).ShouldBeTrue();
+    }
+
+    // Confirms the migrated database ends up with exactly one overload. This fixture always
+    // migrates from a clean database, so it never has the old 5-argument signature to begin
+    // with -- it cannot, by itself, prove the DROP FUNCTION IF EXISTS actually removes a
+    // pre-existing overload on a database that previously ran the old version of this
+    // repeatable migration. That upgrade path (old 5-arg file -> new 6-arg file -> re-running
+    // the new file again, Flyway-repeatable-style) was verified by hand against a throwaway
+    // Postgres 17 container during this change's review: exactly one overload (6 arguments)
+    // survives, with PUBLIC having no EXECUTE and all svc_* roles having it. Not automated here.
+    [Fact]
+    public async Task HasPermission_HasExactlyOneOverload_TheSixArgumentOne()
+    {
+        await using var connection = await db.Platform.OpenConnectionAsync(Ct);
+        await using var command = new NpgsqlCommand(
+            "SELECT array_agg(pg_get_function_identity_arguments(p.oid)) FROM pg_proc p " +
+            "JOIN pg_namespace n ON n.oid = p.pronamespace WHERE n.nspname = 'access' AND p.proname = 'has_permission'",
+            connection);
+        var signatures = (string[])(await command.ExecuteScalarAsync(Ct))!;
+
+        signatures.ShouldBe([
+            "p_permission text, p_legal_entity_id uuid, p_business_unit_id uuid, p_warehouse_id uuid, p_project_id uuid, p_group_id uuid",
+        ]);
+    }
+
+    private async Task<bool> HasPermissionSql(Guid userId, string sql, Guid? groupId)
+    {
+        await using var uow = db.CreateUnitOfWork(userId);
+        await uow.BeginAsync(Ct);
+        await using var command = new NpgsqlCommand(sql, uow.Connection, uow.Transaction);
+        if (groupId is { } id)
+        {
+            command.Parameters.Add(new NpgsqlParameter { Value = id });
+        }
+
+        return (bool)(await command.ExecuteScalarAsync(Ct))!;
     }
 
     [Fact]
