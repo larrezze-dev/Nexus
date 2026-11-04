@@ -300,6 +300,66 @@ public sealed class UsersApiTests : IClassFixture<PlatformApiFixture>
         (await ReadAsync(response)).GetProperty("isActive").GetBoolean().ShouldBeFalse();
     }
 
+    // --- createUser stays unscoped, oid included: these pin why that is safe -----------------
+
+    [Fact(DisplayName = "createUser: an ORG_ADMIN of LE-A can provision a new user with its oid (201; ordinary onboarding stays open)")]
+    public async Task Org_admin_can_create_a_user_with_an_oid()
+    {
+        using var userA = _fixture.CreateClientFor(Org.UserA.Oid);
+        var request = NewUser();
+
+        var response = await userA.PostAsJsonAsync(Users, request, Ct);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.Created);
+        var userId = (await ReadAsync(response)).GetProperty("id").GetGuid();
+        (await Scalar<string>("SELECT external_subject FROM org.app_user WHERE id = $1", userId)).ShouldBe(request.Oid);
+        // A new user starts with no role assignment.
+        (await Scalar<long>("SELECT count(*) FROM access.role_assignment WHERE user_id = $1", userId)).ShouldBe(0);
+    }
+
+    [Fact(DisplayName = "createUser: an ORG_ADMIN of LE-A cannot claim the GLOBAL admin's oid (409, the admin row is untouched)")]
+    public async Task Org_admin_cannot_create_a_user_with_the_global_admins_oid()
+    {
+        using var admin = _fixture.CreateClientFor(Org.Admin.Oid);
+        using var userA = _fixture.CreateClientFor(Org.UserA.Oid);
+        var etag = await ETagOfAsync(admin, Org.Admin.Id);
+        var request = NewUser() with { Oid = Org.Admin.Oid };
+
+        var response = await userA.PostAsJsonAsync(Users, request, Ct);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.Conflict);
+        (await Scalar<long>("SELECT count(*) FROM org.app_user WHERE external_subject = $1", Org.Admin.Oid)).ShouldBe(1);
+        (await Scalar<long>("SELECT count(*) FROM org.party WHERE legal_name = $1", request.FullName)).ShouldBe(0);
+        (await ETagOfAsync(admin, Org.Admin.Id)).ShouldBe(etag);
+    }
+
+    [Fact(DisplayName = "createUser: the oid of a deactivated user cannot be claimed by a new user either (409)")]
+    public async Task Oid_of_a_deactivated_user_cannot_be_claimed()
+    {
+        using var admin = _fixture.CreateClientFor(Org.Admin.Oid);
+        using var userA = _fixture.CreateClientFor(Org.UserA.Oid);
+        var user = await CreateAsync(admin, NewUser());
+        (await DeactivateAsync(admin, user.Id, user.ETag)).StatusCode.ShouldBe(HttpStatusCode.OK);
+
+        var response = await userA.PostAsJsonAsync(Users, NewUser() with { Oid = user.Request.Oid }, Ct);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.Conflict);
+    }
+
+    [Fact(DisplayName = "createUser: replaying the GLOBAL admin's id with other content is 409, never an overwrite")]
+    public async Task Create_with_the_global_admins_id_cannot_overwrite_it()
+    {
+        using var admin = _fixture.CreateClientFor(Org.Admin.Oid);
+        using var userA = _fixture.CreateClientFor(Org.UserA.Oid);
+        var etag = await ETagOfAsync(admin, Org.Admin.Id);
+
+        var response = await userA.PostAsJsonAsync(Users, NewUser() with { Id = Org.Admin.Id }, Ct);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.Conflict);
+        (await Scalar<string>("SELECT external_subject FROM org.app_user WHERE id = $1", Org.Admin.Id)).ShouldBe(Org.Admin.Oid);
+        (await ETagOfAsync(admin, Org.Admin.Id)).ShouldBe(etag);
+    }
+
     [Fact(DisplayName = "ORG-R6: the SYSTEM user is never deactivated (422 ORG-R6)")]
     public async Task Deactivate_system_user_is_rejected()
     {

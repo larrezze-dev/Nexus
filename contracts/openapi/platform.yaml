@@ -88,7 +88,14 @@ paths:
   #   (asignar, cambiar o borrar), que exige `USER:UPDATE` en alcance
   #   GLOBAL (403 si no). Es una salvaguarda contra la reasignación de
   #   identidad (el `oid` decide qué login del IdP entra como ese usuario,
-  #   ADR-0006), no una regla de alcance general del recurso.
+  #   ADR-0006), no una regla de alcance general del recurso. Igual para
+  #   deactivateUser sobre un usuario con una asignación GLOBAL activa
+  #   (si no, un admin de una sola legal entity podría dejar fuera a todos
+  #   los administradores globales). createUser, `oid` incluido, sigue sin
+  #   alcance: dar de alta a un empleado siempre fija su `oid`, y un alta
+  #   no puede quedarse con una identidad existente (`external_subject` es
+  #   UNIQUE en todas las filas, activas o no, y el usuario nuevo nace sin
+  #   asignaciones).
   # - Group, Location y Currency se quedan sin alcance POR DISEÑO, no por
   #   descuido: Group está por encima de las legal entities, Location es
   #   una ubicación física sin `legal_entity_id` y Currency es un catálogo
