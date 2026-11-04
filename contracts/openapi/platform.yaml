@@ -70,14 +70,29 @@ paths:
   #   propio inequívoco: sus operaciones sobre una fila existente
   #   (get/update/deactivate por id) comprueban además, en el handler, que
   #   el permiso del llamante cubre el alcance de la propia fila (403 si
-  #   no). Su `x-scope` no cambia.
-  # - Party, Group, Location, User y Currency se quedan sin alcance POR
-  #   DISEÑO, no por descuido: ninguno tiene un único alcance de legal
-  #   entity limpio (Party es el directorio universal interno/externo,
-  #   Group está por encima de las legal entities, Location es una
-  #   ubicación física sin `legal_entity_id`, User solo tiene un
-  #   `businessUnitId` opcional y Currency es un catálogo global). No son
-  #   el mismo tipo de hueco que los tres anteriores.
+  #   no), y sus listados (listWarehouses/listBusinessUnits/
+  #   listLegalEntities) devuelven solo las filas que pasarían esa misma
+  #   comprobación, con `total` y paginación sobre el conjunto filtrado.
+  #   La cobertura solo baja (GLOBAL ⊃ GROUP ⊃ LEGAL_ENTITY ⊃
+  #   BUSINESS_UNIT ⊃ WAREHOUSE): un permiso sobre un almacén no cubre su
+  #   business unit ni su legal entity. Su `x-scope` no cambia.
+  # - Party: sin alcance solo si no respalda ninguna LegalEntity,
+  #   BusinessUnit ni Group (las parties externas/de directorio y las
+  #   `PERSON` de un User). La party interna de una LegalEntity,
+  #   BusinessUnit o Group (ORG-R1) lleva su nombre legal, NIF y código
+  #   ERP: updateParty/deactivateParty comprueban en el handler que el
+  #   permiso del llamante cubre el alcance de esa entidad (LEGAL_ENTITY,
+  #   BUSINESS_UNIT o GROUP), igual que sus propios endpoints (403 si no).
+  # - User: sin alcance para la edición ordinaria (no tiene una legal
+  #   entity única: `businessUnitId` es opcional), SALVO cambiar `oid`
+  #   (asignar, cambiar o borrar), que exige `USER:UPDATE` en alcance
+  #   GLOBAL (403 si no). Es una salvaguarda contra la reasignación de
+  #   identidad (el `oid` decide qué login del IdP entra como ese usuario,
+  #   ADR-0006), no una regla de alcance general del recurso.
+  # - Group, Location y Currency se quedan sin alcance POR DISEÑO, no por
+  #   descuido: Group está por encima de las legal entities, Location es
+  #   una ubicación física sin `legal_entity_id` y Currency es un catálogo
+  #   global.
   # ---------------------------------------------------------------------
 
   # ---------------------------------------------------------------------
