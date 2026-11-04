@@ -61,6 +61,26 @@ security:
 
 paths:
   # ---------------------------------------------------------------------
+  # Alcance (ACC-R10) de los recursos de `org` del paso 0.4
+  # ---------------------------------------------------------------------
+  # Todas sus operaciones declaran `x-scope: none`: el filtro de permisos
+  # solo comprueba el permiso en algún alcance (la puerta gruesa de
+  # ACC-R10), y `org` no tiene RLS.
+  # - Warehouse, BusinessUnit y LegalEntity tienen un `legal_entity_id`
+  #   propio inequívoco: sus operaciones sobre una fila existente
+  #   (get/update/deactivate por id) comprueban además, en el handler, que
+  #   el permiso del llamante cubre el alcance de la propia fila (403 si
+  #   no). Su `x-scope` no cambia.
+  # - Party, Group, Location, User y Currency se quedan sin alcance POR
+  #   DISEÑO, no por descuido: ninguno tiene un único alcance de legal
+  #   entity limpio (Party es el directorio universal interno/externo,
+  #   Group está por encima de las legal entities, Location es una
+  #   ubicación física sin `legal_entity_id`, User solo tiene un
+  #   `businessUnitId` opcional y Currency es un catálogo global). No son
+  #   el mismo tipo de hueco que los tres anteriores.
+  # ---------------------------------------------------------------------
+
+  # ---------------------------------------------------------------------
   # Parties
   # ---------------------------------------------------------------------
   /v1/parties:
