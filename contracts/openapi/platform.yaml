@@ -2683,6 +2683,54 @@ paths:
         '422':
           $ref: '_shared/components.yaml#/components/responses/UnprocessableEntity'
 
+  /v1/role-assignments/{id}:
+    get:
+      operationId: getRoleAssignment
+      summary: Obtener una asignación de rol por id.
+      description: >
+        Obtener una asignación de rol por id, con su `ETag` (necesario para
+        `revokeRoleAssignment`). Como `getUserEffectiveScope`, una consulta
+        puntual por id: cualquier titular de `ROLE_ASSIGNMENT:READ` puede
+        leer cualquier fila; el filtrado por cobertura de alcance aplica al
+        listado (`listRoleAssignments`), no aquí.
+      tags: [RoleAssignments]
+      x-permission: "ROLE_ASSIGNMENT:READ"
+      x-scope: none
+      parameters:
+        - $ref: '#/components/parameters/RoleAssignmentId'
+      responses:
+        '200':
+          description: Asignación encontrada.
+          headers:
+            ETag:
+              $ref: '#/components/headers/ETag'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RoleAssignment'
+              example:
+                id: "018f1a3c-7e3b-7c5a-9c2e-6a2f8e9b0e04"
+                userId: "00000000-0000-7000-8000-0000000b0713"
+                roleId: "00000000-0000-7000-8000-0000000d0002"
+                scopeType: LEGAL_ENTITY
+                scopeEntityId: "00000000-0000-7000-8000-0000000b0302"
+                validFrom: "2026-10-30T09:00:00Z"
+                validTo: null
+                grantedBy: "00000000-0000-7000-8000-0000000b0711"
+                source: MANUAL
+                sourceRefId: null
+                revokedBy: null
+                createdAt: "2026-10-30T09:00:00Z"
+                updatedAt: "2026-10-30T09:00:00Z"
+        '400':
+          $ref: '_shared/components.yaml#/components/responses/BadRequest'
+        '401':
+          $ref: '_shared/components.yaml#/components/responses/Unauthorized'
+        '403':
+          $ref: '_shared/components.yaml#/components/responses/Forbidden'
+        '404':
+          $ref: '_shared/components.yaml#/components/responses/NotFound'
+
   /v1/role-assignments/{id}/revoke:
     post:
       operationId: revokeRoleAssignment

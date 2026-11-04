@@ -405,6 +405,44 @@ public sealed class RoleAssignmentApiTests : IClassFixture<PlatformApiFixture>
             .ShouldBe(inLeA, ignoreOrder: true);
     }
 
+    [Fact(DisplayName = "getRoleAssignment: returns the assignment with an ETag that revokeRoleAssignment accepts")]
+    public async Task Get_role_assignment_by_id_returns_it_with_its_etag()
+    {
+        using var admin = _fixture.CreateClientFor(Org.Admin.Oid);
+        var (id, createdETag) = await CreateAsync(admin, Org.UserB.Id, ViewerRoleId, "LEGAL_ENTITY", Org.LegalEntityB.Id, DateTimeOffset.UtcNow, null);
+
+        var response = await admin.GetAsync(new Uri($"/v1/role-assignments/{id}", UriKind.Relative), Ct);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
+        var etag = response.Headers.ETag!.Tag;
+        etag.ShouldBe(createdETag);
+        var body = await ReadAsync(response);
+        body.GetProperty("id").GetGuid().ShouldBe(id);
+        body.GetProperty("userId").GetGuid().ShouldBe(Org.UserB.Id);
+        body.GetProperty("scopeType").GetString().ShouldBe("LEGAL_ENTITY");
+        body.GetProperty("scopeEntityId").GetGuid().ShouldBe(Org.LegalEntityB.Id);
+        body.GetProperty("grantedBy").GetGuid().ShouldBe(Org.Admin.Id);
+        body.GetProperty("source").GetString().ShouldBe("MANUAL");
+
+        // The ETag is the real concurrency token: revoke accepts it, and a fresh GET follows the change.
+        (await RevokeAsync(admin, id, etag)).StatusCode.ShouldBe(HttpStatusCode.OK);
+        var afterRevoke = await admin.GetAsync(new Uri($"/v1/role-assignments/{id}", UriKind.Relative), Ct);
+        afterRevoke.StatusCode.ShouldBe(HttpStatusCode.OK);
+        afterRevoke.Headers.ETag!.Tag.ShouldNotBe(etag);
+        (await ReadAsync(afterRevoke)).GetProperty("revokedBy").GetGuid().ShouldBe(Org.Admin.Id);
+    }
+
+    [Fact(DisplayName = "getRoleAssignment: an unknown id is a 404")]
+    public async Task Get_role_assignment_with_unknown_id_is_not_found()
+    {
+        using var admin = _fixture.CreateClientFor(Org.Admin.Oid);
+
+        var response = await admin.GetAsync(new Uri($"/v1/role-assignments/{Guid.CreateVersion7()}", UriKind.Relative), Ct);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.NotFound);
+        response.Content.Headers.ContentType?.MediaType.ShouldBe("application/problem+json");
+    }
+
     [Fact(DisplayName = "getUserEffectiveScope: an unknown user is a 404")]
     public async Task Get_effective_scope_of_an_unknown_user_is_not_found()
     {
@@ -471,9 +509,9 @@ public sealed class RoleAssignmentApiTests : IClassFixture<PlatformApiFixture>
     /// <summary>
     /// SYSTEM_ADMIN's seeded <c>GLOBAL</c>/<c>SEED</c> role assignment that <see cref="OrgFixture"/>
     /// grants to <see cref="OrgFixture.Admin"/> (mirroring <c>db/seed/dev</c>, per its own code
-    /// comment) - the only row in this fixture matching ACC-R6's predicate. Read directly from
-    /// the database (there is no <c>GET /v1/role-assignments/{id}</c>) since both its id and its
-    /// current <c>xmin</c>-derived <c>ETag</c> are needed to call <c>revoke</c> at all.
+    /// comment) - the only row in this fixture matching ACC-R6's predicate. Its id is only
+    /// reachable from the database (no API filter singles it out), so its current
+    /// <c>xmin</c>-derived <c>ETag</c> is read there too.
     /// </summary>
     private async Task<(Guid Id, string ETag)> GetSeededAdminGlobalAssignmentAsync()
     {

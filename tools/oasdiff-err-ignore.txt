@@ -98,3 +98,11 @@ POST /v1/warehouses the endpoint no longer allows anonymous access and now only 
 GET /v1/warehouses/{id} the endpoint no longer allows anonymous access and now only accepts `bearerAuth`
 PUT /v1/warehouses/{id} the endpoint no longer allows anonymous access and now only accepts `bearerAuth`
 POST /v1/warehouses/{id}/deactivate the endpoint no longer allows anonymous access and now only accepts `bearerAuth`
+
+# --- nexus-platform: GET /v1/role-assignments/{id} (spec/access-scope-hardening) ---------
+# Same finding and root cause as the 0.4 org endpoints above, for the getRoleAssignment
+# operation this branch adds (guarded by .RequirePermission("ROLE_ASSIGNMENT", Read)).
+# Reproduced locally against the real service document. Only this endpoint is added here: the
+# other step-0.6 endpoints (roles, role-assignments, effective-scope) already fail this job on
+# main with the same and other findings, and are not addressed by this branch.
+GET /v1/role-assignments/{id} the endpoint no longer allows anonymous access and now only accepts `bearerAuth`

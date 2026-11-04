@@ -25,6 +25,9 @@ public interface IRoleAssignmentReadDb
     Task<IReadOnlyList<RoleAssignmentListItem>> ListAllAsync(
         IReadOnlyList<SortField> sort, RoleAssignmentFilter filter, CancellationToken cancellationToken);
 
+    /// <summary>One role assignment with its version (for the <c>ETag</c>), or <see langword="null"/> if it does not exist.</summary>
+    Task<RoleAssignmentDetails?> GetByIdAsync(Guid id, CancellationToken cancellationToken);
+
     /// <summary>
     /// ACC-R2: whether <paramref name="scopeEntityId"/> is a row of the table that
     /// <paramref name="scopeType"/> names (<c>GROUP</c> → <c>org."group"</c>,
