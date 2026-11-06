@@ -252,6 +252,70 @@ public sealed class UsersApiTests : IClassFixture<PlatformApiFixture>
         body.GetProperty("oid").GetString().ShouldBe(user.Request.Oid);
     }
 
+    [Theory(DisplayName = "updateUser: an ORG_ADMIN of LE-A cannot edit any field of a user holding an assignment it does not cover (403, nothing changes)")]
+    [InlineData("LEGAL_ENTITY_B")]
+    [InlineData("WAREHOUSE_B")]
+    [InlineData("GROUP")]
+    [InlineData("LE_A_AND_LE_B")]
+    [InlineData("FUTURE_LE_B")]
+    public async Task Org_admin_cannot_edit_a_user_assigned_outside_its_scope(string kind)
+    {
+        using var admin = _fixture.CreateClientFor(Org.Admin.Oid);
+        using var userA = _fixture.CreateClientFor(Org.UserA.Oid);
+        var user = await CreateAsync(admin, NewUser());
+        await GrantOutsideLeAAsync(admin, user.Id, kind);
+        var update = ToUpdate(user.Request) with
+        {
+            FullName = "Relabelled " + Guid.NewGuid().ToString("N"),
+            Email = $"relabelled.{Guid.NewGuid():N}@test.nexus.local",
+            BusinessUnitId = Org.BusinessUnitA.Id,
+        };
+
+        var response = await PutAsync(userA, user.Id, user.ETag, update);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
+        (await ReadAsync(response)).GetProperty("code").GetString().ShouldBe("FORBIDDEN");
+        (await Scalar<string>("SELECT legal_name FROM org.party WHERE id = $1", user.PartyId)).ShouldBe(user.Request.FullName);
+        (await Scalar<string>("SELECT email FROM org.app_user WHERE id = $1", user.Id)).ShouldBe(user.Request.Email);
+        (await OutboxAsync(user.Id)).Select(e => e.EventType).ShouldBe(["org.user.created"]);
+
+        // A GLOBAL admin covers every case.
+        (await PutAsync(admin, user.Id, user.ETag, update)).StatusCode.ShouldBe(HttpStatusCode.OK);
+    }
+
+    [Fact(DisplayName = "updateUser: an ORG_ADMIN of LE-A can edit a user whose assignments are all inside LE-A (200)")]
+    public async Task Org_admin_can_edit_a_user_assigned_inside_its_scope()
+    {
+        using var admin = _fixture.CreateClientFor(Org.Admin.Oid);
+        using var userA = _fixture.CreateClientFor(Org.UserA.Oid);
+        var user = await CreateAsync(admin, NewUser());
+        await GrantAsync(admin, user.Id, OrgAdminRoleId, "LEGAL_ENTITY", Org.LegalEntityA.Id);
+        await GrantAsync(admin, user.Id, OrgAdminRoleId, "BUSINESS_UNIT", Org.BusinessUnitA.Id);
+        var update = ToUpdate(user.Request) with { FullName = user.Request.FullName + " Renamed" };
+
+        var response = await PutAsync(userA, user.Id, user.ETag, update);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
+        (await ReadAsync(response)).GetProperty("fullName").GetString().ShouldBe(update.FullName);
+    }
+
+    [Fact(DisplayName = "updateUser: covering the user's scopes is not enough to change its oid (GLOBAL still required: 403)")]
+    public async Task Covering_the_users_scopes_does_not_allow_an_oid_change()
+    {
+        // Why the oid check is kept next to the scope check: an LE-A ORG_ADMIN covers an LE-A
+        // user's scope, but not necessarily its roles; remapping the oid would hand over
+        // whatever that user holds or is granted later, not just what the caller could grant.
+        using var admin = _fixture.CreateClientFor(Org.Admin.Oid);
+        using var userA = _fixture.CreateClientFor(Org.UserA.Oid);
+        var user = await CreateAsync(admin, NewUser());
+        await GrantAsync(admin, user.Id, OrgAdminRoleId, "LEGAL_ENTITY", Org.LegalEntityA.Id);
+
+        var response = await PutAsync(userA, user.Id, user.ETag, ToUpdate(user.Request) with { Oid = "attacker-" + Guid.NewGuid().ToString("N") });
+
+        response.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
+        (await Scalar<string>("SELECT external_subject FROM org.app_user WHERE id = $1", user.Id)).ShouldBe(user.Request.Oid);
+    }
+
     [Fact(DisplayName = "deactivateUser: an ORG_ADMIN of LE-A cannot deactivate the GLOBAL admin (403, still active and able to sign in)")]
     public async Task Org_admin_cannot_deactivate_the_global_admin()
     {
