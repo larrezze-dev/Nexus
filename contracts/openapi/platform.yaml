@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: NEXUS Platform API
-  version: "0.6.0"
+  version: "0.6.1"
   description: >
     Servicio `nexus-platform`: estructura organizativa (`org`) de NEXUS —
     directorio de Parties, Groups, Legal Entities, Business Units,
@@ -83,19 +83,21 @@ paths:
   #   ERP: updateParty/deactivateParty comprueban en el handler que el
   #   permiso del llamante cubre el alcance de esa entidad (LEGAL_ENTITY,
   #   BUSINESS_UNIT o GROUP), igual que sus propios endpoints (403 si no).
-  # - User: sin alcance para la edición ordinaria (no tiene una legal
-  #   entity única: `businessUnitId` es opcional), SALVO cambiar `oid`
-  #   (asignar, cambiar o borrar), que exige `USER:UPDATE` en alcance
-  #   GLOBAL (403 si no). Es una salvaguarda contra la reasignación de
-  #   identidad (el `oid` decide qué login del IdP entra como ese usuario,
-  #   ADR-0006), no una regla de alcance general del recurso. Igual para
-  #   deactivateUser sobre un usuario con una asignación GLOBAL activa
-  #   (si no, un admin de una sola legal entity podría dejar fuera a todos
-  #   los administradores globales). createUser, `oid` incluido, sigue sin
-  #   alcance: dar de alta a un empleado siempre fija su `oid`, y un alta
-  #   no puede quedarse con una identidad existente (`external_subject` es
-  #   UNIQUE en todas las filas, activas o no, y el usuario nuevo nace sin
-  #   asignaciones).
+  # - User: no tiene una legal entity única (`businessUnitId` es
+  #   opcional), así que un usuario SIN asignaciones de rol se edita y
+  #   desactiva sin alcance. Si el usuario tiene asignaciones de rol no
+  #   terminadas (vigentes o con inicio futuro), updateUser (cualquier
+  #   campo) y deactivateUser exigen que el `USER:UPDATE` del llamante
+  #   cubra el alcance de CADA una (403 si no): un admin de una legal
+  #   entity no puede renombrar ni dejar fuera al admin de otra, ni a un
+  #   administrador global. Además, cambiar `oid` (asignar, cambiar o
+  #   borrar) exige siempre `USER:UPDATE` en alcance GLOBAL: el `oid`
+  #   decide qué login del IdP entra como ese usuario (ADR-0006), y cubrir
+  #   el alcance de un usuario no es cubrir sus roles. createUser, `oid`
+  #   incluido, sigue sin alcance: dar de alta a un empleado siempre fija
+  #   su `oid`, y un alta no puede quedarse con una identidad existente
+  #   (`external_subject` es UNIQUE en todas las filas, activas o no, y el
+  #   usuario nuevo nace sin asignaciones).
   # - Group, Location y Currency se quedan sin alcance POR DISEÑO, no por
   #   descuido: Group está por encima de las legal entities, Location es
   #   una ubicación física sin `legal_entity_id` y Currency es un catálogo
