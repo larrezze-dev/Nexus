@@ -1,5 +1,6 @@
 using FluentValidation;
 using Nexus.BuildingBlocks.Application;
+using Nexus.BuildingBlocks.Application.Validation;
 using Nexus.BuildingBlocks.Domain;
 using Nexus.Platform.Domain.RoleAssignments;
 
@@ -30,13 +31,6 @@ public sealed record CreateRoleAssignmentResult(RoleAssignmentDetails Assignment
 
 internal sealed class CreateRoleAssignmentValidator : AbstractValidator<CreateRoleAssignmentCommand>
 {
-    private static readonly IReadOnlySet<string> AllowedScopeTypes = new HashSet<string>(
-        [
-            RoleAssignment.ScopeGroup, RoleAssignment.ScopeLegalEntity, RoleAssignment.ScopeBusinessUnit,
-            RoleAssignment.ScopeWarehouse, RoleAssignment.ScopeProject, RoleAssignment.ScopeGlobal,
-        ],
-        StringComparer.Ordinal);
-
     public CreateRoleAssignmentValidator()
     {
         RuleFor(c => c.Id)
@@ -44,7 +38,12 @@ internal sealed class CreateRoleAssignmentValidator : AbstractValidator<CreateRo
             .WithMessage("'id' must be a UUIDv7 (ADR-0009).");
         RuleFor(c => c.UserId).Must(id => id != Guid.Empty).WithMessage("'userId' must not be an empty UUID.");
         RuleFor(c => c.RoleId).Must(id => id != Guid.Empty).WithMessage("'roleId' must not be an empty UUID.");
-        RuleFor(c => c.ScopeType).Must(AllowedScopeTypes.Contains).WithMessage("'scopeType' is not a recognized scope type.");
+        // MustBeOneOf, not an opaque .Must(...), so the generated OpenAPI document carries the
+        // same `enum` the contract declares (ADR-0014).
+        RuleFor(c => c.ScopeType)
+            .NotNull()
+            .MustBeOneOf(RoleAssignment.ScopeTypes)
+            .WithMessage("'scopeType' is not a recognized scope type.");
         RuleFor(c => c.ScopeEntityId).Must(id => id is null || id != Guid.Empty).WithMessage("'scopeEntityId' must not be an empty UUID.");
         RuleFor(c => c)
             .Must(c => c.ValidTo is null || c.ValidTo > c.ValidFrom)

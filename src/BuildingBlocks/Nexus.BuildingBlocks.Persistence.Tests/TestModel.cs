@@ -32,7 +32,7 @@ public sealed class Widget : AggregateRoot<Guid>
 
     /// <summary>Raises an event whose payload violates the schema (null in a non-nullable string).</summary>
     public void RenameWithInvalidPayload() =>
-        RaiseEvent(new WidgetRenamed(Id, null!, DateTimeOffset.UtcNow, 1m, new Dictionary<string, string>(), null));
+        RaiseEvent(new WidgetRenamed(Id, null!, RoundedSystemTimeProvider.Instance.GetUtcNow(), 1m, new Dictionary<string, string>(), null));
 }
 
 public sealed record WidgetRenamed(
@@ -107,7 +107,7 @@ public sealed class TestCurrentUser(Guid? userId, bool isAuthenticated = true) :
 
 public sealed class TestIdGenerator : IIdGenerator
 {
-    public Guid NewId() => Guid.CreateVersion7(TimeProvider.System.GetUtcNow());
+    public Guid NewId() => Guid.CreateVersion7(RoundedSystemTimeProvider.Instance.GetUtcNow());
 }
 
 /// <summary>Writes the outbox rows through the real writer, then fails before COMMIT.</summary>

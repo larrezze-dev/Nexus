@@ -2,6 +2,7 @@ using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text.Json;
+using Nexus.BuildingBlocks.Application;
 using Nexus.BuildingBlocks.Testing;
 using Shouldly;
 
@@ -41,7 +42,7 @@ public sealed class RoleAssignmentApiTests : IClassFixture<PlatformApiFixture>
             RoleId: ViewerRoleId,
             ScopeType: "LEGAL_ENTITY",
             ScopeEntityId: Org.LegalEntityB.Id,
-            ValidFrom: DateTimeOffset.UtcNow,
+            ValidFrom: RoundedSystemTimeProvider.Instance.GetUtcNow(),
             ValidTo: null);
 
         var createResponse = await admin.PostAsJsonAsync(RoleAssignments, createRequest, Ct);
@@ -82,7 +83,7 @@ public sealed class RoleAssignmentApiTests : IClassFixture<PlatformApiFixture>
             RoleId: ViewerRoleId,
             ScopeType: "GLOBAL",
             ScopeEntityId: Guid.CreateVersion7(),
-            ValidFrom: DateTimeOffset.UtcNow,
+            ValidFrom: RoundedSystemTimeProvider.Instance.GetUtcNow(),
             ValidTo: null);
 
         var response = await admin.PostAsJsonAsync(RoleAssignments, request, Ct);
@@ -102,13 +103,24 @@ public sealed class RoleAssignmentApiTests : IClassFixture<PlatformApiFixture>
             RoleId: ViewerRoleId,
             ScopeType: "PROJECT",
             ScopeEntityId: Guid.CreateVersion7(),
-            ValidFrom: DateTimeOffset.UtcNow,
+            ValidFrom: RoundedSystemTimeProvider.Instance.GetUtcNow(),
             ValidTo: null);
 
         var response = await admin.PostAsJsonAsync(RoleAssignments, request, Ct);
 
         response.StatusCode.ShouldBe((HttpStatusCode)422);
         (await ReadAsync(response)).GetProperty("code").GetString().ShouldBe("ACC-R2");
+    }
+
+    [Fact(DisplayName = "An unknown scopeType filter is a 400 VALIDATION on list (contract enum)")]
+    public async Task List_with_unknown_scope_type_is_a_validation_error()
+    {
+        using var admin = _fixture.CreateClientFor(Org.Admin.Oid);
+
+        var response = await admin.GetAsync(new Uri("/v1/role-assignments?scopeType=COUNTRY", UriKind.Relative), Ct);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
+        (await ReadAsync(response)).GetProperty("code").GetString().ShouldBe("VALIDATION");
     }
 
     [Fact(DisplayName = "ACC-R5: a user cannot grant a role assignment to themselves")]
@@ -122,7 +134,7 @@ public sealed class RoleAssignmentApiTests : IClassFixture<PlatformApiFixture>
             RoleId: ViewerRoleId,
             ScopeType: "GLOBAL",
             ScopeEntityId: null,
-            ValidFrom: DateTimeOffset.UtcNow,
+            ValidFrom: RoundedSystemTimeProvider.Instance.GetUtcNow(),
             ValidTo: null);
 
         var response = await admin.PostAsJsonAsync(RoleAssignments, request, Ct);
@@ -151,7 +163,7 @@ public sealed class RoleAssignmentApiTests : IClassFixture<PlatformApiFixture>
         using var admin = _fixture.CreateClientFor(Org.Admin.Oid);
         var systemAdminRoleId = await _fixture.Database.ScalarAsync<Guid>("SELECT id FROM access.role WHERE code = 'SYSTEM_ADMIN'");
         var (secondAdminGrantId, secondAdminGrantETag) = await CreateAsync(
-            admin, Org.UserB.Id, systemAdminRoleId, "GLOBAL", null, DateTimeOffset.UtcNow, null);
+            admin, Org.UserB.Id, systemAdminRoleId, "GLOBAL", null, RoundedSystemTimeProvider.Instance.GetUtcNow(), null);
 
         try
         {
@@ -188,7 +200,7 @@ public sealed class RoleAssignmentApiTests : IClassFixture<PlatformApiFixture>
     {
         using var admin = _fixture.CreateClientFor(Org.Admin.Oid);
         var systemAdminRoleId = await _fixture.Database.ScalarAsync<Guid>("SELECT id FROM access.role WHERE code = 'SYSTEM_ADMIN'");
-        var (grantId, grantETag) = await CreateAsync(admin, Org.WhA.Id, systemAdminRoleId, "GLOBAL", null, DateTimeOffset.UtcNow, null);
+        var (grantId, grantETag) = await CreateAsync(admin, Org.WhA.Id, systemAdminRoleId, "GLOBAL", null, RoundedSystemTimeProvider.Instance.GetUtcNow(), null);
 
         try
         {
@@ -215,7 +227,7 @@ public sealed class RoleAssignmentApiTests : IClassFixture<PlatformApiFixture>
             "BUSINESS_UNIT" => Org.BusinessUnitA.Id,
             _ => Org.WarehouseA,
         };
-        var (id, etag) = await CreateAsync(admin, Org.UserB.Id, ViewerRoleId, scopeType, scopeEntityId, DateTimeOffset.UtcNow, null);
+        var (id, etag) = await CreateAsync(admin, Org.UserB.Id, ViewerRoleId, scopeType, scopeEntityId, RoundedSystemTimeProvider.Instance.GetUtcNow(), null);
 
         using var userA = _fixture.CreateClientFor(Org.UserA.Oid);
         var response = await RevokeAsync(userA, id, etag);
@@ -228,7 +240,7 @@ public sealed class RoleAssignmentApiTests : IClassFixture<PlatformApiFixture>
     public async Task Revoke_by_global_admin_covers_every_scope()
     {
         using var admin = _fixture.CreateClientFor(Org.Admin.Oid);
-        var (id, etag) = await CreateAsync(admin, Org.UserA.Id, ViewerRoleId, "WAREHOUSE", Org.WarehouseB, DateTimeOffset.UtcNow, null);
+        var (id, etag) = await CreateAsync(admin, Org.UserA.Id, ViewerRoleId, "WAREHOUSE", Org.WarehouseB, RoundedSystemTimeProvider.Instance.GetUtcNow(), null);
 
         var response = await RevokeAsync(admin, id, etag);
 
@@ -239,17 +251,17 @@ public sealed class RoleAssignmentApiTests : IClassFixture<PlatformApiFixture>
     public async Task Revoke_active_assignment_with_future_valid_to_revokes_it()
     {
         using var admin = _fixture.CreateClientFor(Org.Admin.Oid);
-        var futureValidTo = DateTimeOffset.UtcNow.AddYears(1);
+        var futureValidTo = RoundedSystemTimeProvider.Instance.GetUtcNow().AddYears(1);
         var (id, etag) = await CreateAsync(
-            admin, Org.UserB.Id, ViewerRoleId, "LEGAL_ENTITY", Org.LegalEntityB.Id, DateTimeOffset.UtcNow, futureValidTo);
+            admin, Org.UserB.Id, ViewerRoleId, "LEGAL_ENTITY", Org.LegalEntityB.Id, RoundedSystemTimeProvider.Instance.GetUtcNow(), futureValidTo);
 
-        var before = DateTimeOffset.UtcNow;
+        var before = RoundedSystemTimeProvider.Instance.GetUtcNow();
         var response = await RevokeAsync(admin, id, etag);
 
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
         var body = await ReadAsync(response);
         var validTo = body.GetProperty("validTo").GetDateTimeOffset();
-        validTo.ShouldBeInRange(before.AddMinutes(-1), DateTimeOffset.UtcNow.AddMinutes(1));
+        validTo.ShouldBeInRange(before.AddMinutes(-1), RoundedSystemTimeProvider.Instance.GetUtcNow().AddMinutes(1));
         body.GetProperty("revokedBy").GetGuid().ShouldBe(Org.Admin.Id);
 
         var persisted = await _fixture.Database.ScalarAsync<DateTime>(
@@ -264,7 +276,7 @@ public sealed class RoleAssignmentApiTests : IClassFixture<PlatformApiFixture>
 
         var response = await admin.PostAsJsonAsync(
             RoleAssignments,
-            new CreateRoleAssignment(Guid.CreateVersion7(), Org.UserB.Id, ViewerRoleId, "WAREHOUSE", Org.WarehouseB, DateTimeOffset.UtcNow, null),
+            new CreateRoleAssignment(Guid.CreateVersion7(), Org.UserB.Id, ViewerRoleId, "WAREHOUSE", Org.WarehouseB, RoundedSystemTimeProvider.Instance.GetUtcNow(), null),
             Ct);
 
         response.StatusCode.ShouldBe(HttpStatusCode.Created);
@@ -287,7 +299,7 @@ public sealed class RoleAssignmentApiTests : IClassFixture<PlatformApiFixture>
 
         var response = await admin.PostAsJsonAsync(
             RoleAssignments,
-            new CreateRoleAssignment(Guid.CreateVersion7(), Org.UserB.Id, ViewerRoleId, scopeType, scopeEntityId, DateTimeOffset.UtcNow, null),
+            new CreateRoleAssignment(Guid.CreateVersion7(), Org.UserB.Id, ViewerRoleId, scopeType, scopeEntityId, RoundedSystemTimeProvider.Instance.GetUtcNow(), null),
             Ct);
 
         response.StatusCode.ShouldBe((HttpStatusCode)422);

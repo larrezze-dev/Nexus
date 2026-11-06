@@ -22,9 +22,12 @@ public static class ServiceCollectionExtensions
 
         services.AddScoped<IDispatcher, Dispatcher>();
 
-        // TimeProvider.System is the sane default for a host that has not registered its own
-        // (e.g. a FakeTimeProvider in tests); TryAdd so an existing registration always wins.
-        services.TryAddSingleton(TimeProvider.System);
+        // Default clock for a host that has not registered its own: the system clock truncated to
+        // whole microseconds, because event instants are Avro timestamp-micros and
+        // AvroPayloadSerializer rejects (never rounds) anything finer, which the raw Linux clock
+        // produces ~90% of the time (see RoundedSystemTimeProvider). TryAdd so an existing
+        // registration (e.g. a FakeTimeProvider in tests) always wins.
+        services.TryAddSingleton(RoundedSystemTimeProvider.Instance);
         services.TryAddSingleton<IIdGenerator, UuidV7IdGenerator>();
 
         foreach (var assembly in assemblies)

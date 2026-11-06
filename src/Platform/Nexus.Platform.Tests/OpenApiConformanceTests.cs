@@ -79,6 +79,17 @@ public sealed class OpenApiConformanceTests : IClassFixture<WebAppFixture<Progra
             .GetProperty("enum").EnumerateArray().Select(e => e.GetString())
             .ShouldBe(["de", "en", "fr", "it", "es"], ignoreOrder: true);
 
+        // CreateRoleAssignmentValidator / GetRoleAssignmentsValidator: MustBeOneOf(RoleAssignment.ScopeTypes).
+        string[] scopeTypes = ["GROUP", "LEGAL_ENTITY", "BUSINESS_UNIT", "WAREHOUSE", "PROJECT", "GLOBAL"];
+        schemas.GetProperty("CreateRoleAssignmentRequest").GetProperty("properties").GetProperty("scopeType")
+            .GetProperty("enum").EnumerateArray().Select(e => e.GetString())
+            .ShouldBe(scopeTypes, ignoreOrder: true);
+        root.GetProperty("paths").GetProperty("/v1/role-assignments").GetProperty("get")
+            .GetProperty("parameters").EnumerateArray()
+            .Single(p => p.GetProperty("name").GetString() == "scopeType")
+            .GetProperty("schema").GetProperty("enum").EnumerateArray().Select(e => e.GetString())
+            .ShouldBe(scopeTypes, ignoreOrder: true);
+
         // Response-only number: written as a JSON number, not [integer, string].
         schemas.GetProperty("CurrencyResponse").GetProperty("properties").GetProperty("minorUnits")
             .GetProperty("type").GetString().ShouldBe("integer");

@@ -28,6 +28,10 @@ public sealed class RoleAssignment : AggregateRoot<Guid>
     public const string ScopeProject = "PROJECT";
     public const string ScopeGlobal = "GLOBAL";
 
+    /// <summary>Every scope type above, in the contract's <c>enum</c> order.</summary>
+    public static readonly IReadOnlyList<string> ScopeTypes =
+        [ScopeGroup, ScopeLegalEntity, ScopeBusinessUnit, ScopeWarehouse, ScopeProject, ScopeGlobal];
+
     /// <summary>The <c>source</c> values the DDL's <c>CHECK</c> allows.</summary>
     public const string SourceManual = "MANUAL";
     public const string SourceResourceAssignment = "RESOURCE_ASSIGNMENT";
