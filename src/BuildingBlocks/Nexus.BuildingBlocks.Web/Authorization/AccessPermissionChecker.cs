@@ -37,7 +37,7 @@ internal sealed class AccessPermissionChecker : IPermissionChecker, IRoleAssignm
     internal const string ScopeRoleAssignmentBody = "body.scopeEntityId";
 
     private const string HasPermissionSql =
-        "SELECT access.has_permission(@permission, @legalEntityId::uuid, @businessUnitId::uuid, @warehouseId::uuid, @projectId::uuid)";
+        "SELECT access.has_permission(@permission, @legalEntityId::uuid, @businessUnitId::uuid, @warehouseId::uuid, @projectId::uuid, @groupId::uuid)";
 
     private readonly IUnitOfWork _unitOfWork;
 
@@ -109,6 +109,7 @@ internal sealed class AccessPermissionChecker : IPermissionChecker, IRoleAssignm
                     businessUnitId = t.BusinessUnitId,
                     warehouseId = t.WarehouseId,
                     projectId = t.ProjectId,
+                    groupId = t.GroupId,
                 },
                 _unitOfWork.Transaction,
                 cancellationToken: cancellationToken));
