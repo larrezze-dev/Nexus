@@ -60,6 +60,29 @@ public sealed class RoleAssignmentValidatorTests
         result.Errors.ShouldContain(e => e.PropertyName == nameof(GetRoleAssignmentsQuery.ScopeType));
     }
 
+    [Fact]
+    public void Create_rejects_sub_microsecond_valid_from_and_valid_to()
+    {
+        var sevenDigits = RoundedSystemTimeProvider.Instance.GetUtcNow().AddTicks(1);
+        var command = Create("GLOBAL") with { ValidFrom = sevenDigits, ValidTo = sevenDigits.AddDays(1) };
+
+        var result = new CreateRoleAssignmentValidator().Validate(command);
+
+        result.Errors.Select(e => e.PropertyName).ShouldBe(
+            [nameof(CreateRoleAssignmentCommand.ValidFrom), nameof(CreateRoleAssignmentCommand.ValidTo)],
+            ignoreOrder: true);
+        result.Errors.ShouldContain(e => e.ErrorMessage.StartsWith("'validFrom' must not be more precise than one microsecond", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void Create_accepts_microsecond_valid_from_and_valid_to()
+    {
+        var sixDigits = RoundedSystemTimeProvider.Instance.GetUtcNow();
+        var command = Create("GLOBAL") with { ValidFrom = sixDigits, ValidTo = sixDigits.AddDays(1) };
+
+        new CreateRoleAssignmentValidator().Validate(command).IsValid.ShouldBeTrue();
+    }
+
     private static CreateRoleAssignmentCommand Create(string scopeType) => new(
         Guid.CreateVersion7(),
         Guid.CreateVersion7(),

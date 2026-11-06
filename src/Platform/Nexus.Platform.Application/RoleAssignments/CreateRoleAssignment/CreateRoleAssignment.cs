@@ -45,6 +45,11 @@ internal sealed class CreateRoleAssignmentValidator : AbstractValidator<CreateRo
             .MustBeOneOf(RoleAssignment.ScopeTypes)
             .WithMessage("'scopeType' is not a recognized scope type.");
         RuleFor(c => c.ScopeEntityId).Must(id => id is null || id != Guid.Empty).WithMessage("'scopeEntityId' must not be an empty UUID.");
+        // ADR-0016: both instants end up in platform.role-assignment.changed (Avro
+        // timestamp-micros); a finer value would fail the outbox write (500), and PostgreSQL's
+        // rounding would make the stored value differ from the event and break the replay check.
+        RuleFor(c => c.ValidFrom).MustBeMicrosecondPrecision().WithName("validFrom");
+        RuleFor(c => c.ValidTo).MustBeMicrosecondPrecision().WithName("validTo");
         RuleFor(c => c)
             .Must(c => c.ValidTo is null || c.ValidTo > c.ValidFrom)
             .WithMessage("'validTo' must be after 'validFrom'.")
