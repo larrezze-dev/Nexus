@@ -327,6 +327,54 @@ public sealed class RoleAssignmentApiTests : IClassFixture<PlatformApiFixture>
         (await ReadAsync(response)).GetProperty("code").GetString().ShouldBe("ROLE_ASSIGNMENT_VALID_TO_IN_PAST");
     }
 
+    [Fact(DisplayName = "ADR-0016: a validFrom with 7 fractional digits is a 400 naming validFrom, and nothing reaches the outbox")]
+    public async Task Create_with_sub_microsecond_valid_from_is_a_validation_error()
+    {
+        using var admin = _fixture.CreateClientFor(Org.Admin.Oid);
+        var subjectId = await CreateUserAsync(admin);
+        var id = Guid.CreateVersion7();
+
+        // Raw JSON string, so the 7th digit is exactly what the client sends (ISO-8601 allows it).
+        var response = await admin.PostAsJsonAsync(
+            RoleAssignments,
+            new { id, userId = subjectId, roleId = ViewerRoleId, scopeType = "LEGAL_ENTITY", scopeEntityId = Org.LegalEntityA.Id, validFrom = "2026-01-01T00:00:00.1234567Z" },
+            Ct);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
+        var problem = await ReadAsync(response);
+        problem.GetProperty("code").GetString().ShouldBe("VALIDATION");
+        problem.GetProperty("detail").GetString()!.ShouldContain("'validFrom' must not be more precise than one microsecond");
+        (await _fixture.Database.ScalarAsync<long>("SELECT count(*) FROM outbox.message WHERE aggregate_id = $1", id)).ShouldBe(0);
+        (await _fixture.Database.ScalarAsync<long>("SELECT count(*) FROM access.role_assignment WHERE id = $1", id)).ShouldBe(0);
+    }
+
+    [Fact(DisplayName = "ADR-0016: a validFrom with 6 fractional digits is a 201, and the response, the row and the role-assignment.changed event all carry exactly that instant")]
+    public async Task Create_with_microsecond_valid_from_keeps_it_exactly()
+    {
+        using var admin = _fixture.CreateClientFor(Org.Admin.Oid);
+        var subjectId = await CreateUserAsync(admin);
+        var id = Guid.CreateVersion7();
+        var validFrom = new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero).AddTicks(1_234_560); // .123456
+
+        var response = await admin.PostAsJsonAsync(
+            RoleAssignments,
+            new { id, userId = subjectId, roleId = ViewerRoleId, scopeType = "LEGAL_ENTITY", scopeEntityId = Org.LegalEntityA.Id, validFrom = "2026-01-01T00:00:00.123456Z" },
+            Ct);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.Created);
+        (await ReadAsync(response)).GetProperty("validFrom").GetDateTimeOffset().ShouldBe(validFrom);
+
+        var stored = await _fixture.Database.ScalarAsync<DateTime>("SELECT valid_from FROM access.role_assignment WHERE id = $1", id);
+        new DateTimeOffset(stored, TimeSpan.Zero).ShouldBe(validFrom);
+
+        // Avro JSON encoding of timestamp-micros: a bare long, microseconds since the Unix epoch.
+        var payload = await _fixture.Database.ScalarAsync<string>(
+            "SELECT payload::text FROM outbox.message WHERE aggregate_id = $1 AND event_type = 'platform.role-assignment.changed'", id);
+        using var document = JsonDocument.Parse(payload!);
+        var expectedMicros = (validFrom.UtcTicks - DateTimeOffset.UnixEpoch.UtcTicks) / TimeSpan.TicksPerMicrosecond;
+        document.RootElement.GetProperty("validFrom").GetInt64().ShouldBe(expectedMicros);
+    }
+
     [Fact(DisplayName = "The valid_to >= created_at CHECK has the name RoleAssignmentErrors maps")]
     public async Task Valid_to_check_constraint_name_is_pinned()
     {
