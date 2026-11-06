@@ -1,6 +1,7 @@
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
+using Nexus.BuildingBlocks.Application;
 using Nexus.BuildingBlocks.Testing;
 using Shouldly;
 
@@ -182,7 +183,7 @@ public sealed class LegalEntityApiTests : IClassFixture<PlatformApiFixture>
         {
             var grant = await admin.PostAsJsonAsync(
                 new Uri("/v1/role-assignments", UriKind.Relative),
-                new { userId, roleId = OrgAdminRoleId, scopeType = "LEGAL_ENTITY", scopeEntityId = legalEntityId, validFrom = DateTimeOffset.UtcNow.AddMinutes(-1) /* backdated: PostgreSQL now() may lag the host clock */ },
+                new { userId, roleId = OrgAdminRoleId, scopeType = "LEGAL_ENTITY", scopeEntityId = legalEntityId, validFrom = RoundedSystemTimeProvider.Instance.GetUtcNow().AddMinutes(-1) /* backdated: PostgreSQL now() may lag the host clock */ },
                 Ct);
             grant.StatusCode.ShouldBe(HttpStatusCode.Created);
         }

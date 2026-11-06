@@ -1,6 +1,7 @@
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
+using Nexus.BuildingBlocks.Application;
 using Nexus.BuildingBlocks.Testing;
 using Shouldly;
 
@@ -737,7 +738,7 @@ public sealed class UsersApiTests : IClassFixture<PlatformApiFixture>
     {
         var grant = await admin.PostAsJsonAsync(
             new Uri("/v1/role-assignments", UriKind.Relative),
-            new { userId, roleId, scopeType, scopeEntityId, validFrom = DateTimeOffset.UtcNow.AddMinutes(-1) },
+            new { userId, roleId, scopeType, scopeEntityId, validFrom = RoundedSystemTimeProvider.Instance.GetUtcNow().AddMinutes(-1) },
             Ct);
         grant.StatusCode.ShouldBe(HttpStatusCode.Created);
     }
@@ -767,7 +768,7 @@ public sealed class UsersApiTests : IClassFixture<PlatformApiFixture>
                 // Not in force yet, but not ended: still authority the user is about to have.
                 var future = await admin.PostAsJsonAsync(
                     new Uri("/v1/role-assignments", UriKind.Relative),
-                    new { userId, roleId = OrgAdminRoleId, scopeType = "LEGAL_ENTITY", scopeEntityId = Org.LegalEntityB.Id, validFrom = DateTimeOffset.UtcNow.AddDays(1) },
+                    new { userId, roleId = OrgAdminRoleId, scopeType = "LEGAL_ENTITY", scopeEntityId = Org.LegalEntityB.Id, validFrom = RoundedSystemTimeProvider.Instance.GetUtcNow().AddDays(1) },
                     Ct);
                 future.StatusCode.ShouldBe(HttpStatusCode.Created);
                 break;

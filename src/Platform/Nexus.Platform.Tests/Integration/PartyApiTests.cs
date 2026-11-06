@@ -1,6 +1,7 @@
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
+using Nexus.BuildingBlocks.Application;
 using Nexus.BuildingBlocks.Testing;
 using Shouldly;
 
@@ -133,7 +134,7 @@ public sealed class PartyApiTests : IClassFixture<PlatformApiFixture>
                 roleId = new Guid("00000000-0000-7000-8000-0000000d0002"), // ORG_ADMIN
                 scopeType = "GROUP",
                 scopeEntityId = Org.GroupId,
-                validFrom = DateTimeOffset.UtcNow.AddMinutes(-1), // PostgreSQL now() may lag the host clock
+                validFrom = RoundedSystemTimeProvider.Instance.GetUtcNow().AddMinutes(-1), // PostgreSQL now() may lag the host clock
             },
             Ct);
         grant.StatusCode.ShouldBe(HttpStatusCode.Created);

@@ -393,12 +393,12 @@ public sealed class RoleAssignmentApiTests : IClassFixture<PlatformApiFixture>
         // 2 assignments inside LE-A's subtree, 3 inside LE-B's: only the first 2 are UserA's to see.
         var inLeA = new List<Guid>
         {
-            (await CreateAsync(admin, subjectId, ViewerRoleId, "LEGAL_ENTITY", Org.LegalEntityA.Id, DateTimeOffset.UtcNow, null)).Id,
-            (await CreateAsync(admin, subjectId, ViewerRoleId, "WAREHOUSE", Org.WarehouseA, DateTimeOffset.UtcNow, null)).Id,
+            (await CreateAsync(admin, subjectId, ViewerRoleId, "LEGAL_ENTITY", Org.LegalEntityA.Id, RoundedSystemTimeProvider.Instance.GetUtcNow(), null)).Id,
+            (await CreateAsync(admin, subjectId, ViewerRoleId, "WAREHOUSE", Org.WarehouseA, RoundedSystemTimeProvider.Instance.GetUtcNow(), null)).Id,
         };
-        await CreateAsync(admin, subjectId, ViewerRoleId, "LEGAL_ENTITY", Org.LegalEntityB.Id, DateTimeOffset.UtcNow, null);
-        await CreateAsync(admin, subjectId, ViewerRoleId, "BUSINESS_UNIT", Org.BusinessUnitB.Id, DateTimeOffset.UtcNow, null);
-        await CreateAsync(admin, subjectId, ViewerRoleId, "WAREHOUSE", Org.WarehouseB, DateTimeOffset.UtcNow, null);
+        await CreateAsync(admin, subjectId, ViewerRoleId, "LEGAL_ENTITY", Org.LegalEntityB.Id, RoundedSystemTimeProvider.Instance.GetUtcNow(), null);
+        await CreateAsync(admin, subjectId, ViewerRoleId, "BUSINESS_UNIT", Org.BusinessUnitB.Id, RoundedSystemTimeProvider.Instance.GetUtcNow(), null);
+        await CreateAsync(admin, subjectId, ViewerRoleId, "WAREHOUSE", Org.WarehouseB, RoundedSystemTimeProvider.Instance.GetUtcNow(), null);
 
         (await ListAsync(admin, $"userId={subjectId}&pageSize=1")).Total.ShouldBe(5);
 
@@ -421,7 +421,7 @@ public sealed class RoleAssignmentApiTests : IClassFixture<PlatformApiFixture>
     public async Task Get_role_assignment_by_id_returns_it_with_its_etag()
     {
         using var admin = _fixture.CreateClientFor(Org.Admin.Oid);
-        var (id, createdETag) = await CreateAsync(admin, Org.UserB.Id, ViewerRoleId, "LEGAL_ENTITY", Org.LegalEntityB.Id, DateTimeOffset.UtcNow, null);
+        var (id, createdETag) = await CreateAsync(admin, Org.UserB.Id, ViewerRoleId, "LEGAL_ENTITY", Org.LegalEntityB.Id, RoundedSystemTimeProvider.Instance.GetUtcNow(), null);
 
         var response = await admin.GetAsync(new Uri($"/v1/role-assignments/{id}", UriKind.Relative), Ct);
 
