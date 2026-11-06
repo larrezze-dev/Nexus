@@ -22,12 +22,15 @@ public interface IUserReadDb
     Task<CurrentUserProfile?> GetActiveProfileAsync(Guid userId, CancellationToken cancellationToken);
 
     /// <summary>
-    /// <see langword="true"/> if <paramref name="userId"/> currently holds an active
-    /// <c>GLOBAL</c>-scoped role assignment: the same notion of "active" as
-    /// <c>access.active_assignments()</c> (active user, active role, inside
-    /// <c>valid_from</c>/<c>valid_to</c>), but for that user instead of the caller.
+    /// The distinct scopes (<c>scope_type</c>/<c>scope_entity_id</c>) of every role assignment of
+    /// <paramref name="userId"/> that has not ended yet (<c>valid_to</c> NULL or in the future):
+    /// the ones in force now <b>and</b> the ones scheduled to start later, whatever the state of
+    /// the role. Wider than <c>access.active_assignments()</c> on purpose: it feeds a
+    /// "the caller must cover this user's authority" check, and a grant starting tomorrow (or a
+    /// role reactivated tomorrow) is authority the user is about to have. Empty for a user with
+    /// no assignment (most users).
     /// </summary>
-    Task<bool> HasActiveGlobalAssignmentAsync(Guid userId, CancellationToken cancellationToken);
+    Task<IReadOnlyList<UserAssignmentScope>> ListUnendedAssignmentScopesAsync(Guid userId, CancellationToken cancellationToken);
 }
 
 /// <summary>The NEXUS part of <c>GET /v1/me</c> (the rest comes from the token). Since step 0.6,
@@ -44,6 +47,9 @@ public sealed record CurrentUserPermissionGrant(string Code, IReadOnlyList<Curre
 
 /// <summary>A scope (`access.role_assignment.scope_type`/`scope_entity_id`) granting a permission.</summary>
 public sealed record CurrentUserPermissionScope(string ScopeType, Guid? ScopeEntityId);
+
+/// <summary>A scope a user holds a role assignment in (<c>GLOBAL</c> has no entity id).</summary>
+public sealed record UserAssignmentScope(string ScopeType, Guid? ScopeEntityId);
 
 /// <summary>Sortable fields of <c>GET /v1/users</c> (API names).</summary>
 public static class UserSortFields

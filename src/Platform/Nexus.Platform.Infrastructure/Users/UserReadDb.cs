@@ -121,27 +121,34 @@ internal sealed class UserReadDb : IUserReadDb
         return new CurrentUserProfile(row.UserId, row.PartyId, row.BusinessUnitId, row.PreferredLanguage, permissions);
     }
 
-    public Task<bool> HasActiveGlobalAssignmentAsync(Guid userId, CancellationToken cancellationToken) =>
-        // Same joins and validity window as access.active_assignments(), scoped to userId.
-        _unitOfWork.Connection.ExecuteScalarAsync<bool>(Command(
+    public async Task<IReadOnlyList<UserAssignmentScope>> ListUnendedAssignmentScopesAsync(Guid userId, CancellationToken cancellationToken)
+    {
+        // Not ended yet (see IUserReadDb): no valid_from bound and no role/user state filter, so a
+        // future-dated grant or an inactive role cannot be used to slip under the check.
+        var rows = await _unitOfWork.Connection.QueryAsync<ScopeRow>(Command(
             """
-            SELECT EXISTS (
-              SELECT 1
-              FROM access.role_assignment ra
-              JOIN org.app_user u ON u.id = ra.user_id AND u.is_active
-              JOIN access.role r  ON r.id = ra.role_id AND r.is_active
-              WHERE ra.user_id = @userId
-                AND ra.scope_type = 'GLOBAL'
-                AND ra.valid_from <= now()
-                AND (ra.valid_to IS NULL OR ra.valid_to > now()))
+            SELECT DISTINCT ra.scope_type AS ScopeType, ra.scope_entity_id AS ScopeEntityId
+            FROM access.role_assignment ra
+            WHERE ra.user_id = @userId
+              AND (ra.valid_to IS NULL OR ra.valid_to > now())
             """,
             new { userId },
             cancellationToken));
+
+        return rows.Select(r => new UserAssignmentScope(r.ScopeType, r.ScopeEntityId)).ToList();
+    }
 
     private CommandDefinition Command(string sql, object? parameters, CancellationToken cancellationToken) =>
         new(sql, parameters, _unitOfWork.Transaction, cancellationToken: cancellationToken);
 
     // Dapper row types: settable properties (lenient mapping), UTC DateTime for timestamptz.
+    private sealed class ScopeRow
+    {
+        public string ScopeType { get; set; } = string.Empty;
+
+        public Guid? ScopeEntityId { get; set; }
+    }
+
     private sealed class DetailRow
     {
         public Guid Id { get; set; }

@@ -286,18 +286,69 @@ public sealed class UsersApiTests : IClassFixture<PlatformApiFixture>
         (await ReadAsync(response)).GetProperty("isActive").GetBoolean().ShouldBeFalse();
     }
 
-    [Fact(DisplayName = "deactivateUser: an ORG_ADMIN of LE-A can still deactivate an ordinary user with no GLOBAL assignment (200)")]
-    public async Task Org_admin_can_deactivate_an_ordinary_user()
+    [Fact(DisplayName = "deactivateUser: an ORG_ADMIN of LE-A can deactivate a user whose assignments are all inside LE-A (200)")]
+    public async Task Org_admin_can_deactivate_a_user_assigned_inside_its_scope()
     {
         using var admin = _fixture.CreateClientFor(Org.Admin.Oid);
         using var userA = _fixture.CreateClientFor(Org.UserA.Oid);
         var user = await CreateAsync(admin, NewUser());
         await GrantAsync(admin, user.Id, OrgAdminRoleId, "LEGAL_ENTITY", Org.LegalEntityA.Id);
+        await GrantAsync(admin, user.Id, OrgAdminRoleId, "WAREHOUSE", Org.WarehouseA);
 
         var response = await DeactivateAsync(userA, user.Id, user.ETag);
 
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
         (await ReadAsync(response)).GetProperty("isActive").GetBoolean().ShouldBeFalse();
+    }
+
+    [Fact(DisplayName = "deactivateUser: an ordinary user with no role assignment can be deactivated by any USER:UPDATE holder (LE-A and LE-B ORG_ADMINs: 200)")]
+    public async Task Any_user_update_holder_can_deactivate_a_user_without_assignments()
+    {
+        using var admin = _fixture.CreateClientFor(Org.Admin.Oid);
+        using var userA = _fixture.CreateClientFor(Org.UserA.Oid);
+        using var userB = _fixture.CreateClientFor(Org.UserB.Oid);
+        var first = await CreateAsync(admin, NewUser());
+        var second = await CreateAsync(admin, NewUser() with { BusinessUnitId = Org.BusinessUnitB.Id });
+
+        (await DeactivateAsync(userA, first.Id, first.ETag)).StatusCode.ShouldBe(HttpStatusCode.OK);
+        (await DeactivateAsync(userA, second.Id, second.ETag)).StatusCode.ShouldBe(HttpStatusCode.OK);
+        var third = await CreateAsync(admin, NewUser());
+        (await DeactivateAsync(userB, third.Id, third.ETag)).StatusCode.ShouldBe(HttpStatusCode.OK);
+    }
+
+    [Theory(DisplayName = "deactivateUser: an ORG_ADMIN of LE-A cannot deactivate a user holding an assignment it does not cover (403, still active)")]
+    [InlineData("LEGAL_ENTITY_B")]
+    [InlineData("WAREHOUSE_B")]
+    [InlineData("GROUP")]
+    [InlineData("LE_A_AND_LE_B")]
+    [InlineData("FUTURE_LE_B")]
+    public async Task Org_admin_cannot_deactivate_a_user_assigned_outside_its_scope(string kind)
+    {
+        using var admin = _fixture.CreateClientFor(Org.Admin.Oid);
+        using var userA = _fixture.CreateClientFor(Org.UserA.Oid);
+        var user = await CreateAsync(admin, NewUser());
+        await GrantOutsideLeAAsync(admin, user.Id, kind);
+
+        var response = await DeactivateAsync(userA, user.Id, user.ETag);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
+        (await ReadAsync(response)).GetProperty("code").GetString().ShouldBe("FORBIDDEN");
+        (await Scalar<bool>("SELECT is_active FROM org.app_user WHERE id = $1", user.Id)).ShouldBeTrue();
+
+        // The LE-B ORG_ADMIN covers the LE-B-only cases; the GLOBAL admin covers all of them.
+        var byGlobal = await DeactivateAsync(admin, user.Id, user.ETag);
+        byGlobal.StatusCode.ShouldBe(HttpStatusCode.OK);
+    }
+
+    [Fact(DisplayName = "deactivateUser: the LE-B ORG_ADMIN can deactivate a user assigned at LE-B (200)")]
+    public async Task Le_b_admin_can_deactivate_a_user_assigned_at_le_b()
+    {
+        using var admin = _fixture.CreateClientFor(Org.Admin.Oid);
+        using var userB = _fixture.CreateClientFor(Org.UserB.Oid);
+        var user = await CreateAsync(admin, NewUser());
+        await GrantAsync(admin, user.Id, OrgAdminRoleId, "LEGAL_ENTITY", Org.LegalEntityB.Id);
+
+        (await DeactivateAsync(userB, user.Id, user.ETag)).StatusCode.ShouldBe(HttpStatusCode.OK);
     }
 
     // --- createUser stays unscoped, oid included: these pin why that is safe -----------------
@@ -625,6 +676,40 @@ public sealed class UsersApiTests : IClassFixture<PlatformApiFixture>
             new { userId, roleId, scopeType, scopeEntityId, validFrom = DateTimeOffset.UtcNow.AddMinutes(-1) },
             Ct);
         grant.StatusCode.ShouldBe(HttpStatusCode.Created);
+    }
+
+    /// <summary>
+    /// Grants <paramref name="userId"/> an assignment that an ORG_ADMIN of LE-A does not cover
+    /// (or, for LE_A_AND_LE_B, one it covers plus one it does not).
+    /// </summary>
+    private async Task GrantOutsideLeAAsync(HttpClient admin, Guid userId, string kind)
+    {
+        switch (kind)
+        {
+            case "LEGAL_ENTITY_B":
+                await GrantAsync(admin, userId, OrgAdminRoleId, "LEGAL_ENTITY", Org.LegalEntityB.Id);
+                break;
+            case "WAREHOUSE_B":
+                await GrantAsync(admin, userId, OrgAdminRoleId, "WAREHOUSE", Org.WarehouseB);
+                break;
+            case "GROUP":
+                await GrantAsync(admin, userId, OrgAdminRoleId, "GROUP", Org.GroupId);
+                break;
+            case "LE_A_AND_LE_B":
+                await GrantAsync(admin, userId, OrgAdminRoleId, "LEGAL_ENTITY", Org.LegalEntityA.Id);
+                await GrantAsync(admin, userId, OrgAdminRoleId, "LEGAL_ENTITY", Org.LegalEntityB.Id);
+                break;
+            case "FUTURE_LE_B":
+                // Not in force yet, but not ended: still authority the user is about to have.
+                var future = await admin.PostAsJsonAsync(
+                    new Uri("/v1/role-assignments", UriKind.Relative),
+                    new { userId, roleId = OrgAdminRoleId, scopeType = "LEGAL_ENTITY", scopeEntityId = Org.LegalEntityB.Id, validFrom = DateTimeOffset.UtcNow.AddDays(1) },
+                    Ct);
+                future.StatusCode.ShouldBe(HttpStatusCode.Created);
+                break;
+            default:
+                throw new ArgumentOutOfRangeException(nameof(kind), kind, null);
+        }
     }
 
     private static UpdateUser ToUpdate(CreateUser request) =>

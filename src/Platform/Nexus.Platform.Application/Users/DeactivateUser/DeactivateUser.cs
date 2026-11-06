@@ -9,12 +9,12 @@ namespace Nexus.Platform.Application.Users.DeactivateUser;
 /// Never for SYSTEM (ORG-R6). Idempotent: an already inactive user is returned unchanged,
 /// without a new event. The person party stays active (it remains in the directory).
 /// <para>
-/// Scope: the contract declares <c>x-scope: none</c> and deactivating an ordinary user stays
-/// unscoped. Deactivating a user who currently holds an active <c>GLOBAL</c> role assignment is
-/// different: any <c>USER:UPDATE</c> holder (ORG_ADMIN/HR_ADMIN of one legal entity) could
-/// otherwise lock every global administrator out. For such a target the caller's
-/// <c>USER:UPDATE</c> must itself be held at <c>GLOBAL</c> scope (same mechanism as the
-/// <c>oid</c> change in <c>updateUser</c>), 403 otherwise.
+/// Scope: the contract declares <c>x-scope: none</c>. Deactivating a user with no role
+/// assignment stays unscoped. For a user who holds assignments, the caller's
+/// <c>USER:UPDATE</c> must cover every scope of them (<see cref="UserScopeGuard"/>), 403
+/// otherwise: deactivation is effectively irreversible (no reactivate endpoint, and the
+/// <c>oid</c> stays taken), so an admin of one legal entity must not be able to lock out the
+/// admin of another, or a global administrator.
 /// </para>
 /// </summary>
 public sealed record DeactivateUserCommand(Guid Id, UserVersion ExpectedVersion) : ICommand<UserDetails>;
@@ -55,13 +55,10 @@ internal sealed class DeactivateUserHandler : ICommandHandler<DeactivateUserComm
 
         var (user, party) = loaded.Value;
 
-        // Before any change (and before ORG-R6): a global administrator can only be deactivated
-        // by a caller whose USER:UPDATE is GLOBAL. An already inactive user has no active
-        // assignment, so the idempotent no-op below is unaffected.
-        if (await _readDb.HasActiveGlobalAssignmentAsync(user.Id, cancellationToken)
-            && !await _scopeChecker.HasPermissionCoveringAsync(UpdatePermission, "GLOBAL", null, cancellationToken))
+        // Before any change (and before ORG-R6 and the idempotent no-op).
+        if (!await UserScopeGuard.CoversEveryAssignmentScopeAsync(_readDb, _scopeChecker, UpdatePermission, user.Id, cancellationToken))
         {
-            return Result.Failure<UserDetails>(UserErrors.DeactivateGlobalUserRequiresGlobal);
+            return Result.Failure<UserDetails>(UserErrors.ScopeNotCovered);
         }
 
         var deactivated = user.Deactivate();
