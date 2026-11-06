@@ -1,3 +1,4 @@
+using Nexus.BuildingBlocks.Application;
 using Nexus.BuildingBlocks.Persistence.Outbox;
 using Npgsql;
 using Testcontainers.PostgreSql;
@@ -98,7 +99,7 @@ public sealed class PersistenceDatabaseFixture : IAsyncLifetime
         Guid? causationId = null,
         Func<IOutboxWriter, IOutboxWriter>? decorateWriter = null)
     {
-        IOutboxWriter writer = new OutboxWriter(SchemaProvider, new TestIdGenerator(), TimeProvider.System);
+        IOutboxWriter writer = new OutboxWriter(SchemaProvider, new TestIdGenerator(), RoundedSystemTimeProvider.Instance);
         if (decorateWriter is not null)
         {
             writer = decorateWriter(writer);

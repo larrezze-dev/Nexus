@@ -1,3 +1,4 @@
+using Nexus.BuildingBlocks.Application;
 using Nexus.BuildingBlocks.Persistence;
 using Nexus.BuildingBlocks.Persistence.Outbox;
 using Nexus.BuildingBlocks.Testing;
@@ -13,7 +14,7 @@ internal static class UnitOfWorks
     /// (where <see cref="TestEvent"/>'s <c>.avsc</c> lives).
     /// </summary>
     public static OutboxWriter RealOutboxWriter() =>
-        new(new FileSystemEventSchemaProvider(RepoRoot.Find("contracts/events/_test")), new TestIdGenerator(), TimeProvider.System);
+        new(new FileSystemEventSchemaProvider(RepoRoot.Find("contracts/events/_test")), new TestIdGenerator(), RoundedSystemTimeProvider.Instance);
 
     public static UnitOfWork Create(ServiceDataSource dataSource, Guid userId, IOutboxWriter? outboxWriter = null) =>
         new(

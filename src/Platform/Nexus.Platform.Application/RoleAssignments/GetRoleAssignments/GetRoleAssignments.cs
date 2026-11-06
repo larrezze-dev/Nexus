@@ -1,7 +1,9 @@
 using FluentValidation;
 using Nexus.BuildingBlocks.Application;
 using Nexus.BuildingBlocks.Application.Paging;
+using Nexus.BuildingBlocks.Application.Validation;
 using Nexus.BuildingBlocks.Domain;
+using Nexus.Platform.Domain.RoleAssignments;
 
 namespace Nexus.Platform.Application.RoleAssignments.GetRoleAssignments;
 
@@ -44,6 +46,12 @@ internal sealed class GetRoleAssignmentsValidator : AbstractValidator<GetRoleAss
                 context.AddFailure("sort", error!);
             }
         });
+
+        // Optional filter: MustBeOneOf lets null through and projects the contract's `enum`
+        // onto the generated OpenAPI document (ADR-0014).
+        RuleFor(q => q.ScopeType)
+            .MustBeOneOf(RoleAssignment.ScopeTypes)
+            .WithMessage("'scopeType' is not a recognized scope type.");
     }
 }
 

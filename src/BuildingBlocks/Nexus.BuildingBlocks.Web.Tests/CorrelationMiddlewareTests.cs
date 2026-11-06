@@ -108,7 +108,7 @@ public sealed class CorrelationMiddlewareTests
         public Guid NewId()
         {
             Calls++;
-            Last = Guid.CreateVersion7(TimeProvider.System.GetUtcNow());
+            Last = Guid.CreateVersion7(RoundedSystemTimeProvider.Instance.GetUtcNow());
             return Last;
         }
     }

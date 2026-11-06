@@ -98,3 +98,41 @@ POST /v1/warehouses the endpoint no longer allows anonymous access and now only 
 GET /v1/warehouses/{id} the endpoint no longer allows anonymous access and now only accepts `bearerAuth`
 PUT /v1/warehouses/{id} the endpoint no longer allows anonymous access and now only accepts `bearerAuth`
 POST /v1/warehouses/{id}/deactivate the endpoint no longer allows anonymous access and now only accepts `bearerAuth`
+
+# --- nexus-platform: step 0.6 roles and role-assignment endpoints ----------------------
+# Step 0.6 track B: same finding and same root cause as the GET /v1/me and 0.4 sections above
+# (`x-permission` only, no standard `security`); same still-open fix. Reproduced locally
+# (`oasdiff breaking` against the real generated document, same image and flags as CI) and
+# matching CI runs 41345826611/41345862725 verbatim; 13 operations, one line each.
+
+# Permissions catalogue and roles (x-permission ROLE:READ/CREATE/UPDATE)
+GET /v1/permissions the endpoint no longer allows anonymous access and now only accepts `bearerAuth`
+GET /v1/roles the endpoint no longer allows anonymous access and now only accepts `bearerAuth`
+POST /v1/roles the endpoint no longer allows anonymous access and now only accepts `bearerAuth`
+GET /v1/roles/{id} the endpoint no longer allows anonymous access and now only accepts `bearerAuth`
+PUT /v1/roles/{id} the endpoint no longer allows anonymous access and now only accepts `bearerAuth`
+POST /v1/roles/{id}/deactivate the endpoint no longer allows anonymous access and now only accepts `bearerAuth`
+GET /v1/roles/{id}/permissions the endpoint no longer allows anonymous access and now only accepts `bearerAuth`
+PUT /v1/roles/{id}/permissions the endpoint no longer allows anonymous access and now only accepts `bearerAuth`
+
+# Role assignments and effective scope (x-permission ROLE_ASSIGNMENT:READ/CREATE/UPDATE)
+GET /v1/role-assignments the endpoint no longer allows anonymous access and now only accepts `bearerAuth`
+POST /v1/role-assignments the endpoint no longer allows anonymous access and now only accepts `bearerAuth`
+POST /v1/role-assignments/{id}/revoke the endpoint no longer allows anonymous access and now only accepts `bearerAuth`
+GET /v1/users/{id}/effective-scope the endpoint no longer allows anonymous access and now only accepts `bearerAuth`
+
+# --- nexus-platform: PUT /v1/roles/{id}/permissions response (allOf artifact) -----------
+# Not a backend/contract mismatch: the service's PermissionGrantResponse is a flat object
+# requiring code, resourceType, action, captionI18n, validFrom, validTo; the contract's
+# PermissionGrant requires the same six fields split across `allOf: [Permission, {validFrom,
+# validTo}]`. Without flattening, oasdiff compares the two literally and reports the required
+# properties as "removed" (same allOf comparison artifact as the warnings ADR-0014 notes; here it
+# is an ERR because the allOf sits on array items). Reproduced locally; only these six lines,
+# only this operation. Deferred debt: `--flatten-allof` makes these disappear but exposes ~64
+# other real findings across the 0.4/0.6 endpoints, to be handled as a separate piece of work.
+PUT /v1/roles/{id}/permissions removed the required property `items/action` from the response with the `200` status
+PUT /v1/roles/{id}/permissions removed the required property `items/captionI18n` from the response with the `200` status
+PUT /v1/roles/{id}/permissions removed the required property `items/code` from the response with the `200` status
+PUT /v1/roles/{id}/permissions removed the required property `items/resourceType` from the response with the `200` status
+PUT /v1/roles/{id}/permissions removed the required property `items/validFrom` from the response with the `200` status
+PUT /v1/roles/{id}/permissions removed the required property `items/validTo` from the response with the `200` status
