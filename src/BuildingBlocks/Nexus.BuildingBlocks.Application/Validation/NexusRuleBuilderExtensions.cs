@@ -45,4 +45,31 @@ public static class NexusRuleBuilderExtensions
 
         return rule.SetValidator(new RequiredNonBlankKeysValidator<T>(requiredKeys));
     }
+
+    /// <summary>
+    /// The instant must be a whole number of microseconds (at most 6 fractional second digits),
+    /// ADR-0016. Apply it to every client-supplied instant that can reach a domain event: events
+    /// carry Avro <c>timestamp-micros</c>, and a finer value would otherwise fail the outbox write
+    /// (500) instead of being a 400. Not projected to OpenAPI (JSON Schema cannot express it);
+    /// <c>conventions-api.md</c> documents it instead.
+    /// </summary>
+    public static IRuleBuilderOptions<T, DateTimeOffset> MustBeMicrosecondPrecision<T>(
+        this IRuleBuilder<T, DateTimeOffset> rule)
+    {
+        ArgumentNullException.ThrowIfNull(rule);
+
+        return rule.SetValidator(new MicrosecondPrecisionValidator<T, DateTimeOffset>());
+    }
+
+    /// <summary>
+    /// Nullable overload of <see cref="MustBeMicrosecondPrecision{T}(IRuleBuilder{T, DateTimeOffset})"/>:
+    /// <see langword="null"/> passes.
+    /// </summary>
+    public static IRuleBuilderOptions<T, DateTimeOffset?> MustBeMicrosecondPrecision<T>(
+        this IRuleBuilder<T, DateTimeOffset?> rule)
+    {
+        ArgumentNullException.ThrowIfNull(rule);
+
+        return rule.SetValidator(new MicrosecondPrecisionValidator<T, DateTimeOffset?>());
+    }
 }
