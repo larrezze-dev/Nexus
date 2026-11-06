@@ -20,6 +20,17 @@ namespace Nexus.Platform.Application.Users.CreateUser;
 /// exists, identical content → the existing user (<see cref="CreateUserResult.Created"/> =
 /// <see langword="false"/>, 200); different content → 409 <c>CONFLICT</c>.
 /// </para>
+/// <para>
+/// Scope: deliberately unscoped (<c>x-scope: none</c>), <c>oid</c> included, unlike an
+/// <c>oid</c> <i>change</i> in <c>updateUser</c> (GLOBAL only). Onboarding a real employee always
+/// sets their <c>oid</c>, so gating it would block ordinary provisioning by ORG_ADMIN/HR_ADMIN.
+/// And a create cannot take over an existing identity: <c>external_subject</c> is
+/// <c>UNIQUE</c> over every row, active or not (409), a reused id with other content is 409,
+/// and the new row starts with no role assignment. The residual risk is pre-claiming the
+/// <c>oid</c> of someone not provisioned yet: that person then signs in as a row holding no
+/// role the creator could not already have granted, and a GLOBAL admin fixes it
+/// (<c>updateUser</c> on the <c>oid</c>, or <c>deactivateUser</c>).
+/// </para>
 /// </summary>
 public sealed record CreateUserCommand(
     Guid? Id,

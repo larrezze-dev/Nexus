@@ -1,6 +1,7 @@
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
+using Nexus.BuildingBlocks.Application;
 using Nexus.BuildingBlocks.Testing;
 using Shouldly;
 
@@ -156,6 +157,323 @@ public sealed class UsersApiTests : IClassFixture<PlatformApiFixture>
         (await ReadAsync(response)).GetProperty("code").GetString().ShouldBe("ORG-R6");
         (await Scalar<string>("SELECT external_subject FROM org.app_user WHERE id = $1", OrgFixture.SystemUserId)).ShouldBeNull();
         (await Scalar<string>("SELECT legal_name FROM org.party WHERE id = $1", OrgFixture.SystemUserId)).ShouldBe("SYSTEM");
+    }
+
+    [Fact(DisplayName = "oid remapping: an ORG_ADMIN of LE-A cannot put an oid it controls on the GLOBAL admin (403, nothing changes)")]
+    public async Task Org_admin_cannot_take_over_the_global_admin_by_changing_its_oid()
+    {
+        // The concrete escalation: USER:UPDATE is held by ORG_ADMIN in any scope (x-scope: none),
+        // and the oid is what maps an IdP login to an app_user (ADR-0006). Writing an oid the
+        // attacker controls (a second IdP account: not UserA's own, which the UNIQUE constraint
+        // would reject anyway) onto Admin's row would make that login resolve to the
+        // SYSTEM_ADMIN GLOBAL user.
+        using var admin = _fixture.CreateClientFor(Org.Admin.Oid);
+        using var userA = _fixture.CreateClientFor(Org.UserA.Oid);
+        var etag = await ETagOfAsync(admin, Org.Admin.Id);
+        var attackerOid = "attacker-" + Guid.NewGuid().ToString("N");
+
+        var response = await PutAsync(userA, Org.Admin.Id, etag, new UpdateUser(
+            Oid: attackerOid, FullName: Org.Admin.FullName, Email: Org.Admin.Email, PreferredLanguage: "de", BusinessUnitId: null));
+
+        response.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
+        (await ReadAsync(response)).GetProperty("code").GetString().ShouldBe("FORBIDDEN");
+        (await Scalar<string>("SELECT external_subject FROM org.app_user WHERE id = $1", Org.Admin.Id)).ShouldBe(Org.Admin.Oid);
+        (await ETagOfAsync(admin, Org.Admin.Id)).ShouldBe(etag);
+        using (var attacker = _fixture.CreateClientFor(attackerOid))
+        {
+            (await attacker.GetAsync(new Uri("/v1/me", UriKind.Relative), Ct)).StatusCode.ShouldBe(HttpStatusCode.Forbidden);
+        }
+    }
+
+    [Theory(DisplayName = "oid remapping: an ORG_ADMIN of LE-A cannot change or clear another user's oid (403, nothing changes)")]
+    [InlineData("change")]
+    [InlineData("clear")]
+    public async Task Org_admin_cannot_change_a_users_oid(string kind)
+    {
+        using var admin = _fixture.CreateClientFor(Org.Admin.Oid);
+        using var userA = _fixture.CreateClientFor(Org.UserA.Oid);
+        var user = await CreateAsync(admin, NewUser());
+        var newOid = kind == "change" ? "oid-" + Guid.NewGuid().ToString("N") : null;
+
+        var response = await PutAsync(userA, user.Id, user.ETag, ToUpdate(user.Request) with { Oid = newOid });
+
+        response.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
+        (await ReadAsync(response)).GetProperty("code").GetString().ShouldBe("FORBIDDEN");
+        (await Scalar<string>("SELECT external_subject FROM org.app_user WHERE id = $1", user.Id)).ShouldBe(user.Request.Oid);
+        (await OutboxAsync(user.Id)).Select(e => e.EventType).ShouldBe(["org.user.created"]);
+    }
+
+    [Fact(DisplayName = "oid remapping: an ORG_ADMIN of LE-A cannot give an oid to a user that has none (403)")]
+    public async Task Org_admin_cannot_set_an_oid_on_a_user_without_one()
+    {
+        using var admin = _fixture.CreateClientFor(Org.Admin.Oid);
+        using var userA = _fixture.CreateClientFor(Org.UserA.Oid);
+        var user = await CreateAsync(admin, NewUser());
+        var cleared = await PutAsync(admin, user.Id, user.ETag, ToUpdate(user.Request) with { Oid = null });
+        cleared.StatusCode.ShouldBe(HttpStatusCode.OK);
+
+        var response = await PutAsync(userA, user.Id, cleared.Headers.ETag!.Tag, ToUpdate(user.Request) with { Oid = "oid-" + Guid.NewGuid().ToString("N") });
+
+        response.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
+        (await Scalar<string>("SELECT external_subject FROM org.app_user WHERE id = $1", user.Id)).ShouldBeNull();
+    }
+
+    [Fact(DisplayName = "oid remapping: a GLOBAL admin can change a user's oid (200)")]
+    public async Task Global_admin_can_change_a_users_oid()
+    {
+        using var admin = _fixture.CreateClientFor(Org.Admin.Oid);
+        var user = await CreateAsync(admin, NewUser());
+        var newOid = "oid-" + Guid.NewGuid().ToString("N");
+
+        var response = await PutAsync(admin, user.Id, user.ETag, ToUpdate(user.Request) with { Oid = newOid });
+
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
+        (await ReadAsync(response)).GetProperty("oid").GetString().ShouldBe(newOid);
+        (await Scalar<string>("SELECT external_subject FROM org.app_user WHERE id = $1", user.Id)).ShouldBe(newOid);
+    }
+
+    [Fact(DisplayName = "oid remapping: an ORG_ADMIN of LE-A can still edit a user's other fields when the oid is unchanged (200)")]
+    public async Task Org_admin_can_edit_other_fields_with_the_same_oid()
+    {
+        using var admin = _fixture.CreateClientFor(Org.Admin.Oid);
+        using var userA = _fixture.CreateClientFor(Org.UserA.Oid);
+        var user = await CreateAsync(admin, NewUser());
+        var update = ToUpdate(user.Request) with
+        {
+            FullName = user.Request.FullName + " Renamed",
+            Email = $"renamed.{Guid.NewGuid():N}@test.nexus.local",
+        };
+
+        var response = await PutAsync(userA, user.Id, user.ETag, update);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
+        var body = await ReadAsync(response);
+        body.GetProperty("fullName").GetString().ShouldBe(update.FullName);
+        body.GetProperty("email").GetString().ShouldBe(update.Email);
+        body.GetProperty("oid").GetString().ShouldBe(user.Request.Oid);
+    }
+
+    [Theory(DisplayName = "updateUser: an ORG_ADMIN of LE-A cannot edit any field of a user holding an assignment it does not cover (403, nothing changes)")]
+    [InlineData("LEGAL_ENTITY_B")]
+    [InlineData("WAREHOUSE_B")]
+    [InlineData("GROUP")]
+    [InlineData("LE_A_AND_LE_B")]
+    [InlineData("FUTURE_LE_B")]
+    public async Task Org_admin_cannot_edit_a_user_assigned_outside_its_scope(string kind)
+    {
+        using var admin = _fixture.CreateClientFor(Org.Admin.Oid);
+        using var userA = _fixture.CreateClientFor(Org.UserA.Oid);
+        var user = await CreateAsync(admin, NewUser());
+        await GrantOutsideLeAAsync(admin, user.Id, kind);
+        var update = ToUpdate(user.Request) with
+        {
+            FullName = "Relabelled " + Guid.NewGuid().ToString("N"),
+            Email = $"relabelled.{Guid.NewGuid():N}@test.nexus.local",
+            BusinessUnitId = Org.BusinessUnitA.Id,
+        };
+
+        var response = await PutAsync(userA, user.Id, user.ETag, update);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
+        (await ReadAsync(response)).GetProperty("code").GetString().ShouldBe("FORBIDDEN");
+        (await Scalar<string>("SELECT legal_name FROM org.party WHERE id = $1", user.PartyId)).ShouldBe(user.Request.FullName);
+        (await Scalar<string>("SELECT email FROM org.app_user WHERE id = $1", user.Id)).ShouldBe(user.Request.Email);
+        (await OutboxAsync(user.Id)).Select(e => e.EventType).ShouldBe(["org.user.created"]);
+
+        // A GLOBAL admin covers every case.
+        (await PutAsync(admin, user.Id, user.ETag, update)).StatusCode.ShouldBe(HttpStatusCode.OK);
+    }
+
+    [Fact(DisplayName = "updateUser: an ORG_ADMIN of LE-A can edit a user whose assignments are all inside LE-A (200)")]
+    public async Task Org_admin_can_edit_a_user_assigned_inside_its_scope()
+    {
+        using var admin = _fixture.CreateClientFor(Org.Admin.Oid);
+        using var userA = _fixture.CreateClientFor(Org.UserA.Oid);
+        var user = await CreateAsync(admin, NewUser());
+        await GrantAsync(admin, user.Id, OrgAdminRoleId, "LEGAL_ENTITY", Org.LegalEntityA.Id);
+        await GrantAsync(admin, user.Id, OrgAdminRoleId, "BUSINESS_UNIT", Org.BusinessUnitA.Id);
+        var update = ToUpdate(user.Request) with { FullName = user.Request.FullName + " Renamed" };
+
+        var response = await PutAsync(userA, user.Id, user.ETag, update);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
+        (await ReadAsync(response)).GetProperty("fullName").GetString().ShouldBe(update.FullName);
+    }
+
+    [Fact(DisplayName = "updateUser: covering the user's scopes is not enough to change its oid (GLOBAL still required: 403)")]
+    public async Task Covering_the_users_scopes_does_not_allow_an_oid_change()
+    {
+        // Why the oid check is kept next to the scope check: an LE-A ORG_ADMIN covers an LE-A
+        // user's scope, but not necessarily its roles; remapping the oid would hand over
+        // whatever that user holds or is granted later, not just what the caller could grant.
+        using var admin = _fixture.CreateClientFor(Org.Admin.Oid);
+        using var userA = _fixture.CreateClientFor(Org.UserA.Oid);
+        var user = await CreateAsync(admin, NewUser());
+        await GrantAsync(admin, user.Id, OrgAdminRoleId, "LEGAL_ENTITY", Org.LegalEntityA.Id);
+
+        var response = await PutAsync(userA, user.Id, user.ETag, ToUpdate(user.Request) with { Oid = "attacker-" + Guid.NewGuid().ToString("N") });
+
+        response.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
+        (await Scalar<string>("SELECT external_subject FROM org.app_user WHERE id = $1", user.Id)).ShouldBe(user.Request.Oid);
+    }
+
+    [Fact(DisplayName = "deactivateUser: an ORG_ADMIN of LE-A cannot deactivate the GLOBAL admin (403, still active and able to sign in)")]
+    public async Task Org_admin_cannot_deactivate_the_global_admin()
+    {
+        using var admin = _fixture.CreateClientFor(Org.Admin.Oid);
+        using var userA = _fixture.CreateClientFor(Org.UserA.Oid);
+        var etag = await ETagOfAsync(admin, Org.Admin.Id);
+
+        var response = await DeactivateAsync(userA, Org.Admin.Id, etag);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
+        (await ReadAsync(response)).GetProperty("code").GetString().ShouldBe("FORBIDDEN");
+        (await Scalar<bool>("SELECT is_active FROM org.app_user WHERE id = $1", Org.Admin.Id)).ShouldBeTrue();
+        (await ETagOfAsync(admin, Org.Admin.Id)).ShouldBe(etag);
+        (await admin.GetAsync(new Uri("/v1/me", UriKind.Relative), Ct)).StatusCode.ShouldBe(HttpStatusCode.OK);
+    }
+
+    [Fact(DisplayName = "deactivateUser: a user with a GLOBAL assignment needs a GLOBAL caller (LE-A ORG_ADMIN 403, GLOBAL admin 200)")]
+    public async Task Deactivating_a_global_user_needs_a_global_caller()
+    {
+        using var admin = _fixture.CreateClientFor(Org.Admin.Oid);
+        using var userA = _fixture.CreateClientFor(Org.UserA.Oid);
+        var user = await CreateAsync(admin, NewUser());
+        await GrantAsync(admin, user.Id, SystemAdminRoleId, "GLOBAL", null);
+        var etag = await ETagOfAsync(admin, user.Id); // the grant does not touch app_user, but re-read anyway
+
+        (await DeactivateAsync(userA, user.Id, etag)).StatusCode.ShouldBe(HttpStatusCode.Forbidden);
+        (await Scalar<bool>("SELECT is_active FROM org.app_user WHERE id = $1", user.Id)).ShouldBeTrue();
+
+        var response = await DeactivateAsync(admin, user.Id, etag);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
+        (await ReadAsync(response)).GetProperty("isActive").GetBoolean().ShouldBeFalse();
+    }
+
+    [Fact(DisplayName = "deactivateUser: an ORG_ADMIN of LE-A can deactivate a user whose assignments are all inside LE-A (200)")]
+    public async Task Org_admin_can_deactivate_a_user_assigned_inside_its_scope()
+    {
+        using var admin = _fixture.CreateClientFor(Org.Admin.Oid);
+        using var userA = _fixture.CreateClientFor(Org.UserA.Oid);
+        var user = await CreateAsync(admin, NewUser());
+        await GrantAsync(admin, user.Id, OrgAdminRoleId, "LEGAL_ENTITY", Org.LegalEntityA.Id);
+        await GrantAsync(admin, user.Id, OrgAdminRoleId, "WAREHOUSE", Org.WarehouseA);
+
+        var response = await DeactivateAsync(userA, user.Id, user.ETag);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
+        (await ReadAsync(response)).GetProperty("isActive").GetBoolean().ShouldBeFalse();
+    }
+
+    [Fact(DisplayName = "deactivateUser: an ordinary user with no role assignment can be deactivated by any USER:UPDATE holder (LE-A and LE-B ORG_ADMINs: 200)")]
+    public async Task Any_user_update_holder_can_deactivate_a_user_without_assignments()
+    {
+        using var admin = _fixture.CreateClientFor(Org.Admin.Oid);
+        using var userA = _fixture.CreateClientFor(Org.UserA.Oid);
+        using var userB = _fixture.CreateClientFor(Org.UserB.Oid);
+        var first = await CreateAsync(admin, NewUser());
+        var second = await CreateAsync(admin, NewUser() with { BusinessUnitId = Org.BusinessUnitB.Id });
+
+        (await DeactivateAsync(userA, first.Id, first.ETag)).StatusCode.ShouldBe(HttpStatusCode.OK);
+        (await DeactivateAsync(userA, second.Id, second.ETag)).StatusCode.ShouldBe(HttpStatusCode.OK);
+        var third = await CreateAsync(admin, NewUser());
+        (await DeactivateAsync(userB, third.Id, third.ETag)).StatusCode.ShouldBe(HttpStatusCode.OK);
+    }
+
+    [Theory(DisplayName = "deactivateUser: an ORG_ADMIN of LE-A cannot deactivate a user holding an assignment it does not cover (403, still active)")]
+    [InlineData("LEGAL_ENTITY_B")]
+    [InlineData("WAREHOUSE_B")]
+    [InlineData("GROUP")]
+    [InlineData("LE_A_AND_LE_B")]
+    [InlineData("FUTURE_LE_B")]
+    public async Task Org_admin_cannot_deactivate_a_user_assigned_outside_its_scope(string kind)
+    {
+        using var admin = _fixture.CreateClientFor(Org.Admin.Oid);
+        using var userA = _fixture.CreateClientFor(Org.UserA.Oid);
+        var user = await CreateAsync(admin, NewUser());
+        await GrantOutsideLeAAsync(admin, user.Id, kind);
+
+        var response = await DeactivateAsync(userA, user.Id, user.ETag);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
+        (await ReadAsync(response)).GetProperty("code").GetString().ShouldBe("FORBIDDEN");
+        (await Scalar<bool>("SELECT is_active FROM org.app_user WHERE id = $1", user.Id)).ShouldBeTrue();
+
+        // The LE-B ORG_ADMIN covers the LE-B-only cases; the GLOBAL admin covers all of them.
+        var byGlobal = await DeactivateAsync(admin, user.Id, user.ETag);
+        byGlobal.StatusCode.ShouldBe(HttpStatusCode.OK);
+    }
+
+    [Fact(DisplayName = "deactivateUser: the LE-B ORG_ADMIN can deactivate a user assigned at LE-B (200)")]
+    public async Task Le_b_admin_can_deactivate_a_user_assigned_at_le_b()
+    {
+        using var admin = _fixture.CreateClientFor(Org.Admin.Oid);
+        using var userB = _fixture.CreateClientFor(Org.UserB.Oid);
+        var user = await CreateAsync(admin, NewUser());
+        await GrantAsync(admin, user.Id, OrgAdminRoleId, "LEGAL_ENTITY", Org.LegalEntityB.Id);
+
+        (await DeactivateAsync(userB, user.Id, user.ETag)).StatusCode.ShouldBe(HttpStatusCode.OK);
+    }
+
+    // --- createUser stays unscoped, oid included: these pin why that is safe -----------------
+
+    [Fact(DisplayName = "createUser: an ORG_ADMIN of LE-A can provision a new user with its oid (201; ordinary onboarding stays open)")]
+    public async Task Org_admin_can_create_a_user_with_an_oid()
+    {
+        using var userA = _fixture.CreateClientFor(Org.UserA.Oid);
+        var request = NewUser();
+
+        var response = await userA.PostAsJsonAsync(Users, request, Ct);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.Created);
+        var userId = (await ReadAsync(response)).GetProperty("id").GetGuid();
+        (await Scalar<string>("SELECT external_subject FROM org.app_user WHERE id = $1", userId)).ShouldBe(request.Oid);
+        // A new user starts with no role assignment.
+        (await Scalar<long>("SELECT count(*) FROM access.role_assignment WHERE user_id = $1", userId)).ShouldBe(0);
+    }
+
+    [Fact(DisplayName = "createUser: an ORG_ADMIN of LE-A cannot claim the GLOBAL admin's oid (409, the admin row is untouched)")]
+    public async Task Org_admin_cannot_create_a_user_with_the_global_admins_oid()
+    {
+        using var admin = _fixture.CreateClientFor(Org.Admin.Oid);
+        using var userA = _fixture.CreateClientFor(Org.UserA.Oid);
+        var etag = await ETagOfAsync(admin, Org.Admin.Id);
+        var request = NewUser() with { Oid = Org.Admin.Oid };
+
+        var response = await userA.PostAsJsonAsync(Users, request, Ct);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.Conflict);
+        (await Scalar<long>("SELECT count(*) FROM org.app_user WHERE external_subject = $1", Org.Admin.Oid)).ShouldBe(1);
+        (await Scalar<long>("SELECT count(*) FROM org.party WHERE legal_name = $1", request.FullName)).ShouldBe(0);
+        (await ETagOfAsync(admin, Org.Admin.Id)).ShouldBe(etag);
+    }
+
+    [Fact(DisplayName = "createUser: the oid of a deactivated user cannot be claimed by a new user either (409)")]
+    public async Task Oid_of_a_deactivated_user_cannot_be_claimed()
+    {
+        using var admin = _fixture.CreateClientFor(Org.Admin.Oid);
+        using var userA = _fixture.CreateClientFor(Org.UserA.Oid);
+        var user = await CreateAsync(admin, NewUser());
+        (await DeactivateAsync(admin, user.Id, user.ETag)).StatusCode.ShouldBe(HttpStatusCode.OK);
+
+        var response = await userA.PostAsJsonAsync(Users, NewUser() with { Oid = user.Request.Oid }, Ct);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.Conflict);
+    }
+
+    [Fact(DisplayName = "createUser: replaying the GLOBAL admin's id with other content is 409, never an overwrite")]
+    public async Task Create_with_the_global_admins_id_cannot_overwrite_it()
+    {
+        using var admin = _fixture.CreateClientFor(Org.Admin.Oid);
+        using var userA = _fixture.CreateClientFor(Org.UserA.Oid);
+        var etag = await ETagOfAsync(admin, Org.Admin.Id);
+
+        var response = await userA.PostAsJsonAsync(Users, NewUser() with { Id = Org.Admin.Id }, Ct);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.Conflict);
+        (await Scalar<string>("SELECT external_subject FROM org.app_user WHERE id = $1", Org.Admin.Id)).ShouldBe(Org.Admin.Oid);
+        (await ETagOfAsync(admin, Org.Admin.Id)).ShouldBe(etag);
     }
 
     [Fact(DisplayName = "ORG-R6: the SYSTEM user is never deactivated (422 ORG-R6)")]
@@ -408,6 +726,55 @@ public sealed class UsersApiTests : IClassFixture<PlatformApiFixture>
             Email: $"user.{tag}@test.nexus.local",
             PreferredLanguage: "en",
             BusinessUnitId: Org.BusinessUnitA.Id);
+    }
+
+    private static readonly Guid SystemAdminRoleId = new("00000000-0000-7000-8000-0000000d0001");
+
+    private static readonly Guid OrgAdminRoleId = new("00000000-0000-7000-8000-0000000d0002");
+
+    // validFrom backdated: has_permission compares it with PostgreSQL now() (the container clock),
+    // which can lag the test host by a few ms; a grant "from now" could not be active yet.
+    private static async Task GrantAsync(HttpClient admin, Guid userId, Guid roleId, string scopeType, Guid? scopeEntityId)
+    {
+        var grant = await admin.PostAsJsonAsync(
+            new Uri("/v1/role-assignments", UriKind.Relative),
+            new { userId, roleId, scopeType, scopeEntityId, validFrom = RoundedSystemTimeProvider.Instance.GetUtcNow().AddMinutes(-1) },
+            Ct);
+        grant.StatusCode.ShouldBe(HttpStatusCode.Created);
+    }
+
+    /// <summary>
+    /// Grants <paramref name="userId"/> an assignment that an ORG_ADMIN of LE-A does not cover
+    /// (or, for LE_A_AND_LE_B, one it covers plus one it does not).
+    /// </summary>
+    private async Task GrantOutsideLeAAsync(HttpClient admin, Guid userId, string kind)
+    {
+        switch (kind)
+        {
+            case "LEGAL_ENTITY_B":
+                await GrantAsync(admin, userId, OrgAdminRoleId, "LEGAL_ENTITY", Org.LegalEntityB.Id);
+                break;
+            case "WAREHOUSE_B":
+                await GrantAsync(admin, userId, OrgAdminRoleId, "WAREHOUSE", Org.WarehouseB);
+                break;
+            case "GROUP":
+                await GrantAsync(admin, userId, OrgAdminRoleId, "GROUP", Org.GroupId);
+                break;
+            case "LE_A_AND_LE_B":
+                await GrantAsync(admin, userId, OrgAdminRoleId, "LEGAL_ENTITY", Org.LegalEntityA.Id);
+                await GrantAsync(admin, userId, OrgAdminRoleId, "LEGAL_ENTITY", Org.LegalEntityB.Id);
+                break;
+            case "FUTURE_LE_B":
+                // Not in force yet, but not ended: still authority the user is about to have.
+                var future = await admin.PostAsJsonAsync(
+                    new Uri("/v1/role-assignments", UriKind.Relative),
+                    new { userId, roleId = OrgAdminRoleId, scopeType = "LEGAL_ENTITY", scopeEntityId = Org.LegalEntityB.Id, validFrom = RoundedSystemTimeProvider.Instance.GetUtcNow().AddDays(1) },
+                    Ct);
+                future.StatusCode.ShouldBe(HttpStatusCode.Created);
+                break;
+            default:
+                throw new ArgumentOutOfRangeException(nameof(kind), kind, null);
+        }
     }
 
     private static UpdateUser ToUpdate(CreateUser request) =>

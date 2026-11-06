@@ -327,6 +327,54 @@ public sealed class RoleAssignmentApiTests : IClassFixture<PlatformApiFixture>
         (await ReadAsync(response)).GetProperty("code").GetString().ShouldBe("ROLE_ASSIGNMENT_VALID_TO_IN_PAST");
     }
 
+    [Fact(DisplayName = "ADR-0016: a validFrom with 7 fractional digits is a 400 naming validFrom, and nothing reaches the outbox")]
+    public async Task Create_with_sub_microsecond_valid_from_is_a_validation_error()
+    {
+        using var admin = _fixture.CreateClientFor(Org.Admin.Oid);
+        var subjectId = await CreateUserAsync(admin);
+        var id = Guid.CreateVersion7();
+
+        // Raw JSON string, so the 7th digit is exactly what the client sends (ISO-8601 allows it).
+        var response = await admin.PostAsJsonAsync(
+            RoleAssignments,
+            new { id, userId = subjectId, roleId = ViewerRoleId, scopeType = "LEGAL_ENTITY", scopeEntityId = Org.LegalEntityA.Id, validFrom = "2026-01-01T00:00:00.1234567Z" },
+            Ct);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
+        var problem = await ReadAsync(response);
+        problem.GetProperty("code").GetString().ShouldBe("VALIDATION");
+        problem.GetProperty("detail").GetString()!.ShouldContain("'validFrom' must not be more precise than one microsecond");
+        (await _fixture.Database.ScalarAsync<long>("SELECT count(*) FROM outbox.message WHERE aggregate_id = $1", id)).ShouldBe(0);
+        (await _fixture.Database.ScalarAsync<long>("SELECT count(*) FROM access.role_assignment WHERE id = $1", id)).ShouldBe(0);
+    }
+
+    [Fact(DisplayName = "ADR-0016: a validFrom with 6 fractional digits is a 201, and the response, the row and the role-assignment.changed event all carry exactly that instant")]
+    public async Task Create_with_microsecond_valid_from_keeps_it_exactly()
+    {
+        using var admin = _fixture.CreateClientFor(Org.Admin.Oid);
+        var subjectId = await CreateUserAsync(admin);
+        var id = Guid.CreateVersion7();
+        var validFrom = new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero).AddTicks(1_234_560); // .123456
+
+        var response = await admin.PostAsJsonAsync(
+            RoleAssignments,
+            new { id, userId = subjectId, roleId = ViewerRoleId, scopeType = "LEGAL_ENTITY", scopeEntityId = Org.LegalEntityA.Id, validFrom = "2026-01-01T00:00:00.123456Z" },
+            Ct);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.Created);
+        (await ReadAsync(response)).GetProperty("validFrom").GetDateTimeOffset().ShouldBe(validFrom);
+
+        var stored = await _fixture.Database.ScalarAsync<DateTime>("SELECT valid_from FROM access.role_assignment WHERE id = $1", id);
+        new DateTimeOffset(stored, TimeSpan.Zero).ShouldBe(validFrom);
+
+        // Avro JSON encoding of timestamp-micros: a bare long, microseconds since the Unix epoch.
+        var payload = await _fixture.Database.ScalarAsync<string>(
+            "SELECT payload::text FROM outbox.message WHERE aggregate_id = $1 AND event_type = 'platform.role-assignment.changed'", id);
+        using var document = JsonDocument.Parse(payload!);
+        var expectedMicros = (validFrom.UtcTicks - DateTimeOffset.UnixEpoch.UtcTicks) / TimeSpan.TicksPerMicrosecond;
+        document.RootElement.GetProperty("validFrom").GetInt64().ShouldBe(expectedMicros);
+    }
+
     [Fact(DisplayName = "The valid_to >= created_at CHECK has the name RoleAssignmentErrors maps")]
     public async Task Valid_to_check_constraint_name_is_pinned()
     {
@@ -353,6 +401,108 @@ public sealed class RoleAssignmentApiTests : IClassFixture<PlatformApiFixture>
         warehouseIds.ShouldBe([Org.WarehouseA]);
     }
 
+    [Fact(DisplayName = "ACC-R10 on listRoleAssignments: an ORG_ADMIN of LE-A does not see an assignment scoped to LE-B; a GLOBAL admin does")]
+    public async Task List_only_returns_assignments_the_caller_covers()
+    {
+        var (userBAssignmentId, _) = await GetSeededAssignmentAsync(Org.UserB.Id, "LEGAL_ENTITY");
+        var (userAAssignmentId, _) = await GetSeededAssignmentAsync(Org.UserA.Id, "LEGAL_ENTITY");
+        var (whAAssignmentId, _) = await GetSeededAssignmentAsync(Org.WhA.Id, "WAREHOUSE");
+
+        using var userA = _fixture.CreateClientFor(Org.UserA.Oid);
+        var seenByUserA = await ListAsync(userA, "pageSize=200");
+
+        var idsSeenByUserA = seenByUserA.Items.Select(i => i.GetProperty("id").GetGuid()).ToList();
+        idsSeenByUserA.ShouldNotContain(userBAssignmentId);
+        idsSeenByUserA.ShouldContain(userAAssignmentId);
+        idsSeenByUserA.ShouldContain(whAAssignmentId); // WH-A lies beneath LE-A: covered.
+
+        // Nothing outside LE-A's subtree leaks, whatever other tests of this class created.
+        var leASubtree = new HashSet<Guid> { Org.LegalEntityA.Id, Org.BusinessUnitA.Id, Org.WarehouseA };
+        foreach (var item in seenByUserA.Items)
+        {
+            item.GetProperty("scopeType").GetString().ShouldNotBe("GLOBAL");
+            leASubtree.ShouldContain(item.GetProperty("scopeEntityId").GetGuid());
+        }
+
+        seenByUserA.Total.ShouldBe(seenByUserA.Items.Count);
+
+        using var admin = _fixture.CreateClientFor(Org.Admin.Oid);
+        var idsSeenByAdmin = (await ListAsync(admin, "pageSize=200")).Items.Select(i => i.GetProperty("id").GetGuid()).ToList();
+        idsSeenByAdmin.ShouldContain(userBAssignmentId);
+        idsSeenByAdmin.ShouldContain(userAAssignmentId);
+    }
+
+    [Fact(DisplayName = "ACC-R10 on listRoleAssignments: pagination and total apply to the coverage-filtered rows, not the unfiltered ones")]
+    public async Task List_paginates_and_counts_after_coverage_filtering()
+    {
+        using var admin = _fixture.CreateClientFor(Org.Admin.Oid);
+        var subjectId = await CreateUserAsync(admin);
+
+        // 2 assignments inside LE-A's subtree, 3 inside LE-B's: only the first 2 are UserA's to see.
+        var inLeA = new List<Guid>
+        {
+            (await CreateAsync(admin, subjectId, ViewerRoleId, "LEGAL_ENTITY", Org.LegalEntityA.Id, RoundedSystemTimeProvider.Instance.GetUtcNow(), null)).Id,
+            (await CreateAsync(admin, subjectId, ViewerRoleId, "WAREHOUSE", Org.WarehouseA, RoundedSystemTimeProvider.Instance.GetUtcNow(), null)).Id,
+        };
+        await CreateAsync(admin, subjectId, ViewerRoleId, "LEGAL_ENTITY", Org.LegalEntityB.Id, RoundedSystemTimeProvider.Instance.GetUtcNow(), null);
+        await CreateAsync(admin, subjectId, ViewerRoleId, "BUSINESS_UNIT", Org.BusinessUnitB.Id, RoundedSystemTimeProvider.Instance.GetUtcNow(), null);
+        await CreateAsync(admin, subjectId, ViewerRoleId, "WAREHOUSE", Org.WarehouseB, RoundedSystemTimeProvider.Instance.GetUtcNow(), null);
+
+        (await ListAsync(admin, $"userId={subjectId}&pageSize=1")).Total.ShouldBe(5);
+
+        using var userA = _fixture.CreateClientFor(Org.UserA.Oid);
+        var page1 = await ListAsync(userA, $"userId={subjectId}&pageSize=1&page=1");
+        var page2 = await ListAsync(userA, $"userId={subjectId}&pageSize=1&page=2");
+        var page3 = await ListAsync(userA, $"userId={subjectId}&pageSize=1&page=3");
+
+        page1.Total.ShouldBe(2);
+        page2.Total.ShouldBe(2);
+        page3.Total.ShouldBe(2);
+        page1.Items.Count.ShouldBe(1);
+        page2.Items.Count.ShouldBe(1);
+        page3.Items.ShouldBeEmpty();
+        new[] { page1.Items[0].GetProperty("id").GetGuid(), page2.Items[0].GetProperty("id").GetGuid() }
+            .ShouldBe(inLeA, ignoreOrder: true);
+    }
+
+    [Fact(DisplayName = "getRoleAssignment: returns the assignment with an ETag that revokeRoleAssignment accepts")]
+    public async Task Get_role_assignment_by_id_returns_it_with_its_etag()
+    {
+        using var admin = _fixture.CreateClientFor(Org.Admin.Oid);
+        var (id, createdETag) = await CreateAsync(admin, Org.UserB.Id, ViewerRoleId, "LEGAL_ENTITY", Org.LegalEntityB.Id, RoundedSystemTimeProvider.Instance.GetUtcNow(), null);
+
+        var response = await admin.GetAsync(new Uri($"/v1/role-assignments/{id}", UriKind.Relative), Ct);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
+        var etag = response.Headers.ETag!.Tag;
+        etag.ShouldBe(createdETag);
+        var body = await ReadAsync(response);
+        body.GetProperty("id").GetGuid().ShouldBe(id);
+        body.GetProperty("userId").GetGuid().ShouldBe(Org.UserB.Id);
+        body.GetProperty("scopeType").GetString().ShouldBe("LEGAL_ENTITY");
+        body.GetProperty("scopeEntityId").GetGuid().ShouldBe(Org.LegalEntityB.Id);
+        body.GetProperty("grantedBy").GetGuid().ShouldBe(Org.Admin.Id);
+        body.GetProperty("source").GetString().ShouldBe("MANUAL");
+
+        // The ETag is the real concurrency token: revoke accepts it, and a fresh GET follows the change.
+        (await RevokeAsync(admin, id, etag)).StatusCode.ShouldBe(HttpStatusCode.OK);
+        var afterRevoke = await admin.GetAsync(new Uri($"/v1/role-assignments/{id}", UriKind.Relative), Ct);
+        afterRevoke.StatusCode.ShouldBe(HttpStatusCode.OK);
+        afterRevoke.Headers.ETag!.Tag.ShouldNotBe(etag);
+        (await ReadAsync(afterRevoke)).GetProperty("revokedBy").GetGuid().ShouldBe(Org.Admin.Id);
+    }
+
+    [Fact(DisplayName = "getRoleAssignment: an unknown id is a 404")]
+    public async Task Get_role_assignment_with_unknown_id_is_not_found()
+    {
+        using var admin = _fixture.CreateClientFor(Org.Admin.Oid);
+
+        var response = await admin.GetAsync(new Uri($"/v1/role-assignments/{Guid.CreateVersion7()}", UriKind.Relative), Ct);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.NotFound);
+        response.Content.Headers.ContentType?.MediaType.ShouldBe("application/problem+json");
+    }
+
     [Fact(DisplayName = "getUserEffectiveScope: an unknown user is a 404")]
     public async Task Get_effective_scope_of_an_unknown_user_is_not_found()
     {
@@ -374,6 +524,27 @@ public sealed class RoleAssignmentApiTests : IClassFixture<PlatformApiFixture>
             Ct);
         response.StatusCode.ShouldBe(HttpStatusCode.Created);
         return ((await ReadAsync(response)).GetProperty("id").GetGuid(), response.Headers.ETag!.Tag);
+    }
+
+    /// <summary><c>listRoleAssignments</c> with <paramref name="query"/>: its items and <c>total</c>.</summary>
+    private static async Task<(IReadOnlyList<JsonElement> Items, long Total)> ListAsync(HttpClient client, string query)
+    {
+        var response = await client.GetAsync(new Uri($"/v1/role-assignments?{query}", UriKind.Relative), Ct);
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
+        var body = await ReadAsync(response);
+        return (body.GetProperty("items").EnumerateArray().ToList(), body.GetProperty("total").GetInt64());
+    }
+
+    /// <summary>A fresh user (own oid/email), so a test can count its assignments without interference.</summary>
+    private static async Task<Guid> CreateUserAsync(HttpClient admin)
+    {
+        var tag = Guid.NewGuid().ToString("N");
+        var response = await admin.PostAsJsonAsync(
+            new Uri("/v1/users", UriKind.Relative),
+            new { oid = "oid-" + tag, fullName = "Assignment Subject " + tag, email = $"subject.{tag}@test.nexus.local", preferredLanguage = "en" },
+            Ct);
+        response.StatusCode.ShouldBe(HttpStatusCode.Created);
+        return (await ReadAsync(response)).GetProperty("id").GetGuid();
     }
 
     /// <summary>A role assignment <see cref="OrgFixture"/> seeded for <paramref name="userId"/>, with its current ETag.</summary>
@@ -398,9 +569,9 @@ public sealed class RoleAssignmentApiTests : IClassFixture<PlatformApiFixture>
     /// <summary>
     /// SYSTEM_ADMIN's seeded <c>GLOBAL</c>/<c>SEED</c> role assignment that <see cref="OrgFixture"/>
     /// grants to <see cref="OrgFixture.Admin"/> (mirroring <c>db/seed/dev</c>, per its own code
-    /// comment) - the only row in this fixture matching ACC-R6's predicate. Read directly from
-    /// the database (there is no <c>GET /v1/role-assignments/{id}</c>) since both its id and its
-    /// current <c>xmin</c>-derived <c>ETag</c> are needed to call <c>revoke</c> at all.
+    /// comment) - the only row in this fixture matching ACC-R6's predicate. Its id is only
+    /// reachable from the database (no API filter singles it out), so its current
+    /// <c>xmin</c>-derived <c>ETag</c> is read there too.
     /// </summary>
     private async Task<(Guid Id, string ETag)> GetSeededAdminGlobalAssignmentAsync()
     {

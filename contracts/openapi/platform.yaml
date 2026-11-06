@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: NEXUS Platform API
-  version: "0.6.0"
+  version: "0.6.1"
   description: >
     Servicio `nexus-platform`: estructura organizativa (`org`) de NEXUS —
     directorio de Parties, Groups, Legal Entities, Business Units,
@@ -60,6 +60,50 @@ security:
   - bearerAuth: []
 
 paths:
+  # ---------------------------------------------------------------------
+  # Alcance (ACC-R10) de los recursos de `org` del paso 0.4
+  # ---------------------------------------------------------------------
+  # Todas sus operaciones declaran `x-scope: none`: el filtro de permisos
+  # solo comprueba el permiso en algún alcance (la puerta gruesa de
+  # ACC-R10), y `org` no tiene RLS.
+  # - Warehouse, BusinessUnit y LegalEntity tienen un `legal_entity_id`
+  #   propio inequívoco: sus operaciones sobre una fila existente
+  #   (get/update/deactivate por id) comprueban además, en el handler, que
+  #   el permiso del llamante cubre el alcance de la propia fila (403 si
+  #   no), y sus listados (listWarehouses/listBusinessUnits/
+  #   listLegalEntities) devuelven solo las filas que pasarían esa misma
+  #   comprobación, con `total` y paginación sobre el conjunto filtrado.
+  #   La cobertura solo baja (GLOBAL ⊃ GROUP ⊃ LEGAL_ENTITY ⊃
+  #   BUSINESS_UNIT ⊃ WAREHOUSE): un permiso sobre un almacén no cubre su
+  #   business unit ni su legal entity. Su `x-scope` no cambia.
+  # - Party: sin alcance solo si no respalda ninguna LegalEntity,
+  #   BusinessUnit ni Group (las parties externas/de directorio y las
+  #   `PERSON` de un User). La party interna de una LegalEntity,
+  #   BusinessUnit o Group (ORG-R1) lleva su nombre legal, NIF y código
+  #   ERP: updateParty/deactivateParty comprueban en el handler que el
+  #   permiso del llamante cubre el alcance de esa entidad (LEGAL_ENTITY,
+  #   BUSINESS_UNIT o GROUP), igual que sus propios endpoints (403 si no).
+  # - User: no tiene una legal entity única (`businessUnitId` es
+  #   opcional), así que un usuario SIN asignaciones de rol se edita y
+  #   desactiva sin alcance. Si el usuario tiene asignaciones de rol no
+  #   terminadas (vigentes o con inicio futuro), updateUser (cualquier
+  #   campo) y deactivateUser exigen que el `USER:UPDATE` del llamante
+  #   cubra el alcance de CADA una (403 si no): un admin de una legal
+  #   entity no puede renombrar ni dejar fuera al admin de otra, ni a un
+  #   administrador global. Además, cambiar `oid` (asignar, cambiar o
+  #   borrar) exige siempre `USER:UPDATE` en alcance GLOBAL: el `oid`
+  #   decide qué login del IdP entra como ese usuario (ADR-0006), y cubrir
+  #   el alcance de un usuario no es cubrir sus roles. createUser, `oid`
+  #   incluido, sigue sin alcance: dar de alta a un empleado siempre fija
+  #   su `oid`, y un alta no puede quedarse con una identidad existente
+  #   (`external_subject` es UNIQUE en todas las filas, activas o no, y el
+  #   usuario nuevo nace sin asignaciones).
+  # - Group, Location y Currency se quedan sin alcance POR DISEÑO, no por
+  #   descuido: Group está por encima de las legal entities, Location es
+  #   una ubicación física sin `legal_entity_id` y Currency es un catálogo
+  #   global.
+  # ---------------------------------------------------------------------
+
   # ---------------------------------------------------------------------
   # Parties
   # ---------------------------------------------------------------------
@@ -2682,6 +2726,54 @@ paths:
           $ref: '_shared/components.yaml#/components/responses/Conflict'
         '422':
           $ref: '_shared/components.yaml#/components/responses/UnprocessableEntity'
+
+  /v1/role-assignments/{id}:
+    get:
+      operationId: getRoleAssignment
+      summary: Obtener una asignación de rol por id.
+      description: >
+        Obtener una asignación de rol por id, con su `ETag` (necesario para
+        `revokeRoleAssignment`). Como `getUserEffectiveScope`, una consulta
+        puntual por id: cualquier titular de `ROLE_ASSIGNMENT:READ` puede
+        leer cualquier fila; el filtrado por cobertura de alcance aplica al
+        listado (`listRoleAssignments`), no aquí.
+      tags: [RoleAssignments]
+      x-permission: "ROLE_ASSIGNMENT:READ"
+      x-scope: none
+      parameters:
+        - $ref: '#/components/parameters/RoleAssignmentId'
+      responses:
+        '200':
+          description: Asignación encontrada.
+          headers:
+            ETag:
+              $ref: '#/components/headers/ETag'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RoleAssignment'
+              example:
+                id: "018f1a3c-7e3b-7c5a-9c2e-6a2f8e9b0e04"
+                userId: "00000000-0000-7000-8000-0000000b0713"
+                roleId: "00000000-0000-7000-8000-0000000d0002"
+                scopeType: LEGAL_ENTITY
+                scopeEntityId: "00000000-0000-7000-8000-0000000b0302"
+                validFrom: "2026-10-30T09:00:00Z"
+                validTo: null
+                grantedBy: "00000000-0000-7000-8000-0000000b0711"
+                source: MANUAL
+                sourceRefId: null
+                revokedBy: null
+                createdAt: "2026-10-30T09:00:00Z"
+                updatedAt: "2026-10-30T09:00:00Z"
+        '400':
+          $ref: '_shared/components.yaml#/components/responses/BadRequest'
+        '401':
+          $ref: '_shared/components.yaml#/components/responses/Unauthorized'
+        '403':
+          $ref: '_shared/components.yaml#/components/responses/Forbidden'
+        '404':
+          $ref: '_shared/components.yaml#/components/responses/NotFound'
 
   /v1/role-assignments/{id}/revoke:
     post:

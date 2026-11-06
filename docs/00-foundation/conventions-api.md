@@ -56,7 +56,7 @@ Los filtros son parámetros explícitos declarados en el contrato. No hay lengua
 | Dato | JSON |
 |---|---|
 | IDs | string UUID |
-| Instantes | string ISO-8601 UTC (`2026-10-18T16:20:00Z`) |
+| Instantes | string ISO-8601 UTC (`2026-10-18T16:20:00Z`). Como máximo 6 decimales (microsegundos) `[+]` (ADR-0016): un instante de entrada con 7 decimales (`…00.1234567Z`) es un 400 `VALIDATION` con el campo, no se redondea en silencio |
 | Fechas | string `YYYY-MM-DD` |
 | Importes y cantidades | **string decimal** (`"1250.5000"`). Nunca `number`: JavaScript pierde precisión |
 | Moneda | `{"amount":"1250.5000","currency":"CHF"}` |

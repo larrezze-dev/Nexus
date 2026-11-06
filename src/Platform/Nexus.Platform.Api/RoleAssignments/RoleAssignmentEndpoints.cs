@@ -10,6 +10,7 @@ using Nexus.BuildingBlocks.Web.OpenApi;
 using Nexus.Platform.Api.Users;
 using Nexus.Platform.Application.RoleAssignments;
 using Nexus.Platform.Application.RoleAssignments.CreateRoleAssignment;
+using Nexus.Platform.Application.RoleAssignments.GetRoleAssignment;
 using Nexus.Platform.Application.RoleAssignments.GetRoleAssignments;
 using Nexus.Platform.Application.RoleAssignments.GetUserEffectiveScope;
 using Nexus.Platform.Application.RoleAssignments.RevokeRoleAssignment;
@@ -29,8 +30,9 @@ public static class RoleAssignmentEndpoints
 
         var group = app.MapGroup("/v1/role-assignments").WithTags("RoleAssignments");
 
-        // KNOWN LIMITATION (Gate C): x-scope none + no RLS on access = any ROLE_ASSIGNMENT:READ
-        // holder lists every assignment system-wide. See GetRoleAssignmentsQuery.
+        // x-scope none is only the coarse gate: access has no RLS, so the handler keeps just the
+        // rows whose scope the caller's ROLE_ASSIGNMENT:READ covers (per-row coverage check, same
+        // mechanism as revoke) before paginating. See GetRoleAssignmentsQuery.
         group.MapGet(string.Empty, ListRoleAssignments)
             .WithName("listRoleAssignments")
             .ValidatedBy<GetRoleAssignmentsQuery>()
@@ -43,6 +45,11 @@ public static class RoleAssignmentEndpoints
             .RequirePermission("ROLE_ASSIGNMENT", PermissionAction.Create)
             .WithScope("body.scopeEntityId")
             .WithRules("ACC-R1", "ACC-R2", "ACC-R4", "ACC-R5");
+
+        group.MapGet("/{id:guid}", GetRoleAssignment)
+            .WithName("getRoleAssignment")
+            .RequirePermission("ROLE_ASSIGNMENT", PermissionAction.Read)
+            .WithScope("none");
 
         group.MapPost("/{id:guid}/revoke", RevokeRoleAssignment)
             .WithName("revokeRoleAssignment")
@@ -111,6 +118,22 @@ public static class RoleAssignmentEndpoints
         return created
             ? TypedResults.Created($"/v1/role-assignments/{assignment.Id}", body)
             : TypedResults.Ok(body);
+    }
+
+    internal static async Task<Results<Ok<RoleAssignmentResponse>, ProblemHttpResult>> GetRoleAssignment(
+        Guid id,
+        IDispatcher dispatcher,
+        HttpResponse response,
+        CancellationToken cancellationToken)
+    {
+        var result = await dispatcher.Send(new GetRoleAssignmentQuery(id), cancellationToken);
+        if (result.IsFailure)
+        {
+            return result.Error!.ToProblem();
+        }
+
+        response.SetETag(result.Value.Version.ToString(CultureInfo.InvariantCulture));
+        return TypedResults.Ok(RoleAssignmentResponse.From(result.Value));
     }
 
     internal static async Task<Results<Ok<RoleAssignmentResponse>, ProblemHttpResult>> RevokeRoleAssignment(

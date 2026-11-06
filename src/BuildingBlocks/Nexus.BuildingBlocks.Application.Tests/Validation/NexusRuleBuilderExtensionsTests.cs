@@ -86,6 +86,51 @@ public sealed class NexusRuleBuilderExtensionsTests
         requiredKeys.RequiredKeys.ShouldBe(["de", "en"]);
     }
 
+    [Theory]
+    [InlineData(0L, true)] // whole second
+    [InlineData(1_234_560L, true)] // .123456 s: 6 fractional digits
+    [InlineData(1_234_567L, false)] // .1234567 s: 7 fractional digits
+    [InlineData(1L, false)] // one tick (100 ns)
+    [InlineData(9L, false)]
+    [InlineData(10L, true)] // exactly one microsecond
+    public void MustBeMicrosecondPrecision_rejects_sub_microsecond_instants(long extraTicks, bool valid)
+    {
+        var instant = new DateTimeOffset(2026, 11, 4, 10, 0, 0, TimeSpan.Zero).AddTicks(extraTicks);
+        var validator = new InlineValidator<Instants>();
+        validator.RuleFor(s => s.Required).MustBeMicrosecondPrecision();
+        validator.RuleFor(s => s.Optional).MustBeMicrosecondPrecision();
+
+        var result = validator.Validate(new Instants(instant, instant));
+
+        result.IsValid.ShouldBe(valid);
+        if (!valid)
+        {
+            result.Errors.Select(e => e.PropertyName).ShouldBe(["Required", "Optional"]);
+            result.Errors[0].ErrorMessage.ShouldBe(
+                "'Required' must not be more precise than one microsecond (at most 6 fractional second digits).");
+        }
+    }
+
+    [Fact]
+    public void MustBeMicrosecondPrecision_lets_null_through()
+    {
+        var validator = new InlineValidator<Instants>();
+        validator.RuleFor(s => s.Optional).MustBeMicrosecondPrecision();
+
+        validator.Validate(new Instants(default, null)).IsValid.ShouldBeTrue();
+    }
+
+    [Fact]
+    public void MustBeMicrosecondPrecision_accepts_what_RoundedSystemTimeProvider_hands_out()
+    {
+        var validator = new InlineValidator<Instants>();
+        validator.RuleFor(s => s.Required).MustBeMicrosecondPrecision();
+
+        validator.Validate(new Instants(RoundedSystemTimeProvider.Instance.GetUtcNow(), null)).IsValid.ShouldBeTrue();
+    }
+
+    public sealed record Instants(DateTimeOffset Required, DateTimeOffset? Optional);
+
     public static TheoryData<Dictionary<string, string>?, bool> CaptionCases() => new()
     {
         { new Dictionary<string, string> { ["de"] = "Bühne" }, true },

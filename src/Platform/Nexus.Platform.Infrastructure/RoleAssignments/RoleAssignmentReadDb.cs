@@ -29,23 +29,17 @@ internal sealed class RoleAssignmentReadDb : IRoleAssignmentReadDb
         _unitOfWork = unitOfWork;
     }
 
-    public async Task<PagedResult<RoleAssignmentListItem>> ListAsync(
-        int page, int pageSize, IReadOnlyList<SortField> sort, RoleAssignmentFilter filter, CancellationToken cancellationToken)
+    public async Task<IReadOnlyList<RoleAssignmentListItem>> ListAllAsync(
+        IReadOnlyList<SortField> sort, RoleAssignmentFilter filter, CancellationToken cancellationToken)
     {
         var (where, parameters) = BuildWhere(filter);
-
-        var total = await _unitOfWork.Connection.ExecuteScalarAsync<long>(Command(
-            $"SELECT count(*) FROM access.role_assignment ra {where}",
-            parameters,
-            cancellationToken));
 
         var orderBy = sort.Count == 0
             ? SortColumns[RoleAssignmentSortFields.ValidFrom]
             : string.Join(", ", sort.Select(f => SortColumns[f.Field] + (f.Descending ? " DESC" : " ASC")));
 
-        parameters.Add("limit", pageSize);
-        parameters.Add("offset", (long)(page - 1) * pageSize);
-
+        // No LIMIT/OFFSET: the handler filters by scope coverage first, then paginates
+        // (see IRoleAssignmentReadDb.ListAllAsync).
         var rows = await _unitOfWork.Connection.QueryAsync<ListRow>(Command(
             $"""
              SELECT ra.id AS Id, ra.user_id AS UserId, ra.role_id AS RoleId, ra.scope_type AS ScopeType,
@@ -54,16 +48,38 @@ internal sealed class RoleAssignmentReadDb : IRoleAssignmentReadDb
              FROM access.role_assignment ra
              {where}
              ORDER BY {orderBy}, ra.id
-             LIMIT @limit OFFSET @offset
              """,
             parameters,
             cancellationToken));
 
-        var items = rows
+        return rows
             .Select(r => new RoleAssignmentListItem(r.Id, r.UserId, r.RoleId, r.ScopeType, r.ScopeEntityId, r.ValidFrom, r.ValidTo, r.Source))
             .ToList();
+    }
 
-        return new PagedResult<RoleAssignmentListItem>(items, page, pageSize, total);
+    public async Task<RoleAssignmentDetails?> GetByIdAsync(Guid id, CancellationToken cancellationToken)
+    {
+        // Version = xmin, the same concurrency token the repository (EF) reads, so this ETag is
+        // the one revokeRoleAssignment's If-Match is compared against.
+        var row = await _unitOfWork.Connection.QuerySingleOrDefaultAsync<DetailRow>(Command(
+            """
+            SELECT ra.id AS Id, ra.user_id AS UserId, ra.role_id AS RoleId, ra.scope_type AS ScopeType,
+                   ra.scope_entity_id AS ScopeEntityId, ra.valid_from AS ValidFrom, ra.valid_to AS ValidTo,
+                   ra.granted_by AS GrantedBy, ra.source AS Source, ra.source_ref_id AS SourceRefId,
+                   ra.revoked_by AS RevokedBy, ra.created_at AS CreatedAt, ra.updated_at AS UpdatedAt,
+                   ra.xmin::text::bigint AS Version
+            FROM access.role_assignment ra
+            WHERE ra.id = @id
+            """,
+            new { id },
+            cancellationToken));
+
+        return row is null
+            ? null
+            : new RoleAssignmentDetails(
+                row.Id, row.UserId, row.RoleId, row.ScopeType, row.ScopeEntityId, row.ValidFrom, row.ValidTo,
+                row.GrantedBy, row.Source, row.SourceRefId, row.RevokedBy, row.CreatedAt, row.UpdatedAt,
+                checked((uint)row.Version));
     }
 
     private static (string Where, DynamicParameters Parameters) BuildWhere(RoleAssignmentFilter filter)
@@ -120,6 +136,37 @@ internal sealed class RoleAssignmentReadDb : IRoleAssignmentReadDb
 
     private CommandDefinition Command(string sql, object? parameters, CancellationToken cancellationToken) =>
         new(sql, parameters, _unitOfWork.Transaction, cancellationToken: cancellationToken);
+
+    private sealed class DetailRow
+    {
+        public Guid Id { get; set; }
+
+        public Guid UserId { get; set; }
+
+        public Guid RoleId { get; set; }
+
+        public string ScopeType { get; set; } = string.Empty;
+
+        public Guid? ScopeEntityId { get; set; }
+
+        public DateTimeOffset ValidFrom { get; set; }
+
+        public DateTimeOffset? ValidTo { get; set; }
+
+        public Guid GrantedBy { get; set; }
+
+        public string Source { get; set; } = string.Empty;
+
+        public Guid? SourceRefId { get; set; }
+
+        public Guid? RevokedBy { get; set; }
+
+        public DateTimeOffset CreatedAt { get; set; }
+
+        public DateTimeOffset UpdatedAt { get; set; }
+
+        public long Version { get; set; }
+    }
 
     private sealed class ListRow
     {

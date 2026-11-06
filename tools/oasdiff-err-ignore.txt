@@ -136,3 +136,10 @@ PUT /v1/roles/{id}/permissions removed the required property `items/code` from t
 PUT /v1/roles/{id}/permissions removed the required property `items/resourceType` from the response with the `200` status
 PUT /v1/roles/{id}/permissions removed the required property `items/validFrom` from the response with the `200` status
 PUT /v1/roles/{id}/permissions removed the required property `items/validTo` from the response with the `200` status
+
+# --- nexus-platform: GET /v1/role-assignments/{id} (spec/access-scope-hardening) ---------
+# Same finding and root cause as the 0.4 org endpoints above, for the getRoleAssignment
+# operation this branch adds (guarded by .RequirePermission("ROLE_ASSIGNMENT", Read)).
+# Reproduced locally against the real service document. This endpoint didn't exist yet when
+# the step-0.6 section above was written, so it needs its own line.
+GET /v1/role-assignments/{id} the endpoint no longer allows anonymous access and now only accepts `bearerAuth`

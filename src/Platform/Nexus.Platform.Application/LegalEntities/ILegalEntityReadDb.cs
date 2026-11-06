@@ -12,11 +12,17 @@ public interface ILegalEntityReadDb
     Task<LegalEntityDetails?> GetByIdAsync(Guid id, CancellationToken cancellationToken);
 
     /// <summary>
-    /// One page of legal entities ordered by <paramref name="sort"/> (fields of
+    /// <b>Every</b> legal entity, ordered by <paramref name="sort"/> (fields of
     /// <see cref="LegalEntitySortFields.Allowed"/>), then by id for a stable order. An empty
     /// <paramref name="sort"/> orders by code.
+    /// <para>
+    /// Deliberately unpaginated: <c>listLegalEntities</c> must first drop the rows whose scope
+    /// the caller's <c>ORG_STRUCTURE:READ</c> does not cover (<c>org</c> has no RLS) and only
+    /// then paginate, so <c>total</c> counts what the caller can see. <c>org.legal_entity</c>
+    /// holds tens of rows.
+    /// </para>
     /// </summary>
-    Task<PagedResult<LegalEntityListItem>> ListAsync(int page, int pageSize, IReadOnlyList<SortField> sort, CancellationToken cancellationToken);
+    Task<IReadOnlyList<LegalEntityListItem>> ListAllAsync(IReadOnlyList<SortField> sort, CancellationToken cancellationToken);
 
     /// <summary>
     /// Rule ORG-R5: <see langword="true"/> if <paramref name="legalEntityId"/> has at least one
