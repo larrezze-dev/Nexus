@@ -30,7 +30,7 @@ El contrato A7 se reparte entre **cabeceras Kafka** (envoltorio) y **valor Avro*
 | `aggregate_version` `[+]` | cabecera `nexus-aggregate-version` | entero, crece por agregado |
 | `occurred_at` | cabecera `nexus-occurred-at` | ISO-8601 UTC |
 | `actor_user_id` | cabecera `nexus-actor-user-id` | UUID |
-| `schema_version` | cabecera `nexus-schema-version` | entero (`v<n>` del archivo `.avsc`) |
+| `schema_version` | cabecera `nexus-schema-version` | entero (`v<n>` del archivo `.avsc`; `[+]` independiente del número de versión del subject en el Schema Registry, ADR-0018) |
 | `correlation_id` | cabecera `nexus-correlation-id` | UUID |
 | `causation_id` | cabecera `nexus-causation-id` | UUID del evento o petición que lo causó |
 | `legal_entity_id` `[+]` | cabecera `nexus-legal-entity-id` | UUID o vacío. Lo usan las proyecciones para filtrar por alcance |
@@ -63,7 +63,10 @@ CREATE TABLE outbox.message (
   last_error        text        NULL                  -- [+]
 );
 CREATE INDEX ix_outbox_pending ON outbox.message (created_at, id) WHERE status = 'PENDING';
+CREATE INDEX ix_outbox_failed_aggregate ON outbox.message (aggregate_id, created_at, id) WHERE status = 'FAILED';  -- [+]
 ```
+
+- `[+]` `ix_outbox_failed_aggregate` (migración `V202611071600__infra__outbox_failed_index.sql`): índice parcial sobre las filas `FAILED`, que respalda la guarda por agregado del relay (§4 pasos 3 y 5).
 
 - **EV-R1:** el payload se guarda en JSON (codificación JSON de Avro). La transacción de negocio no depende de que el Schema Registry esté disponible.
 - **EV-R2:** el `UnitOfWork` valida el payload contra el esquema `.avsc` local antes de insertarlo. Un payload inválido aborta la transacción.
@@ -73,9 +76,9 @@ CREATE INDEX ix_outbox_pending ON outbox.message (created_at, id) WHERE status =
 
 1. Toma un *advisory lock* de PostgreSQL al arrancar. **Solo una instancia activa**; las demás esperan en espera pasiva.
 2. Bucle: espera `NOTIFY outbox_new` o 500 ms, lo que llegue antes.
-3. `SELECT ... WHERE status = 'PENDING' ORDER BY created_at, id LIMIT 500 FOR UPDATE SKIP LOCKED`.
+3. `SELECT ... WHERE status = 'PENDING' [+] AND NOT EXISTS (una fila FAILED anterior del mismo aggregate_id) ORDER BY created_at, id LIMIT 500 FOR UPDATE SKIP LOCKED`. `[+]` Guarda por agregado (EV-R3): una fila `FAILED` bloquea los eventos posteriores de su agregado hasta que un operador la reinicia (`UPDATE status='PENDING', attempts=0`).
 4. Por cada mensaje: serializa a Avro con Schema Registry y produce con productor idempotente (`enable.idempotence=true`, `acks=all`). Clave = `aggregate_id`.
-5. Marca `PUBLISHED` + `published_at`. En error: `attempts + 1`, `last_error`. Con `attempts >= 10` → `FAILED` y métrica de alerta.
+5. Marca `PUBLISHED` + `published_at`. En error: `attempts + 1`, `last_error`. Con `attempts >= 10` → `FAILED` y métrica de alerta. `[+]` Dentro de un lote, un agregado cuya publicación falla se omite durante el resto del lote (EV-R3), para no publicar eventos posteriores por delante del fallido.
 6. Purga diaria: borra filas `PUBLISHED` con más de 7 días. Es la única operación de borrado permitida sobre `outbox.message`.
 
 - **EV-R3:** el orden por agregado se garantiza porque hay un solo relay, procesa por `created_at` y la clave Kafka es `aggregate_id`.
@@ -121,6 +124,8 @@ La retención infinita permite reconstruir cualquier proyección desde el inicio
 - **EV-R5:** nunca se publican campos PII en claro salvo en eventos del propio contexto `org`/`hr` que los necesiten; ver `domain/gdpr.md`.
 - Con `BACKWARD`, **quitar** un campo es compatible y **añadir** un campo obligatorio sin `default` no lo es (el Schema Registry responde 409). Por eso todo campo nuevo debe llevar `default`. `[+]`
 - Un cambio incompatible crea `v<n+1>` en un **topic nuevo** (`...posted.v2`) y se mantiene el antiguo hasta migrar consumidores.
+- El relay resuelve el esquema de escritura **por contenido**, no por número de versión del subject: carga el `.avsc` local indicado por `schema_version` (el mismo que validó el `UnitOfWork`, EV-R2) y obtiene su id con `POST /subjects/<topic>-value` (ADR-0018). `[+]`
+- Por eso el relay lleva consigo `contracts/events` (imagen y compose). Una fila cuyo `schema_version` no tiene `.avsc`, o cuyo esquema no está registrado en el subject, falla por fila con un error explícito. `[+]`
 
 ## §7 Consumidores .NET
 

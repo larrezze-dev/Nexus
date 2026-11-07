@@ -5,14 +5,88 @@
 #
 # Usage: tools/register-schemas.sh   (run from anywhere, it anchors to the repo root)
 # Env:   SCHEMA_REGISTRY_URL   override the registry URL (default http://localhost:8081)
-set -euo pipefail
-
-cd "$(dirname "$0")/.."
-
-TOPICS_FILE="contracts/events/topics.yaml"
+#        NEXUS_REG_REPO_ROOT   directory the script anchors to (default: the repo root);
+#                              the topics file and the schema paths in it resolve against it.
+#                              Used by tools/test-register-schemas.sh to run on scratch inputs.
+#        NEXUS_REG_TOPICS_FILE topics registry (default contracts/events/topics.yaml).
+#                              If either NEXUS_REG_* override is set and the topics file
+#                              is missing, the script fails (exit 1) instead of skipping.
+#        REGISTER_SCHEMAS_LIB=1  only honoured when the script is SOURCED (library mode:
+#                              defines verify_lookup and returns). Executing the script
+#                              with it set is an error (exit 2).
+#
+# Two independent numberings, and why verification is by content:
+#   - The file name "v<n>" (e.g. foo.v2.avsc) is the outbox `schema_version` --
+#     the producer's own contract version, bumped on every schema change.
+#   - The registry's subject version (1, 2, 3, ...) is just the order in which
+#     distinct contents were registered under "<topic>-value". It is assigned by
+#     the registry, and need not equal <n> (e.g. a v2 file may be the subject's
+#     first registered version, or a topic may skip versions).
+# They are unrelated, so nothing may be derived from one to find the other.
+# The relay resolves a writer schema BY CONTENT: POST /subjects/<subject> with
+# {"schema": "<avsc as JSON string>", "schemaType": "AVRO"} returns 200 with
+# {subject, id, version, schema} when exactly that content is registered under
+# the subject (404 / error 40403 otherwise). After every registration this
+# script performs that same lookup with the local .avsc and fails unless it
+# returns HTTP 200 and a positive integer id (ADR-0018).
 SCHEMA_REGISTRY_URL="${SCHEMA_REGISTRY_URL:-http://localhost:8081}"
 
+# verify_lookup <subject> <avsc-path>
+# Looks the .avsc content up under <subject>. On success prints
+# "OK <subject> id=<id> subject-version=<version>" and returns 0; otherwise
+# prints an error to stderr and returns 1.
+verify_lookup() {
+  local subject="$1" avsc="$2" resp code id version
+  resp="$(mktemp)"
+  code="$(jq -Rs '{schema: ., schemaType: "AVRO"}' < "$avsc" \
+    | curl -s -o "$resp" -w '%{http_code}' \
+      -X POST "$SCHEMA_REGISTRY_URL/subjects/${subject}" \
+      -H 'Content-Type: application/vnd.schemaregistry.v1+json' \
+      --data-binary @-)" || code="000"
+  if [[ "$code" != "200" ]]; then
+    echo "ERROR: content lookup of $avsc under $subject failed (HTTP $code):" >&2
+    cat "$resp" >&2
+    echo >&2
+    rm -f "$resp"
+    return 1
+  fi
+  id="$(jq -r '.id // empty' < "$resp" 2>/dev/null || true)"
+  version="$(jq -r '.version // empty' < "$resp" 2>/dev/null || true)"
+  rm -f "$resp"
+  if [[ ! "$id" =~ ^[1-9][0-9]*$ ]]; then
+    echo "ERROR: content lookup of $avsc under $subject returned HTTP 200 but no positive integer id (got '${id}')." >&2
+    return 1
+  fi
+  echo "OK $subject id=$id subject-version=$version"
+}
+
+# Library mode (used by tools/test-register-schemas.sh): define the functions only.
+if [[ "${REGISTER_SCHEMAS_LIB:-0}" == "1" ]]; then
+  if [[ "${BASH_SOURCE[0]}" != "$0" ]]; then
+    return 0
+  fi
+  echo "ERROR: REGISTER_SCHEMAS_LIB is set but $0 is being executed, not sourced; refusing to exit 0 without registering anything. Unset it, or use 'source'." >&2
+  exit 2
+fi
+
+# Strict mode only for the executed script: when sourced (library mode above) the
+# caller's shell options are left untouched.
+set -euo pipefail
+
+overridden=0
+if [[ -n "${NEXUS_REG_REPO_ROOT:-}" || -n "${NEXUS_REG_TOPICS_FILE:-}" ]]; then
+  overridden=1
+fi
+
+cd "${NEXUS_REG_REPO_ROOT:-$(dirname "$0")/..}"
+
+TOPICS_FILE="${NEXUS_REG_TOPICS_FILE:-contracts/events/topics.yaml}"
+
 if [[ ! -f "$TOPICS_FILE" ]]; then
+  if [[ "$overridden" -eq 1 ]]; then
+    echo "ERROR: $TOPICS_FILE not found (a NEXUS_REG_* override is set, so this is not the 'not created yet' case)." >&2
+    exit 1
+  fi
   echo "WARN: $TOPICS_FILE not found yet — skipping schema registration."
   exit 0
 fi
@@ -108,6 +182,11 @@ for i in "${!names[@]}"; do
     echo "ERROR: registering $subject failed (HTTP $http_code):" >&2
     cat "$tmp_resp" >&2
     echo >&2
+    failed=1
+    continue
+  fi
+
+  if ! verify_lookup "$subject" "$schema_path"; then
     failed=1
     continue
   fi
