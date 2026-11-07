@@ -9,4 +9,91 @@
     <PackageReference Include="Apache.Avro" />
   </ItemGroup>
 
+  <!--
+    Generated/ is not versioned (ADR-0008, repo-structure.md §3): `make contracts` regenerates it.
+    A clean checkout (e.g. the CI dotnet job, which does not run `make contracts`) would otherwise
+    build this project empty, and a checkout whose schemas changed would build stale classes, so the
+    build regenerates them itself (same avrogen from .config/dotnet-tools.json, same exclusion of
+    contracts/events/_test).
+
+    The sentinel Generated/.generated-ok records WHAT was generated: one line per schema
+    (`schemas/<dir>/<file>.avsc`) and one per class it produced (`classes/<path>.cs`). Generation runs when:
+      - the sentinel is missing;
+      - any contracts/events/**/*.avsc (or this project file) is newer than it (MSBuild Inputs/Outputs);
+      - the recorded schema set differs from the current one (a schema added, deleted or renamed: its
+        stale class is removed, because Generated/ is wiped before regenerating);
+      - the recorded class set differs from what is in Generated/ (a partial or hand-edited Generated/).
+    The last two are set comparisons done by NexusCheckAvroSentinel, which deletes the sentinel on any
+    difference. The sentinel is deleted before generating and written only after EVERY avrogen call
+    succeeded, so a failed or interrupted generation never looks complete. `NexusAvrogen` can be
+    overridden (e.g. -p:NexusAvrogen=false to simulate a failure).
+  -->
+  <PropertyGroup>
+    <NexusRepoRoot>$([System.IO.Path]::GetFullPath('$(MSBuildProjectDirectory)/../../../'))</NexusRepoRoot>
+    <NexusAvroGeneratedDir>$(MSBuildProjectDirectory)/Generated</NexusAvroGeneratedDir>
+    <NexusAvroSentinel>$(NexusAvroGeneratedDir)/.generated-ok</NexusAvroSentinel>
+    <NexusAvrogen Condition="'$(NexusAvrogen)' == ''">dotnet avrogen</NexusAvrogen>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Never from the SDK's default glob (it may list a partial or stale Generated/): only when the
+         sentinel says the generation completed. This evaluation-time include is what design-time builds
+         (IDE IntelliSense, which do not run BeforeBuild) see; NexusIncludeAvroClasses replaces it after
+         any regeneration, so a real build never compiles a stale or duplicated class. -->
+    <Compile Remove="Generated/**" />
+    <_NexusAvroEvalClass Include="Generated/**/*.cs" Condition="Exists('$(MSBuildProjectDirectory)/Generated/.generated-ok')" />
+    <Compile Include="@(_NexusAvroEvalClass)" />
+    <_NexusAvroSchema Include="$(NexusRepoRoot)contracts/events/**/*.avsc"
+                      Exclude="$(NexusRepoRoot)contracts/events/_test/**" />
+  </ItemGroup>
+
+  <Target Name="NexusCheckAvroSentinel">
+    <ItemGroup>
+      <_NexusAvroClassNow Include="$(NexusAvroGeneratedDir)/**/*.cs" />
+      <_NexusAvroExpected Include="@(_NexusAvroSchema->'schemas/%(RecursiveDir)%(Filename)%(Extension)')" />
+      <_NexusAvroExpected Include="@(_NexusAvroClassNow->'classes/%(RecursiveDir)%(Filename)%(Extension)')" />
+    </ItemGroup>
+    <ReadLinesFromFile File="$(NexusAvroSentinel)" Condition="Exists('$(NexusAvroSentinel)')">
+      <Output TaskParameter="Lines" ItemName="_NexusAvroRecorded" />
+    </ReadLinesFromFile>
+    <ItemGroup>
+      <_NexusAvroDiff Include="@(_NexusAvroExpected)" Exclude="@(_NexusAvroRecorded)" />
+      <_NexusAvroDiff Include="@(_NexusAvroRecorded)" Exclude="@(_NexusAvroExpected)" />
+    </ItemGroup>
+    <Message Importance="high"
+             Text="Nexus.Contracts.Events: Generated/ does not match contracts/events (@(_NexusAvroDiff, ', ')), invalidating it"
+             Condition="Exists('$(NexusAvroSentinel)') and '@(_NexusAvroDiff)' != ''" />
+    <Delete Files="$(NexusAvroSentinel)" Condition="'@(_NexusAvroDiff)' != ''" />
+  </Target>
+
+  <Target Name="NexusGenerateAvroClasses"
+          DependsOnTargets="NexusCheckAvroSentinel"
+          Inputs="@(_NexusAvroSchema);$(MSBuildProjectFullPath)"
+          Outputs="$(NexusAvroSentinel)">
+    <Message Importance="high" Text="Nexus.Contracts.Events: Avro classes missing or out of date, regenerating with avrogen" />
+    <Delete Files="$(NexusAvroSentinel)" />
+    <RemoveDir Directories="$(NexusAvroGeneratedDir)" />
+    <MakeDir Directories="$(NexusAvroGeneratedDir)" />
+    <Exec Command="dotnet tool restore" WorkingDirectory="$(NexusRepoRoot)" StandardOutputImportance="low" />
+    <Exec Command="$(NexusAvrogen) -s &quot;%(_NexusAvroSchema.FullPath)&quot; &quot;$(NexusAvroGeneratedDir)&quot;"
+          WorkingDirectory="$(NexusRepoRoot)"
+          StandardOutputImportance="low"
+          Condition="'@(_NexusAvroSchema)' != ''" />
+    <ItemGroup>
+      <_NexusAvroClassGenerated Include="$(NexusAvroGeneratedDir)/**/*.cs" />
+      <_NexusAvroManifest Include="@(_NexusAvroSchema->'schemas/%(RecursiveDir)%(Filename)%(Extension)')" />
+      <_NexusAvroManifest Include="@(_NexusAvroClassGenerated->'classes/%(RecursiveDir)%(Filename)%(Extension)')" />
+    </ItemGroup>
+    <WriteLinesToFile File="$(NexusAvroSentinel)" Lines="@(_NexusAvroManifest)" Overwrite="true" />
+  </Target>
+
+  <!-- Always re-collect the generated files AFTER generation: drop whatever evaluation listed (it may
+       include classes the regeneration deleted) and include what is on disk now (no duplicates, no CS2002). -->
+  <Target Name="NexusIncludeAvroClasses" DependsOnTargets="NexusGenerateAvroClasses" BeforeTargets="BeforeBuild">
+    <ItemGroup>
+      <Compile Remove="@(_NexusAvroEvalClass)" />
+      <Compile Include="Generated/**/*.cs" />
+    </ItemGroup>
+  </Target>
+
 </Project>
