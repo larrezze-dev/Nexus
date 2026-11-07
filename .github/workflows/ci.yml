@@ -74,6 +74,9 @@ jobs:
       - name: Register Avro schemas in the Schema Registry
         run: bash tools/register-schemas.sh
 
+      - name: Test register-schemas content lookup
+        run: bash tools/test-register-schemas.sh
+
       - name: Stop Kafka + Schema Registry
         if: always()
         run: docker compose -f infra/compose/docker-compose.yml --env-file infra/compose/.env --profile infra down -v
