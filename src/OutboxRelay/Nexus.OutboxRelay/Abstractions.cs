@@ -139,8 +139,10 @@ public enum PublishFailureKind
     /// <summary>
     /// The row's topic cannot be produced to (does not exist, or no permission), detected by the
     /// metadata preflight or reported by the produce itself. Only that aggregate is skipped for
-    /// the rest of the batch; other aggregates continue. <c>attempts + 1</c>, never <c>FAILED</c>:
-    /// creating the topic or granting the ACL resumes publication in order.
+    /// the rest of the batch; other aggregates continue. <c>attempts + 1</c> only when the preflight
+    /// (or the produce) actually asked the cluster — at most once per topic per negative TTL; rows
+    /// whose topic is still negatively cached are skipped untouched (<see cref="PublishResult.Deferred"/>).
+    /// Never <c>FAILED</c>: creating the topic or granting the ACL resumes publication in order.
     /// </summary>
     TopicUnreachable = 2,
 
@@ -157,9 +159,21 @@ public enum PublishFailureKind
 /// <param name="Succeeded">The broker acknowledged the message (<c>acks=all</c>).</param>
 /// <param name="Error">Failure description, stored (truncated) in <c>last_error</c>. Never contains payload values.</param>
 /// <param name="Kind">The failure class (<see cref="PublishFailureKind.None"/> on success).</param>
-public readonly record struct PublishResult(bool Succeeded, string? Error, PublishFailureKind Kind)
+/// <param name="CountsAsAttempt">
+/// False for a <see cref="Deferred"/> row: its topic is still in the preflight's negative cache, so
+/// nothing was asked of the cluster. The aggregate is skipped for the rest of the batch, but the
+/// row is not updated (no <c>attempts + 1</c>, no <c>last_error</c>), nothing is logged or counted.
+/// </param>
+public readonly record struct PublishResult(bool Succeeded, string? Error, PublishFailureKind Kind, bool CountsAsAttempt = true)
 {
     public static PublishResult Success { get; } = new(true, null, PublishFailureKind.None);
+
+    /// <summary>
+    /// The row's topic is known to be unreachable from a recent preflight (negative cache): skip
+    /// its aggregate without recording an attempt. A real attempt is counted only when the
+    /// preflight runs again, i.e. at most once per topic per negative TTL.
+    /// </summary>
+    public static PublishResult Deferred(string reason) => new(false, reason, PublishFailureKind.TopicUnreachable, CountsAsAttempt: false);
 
     public static PublishResult Failure(string error, PublishFailureKind kind)
     {

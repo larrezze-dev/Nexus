@@ -22,7 +22,7 @@ public sealed class FailureClassTests(PostgresFixture db, KafkaFixture kafka)
 {
     private static readonly DateTimeOffset T0 = new(2026, 11, 7, 10, 0, 0, TimeSpan.Zero);
 
-    [Fact(DisplayName = "TopicUnreachable: a missing topic holds back only its aggregate (no 30 s stall), other aggregates are published, never FAILED beyond MaxAttempts; creating the topic publishes it in order")]
+    [Fact(DisplayName = "TopicUnreachable: a missing topic holds back only its aggregate (no 30 s stall), other aggregates keep publishing; over 12 s of 500 ms passes only ~1 attempt per 5 s negative TTL counts (3, not 25), never FAILED beyond MaxAttempts; creating the topic publishes it in order")]
     public async Task MissingTopic_HoldsBackOnlyItsAggregate_ThenPublishedInOrder()
     {
         await OutboxRows.ClearAsync(db);
@@ -46,7 +46,7 @@ public sealed class FailureClassTests(PostgresFixture db, KafkaFixture kafka)
             Options.Create(new RelayOptions { KafkaBootstrapServers = kafka.BootstrapServers, ProduceTimeoutMs = 15_000 }),
             time,
             NullLogger<KafkaEventPublisher>.Instance);
-        const int MaxAttempts = 3;
+        const int MaxAttempts = 2;
         var processor = new OutboxBatchProcessor(publisher, new RelayMetrics(meters), time, MaxAttempts, NullLogger.Instance);
 
         var stopwatch = Stopwatch.StartNew();
@@ -59,18 +59,30 @@ public sealed class FailureClassTests(PostgresFixture db, KafkaFixture kafka)
         (await OutboxRows.GetAsync(db, b2)).Status.ShouldBe("PUBLISHED");
         kafka.TopicExists(missing).ShouldBeFalse("nothing auto-created the topic");
 
-        for (var batch = 2; batch <= MaxAttempts + 2; batch++)
+        // 12 s of loop passes every 500 ms (24 batches). The preflight runs again only when the
+        // 5 s negative cache expires (t = 5 s, 10 s): 3 counted attempts in total, not 25.
+        Guid? b3 = null;
+        var deferred = 0;
+        for (var pass = 1; pass <= 24; pass++)
         {
-            time.Advance(TimeSpan.FromSeconds(1)); // both inside and beyond the 5 s negative cache
-            await RunAsync(processor);
+            time.Advance(TimeSpan.FromMilliseconds(500));
+            if (pass == 12)
+            {
+                b3 = await OutboxRows.InsertAsync(db, b, 3, T0.AddMilliseconds(4), ProbeRows.Payload(b, 3), existing);
+            }
+
+            deferred += (await RunAsync(processor)).Deferred;
         }
 
         var held = await OutboxRows.GetAsync(db, a1);
-        held.Status.ShouldBe("PENDING", "TopicUnreachable never makes a row FAILED");
-        held.Attempts.ShouldBe(MaxAttempts + 2);
+        held.Status.ShouldBe("PENDING", "TopicUnreachable never makes a row FAILED, even beyond MaxAttempts");
+        held.Attempts.ShouldBe(3, "one counted attempt per preflight (t = 0, 5 s, 10 s), none while negatively cached");
+        held.Attempts.ShouldBeGreaterThan(MaxAttempts);
         held.LastError.ShouldNotBeNull().ShouldContain(missing);
+        deferred.ShouldBe(22, "the other passes skipped the aggregate untouched");
         (await OutboxRows.GetAsync(db, a2)).Attempts.ShouldBe(0, "EV-R3: the aggregate's later rows are not attempted");
-        errors.Count(RelayMetrics.ErrorKindTopic).ShouldBe(MaxAttempts + 2);
+        (await OutboxRows.GetAsync(db, b3!.Value)).Status.ShouldBe("PUBLISHED", "other aggregates keep publishing");
+        errors.Count(RelayMetrics.ErrorKindTopic).ShouldBe(3);
 
         await kafka.CreateTopicAsync(missing);
         time.Advance(KafkaEventPublisher.NegativeTopicTtl + TimeSpan.FromSeconds(1));
@@ -198,9 +210,11 @@ public sealed class FailureClassTests(PostgresFixture db, KafkaFixture kafka)
         result.Kind.ShouldBe(expected);
         result.Error.ShouldNotBeNull().ShouldContain(topic);
 
-        // A topic error is remembered: the next row of that topic is held back without producing.
+        // A topic error is remembered: the next row of that topic is held back without producing,
+        // and without counting an attempt (negative cache).
         var next = await publisher.PublishAsync(FakeBatch.Message(Guid.CreateVersion7(), 1) with { Topic = topic }, CancellationToken.None);
         next.Kind.ShouldBe(expected == PublishFailureKind.TopicUnreachable ? PublishFailureKind.TopicUnreachable : PublishFailureKind.Row);
+        next.CountsAsAttempt.ShouldBe(expected != PublishFailureKind.TopicUnreachable);
     }
 
     [Fact(DisplayName = "N6: the Kafka producer is created lazily, on the first publish (a passive instance opens no Kafka connection)")]

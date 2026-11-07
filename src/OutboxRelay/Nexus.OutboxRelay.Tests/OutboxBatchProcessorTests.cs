@@ -109,6 +109,28 @@ public sealed class OutboxBatchProcessorTests
         errors.Count(RelayMetrics.ErrorKindTopic).ShouldBe(1);
     }
 
+    [Fact(DisplayName = "TopicUnreachable (negative cache): a Deferred row holds back its aggregate without any mark, log or metric; other aggregates continue")]
+    public async Task Deferred_SkipsAggregate_WithoutAttempt()
+    {
+        var a = Guid.CreateVersion7();
+        var a1 = FakeBatch.Message(a, 1, attempts: 4);
+        var a2 = FakeBatch.Message(a, 2);
+        var b1 = FakeBatch.Message(Guid.CreateVersion7(), 1);
+        var batch = new FakeBatch(a1, b1, a2);
+        var publisher = new ScriptedPublisher(m => m.AggregateId == a ? PublishResult.Deferred("topic missing (cached)") : PublishResult.Success);
+        using var meters = new TestMeterFactory();
+        using var errors = new ErrorKindListener(meters);
+
+        var outcome = await new OutboxBatchProcessor(publisher, new RelayMetrics(meters), TimeProvider.System, 10, NullLogger.Instance)
+            .ProcessAsync(batch, CancellationToken.None);
+
+        publisher.Attempted.Select(m => m.Id).ShouldBe([a1.Id, b1.Id]);
+        batch.Failed.ShouldBeEmpty("no attempts + 1, no last_error");
+        batch.Published.Keys.ShouldBe([b1.Id]);
+        errors.Count(RelayMetrics.ErrorKindTopic).ShouldBe(0);
+        outcome.ShouldSatisfyAllConditions(o => o.Deferred.ShouldBe(1), o => o.Failed.ShouldBe(0), o => o.StoppedOnTransientFailure.ShouldBeFalse());
+    }
+
     [Fact(DisplayName = "InfraGlobal: the batch stops at once and the outcome carries the cause (for the back-off log)")]
     public async Task InfraGlobal_StopsBatch_WithCause()
     {

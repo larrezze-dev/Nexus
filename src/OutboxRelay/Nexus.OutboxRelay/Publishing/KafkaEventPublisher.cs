@@ -33,7 +33,9 @@ namespace Nexus.OutboxRelay.Publishing;
 /// error is indistinguishable from a cluster outage. So before producing, the topic's metadata is
 /// checked (bounded by <see cref="RelayOptions.TopicPreflightTimeoutMs"/>, cached per topic with
 /// <see cref="TimeProvider"/>: <see cref="PositiveTopicTtl"/> when it exists, <see cref="NegativeTopicTtl"/>
-/// when not). A missing or unauthorised topic is <see cref="PublishFailureKind.TopicUnreachable"/>;
+/// when not). A missing or unauthorised topic is <see cref="PublishFailureKind.TopicUnreachable"/>,
+/// counted as an attempt only when the cluster was actually asked (the preflight ran or the produce
+/// answered); while negatively cached the row is <see cref="PublishResult.Deferred"/> (not counted);
 /// a metadata request that cannot reach the cluster is <see cref="PublishFailureKind.InfraGlobal"/>.
 /// </para>
 ///
@@ -218,7 +220,8 @@ public sealed partial class KafkaEventPublisher : IEventPublisher, IDisposable
         var now = _timeProvider.GetUtcNow();
         if (_topics.TryGetValue(topic, out var cached) && now < cached.Until)
         {
-            return cached.Error is null ? null : PublishResult.Failure(cached.Error, PublishFailureKind.TopicUnreachable);
+            // Negative cache: nothing new was asked of the cluster, so no attempt is recorded.
+            return cached.Error is null ? null : PublishResult.Deferred(cached.Error);
         }
 
         Metadata metadata;

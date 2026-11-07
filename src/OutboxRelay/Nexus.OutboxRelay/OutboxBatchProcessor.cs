@@ -8,7 +8,8 @@ namespace Nexus.OutboxRelay;
 /// <param name="Failed">Rows whose attempt failed (still PENDING or now FAILED).</param>
 /// <param name="StoppedOnTransientFailure">The batch stopped early on a <see cref="PublishFailureKind.InfraGlobal"/> failure (Kafka or the Schema Registry unavailable).</param>
 /// <param name="StopCause">When stopped: the failure description (category and cause; never payload values).</param>
-public readonly record struct BatchOutcome(int Selected, int Published, int Failed, bool StoppedOnTransientFailure, string? StopCause = null);
+/// <param name="Deferred">Rows skipped untouched because their topic is in the preflight's negative cache.</param>
+public readonly record struct BatchOutcome(int Selected, int Published, int Failed, bool StoppedOnTransientFailure, string? StopCause = null, int Deferred = 0);
 
 /// <summary>
 /// Publishes one locked batch and records the outcome of every attempted row in the same
@@ -26,7 +27,10 @@ public readonly record struct BatchOutcome(int Selected, int Published, int Fail
 ///       <item><see cref="PublishFailureKind.TopicUnreachable"/> (topic missing or not
 ///       authorised): only that aggregate is skipped; other aggregates continue. Never
 ///       <c>FAILED</c>; <c>nexus_outbox_errors_total{kind="topic"}</c> and a warning naming the
-///       topic.</item>
+///       topic. While the topic is in the preflight's negative cache the row comes back
+///       <see cref="PublishResult.Deferred"/>: the aggregate is skipped but the row is not touched
+///       (no attempt, no <c>last_error</c>, no log, no metric), so a missing topic costs one
+///       attempt per topic per negative TTL (5 s), not one per loop pass.</item>
 ///       <item><see cref="PublishFailureKind.Row"/>: the aggregate is skipped; at
 ///       <c>attempts &gt;= MaxAttempts</c> the row becomes <c>FAILED</c> and
 ///       <c>nexus_outbox_failed_total</c> is incremented.</item>
@@ -70,7 +74,7 @@ public sealed partial class OutboxBatchProcessor
         ArgumentNullException.ThrowIfNull(batch);
 
         var blockedAggregates = new HashSet<Guid>();
-        int published = 0, failed = 0;
+        int published = 0, failed = 0, deferred = 0;
         string? stopCause = null;
 
         foreach (var message in batch.Messages)
@@ -100,6 +104,15 @@ public sealed partial class OutboxBatchProcessor
                 continue;
             }
 
+            blockedAggregates.Add(message.AggregateId);
+            if (!result.CountsAsAttempt)
+            {
+                // Topic still in the preflight's negative cache: no attempt, no UPDATE, no log, no
+                // metric; the aggregate is only held back (EV-R3).
+                deferred++;
+                continue;
+            }
+
             failed++;
             _metrics.Error(result.Kind switch
             {
@@ -107,7 +120,6 @@ public sealed partial class OutboxBatchProcessor
                 PublishFailureKind.TopicUnreachable => RelayMetrics.ErrorKindTopic,
                 _ => RelayMetrics.ErrorKindRow,
             });
-            blockedAggregates.Add(message.AggregateId);
             var attempts = message.Attempts + 1;
             // Only a failure of this row can make it FAILED (and block its aggregate for good):
             // never an outage, never a missing topic.
@@ -143,7 +155,7 @@ public sealed partial class OutboxBatchProcessor
             _metrics.BatchSize(batch.Messages.Count);
         }
 
-        return new BatchOutcome(batch.Messages.Count, published, failed, stopCause is not null, stopCause);
+        return new BatchOutcome(batch.Messages.Count, published, failed, stopCause is not null, stopCause, deferred);
     }
 
     /// <summary>Truncates to <see cref="LastErrorMaxLength"/> and strips NUL (not storable in <c>text</c>).</summary>
