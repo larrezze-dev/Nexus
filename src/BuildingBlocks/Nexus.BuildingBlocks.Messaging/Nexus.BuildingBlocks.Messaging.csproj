@@ -5,4 +5,26 @@
     <Nullable>enable</Nullable>
   </PropertyGroup>
 
+  <ItemGroup>
+    <PackageReference Include="Confluent.Kafka" />
+    <PackageReference Include="Confluent.SchemaRegistry" />
+    <PackageReference Include="Confluent.SchemaRegistry.Serdes.Avro" />
+    <PackageReference Include="Apache.Avro" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Hosting/Logging/HealthChecks abstractions come from the shared framework: they are
+         not versioned in Directory.Packages.props. -->
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Inbox (consumer idempotency) drives the service's UnitOfWork. -->
+    <ProjectReference Include="..\Nexus.BuildingBlocks.Persistence\Nexus.BuildingBlocks.Persistence.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="Nexus.BuildingBlocks.Messaging.Tests" />
+  </ItemGroup>
+
 </Project>
