@@ -138,9 +138,16 @@ public sealed class NexusConsumerPipelineTests(KafkaFixture kafka, PostgresFixtu
         try
         {
             await WaitUntilAsync(() => Task.FromResult(State(health, consumer.GroupId) == ConsumerLoopState.Degraded), "the loop reports Degraded");
-            await Task.Delay(TimeSpan.FromSeconds(3), TestContext.Current.CancellationToken);
-            consumer.ExecuteTask!.IsCompleted.ShouldBeFalse("a non-fatal poll error must not end the loop (nor stop the host)");
-            State(health, consumer.GroupId).ShouldBe(ConsumerLoopState.Degraded);
+
+            // Wait more than 2 x DegradedQuietPeriod (5 s): with no partitions assigned (the topic does not
+            // exist) the loop must NEVER go back to Running just because poll errors were quiet for a while.
+            var until = DateTime.UtcNow + (2 * NexusConsumer<ch.nussli.nexus.org.LegalEntityCreated>.DegradedQuietPeriod) + TimeSpan.FromSeconds(2);
+            while (DateTime.UtcNow < until)
+            {
+                await Task.Delay(TimeSpan.FromMilliseconds(500), TestContext.Current.CancellationToken);
+                consumer.ExecuteTask!.IsCompleted.ShouldBeFalse("a non-fatal poll error must not end the loop (nor stop the host)");
+                State(health, consumer.GroupId).ShouldBe(ConsumerLoopState.Degraded, "no assignment: still Degraded after the quiet period");
+            }
 
             await kafka.CreateTopicWithDlqAsync(topic);
             await ProduceAsync(kafka, topic, le, envelope);

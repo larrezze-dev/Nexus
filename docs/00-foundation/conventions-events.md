@@ -145,7 +145,7 @@ CREATE TABLE inbox.processed_message (
 );
 ```
 
-- **Reintentos:** 1 intento + 3 reintentos con backoff (200 ms, 1 s, 5 s), es decir, 4 intentos en total. Si el 4.º también falla → mensaje a `{topic}.DLQ` con cabeceras `nexus-dlq-error`, `nexus-dlq-consumer`, `nexus-dlq-failed-at`, y se continúa. Si la propia publicación en la DLQ falla, el consumidor pausa sus particiones (sin confirmar el offset), reintenta la publicación con backoff exponencial (tope ~30 s), se informa `Unhealthy` y reanuda cuando lo consigue: el mensaje nunca se pierde ni se salta.
+- **Reintentos:** 1 intento + 3 reintentos con backoff (200 ms, 1 s, 5 s), es decir, 4 intentos en total `[+]`. Si el 4.º también falla → mensaje a `{topic}.DLQ` con cabeceras `nexus-dlq-error`, `nexus-dlq-consumer`, `nexus-dlq-failed-at`, y se continúa. `[+]` Si la propia publicación en la DLQ falla, el consumidor pausa sus particiones (sin confirmar el offset), reintenta la publicación con backoff exponencial (tope ~30 s), se informa `Unhealthy` y reanuda cuando lo consigue: el mensaje nunca se pierde ni se salta.
 - **Orden:** un consumidor que necesite orden comprueba `aggregate_version` y descarta versiones anteriores a la ya aplicada.
 - El consumidor abre su transacción con `app.current_user_id` = `actor_user_id` del evento si la acción es en nombre del usuario, o SYSTEM si es una reacción del sistema. La ficha del paso indica cuál.
 

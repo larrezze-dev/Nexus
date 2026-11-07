@@ -36,9 +36,13 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <!-- Never from the SDK's evaluation-time glob (it may list files the generation deletes): only from
-         NexusIncludeAvroClasses, after generation. -->
+    <!-- Never from the SDK's default glob (it may list a partial or stale Generated/): only when the
+         sentinel says the generation completed. This evaluation-time include is what design-time builds
+         (IDE IntelliSense, which do not run BeforeBuild) see; NexusIncludeAvroClasses replaces it after
+         any regeneration, so a real build never compiles a stale or duplicated class. -->
     <Compile Remove="Generated/**" />
+    <_NexusAvroEvalClass Include="Generated/**/*.cs" Condition="Exists('$(MSBuildProjectDirectory)/Generated/.generated-ok')" />
+    <Compile Include="@(_NexusAvroEvalClass)" />
     <_NexusAvroSchema Include="$(NexusRepoRoot)contracts/events/**/*.avsc"
                       Exclude="$(NexusRepoRoot)contracts/events/_test/**" />
   </ItemGroup>
@@ -83,9 +87,11 @@
     <WriteLinesToFile File="$(NexusAvroSentinel)" Lines="@(_NexusAvroManifest)" Overwrite="true" />
   </Target>
 
-  <!-- Always collect the generated files AFTER generation (excluded from the default glob above). -->
+  <!-- Always re-collect the generated files AFTER generation: drop whatever evaluation listed (it may
+       include classes the regeneration deleted) and include what is on disk now (no duplicates, no CS2002). -->
   <Target Name="NexusIncludeAvroClasses" DependsOnTargets="NexusGenerateAvroClasses" BeforeTargets="BeforeBuild">
     <ItemGroup>
+      <Compile Remove="@(_NexusAvroEvalClass)" />
       <Compile Include="Generated/**/*.cs" />
     </ItemGroup>
   </Target>

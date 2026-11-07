@@ -23,13 +23,29 @@ public sealed class ConsumerLagHealthCheckTests
         public bool Throw { get; set; }
 
         /// <summary>
-        /// Blocks the CALLING thread like a Kafka admin call stuck on an unreachable broker (synchronously,
-        /// so a caller that does not offload it is serialized), but cooperatively: it is released as soon
-        /// as the probe's token is cancelled, so no thread-pool thread stays pinned after the test.
+        /// Blocks the CALLING thread like a Kafka admin call stuck on an unreachable broker, but
+        /// cooperatively: it is released as soon as the probe's token is cancelled (or after BlockFor), so no
+        /// thread-pool thread stays pinned after the test. It records the maximum number of concurrently
+        /// blocked calls (a caller that does not offload the call to the thread pool serializes them: max 1),
+        /// whether the token it received can be cancelled at all, and whether it was cancelled when released
+        /// (a caller that does not pass the budget token leaves the call blocked for the full BlockFor).
         /// </summary>
         public TimeSpan? BlockFor { get; set; }
 
         private int _calls;
+        private int _inFlight;
+        private int _maxInFlight;
+        private int _released;
+        private int _tokensNotCancelable;
+        private int _releasedWithoutCancellation;
+
+        public int MaxConcurrency => Volatile.Read(ref _maxInFlight);
+
+        public int Released => Volatile.Read(ref _released);
+
+        public int TokensNotCancelable => Volatile.Read(ref _tokensNotCancelable);
+
+        public int ReleasedWithoutCancellation => Volatile.Read(ref _releasedWithoutCancellation);
 
         public int Calls => Volatile.Read(ref _calls);
 
@@ -38,7 +54,25 @@ public sealed class ConsumerLagHealthCheckTests
             Interlocked.Increment(ref _calls);
             if (BlockFor is { } block)
             {
+                if (!ct.CanBeCanceled)
+                {
+                    Interlocked.Increment(ref _tokensNotCancelable);
+                }
+
+                var now = Interlocked.Increment(ref _inFlight);
+                int seen;
+                while (now > (seen = Volatile.Read(ref _maxInFlight)) && Interlocked.CompareExchange(ref _maxInFlight, now, seen) != seen)
+                {
+                }
+
                 ct.WaitHandle.WaitOne(block);
+                Interlocked.Decrement(ref _inFlight);
+                if (!ct.IsCancellationRequested)
+                {
+                    Interlocked.Increment(ref _releasedWithoutCancellation);
+                }
+
+                Interlocked.Increment(ref _released);
                 ct.ThrowIfCancellationRequested(); // like the real probe once its budget is spent
             }
 
@@ -153,6 +187,21 @@ public sealed class ConsumerLagHealthCheckTests
         result.Status.ShouldBe(HealthStatus.Degraded);
         result.Data["operations.a.lag"].ShouldBe("unknown");
         result.Data["operations.d.lag"].ShouldBe("unknown");
+
+        // Offloaded to the thread pool: all 4 blocking calls ran at the same time.
+        probe.MaxConcurrency.ShouldBe(4, "each probe must be offloaded (Task.Run) so blocking calls run in parallel");
+        probe.TokensNotCancelable.ShouldBe(0, "the budget token must be passed to every probe");
+
+        // The budget token is cancelled when the budget elapses: every blocked probe is released by it,
+        // well before its own 5 s block would end.
+        var deadline = DateTime.UtcNow.AddSeconds(4);
+        while (probe.Released < 4 && DateTime.UtcNow < deadline)
+        {
+            await Task.Delay(20, Ct);
+        }
+
+        probe.Released.ShouldBe(4, "the budget token must be cancelled once the budget elapses");
+        probe.ReleasedWithoutCancellation.ShouldBe(0);
     }
 
     [Fact(DisplayName = "ConsumerHost health: a loop paused because its DLQ cannot be written is Unhealthy")]
