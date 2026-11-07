@@ -159,7 +159,8 @@ public sealed class ConsumerLagHealthCheck : IHealthCheck, IDisposable
     /// Probes every group in parallel within ONE budget (<see cref="ConsumerHealthOptions.QueryTimeout"/>).
     /// Each probe runs on the thread pool (the Kafka admin calls block) and gets a token cancelled at the
     /// end of the budget; a group whose probe failed or did not finish in time is simply absent from the
-    /// result. The round never waits longer than the budget, whatever the number of groups.
+    /// result. The round never waits longer than the budget, whatever the number of groups, and when it
+    /// returns every probe still running has had its token cancelled.
     /// </summary>
     private async Task<Dictionary<string, long>> ProbeAllAsync(IReadOnlyList<ConsumerStatus> consumers, CancellationToken ct)
     {
@@ -180,7 +181,11 @@ public sealed class ConsumerLagHealthCheck : IHealthCheck, IDisposable
 
         try
         {
-            await Task.WhenAll(probes.Select(p => p.Task)).WaitAsync(budget, _timeProvider, ct).ConfigureAwait(false);
+            // Wait on the probes' own token, never on a second timer: the round then ends only once every probe
+            // has finished or that token is cancelled. A separate WaitAsync(budget) timer races the CTS timer (the
+            // timer queue does not order timers due together): when it won, the round returned and disposed both
+            // CTSs un-cancelled, so the probes still in flight were never cancelled.
+            await Task.WhenAll(probes.Select(p => p.Task)).WaitAsync(token).ConfigureAwait(false);
         }
         catch (Exception) when (!ct.IsCancellationRequested)
         {
