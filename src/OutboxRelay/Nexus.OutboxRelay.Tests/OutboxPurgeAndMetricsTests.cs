@@ -161,8 +161,8 @@ public sealed class OutboxPurgeAndMetricsTests(PostgresFixture db)
         var transient = FakeBatch.Message(Guid.CreateVersion7(), 1);
         var publisher = new ScriptedPublisher(m =>
             m.Id == ok.Id ? PublishResult.Success
-            : m.Id == rowFail.Id ? PublishResult.Failure("bad row", false)
-            : PublishResult.Failure("kafka down", true));
+            : m.Id == rowFail.Id ? PublishResult.Failure("bad row", PublishFailureKind.Row)
+            : PublishResult.Failure("kafka down", PublishFailureKind.InfraGlobal));
 
         await new OutboxBatchProcessor(publisher, new RelayMetrics(meters), time, 10, NullLogger.Instance)
             .ProcessAsync(new FakeBatch(ok, rowFail, transient), CancellationToken.None);
@@ -199,7 +199,7 @@ public sealed class OutboxPurgeAndMetricsTests(PostgresFixture db)
         batch.Advice.ShouldNotBeNull().HistogramBucketBoundaries.ShouldBe([1, 5, 10, 25, 50, 100, 250, 500, 1000]);
     }
 
-    [Fact(DisplayName = "Metrics (H7): nexus_outbox_pending is not reported before the first refresh nor after ClearPending")]
+    [Fact(DisplayName = "Metrics (H7, N5): nexus_outbox_pending and nexus_outbox_oldest_pending_age_seconds are not reported before the first refresh nor after ClearPending")]
     public void PendingGauge_NotReportedWithoutLeader()
     {
         using var meters = new TestMeterFactory();
@@ -207,10 +207,13 @@ public sealed class OutboxPurgeAndMetricsTests(PostgresFixture db)
         var metrics = new RelayMetrics(meters);
 
         listener.TryObserve(RelayMetrics.PendingName).ShouldBeNull("never leader: nothing to report");
-        metrics.SetPending(7);
+        listener.TryObserve(RelayMetrics.OldestPendingAgeName).ShouldBeNull();
+        metrics.SetPending(7, 12.5);
         listener.TryObserve(RelayMetrics.PendingName).ShouldBe(7);
+        listener.TryObserve(RelayMetrics.OldestPendingAgeName).ShouldBe(12.5);
         metrics.ClearPending();
         listener.TryObserve(RelayMetrics.PendingName).ShouldBeNull("lease lost: the stale value is not reported");
+        listener.TryObserve(RelayMetrics.OldestPendingAgeName).ShouldBeNull("lease lost: the stale age is not reported");
     }
 
     [Fact(DisplayName = "Metrics (H7): a passive worker never reports nexus_outbox_pending; a leader stops reporting it once it loses the lease")]
@@ -255,8 +258,11 @@ public sealed class OutboxPurgeAndMetricsTests(PostgresFixture db)
                 await WaitUntilAsync(() => Task.FromResult(listener.TryObserve(RelayMetrics.PendingName) is not null));
                 listener.TryObserve(RelayMetrics.PendingName).ShouldBe(0);
 
+                listener.TryObserve(RelayMetrics.OldestPendingAgeName).ShouldBe(0, "no PENDING row");
+
                 await leadership.CrashAsync(db); // terminates the leader session; this instance never re-acquires
                 await WaitUntilAsync(() => Task.FromResult(listener.TryObserve(RelayMetrics.PendingName) is null));
+                listener.TryObserve(RelayMetrics.OldestPendingAgeName).ShouldBeNull();
             }
             finally
             {
@@ -265,13 +271,13 @@ public sealed class OutboxPurgeAndMetricsTests(PostgresFixture db)
         }
     }
 
-    [Fact(DisplayName = "Metrics: nexus_outbox_pending gauge reflects the PENDING count, refreshed at most every 5 s")]
+    [Fact(DisplayName = "Metrics (N5): nexus_outbox_pending and nexus_outbox_oldest_pending_age_seconds reflect the PENDING backlog, refreshed at most every 5 s")]
     public async Task PendingGauge_ReflectsCount()
     {
         await OutboxRows.ClearAsync(db);
+        await OutboxRows.InsertAsync(db, Guid.CreateVersion7(), 1, Now.AddSeconds(-30));
         await OutboxRows.InsertAsync(db, Guid.CreateVersion7(), 1, Now);
-        await OutboxRows.InsertAsync(db, Guid.CreateVersion7(), 1, Now);
-        await OutboxRows.InsertAsync(db, Guid.CreateVersion7(), 1, Now, status: "FAILED", attempts: 10);
+        await OutboxRows.InsertAsync(db, Guid.CreateVersion7(), 1, Now.AddDays(-3), status: "FAILED", attempts: 10);
         using var meters = new TestMeterFactory();
         using var listener = new MetricListener(meters);
         var time = new FakeTime(Now);
@@ -280,6 +286,7 @@ public sealed class OutboxPurgeAndMetricsTests(PostgresFixture db)
 
         await service.RefreshPendingAsync(lease, CancellationToken.None);
         listener.Observe(RelayMetrics.PendingName).ShouldBe(2);
+        listener.Observe(RelayMetrics.OldestPendingAgeName).ShouldBe(30, "oldest PENDING row (FAILED rows do not count)");
 
         await OutboxRows.InsertAsync(db, Guid.CreateVersion7(), 1, Now);
         await service.RefreshPendingAsync(lease, CancellationToken.None); // too soon: cached

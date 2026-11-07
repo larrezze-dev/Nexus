@@ -26,10 +26,11 @@ public sealed class RelayOptions
     public int LeaderRetrySeconds { get; set; } = 5;
 
     /// <summary>
-    /// A row becomes FAILED when a <b>row-specific</b> failure (payload does not decode/encode,
-    /// local <c>.avsc</c> missing, content not registered, message too large, unknown topic) leaves
-    /// it with <c>attempts &gt;= MaxAttempts</c>. Transient failures increment <c>attempts</c> too
-    /// but never make it FAILED (D-H1).
+    /// A row becomes FAILED when a <see cref="PublishFailureKind.Row"/> failure (payload or headers
+    /// invalid, local <c>.avsc</c> missing, content not registered, message too large) leaves it with
+    /// <c>attempts &gt;= MaxAttempts</c>. <see cref="PublishFailureKind.InfraGlobal"/> and
+    /// <see cref="PublishFailureKind.TopicUnreachable"/> failures increment <c>attempts</c> too but
+    /// never make it FAILED.
     /// </summary>
     public int MaxAttempts { get; set; } = 10;
 
@@ -42,12 +43,18 @@ public sealed class RelayOptions
     public int ProduceTimeoutMs { get; set; } = 30_000;
 
     /// <summary>
-    /// [+] Cap of the exponential back-off after a transient failure (Kafka or Schema Registry
+    /// [+] Bound of the topic metadata preflight done before producing (see
+    /// <c>KafkaEventPublisher</c>): a missing or unauthorised topic is detected in this time instead
+    /// of after <see cref="ProduceTimeoutMs"/>.
+    /// </summary>
+    public int TopicPreflightTimeoutMs { get; set; } = 5_000;
+
+    /// <summary>
+    /// [+] Cap of the exponential back-off after an InfraGlobal failure (Kafka or Schema Registry
     /// unavailable), starting at <see cref="PollIntervalMs"/>. During an outage the head row's
     /// <c>attempts</c> keep growing (one per back-off step, at most one per minute with the
-    /// defaults) but a transient failure never makes a row FAILED, however long the outage lasts
-    /// (decision D-H1, conventions-events.md §4 step 5): only row-specific failures count towards
-    /// <see cref="MaxAttempts"/>.
+    /// defaults) but it never becomes FAILED, however long the outage lasts (conventions-events.md
+    /// §4 step 5): only Row failures count towards <see cref="MaxAttempts"/>.
     /// </summary>
     public int MaxBackoffSeconds { get; set; } = 60;
 

@@ -227,16 +227,7 @@ public sealed class RelayEndToEndTests(PostgresFixture db, KafkaFixture kafka)
             await kafka.UnpauseRegistryAsync();
         }
 
-        try
-        {
-            await Poll.UntilAsync(async () => await ProbeRows.CountAsync(db, topic, "PUBLISHED") == rows.Count, TimeSpan.FromSeconds(60), "published once the registry is back");
-        }
-        catch (TimeoutException)
-        {
-            var stuck = await OutboxRows.GetAsync(db, head);
-            Log($"DIAG head after outage: {stuck.Status} attempts={stuck.Attempts} last_error={stuck.LastError}");
-            throw;
-        }
+        await Poll.UntilAsync(async () => await ProbeRows.CountAsync(db, topic, "PUBLISHED") == rows.Count, TimeSpan.FromSeconds(60), "published once the registry is back");
         var recovered = outage.Elapsed;
         Log($"Registry back: all {rows.Count} rows published {recovered.TotalSeconds:0.0} s after the outage started.");
 

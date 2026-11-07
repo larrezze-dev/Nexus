@@ -314,7 +314,7 @@ internal sealed class RelayInstance : IAsyncDisposable
         options.SchemaRegistryUrl = kafka.SchemaRegistryUrl;
         options.ContractsDirectory = contractsDirectory ?? TestContracts.Probe;
         Registry = registry ?? kafka.CreateRegistryClient();
-        _kafkaPublisher = new KafkaEventPublisher(new SchemaRegistryPayloadEncoder(Registry, options.ContractsDirectory), Options.Create(options), NullLogger<KafkaEventPublisher>.Instance);
+        _kafkaPublisher = new KafkaEventPublisher(new SchemaRegistryPayloadEncoder(Registry, options.ContractsDirectory), Options.Create(options), TimeProvider.System, NullLogger<KafkaEventPublisher>.Instance);
         Publisher = new CountingPublisher(_kafkaPublisher);
         Leadership = new CrashableLeadership(new PostgresRelayLeadership(db.GetConnectionString("svc_relay"), NullLoggerFactory.Instance));
         Worker = new RelayWorker(Leadership, Publisher, new RelayMetrics(_meters), Options.Create(options), TimeProvider.System, NullLogger<RelayWorker>.Instance);

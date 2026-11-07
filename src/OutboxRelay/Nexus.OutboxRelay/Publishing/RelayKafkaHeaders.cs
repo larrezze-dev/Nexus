@@ -27,7 +27,7 @@ public static class RelayKafkaHeaders
     public const string LegalEntityId = "nexus-legal-entity-id";
 
     /// <summary>Builds the headers, in the order of conventions-events.md §2.</summary>
-    /// <exception cref="PayloadEncodingException">The <c>headers</c> jsonb lacks a required key (never transient).</exception>
+    /// <exception cref="PayloadEncodingException">The <c>headers</c> jsonb is not an object or lacks a required key (never transient).</exception>
     public static Headers Build(OutboxMessage message)
     {
         ArgumentNullException.ThrowIfNull(message);
@@ -37,6 +37,13 @@ public static class RelayKafkaHeaders
         {
             using var json = JsonDocument.Parse(message.HeadersJson);
             var root = json.RootElement;
+            if (root.ValueKind != JsonValueKind.Object)
+            {
+                // Valid JSON but not an object ([], "x", null): TryGetProperty would throw
+                // InvalidOperationException. A row failure, not an outage.
+                throw new PayloadEncodingException($"outbox.message.headers must be a JSON object, not {root.ValueKind}.", isTransient: false);
+            }
+
             occurredAt = Required(root, OutboxHeaders.OccurredAt);
             actorUserId = Required(root, OutboxHeaders.ActorUserId);
             correlationId = Required(root, OutboxHeaders.CorrelationId);

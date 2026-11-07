@@ -74,7 +74,7 @@ public sealed class OutboxBatchTests(PostgresFixture db)
     {
         await OutboxRows.ClearAsync(db);
         var id = await OutboxRows.InsertAsync(db, Guid.CreateVersion7(), 1, T0);
-        var publisher = new ScriptedPublisher(_ => PublishResult.Failure("boom: schema missing", isTransient: false));
+        var publisher = new ScriptedPublisher(_ => PublishResult.Failure("boom: schema missing", PublishFailureKind.Row));
         using var meters = new TestMeterFactory();
         using var failedCounter = new FailedCounterListener(meters);
 
@@ -114,7 +114,7 @@ public sealed class OutboxBatchTests(PostgresFixture db)
         var b2 = await OutboxRows.InsertAsync(db, b, 2, T0.AddMilliseconds(4));
         var a3 = await OutboxRows.InsertAsync(db, a, 3, T0.AddMilliseconds(5));
 
-        var publisher = new ScriptedPublisher(m => m.Id == a1 ? PublishResult.Failure("a1 rejected", false) : PublishResult.Success);
+        var publisher = new ScriptedPublisher(m => m.Id == a1 ? PublishResult.Failure("a1 rejected", PublishFailureKind.Row) : PublishResult.Success);
         var outcome = await RunBatchAsync(publisher, TimeProvider.System);
 
         publisher.Attempted.Select(m => m.Id).ShouldBe([a1, b1, b2], "a2 and a3 must not be attempted after a1 failed");
@@ -168,7 +168,7 @@ public sealed class OutboxBatchTests(PostgresFixture db)
         var first = await OutboxRows.InsertAsync(db, Guid.CreateVersion7(), 1, T0.AddMilliseconds(1));
         var second = await OutboxRows.InsertAsync(db, Guid.CreateVersion7(), 1, T0.AddMilliseconds(2));
 
-        var publisher = new ScriptedPublisher(_ => PublishResult.Failure("Schema Registry unavailable", isTransient: true));
+        var publisher = new ScriptedPublisher(_ => PublishResult.Failure("Schema Registry unavailable", PublishFailureKind.InfraGlobal));
         var outcome = await RunBatchAsync(publisher, TimeProvider.System);
 
         outcome.StoppedOnTransientFailure.ShouldBeTrue();

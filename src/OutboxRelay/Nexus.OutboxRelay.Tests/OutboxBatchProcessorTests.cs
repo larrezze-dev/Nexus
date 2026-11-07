@@ -19,7 +19,7 @@ public sealed class OutboxBatchProcessorTests
             FakeBatch.Message(a, 2), FakeBatch.Message(b, 2), FakeBatch.Message(c, 2),
         };
         var batch = new FakeBatch(rows);
-        var publisher = new ScriptedPublisher(m => m.AggregateId == b && m.AggregateVersion == 1 ? PublishResult.Failure("x", false) : PublishResult.Success);
+        var publisher = new ScriptedPublisher(m => m.AggregateId == b && m.AggregateVersion == 1 ? PublishResult.Failure("x", PublishFailureKind.Row) : PublishResult.Success);
 
         using var meters = new TestMeterFactory();
         var outcome = await new OutboxBatchProcessor(publisher, new RelayMetrics(meters), TimeProvider.System, 10, NullLogger.Instance)
@@ -40,7 +40,7 @@ public sealed class OutboxBatchProcessorTests
         using var meters = new TestMeterFactory();
         using var counter = new FailedCounterListener(meters);
 
-        await new OutboxBatchProcessor(new ScriptedPublisher(_ => PublishResult.Failure("x", false)), new RelayMetrics(meters), TimeProvider.System, 10, NullLogger.Instance)
+        await new OutboxBatchProcessor(new ScriptedPublisher(_ => PublishResult.Failure("x", PublishFailureKind.Row)), new RelayMetrics(meters), TimeProvider.System, 10, NullLogger.Instance)
             .ProcessAsync(batch, CancellationToken.None);
 
         batch.Failed[row.Id].ShouldBe((10, "x", true));
@@ -58,7 +58,7 @@ public sealed class OutboxBatchProcessorTests
         using var meters = new TestMeterFactory();
         using var counter = new FailedCounterListener(meters);
 
-        var outcome = await new OutboxBatchProcessor(new ScriptedPublisher(_ => PublishResult.Failure("registry down", isTransient: true)), new RelayMetrics(meters), TimeProvider.System, 10, NullLogger.Instance)
+        var outcome = await new OutboxBatchProcessor(new ScriptedPublisher(_ => PublishResult.Failure("registry down", PublishFailureKind.InfraGlobal)), new RelayMetrics(meters), TimeProvider.System, 10, NullLogger.Instance)
             .ProcessAsync(batch, CancellationToken.None);
 
         batch.Failed[row.Id].ShouldBe((storedAttempts + 1, "registry down", false));
@@ -74,11 +74,54 @@ public sealed class OutboxBatchProcessorTests
         using var meters = new TestMeterFactory();
         using var counter = new FailedCounterListener(meters);
 
-        await new OutboxBatchProcessor(new ScriptedPublisher(_ => PublishResult.Failure("bad payload", isTransient: false)), new RelayMetrics(meters), TimeProvider.System, 10, NullLogger.Instance)
+        await new OutboxBatchProcessor(new ScriptedPublisher(_ => PublishResult.Failure("bad payload", PublishFailureKind.Row)), new RelayMetrics(meters), TimeProvider.System, 10, NullLogger.Instance)
             .ProcessAsync(batch, CancellationToken.None);
 
         batch.Failed[row.Id].ShouldBe((15, "bad payload", true));
         counter.Total.ShouldBe(1);
+    }
+
+    [Theory(DisplayName = "TopicUnreachable: only that aggregate is skipped, other aggregates continue, never FAILED (even far beyond MaxAttempts), counted as errors{kind=topic}")]
+    [InlineData(0)]
+    [InlineData(9)]
+    [InlineData(57)]
+    public async Task TopicUnreachable_SkipsAggregate_NeverTerminal(int storedAttempts)
+    {
+        var a = Guid.CreateVersion7();
+        var b = Guid.CreateVersion7();
+        var a1 = FakeBatch.Message(a, 1, attempts: storedAttempts) with { Topic = "nexus.test.missing.created" };
+        var a2 = FakeBatch.Message(a, 2) with { Topic = "nexus.test.missing.created" };
+        var b1 = FakeBatch.Message(b, 1);
+        var batch = new FakeBatch(a1, b1, a2);
+        var publisher = new ScriptedPublisher(m => m.AggregateId == a ? PublishResult.Failure("topic 'nexus.test.missing.created' does not exist", PublishFailureKind.TopicUnreachable) : PublishResult.Success);
+        using var meters = new TestMeterFactory();
+        using var counter = new FailedCounterListener(meters);
+        using var errors = new ErrorKindListener(meters);
+
+        var outcome = await new OutboxBatchProcessor(publisher, new RelayMetrics(meters), TimeProvider.System, 10, NullLogger.Instance)
+            .ProcessAsync(batch, CancellationToken.None);
+
+        outcome.StoppedOnTransientFailure.ShouldBeFalse();
+        publisher.Attempted.Select(m => m.Id).ShouldBe([a1.Id, b1.Id], "a2 skipped (EV-R3), b1 still attempted");
+        batch.Failed[a1.Id].ShouldBe((storedAttempts + 1, "topic 'nexus.test.missing.created' does not exist", false));
+        batch.Published.Keys.ShouldBe([b1.Id]);
+        counter.Total.ShouldBe(0);
+        errors.Count(RelayMetrics.ErrorKindTopic).ShouldBe(1);
+    }
+
+    [Fact(DisplayName = "InfraGlobal: the batch stops at once and the outcome carries the cause (for the back-off log)")]
+    public async Task InfraGlobal_StopsBatch_WithCause()
+    {
+        var batch = new FakeBatch(FakeBatch.Message(Guid.CreateVersion7(), 1), FakeBatch.Message(Guid.CreateVersion7(), 1));
+        var publisher = new ScriptedPublisher(_ => PublishResult.Failure("Schema Registry unavailable looking up subject 's': HttpRequestException.", PublishFailureKind.InfraGlobal));
+        using var meters = new TestMeterFactory();
+
+        var outcome = await new OutboxBatchProcessor(publisher, new RelayMetrics(meters), TimeProvider.System, 10, NullLogger.Instance)
+            .ProcessAsync(batch, CancellationToken.None);
+
+        publisher.Attempted.Count.ShouldBe(1);
+        outcome.StoppedOnTransientFailure.ShouldBeTrue();
+        outcome.StopCause.ShouldBe("Schema Registry unavailable looking up subject 's': HttpRequestException.");
     }
 
     [Fact(DisplayName = "§4.4: on shutdown no further row is attempted, and what was done is committed")]

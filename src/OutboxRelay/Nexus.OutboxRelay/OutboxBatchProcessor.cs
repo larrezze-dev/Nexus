@@ -6,8 +6,9 @@ namespace Nexus.OutboxRelay;
 /// <param name="Selected">Rows locked by the batch query.</param>
 /// <param name="Published">Rows marked PUBLISHED.</param>
 /// <param name="Failed">Rows whose attempt failed (still PENDING or now FAILED).</param>
-/// <param name="StoppedOnTransientFailure">The batch stopped early because Kafka or the Schema Registry is unavailable.</param>
-public readonly record struct BatchOutcome(int Selected, int Published, int Failed, bool StoppedOnTransientFailure);
+/// <param name="StoppedOnTransientFailure">The batch stopped early on a <see cref="PublishFailureKind.InfraGlobal"/> failure (Kafka or the Schema Registry unavailable).</param>
+/// <param name="StopCause">When stopped: the failure description (category and cause; never payload values).</param>
+public readonly record struct BatchOutcome(int Selected, int Published, int Failed, bool StoppedOnTransientFailure, string? StopCause = null);
 
 /// <summary>
 /// Publishes one locked batch and records the outcome of every attempted row in the same
@@ -16,20 +17,25 @@ public readonly record struct BatchOutcome(int Selected, int Published, int Fail
 /// <para>Per row, in <c>created_at, id</c> order:</para>
 /// <list type="bullet">
 ///   <item>Success: <c>PUBLISHED</c> + <c>published_at</c> (from <see cref="TimeProvider"/>).</item>
-///   <item>Failure: <c>attempts + 1</c> and <c>last_error</c> (truncated). Only a
-///   <b>row-specific</b> failure (<see cref="PublishResult.IsTransient"/> false: payload does not
-///   decode/encode, local schema missing or not registered, message too large, unknown topic) at
-///   <c>attempts &gt;= MaxAttempts</c> makes the row <c>FAILED</c> and increments
-///   <c>nexus_outbox_failed_total</c>: <c>terminal = !IsTransient &amp;&amp; attempts &gt;= MaxAttempts</c>.
-///   A transient failure (Kafka / Schema Registry unreachable, timeouts) increments
-///   <c>attempts</c> and records <c>last_error</c> but never makes the row <c>FAILED</c>, however
-///   long the outage (decision D-H1, conventions-events.md §4 step 5).</item>
+///   <item>Any failure: <c>attempts + 1</c> and <c>last_error</c> (truncated), then by
+///   <see cref="PublishFailureKind"/> (decision of Luciano, conventions-events.md §4 step 5):
+///     <list type="bullet">
+///       <item><see cref="PublishFailureKind.InfraGlobal"/> (broker / registry unavailable): the
+///       batch stops, the remaining rows are untouched and the caller backs off. Never
+///       <c>FAILED</c>, however long the outage.</item>
+///       <item><see cref="PublishFailureKind.TopicUnreachable"/> (topic missing or not
+///       authorised): only that aggregate is skipped; other aggregates continue. Never
+///       <c>FAILED</c>; <c>nexus_outbox_errors_total{kind="topic"}</c> and a warning naming the
+///       topic.</item>
+///       <item><see cref="PublishFailureKind.Row"/>: the aggregate is skipped; at
+///       <c>attempts &gt;= MaxAttempts</c> the row becomes <c>FAILED</c> and
+///       <c>nexus_outbox_failed_total</c> is incremented.</item>
+///     </list>
+///   </item>
 ///   <item><b>EV-R3 guard:</b> after a failure, the rest of that aggregate's rows in this batch are
 ///   skipped and left untouched (still <c>PENDING</c>, attempts unchanged), so a later version is
-///   never published before an earlier one. Other aggregates continue. Across batches, the batch
-///   query never selects a row that has an earlier <c>FAILED</c> row of the same aggregate.</item>
-///   <item>Transient failure (cluster or registry unavailable): the batch stops after recording the
-///   failed row; the remaining rows are untouched and the caller backs off.</item>
+///   never published before an earlier one. Across batches, the batch query never selects a row
+///   that has an earlier <c>FAILED</c> row of the same aggregate.</item>
 /// </list>
 ///
 /// <para>
@@ -65,7 +71,7 @@ public sealed partial class OutboxBatchProcessor
 
         var blockedAggregates = new HashSet<Guid>();
         int published = 0, failed = 0;
-        var stoppedOnTransient = false;
+        string? stopCause = null;
 
         foreach (var message in batch.Messages)
         {
@@ -95,27 +101,37 @@ public sealed partial class OutboxBatchProcessor
             }
 
             failed++;
-            _metrics.Error(result.IsTransient ? RelayMetrics.ErrorKindTemporary : RelayMetrics.ErrorKindRow);
+            _metrics.Error(result.Kind switch
+            {
+                PublishFailureKind.InfraGlobal => RelayMetrics.ErrorKindTemporary,
+                PublishFailureKind.TopicUnreachable => RelayMetrics.ErrorKindTopic,
+                _ => RelayMetrics.ErrorKindRow,
+            });
             blockedAggregates.Add(message.AggregateId);
             var attempts = message.Attempts + 1;
-            // D-H1: an infrastructure outage must never block an aggregate (FAILED); only a
-            // failure of this row does, once it has used up its attempts.
-            var terminal = !result.IsTransient && attempts >= _maxAttempts;
-            batch.MarkFailed(message.Id, attempts, Truncate(result.Error), terminal);
+            // Only a failure of this row can make it FAILED (and block its aggregate for good):
+            // never an outage, never a missing topic.
+            var terminal = result.Kind == PublishFailureKind.Row && attempts >= _maxAttempts;
+            var error = Truncate(result.Error);
+            batch.MarkFailed(message.Id, attempts, error, terminal);
 
             if (terminal)
             {
                 _metrics.MessageFailed(message);
                 LogMessageFailed(_logger, message.Id, message.EventType, message.Topic, attempts);
             }
+            else if (result.Kind == PublishFailureKind.TopicUnreachable)
+            {
+                LogTopicUnreachable(_logger, message.Topic, message.Id, attempts);
+            }
             else
             {
-                LogAttemptFailed(_logger, message.Id, message.EventType, attempts, result.IsTransient);
+                LogAttemptFailed(_logger, message.Id, message.EventType, attempts, result.Kind);
             }
 
-            if (result.IsTransient)
+            if (result.Kind == PublishFailureKind.InfraGlobal)
             {
-                stoppedOnTransient = true;
+                stopCause = error;
                 break;
             }
         }
@@ -127,7 +143,7 @@ public sealed partial class OutboxBatchProcessor
             _metrics.BatchSize(batch.Messages.Count);
         }
 
-        return new BatchOutcome(batch.Messages.Count, published, failed, stoppedOnTransient);
+        return new BatchOutcome(batch.Messages.Count, published, failed, stopCause is not null, stopCause);
     }
 
     /// <summary>Truncates to <see cref="LastErrorMaxLength"/> and strips NUL (not storable in <c>text</c>).</summary>
@@ -141,6 +157,9 @@ public sealed partial class OutboxBatchProcessor
     [LoggerMessage(Level = LogLevel.Error, Message = "Outbox message {MessageId} ({EventType} -> {Topic}) marked FAILED after {Attempts} attempts; its aggregate is blocked until the row is reset.")]
     private static partial void LogMessageFailed(ILogger logger, Guid messageId, string eventType, string topic, int attempts);
 
-    [LoggerMessage(Level = LogLevel.Warning, Message = "Publishing outbox message {MessageId} ({EventType}) failed, attempt {Attempts} (transient={IsTransient}).")]
-    private static partial void LogAttemptFailed(ILogger logger, Guid messageId, string eventType, int attempts, bool isTransient);
+    [LoggerMessage(Level = LogLevel.Warning, Message = "Publishing outbox message {MessageId} ({EventType}) failed, attempt {Attempts} ({FailureKind}).")]
+    private static partial void LogAttemptFailed(ILogger logger, Guid messageId, string eventType, int attempts, PublishFailureKind failureKind);
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "Kafka topic '{Topic}' does not exist or is not authorised; outbox message {MessageId} held back (attempt {Attempts}, never FAILED). Create the topic or grant the ACL.")]
+    private static partial void LogTopicUnreachable(ILogger logger, string topic, Guid messageId, int attempts);
 }

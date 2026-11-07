@@ -214,3 +214,125 @@ internal sealed class FakeBatch(params OutboxMessage[] messages) : IOutboxBatch
         new(Guid.CreateVersion7(), OutboxRows.DefaultTopic, "relay-probe", aggregateId, version, "test.relay-probe.created", 1,
             OutboxRows.Headers(), "{}", DateTimeOffset.UtcNow, attempts);
 }
+
+/// <summary>A clock the test moves by hand.</summary>
+internal sealed class ManualTime(DateTimeOffset start) : TimeProvider
+{
+    private DateTimeOffset _now = start;
+
+    public override DateTimeOffset GetUtcNow() => _now;
+
+    public void Advance(TimeSpan by) => _now += by;
+}
+
+/// <summary>Collects the formatted messages of one logger.</summary>
+internal sealed class CapturingLogger<T> : Microsoft.Extensions.Logging.ILogger<T>
+{
+    private readonly List<string> _messages = [];
+
+    public IReadOnlyList<string> Messages
+    {
+        get
+        {
+            lock (_messages)
+            {
+                return [.. _messages];
+            }
+        }
+    }
+
+    public IDisposable? BeginScope<TState>(TState state)
+        where TState : notnull => null;
+
+    public bool IsEnabled(Microsoft.Extensions.Logging.LogLevel logLevel) => true;
+
+    public void Log<TState>(Microsoft.Extensions.Logging.LogLevel logLevel, Microsoft.Extensions.Logging.EventId eventId, TState state, Exception? exception, Func<TState, Exception?, string> formatter)
+    {
+        ArgumentNullException.ThrowIfNull(formatter);
+        lock (_messages)
+        {
+            _messages.Add(formatter(state, exception));
+        }
+    }
+}
+
+/// <summary>
+/// A minimal Schema Registry stand-in: answers every request with <see cref="Status"/> and a
+/// Confluent-style error body, so the encoder's HTTP status classification can be tested.
+/// </summary>
+internal sealed class FakeRegistryServer : IDisposable
+{
+    private readonly System.Net.HttpListener _listener = new();
+    private readonly CancellationTokenSource _stop = new();
+    private readonly Task _loop;
+
+    public FakeRegistryServer(int status)
+    {
+        Status = status;
+        int port;
+        var probe = new System.Net.Sockets.TcpListener(System.Net.IPAddress.Loopback, 0);
+        probe.Start();
+        port = ((System.Net.IPEndPoint)probe.LocalEndpoint).Port;
+        probe.Stop();
+        Url = $"http://127.0.0.1:{port}/";
+        _listener.Prefixes.Add(Url);
+        _listener.Start();
+        _loop = Task.Run(ServeAsync);
+    }
+
+    public int Status { get; }
+
+    public string Url { get; }
+
+    private int _requests;
+
+    public int Requests => Volatile.Read(ref _requests);
+
+    public void Dispose()
+    {
+        _stop.Cancel();
+        _listener.Stop();
+        _listener.Close();
+        try
+        {
+            _loop.Wait(TimeSpan.FromSeconds(5));
+        }
+        catch (AggregateException)
+        {
+        }
+
+        _stop.Dispose();
+    }
+
+    private async Task ServeAsync()
+    {
+        while (!_stop.IsCancellationRequested)
+        {
+            System.Net.HttpListenerContext context;
+            try
+            {
+                context = await _listener.GetContextAsync();
+            }
+            catch (Exception) when (_stop.IsCancellationRequested)
+            {
+                return;
+            }
+            catch (System.Net.HttpListenerException)
+            {
+                return;
+            }
+            catch (ObjectDisposedException)
+            {
+                return;
+            }
+
+            Interlocked.Increment(ref _requests);
+            var body = Encoding.UTF8.GetBytes($$"""{"error_code":{{Status * 100 + 1}},"message":"fake registry answer {{Status}}"}""");
+            context.Response.StatusCode = Status;
+            context.Response.ContentType = "application/vnd.schemaregistry.v1+json";
+            context.Response.ContentLength64 = body.Length;
+            await context.Response.OutputStream.WriteAsync(body);
+            context.Response.Close();
+        }
+    }
+}

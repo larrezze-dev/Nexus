@@ -12,6 +12,7 @@ namespace Nexus.OutboxRelay.Tests.Infrastructure;
 /// A real Kafka broker (same image as compose, <c>apache/kafka:4.3.2</c>, via Testcontainers.Kafka)
 /// and a real Confluent Schema Registry (same image as compose, generic container) on a private
 /// network. The registry reaches the broker through the extra listener <c>kafka:19092</c>.
+/// <c>auto.create.topics.enable=false</c>, as in compose.
 /// </summary>
 public sealed class KafkaFixture : IAsyncLifetime
 {
@@ -35,6 +36,9 @@ public sealed class KafkaFixture : IAsyncLifetime
         _kafka = new KafkaBuilder(KafkaImage)
             .WithNetwork(_network)
             .WithListener("kafka:19092")
+            // As compose and production (conventions-events.md §5): a produce or metadata request
+            // never creates a topic, so the "missing topic" cases are real.
+            .WithEnvironment("KAFKA_AUTO_CREATE_TOPICS_ENABLE", "false")
             .Build();
         await _kafka.StartAsync();
 
@@ -82,7 +86,14 @@ public sealed class KafkaFixture : IAsyncLifetime
 
     public Task UnpauseRegistryAsync() => _schemaRegistry.UnpauseAsync();
 
-    /// <summary>Creates a topic (the broker, like the real ones, is not relied on to auto-create).</summary>
+    /// <summary>Whether the broker reports the topic in its metadata.</summary>
+    public bool TopicExists(string topic)
+    {
+        using var admin = new AdminClientBuilder(new AdminClientConfig { BootstrapServers = BootstrapServers }).Build();
+        return admin.GetMetadata(TimeSpan.FromSeconds(10)).Topics.Any(t => t.Topic == topic && t.Error.Code == ErrorCode.NoError);
+    }
+
+    /// <summary>Creates a topic (the broker, like the real ones, never auto-creates).</summary>
     public async Task CreateTopicAsync(string topic)
     {
         using var admin = new AdminClientBuilder(new AdminClientConfig { BootstrapServers = BootstrapServers }).Build();

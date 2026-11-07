@@ -37,11 +37,11 @@ namespace Nexus.OutboxRelay.Publishing;
 /// </para>
 ///
 /// <para>
-/// Failure classification (decision D-H1, conventions-events.md §4 step 5): a missing or
-/// unparseable local <c>.avsc</c>, content not registered in the subject (40401 / 40403), any
-/// other 4xx from the registry and a payload that does not decode/encode are <b>row</b> failures
-/// (non-transient: they count towards <c>FAILED</c>). Registry unreachable, 5xx and timeouts are
-/// <b>transient</b>: they never make a row <c>FAILED</c>.
+/// Failure classification (conventions-events.md §4 step 5): a missing or unparseable local
+/// <c>.avsc</c>, content not registered in the subject (40401 / 40403), any other 4xx from the
+/// registry except 401/403/408/429, and a payload that does not decode/encode are <b>row</b>
+/// failures (<see cref="PublishFailureKind.Row"/>). Registry unreachable, timeouts, 5xx, 401, 403,
+/// 408 and 429 are <see cref="PublishFailureKind.InfraGlobal"/>: they never make a row <c>FAILED</c>.
 /// </para>
 ///
 /// <para>
@@ -148,8 +148,18 @@ public sealed class SchemaRegistryPayloadEncoder : IPayloadEncoder
                 isTransient: false,
                 ex);
         }
-        catch (SchemaRegistryException ex) when (ex.Status is not (>= HttpStatusCode.InternalServerError))
+        catch (SchemaRegistryException ex) when (IsInfrastructureStatus(ex.Status))
         {
+            // 5xx, 401/403 (credentials or ACL of the relay, not of this row), 408, 429: the next
+            // row would get the same answer.
+            throw new PayloadEncodingException(
+                $"Schema Registry unavailable looking up subject '{subject}' (HTTP {(int)ex.Status}, error {ex.ErrorCode}).",
+                isTransient: true,
+                ex);
+        }
+        catch (SchemaRegistryException ex)
+        {
+            // Any other 4xx (409, 422, a 404 that is not 40401/40403…): about this schema.
             throw new PayloadEncodingException(
                 $"Schema Registry rejected the lookup of '{path}' in subject '{subject}' (HTTP {(int)ex.Status}, error {ex.ErrorCode}).",
                 isTransient: false,
@@ -157,10 +167,10 @@ public sealed class SchemaRegistryPayloadEncoder : IPayloadEncoder
         }
         catch (Exception ex) when (ex is not OutOfMemoryException)
         {
-            // 5xx, connection refused, DNS, timeouts — and anything unexpected from the client
-            // (Confluent.SchemaRegistry 2.16 throws NullReferenceException when MaxRetries = 0 and
-            // the registry is unreachable): "registry unavailable", so the batch stops and backs
-            // off, and the row is never made FAILED by it (D-H1).
+            // Connection refused, DNS, timeouts — and anything unexpected from the client
+            // (Confluent.SchemaRegistry 2.16 throws NullReferenceException when MaxRetries = 0):
+            // "registry unavailable", so the batch stops and backs off, and the row is never made
+            // FAILED by it.
             throw new PayloadEncodingException($"Schema Registry unavailable looking up subject '{subject}': {ex.GetType().Name}.", isTransient: true, ex);
         }
 
@@ -168,6 +178,14 @@ public sealed class SchemaRegistryPayloadEncoder : IPayloadEncoder
         _cache.TryAdd(key, writer);
         return writer;
     }
+
+    /// <summary>
+    /// Registry answers that are about the registry or the relay's access to it, not about the
+    /// row (class InfraGlobal): 5xx, 401, 403, 408 and 429.
+    /// </summary>
+    internal static bool IsInfrastructureStatus(HttpStatusCode status) =>
+        status >= HttpStatusCode.InternalServerError
+        || status is HttpStatusCode.Unauthorized or HttpStatusCode.Forbidden or HttpStatusCode.RequestTimeout or HttpStatusCode.TooManyRequests;
 
     /// <summary>Reads and parses the row's local <c>.avsc</c>; every failure is a row failure (ADR-0018 §4).</summary>
     private (string Path, string Json, Schema Schema) LoadLocalSchema(string eventType, int schemaVersion)

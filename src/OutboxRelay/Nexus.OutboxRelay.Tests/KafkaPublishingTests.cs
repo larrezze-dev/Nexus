@@ -294,12 +294,13 @@ public sealed class KafkaPublishingTests(PostgresFixture db, KafkaFixture kafka)
     public async Task RegistryDown_IsTransient()
     {
         await OutboxRows.ClearAsync(db);
+        await kafka.CreateTopicAsync(OutboxRows.DefaultTopic); // the topic exists: the failure is the registry's
         var aggregate = Guid.CreateVersion7();
         var id = await OutboxRows.InsertAsync(db, aggregate, 1, T0, ProbeRows.Payload(aggregate, 1));
 
         // Port 9 (discard) on loopback: connection refused. The local .avsc exists, so the failure is the registry's.
         using var registry = new CachedSchemaRegistryClient(new SchemaRegistryConfig { Url = "http://127.0.0.1:9", RequestTimeoutMs = 2000, MaxRetries = 1 });
-        using var publisher = new KafkaEventPublisher(new SchemaRegistryPayloadEncoder(registry, TestContracts.Probe), Options(), NullLogger<KafkaEventPublisher>.Instance);
+        using var publisher = new KafkaEventPublisher(new SchemaRegistryPayloadEncoder(registry, TestContracts.Probe), Options(), TimeProvider.System, NullLogger<KafkaEventPublisher>.Instance);
         var outcome = await RunBatchAsync(publisher);
 
         outcome.StoppedOnTransientFailure.ShouldBeTrue();
@@ -310,7 +311,7 @@ public sealed class KafkaPublishingTests(PostgresFixture db, KafkaFixture kafka)
     }
 
     private KafkaEventPublisher CreatePublisher(string contractsDirectory) =>
-        new(new SchemaRegistryPayloadEncoder(kafka.CreateRegistryClient(), contractsDirectory), Options(), NullLogger<KafkaEventPublisher>.Instance);
+        new(new SchemaRegistryPayloadEncoder(kafka.CreateRegistryClient(), contractsDirectory), Options(), TimeProvider.System, NullLogger<KafkaEventPublisher>.Instance);
 
     private IOptions<RelayOptions> Options() =>
         Microsoft.Extensions.Options.Options.Create(new RelayOptions

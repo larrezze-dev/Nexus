@@ -13,6 +13,7 @@ public sealed class RelayMetrics
     public const string FailedTotalName = "nexus_outbox_failed_total";
 
     public const string PendingName = "nexus_outbox_pending";
+    public const string OldestPendingAgeName = "nexus_outbox_oldest_pending_age_seconds";
     public const string PublishLatencyName = "nexus_outbox_publish_latency_seconds";
     public const string BatchSizeName = "nexus_outbox_batch_size";
     public const string ErrorsTotalName = "nexus_outbox_errors_total";
@@ -20,6 +21,9 @@ public sealed class RelayMetrics
 
     /// <summary>Value of the <c>kind</c> tag of <c>nexus_outbox_errors_total</c>: Kafka / Schema Registry unavailable.</summary>
     public const string ErrorKindTemporary = "temporary";
+
+    /// <summary>Value of the <c>kind</c> tag of <c>nexus_outbox_errors_total</c>: the row's topic does not exist or is not authorised.</summary>
+    public const string ErrorKindTopic = "topic";
 
     /// <summary>Value of the <c>kind</c> tag of <c>nexus_outbox_errors_total</c>: the row itself could not be published.</summary>
     public const string ErrorKindRow = "row";
@@ -41,6 +45,7 @@ public sealed class RelayMetrics
     private readonly Histogram<double> _latency;
     private readonly Histogram<int> _batchSize;
     private long _pending;
+    private double _oldestPendingAge;
     private int _pendingKnown; // 1 while the leader publishes a value; 0 = gauge not observed
 
     public RelayMetrics(IMeterFactory meterFactory)
@@ -54,7 +59,7 @@ public sealed class RelayMetrics
         _errors = meter.CreateCounter<long>(
             ErrorsTotalName,
             unit: "{attempt}",
-            description: "Failed publish attempts, by kind: temporary (Kafka or Schema Registry unavailable) or row (this row cannot be published).");
+            description: "Failed publish attempts, by kind: temporary (Kafka or Schema Registry unavailable), topic (topic missing or not authorised) or row (this row cannot be published).");
         _purged = meter.CreateCounter<long>(
             PurgedTotalName,
             unit: "{message}",
@@ -76,17 +81,26 @@ public sealed class RelayMetrics
             ObservePending,
             unit: "{message}",
             description: "Outbox rows in PENDING, refreshed every few seconds by the leader. Only the leader reports it: a passive instance (or one that lost the lease) reports nothing, so a stale value never lingers.");
+        meter.CreateObservableGauge(
+            OldestPendingAgeName,
+            ObserveOldestPendingAge,
+            unit: "s",
+            description: "Age of the oldest PENDING outbox row (0 when none), refreshed with nexus_outbox_pending and reported only by the leader. Grows during an outage or while a topic is missing.");
     }
 
-    /// <summary>Latest count of PENDING rows (written by the leader, read by the gauge).</summary>
-    public void SetPending(long count)
+    /// <summary>
+    /// Latest PENDING backlog (written by the leader, read by the gauges): the count and the age in
+    /// seconds of the oldest PENDING row (0 when there is none).
+    /// </summary>
+    public void SetPending(long count, double oldestAgeSeconds = 0)
     {
         Volatile.Write(ref _pending, count);
+        Volatile.Write(ref _oldestPendingAge, Math.Max(0, oldestAgeSeconds));
         Volatile.Write(ref _pendingKnown, 1);
     }
 
     /// <summary>
-    /// The instance is no longer (or never was) the leader: the gauge stops reporting until the
+    /// The instance is no longer (or never was) the leader: both backlog gauges stop reporting until the
     /// next <see cref="SetPending"/>, so dashboards summing the gauge over instances do not count a
     /// former leader's frozen value.
     /// </summary>
@@ -103,6 +117,9 @@ public sealed class RelayMetrics
 
     private IEnumerable<Measurement<long>> ObservePending() =>
         Volatile.Read(ref _pendingKnown) == 1 ? [new Measurement<long>(Volatile.Read(ref _pending))] : [];
+
+    private IEnumerable<Measurement<double>> ObserveOldestPendingAge() =>
+        Volatile.Read(ref _pendingKnown) == 1 ? [new Measurement<double>(Volatile.Read(ref _oldestPendingAge))] : [];
 
     /// <summary>A message reached <c>FAILED</c> (conventions-events.md §4.5).</summary>
     public void MessageFailed(OutboxMessage message)

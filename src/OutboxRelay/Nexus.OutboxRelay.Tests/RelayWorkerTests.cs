@@ -88,3 +88,52 @@ public sealed class RelayWorkerTests(PostgresFixture db)
         }
     }
 }
+
+/// <summary>The leader loop with an in-memory lease (no database).</summary>
+public sealed class RelayWorkerLoopTests
+{
+    [Fact(DisplayName = "N5: the back-off warning names the failure class and its cause (no payload)")]
+    public async Task BackOffLog_NamesCause()
+    {
+        using var cts = new CancellationTokenSource();
+        var logger = new CapturingLogger<RelayWorker>();
+        var publisher = new ScriptedPublisher(_ =>
+        {
+            cts.Cancel(); // one batch only
+            return PublishResult.Failure("Schema Registry unavailable looking up subject 'nexus.test.x-value': HttpRequestException.", PublishFailureKind.InfraGlobal);
+        });
+        using var meters = new TestMeterFactory();
+        using var worker = new RelayWorker(
+            new NeverLeadership(),
+            publisher,
+            new RelayMetrics(meters),
+            Options.Create(new RelayOptions { PollIntervalMs = 100 }),
+            TimeProvider.System,
+            logger);
+
+        await worker.RunAsLeaderAsync(new FakeLease(FakeBatch.Message(Guid.CreateVersion7(), 1)), cts.Token);
+
+        logger.Messages.ShouldContain(m =>
+            m.Contains("InfraGlobal", StringComparison.Ordinal)
+            && m.Contains("Schema Registry unavailable looking up subject 'nexus.test.x-value': HttpRequestException.", StringComparison.Ordinal)
+            && m.Contains("next batch in 100 ms", StringComparison.Ordinal));
+    }
+
+    private sealed class NeverLeadership : IRelayLeadership
+    {
+        public Task<IRelayLease?> TryAcquireAsync(CancellationToken cancellationToken) => Task.FromResult<IRelayLease?>(null);
+    }
+
+    private sealed class FakeLease(params OutboxMessage[] messages) : IRelayLease
+    {
+        public Task<bool> WaitForWakeUpAsync(TimeSpan timeout, CancellationToken cancellationToken) => Task.FromResult(false);
+
+        public Task<IOutboxBatch> BeginBatchAsync(int batchSize, CancellationToken cancellationToken) => Task.FromResult<IOutboxBatch>(new FakeBatch(messages));
+
+        public Task<int> PurgePublishedAsync(DateTimeOffset cutoff, int maxRows, CancellationToken cancellationToken) => Task.FromResult(0);
+
+        public Task<PendingStats> GetPendingStatsAsync(CancellationToken cancellationToken) => Task.FromResult(new PendingStats(messages.Length, null));
+
+        public ValueTask DisposeAsync() => ValueTask.CompletedTask;
+    }
+}

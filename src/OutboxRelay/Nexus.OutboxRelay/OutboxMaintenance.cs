@@ -5,7 +5,7 @@ namespace Nexus.OutboxRelay;
 /// <summary>
 /// Leader-only housekeeping run between batches (conventions-events.md §4.6): the daily purge of
 /// <c>PUBLISHED</c> rows older than <see cref="RelayOptions.PurgeRetentionDays"/>, and the refresh
-/// of the <c>nexus_outbox_pending</c> gauge. It only ever runs through the leader's lease, so a
+/// of the <c>nexus_outbox_pending</c> and <c>nexus_outbox_oldest_pending_age_seconds</c> gauges. It only ever runs through the leader's lease, so a
 /// passive instance never purges. Failures are logged and swallowed: housekeeping must not stop
 /// publication (a dead session surfaces on the next batch as a lost lease).
 /// </summary>
@@ -48,7 +48,9 @@ public sealed partial class OutboxMaintenance
 
         try
         {
-            _metrics.SetPending(await lease.CountPendingAsync(cancellationToken).ConfigureAwait(false));
+            var stats = await lease.GetPendingStatsAsync(cancellationToken).ConfigureAwait(false);
+            var oldestAge = stats.OldestCreatedAt is { } oldest ? (now - oldest).TotalSeconds : 0;
+            _metrics.SetPending(stats.Count, oldestAge);
             _lastPendingRefresh = now;
         }
 #pragma warning disable CA1031 // Housekeeping never stops publication.

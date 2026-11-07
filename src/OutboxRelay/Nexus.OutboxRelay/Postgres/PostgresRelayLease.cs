@@ -194,11 +194,13 @@ public sealed partial class PostgresRelayLease : IRelayLease
         return await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
     }
 
-    public async Task<long> CountPendingAsync(CancellationToken cancellationToken)
+    public async Task<PendingStats> GetPendingStatsAsync(CancellationToken cancellationToken)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
-        await using var command = new NpgsqlCommand("SELECT count(*) FROM outbox.message WHERE status = 'PENDING'", _connection);
-        return (long)(await command.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false))!;
+        await using var command = new NpgsqlCommand("SELECT count(*), min(created_at) FROM outbox.message WHERE status = 'PENDING'", _connection);
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
+        await reader.ReadAsync(cancellationToken).ConfigureAwait(false);
+        return new PendingStats(reader.GetInt64(0), reader.IsDBNull(1) ? null : reader.GetFieldValue<DateTimeOffset>(1));
     }
 
     public async ValueTask DisposeAsync()

@@ -18,6 +18,9 @@ public sealed record OutboxMessage(
     DateTimeOffset CreatedAt,
     int Attempts);
 
+/// <summary>PENDING backlog as seen by the leader.</summary>
+public readonly record struct PendingStats(long Count, DateTimeOffset? OldestCreatedAt);
+
 /// <summary>
 /// Leader election of the relay (conventions-events.md §4.1): only one instance publishes.
 /// </summary>
@@ -59,8 +62,11 @@ public interface IRelayLease : IAsyncDisposable
     /// </summary>
     Task<int> PurgePublishedAsync(DateTimeOffset cutoff, int maxRows, CancellationToken cancellationToken);
 
-    /// <summary>Number of <c>PENDING</c> rows (served by <c>ix_outbox_pending</c>).</summary>
-    Task<long> CountPendingAsync(CancellationToken cancellationToken);
+    /// <summary>
+    /// Number of <c>PENDING</c> rows and the <c>created_at</c> of the oldest one (null when none),
+    /// both served by <c>ix_outbox_pending</c>.
+    /// </summary>
+    Task<PendingStats> GetPendingStatsAsync(CancellationToken cancellationToken);
 }
 
 /// <summary>
@@ -86,8 +92,8 @@ public interface IOutboxBatch : IAsyncDisposable
     /// <summary>
     /// Records a failed attempt: <c>attempts</c> becomes <paramref name="attempts"/> and
     /// <c>last_error</c> <paramref name="lastError"/>; the row becomes <c>FAILED</c> when
-    /// <paramref name="terminal"/>, else stays <c>PENDING</c>. Terminal only for a row-specific
-    /// failure at <c>attempts &gt;= MaxAttempts</c>, never for a transient one (D-H1).
+    /// <paramref name="terminal"/>, else stays <c>PENDING</c>. Terminal only for a
+    /// <see cref="PublishFailureKind.Row"/> failure at <c>attempts &gt;= MaxAttempts</c>.
     /// </summary>
     void MarkFailed(Guid id, int attempts, string lastError, bool terminal);
 
@@ -114,25 +120,62 @@ public interface IPayloadEncoder
     Task<byte[]> EncodeAsync(OutboxMessage message, CancellationToken cancellationToken);
 }
 
+/// <summary>
+/// Class of a publish failure (decision of Luciano, 2026-11-07; conventions-events.md §4 step 5).
+/// It decides what the batch does next and whether the row can ever become <c>FAILED</c>.
+/// </summary>
+public enum PublishFailureKind
+{
+    /// <summary>No failure.</summary>
+    None = 0,
+
+    /// <summary>
+    /// Infrastructure, global: the broker or the Schema Registry is unreachable, timeouts, 5xx, and
+    /// registry 401/403/408/429. The rest of the batch would fail the same way: the batch stops and
+    /// the relay backs off. <c>attempts + 1</c>, never <c>FAILED</c>.
+    /// </summary>
+    InfraGlobal = 1,
+
+    /// <summary>
+    /// The row's topic cannot be produced to (does not exist, or no permission), detected by the
+    /// metadata preflight or reported by the produce itself. Only that aggregate is skipped for
+    /// the rest of the batch; other aggregates continue. <c>attempts + 1</c>, never <c>FAILED</c>:
+    /// creating the topic or granting the ACL resumes publication in order.
+    /// </summary>
+    TopicUnreachable = 2,
+
+    /// <summary>
+    /// This row cannot be published: payload does not decode/encode, local <c>.avsc</c> missing,
+    /// content not registered (40401/40403) or other registry 4xx (409, 422…), message too large,
+    /// invalid headers, or any unexpected exception preparing the message. The aggregate is
+    /// skipped for the rest of the batch; the row becomes <c>FAILED</c> at <c>MaxAttempts</c>.
+    /// </summary>
+    Row = 3,
+}
+
 /// <summary>Outcome of publishing one row.</summary>
 /// <param name="Succeeded">The broker acknowledged the message (<c>acks=all</c>).</param>
-/// <param name="Error">Failure description, stored (truncated) in <c>last_error</c>.</param>
-/// <param name="IsTransient">
-/// The failure is about the infrastructure (Kafka or Schema Registry unreachable, timeouts), not
-/// about this row: the rest of the batch would fail the same way, so the batch stops and the relay
-/// backs off instead of burning one attempt of every row in it. A transient failure still
-/// increments the row's <c>attempts</c> but never makes it <c>FAILED</c> (D-H1).
-/// </param>
-public readonly record struct PublishResult(bool Succeeded, string? Error, bool IsTransient)
+/// <param name="Error">Failure description, stored (truncated) in <c>last_error</c>. Never contains payload values.</param>
+/// <param name="Kind">The failure class (<see cref="PublishFailureKind.None"/> on success).</param>
+public readonly record struct PublishResult(bool Succeeded, string? Error, PublishFailureKind Kind)
 {
-    public static PublishResult Success { get; } = new(true, null, false);
+    public static PublishResult Success { get; } = new(true, null, PublishFailureKind.None);
 
-    public static PublishResult Failure(string error, bool isTransient) => new(false, error, isTransient);
+    public static PublishResult Failure(string error, PublishFailureKind kind)
+    {
+        if (kind == PublishFailureKind.None)
+        {
+            throw new ArgumentOutOfRangeException(nameof(kind), "A failure needs a failure kind.");
+        }
+
+        return new(false, error, kind);
+    }
 }
 
 /// <summary>
-/// The payload could not be encoded: local <c>.avsc</c> missing, schema not registered, payload
-/// does not match (row failures) or registry unreachable (<see cref="IsTransient"/>).
+/// The payload or headers could not be prepared: local <c>.avsc</c> missing, schema not
+/// registered, payload or headers invalid (<see cref="PublishFailureKind.Row"/>) or the registry
+/// unavailable (<see cref="IsTransient"/>: <see cref="PublishFailureKind.InfraGlobal"/>).
 /// </summary>
 public sealed class PayloadEncodingException : Exception
 {
@@ -156,7 +199,7 @@ public sealed class PayloadEncodingException : Exception
         IsTransient = isTransient;
     }
 
-    /// <summary>See <see cref="PublishResult.IsTransient"/>.</summary>
+    /// <summary>True: <see cref="PublishFailureKind.InfraGlobal"/>; false: <see cref="PublishFailureKind.Row"/>.</summary>
     public bool IsTransient { get; }
 }
 

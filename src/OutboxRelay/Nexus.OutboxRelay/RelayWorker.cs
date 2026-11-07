@@ -10,10 +10,10 @@ namespace Nexus.OutboxRelay;
 ///   <see cref="RelayOptions.LeaderRetrySeconds"/>.</item>
 ///   <item>As leader: drain batches back to back while they come back full; otherwise wait for
 ///   <c>NOTIFY outbox_new</c> or <see cref="RelayOptions.PollIntervalMs"/>, whichever comes first.</item>
-///   <item>After a transient failure (Kafka / Schema Registry down) back off exponentially from
+///   <item>After an InfraGlobal failure (Kafka / Schema Registry down) back off exponentially from
 ///   the poll interval up to <see cref="RelayOptions.MaxBackoffSeconds"/>, so an outage does not
-///   hammer the cluster. The head row's <c>attempts</c> grow by one per step, but a transient
-///   failure never makes it <c>FAILED</c> (D-H1).</item>
+///   hammer the cluster; the log names the cause. The head row's <c>attempts</c> grow by one per
+///   step, but it never becomes <c>FAILED</c>.</item>
 ///   <item>Any failure of the leader session (connection lost, lock not confirmed) ends the
 ///   lease at once: nothing is published until the lock is acquired again.</item>
 /// </list>
@@ -122,7 +122,7 @@ public sealed partial class RelayWorker : BackgroundService
             if (outcome.StoppedOnTransientFailure)
             {
                 backoff = backoff == TimeSpan.Zero ? pollInterval : TimeSpan.FromTicks(Math.Min(backoff.Ticks * 2, maxBackoff.Ticks));
-                LogBackingOff(_logger, backoff.TotalMilliseconds);
+                LogBackingOff(_logger, backoff.TotalMilliseconds, outcome.StopCause ?? "unknown");
             }
             else
             {
@@ -153,6 +153,8 @@ public sealed partial class RelayWorker : BackgroundService
     [LoggerMessage(Level = LogLevel.Warning, Message = "Relay leadership lost or not obtainable ({ExceptionType}: {Reason}); publishing stopped until the lock is re-acquired.")]
     private static partial void LogLeadershipLost(ILogger logger, string exceptionType, string reason);
 
-    [LoggerMessage(Level = LogLevel.Warning, Message = "Kafka or Schema Registry unavailable; next batch in {BackoffMs} ms.")]
-    private static partial void LogBackingOff(ILogger logger, double backoffMs);
+    // The cause is the failed row's last_error for an InfraGlobal failure: subject/topic names,
+    // Kafka error codes and exception types only, never payload values.
+    [LoggerMessage(Level = LogLevel.Warning, Message = "Kafka or Schema Registry unavailable (InfraGlobal: {Cause}); next batch in {BackoffMs} ms.")]
+    private static partial void LogBackingOff(ILogger logger, double backoffMs, string cause);
 }
