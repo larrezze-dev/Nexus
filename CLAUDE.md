@@ -111,4 +111,40 @@ Cuando el uso de la ventana de contexto llegue a maximo 85% compactala e intenta
 
 Para cada nuevo fragmento, seccion o modulo utilizable el usuario (Luciano) tendra que manualmente comprobar su funcionamiento, diseño de interfaz, campos de la tablas de la base de datos y dar su aprobacion explicita o solicitar modificaciones. Esta regla se aplica a los fragmento, seccion o modulo verificables por un humano. Luciano tendra la opcion de autorizar/aprobar los fragmento, seccion o modulos sin haberlos probado manualmente y para ello dara la instruccion explicita de aprobado y/o continuar.
 
+
+## 10. Seguimiento de tareas user-friendly
+
+### 10.1 TAREAS.md
+
+#### 10.1.1 Estructura
+
+De no existir, crea un archivo de control de tareas llamado TAREAS.md basado en el plan general de trabajo o mismo en algun plan de tarea existente. Ordenar las tareas de forma cronologica (secuencia en la que se debe de desarrollar) e incluir una tabla con las siguientes columnas
+- **Status**: [ ] para tareas no iniciadas, [o] para tareas en marcha y [x] para tareas finalizadas
+- **Nombre de la tarea**: el que utilices internamente
+- **Descripcion**: descripcion corta high-level entendible para el usuario final
+- **Dependencias**: de que otra tarea un nivel inmediatamente anterior depende esta tarea para que pueda ser desarrollada
+- **Comentarios**: ponerlos si ves que hacen falta
+
+#### 10.1.2 Actualizaciones
+
+A cada tarea finalizada actualizar TAREAS.md antes de hacer commit.
+
+### 10.2 TAREAS.html
+
+#### 10.2.1 Estructura
+
+De no existir, crea un dashboard en un unico archivo llamado TAREAS.html. Este archivo debe de contener:
+- Dashboard indicando % de desarrollo en esfuerzo de codificacion, % de desarrollo respecto al numero de tareas y otras informaciones que creas relevante
+- Listado de la planificacion y tareas con barras de progreso para ellas
+- Cualquier otra informacion que creas relevante para un arquitecto de sofware
+
+El primer elemento visible debe de ser el dashboard, luego todos los otros los ordenas de alto nivel a mas bajo nivel
+
+#### 10.2.2 Actualizaciones
+
+A cada tarea finalizada actualizar TAREAS.md antes de hacer commit.
+
+
+## 11. Diversos
+
 **Alcance aclarado con Luciano (2026-10-24):** un track C puro (solo esquema de BD + contrato OpenAPI/Avro, sin pantalla ni endpoint real todavía — eso llega con los tracks B/F) no tiene nada que Luciano pueda probar con las manos. Para esos casos, la verificación en vivo del orquestador (Postgres real, Flyway real, Prism real sirviendo ejemplos) sustituye la prueba manual, y el cierre sigue el flujo normal (PR, merge, `Gate C`) sin esperar su aprobación explícita. La §9 se activa de verdad en los tracks que sí producen algo tangible (una pantalla, un endpoint real contra backend real).
