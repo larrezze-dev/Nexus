@@ -9,7 +9,8 @@ namespace Nexus.OutboxRelay;
 /// <param name="StoppedOnTransientFailure">The batch stopped early on a <see cref="PublishFailureKind.InfraGlobal"/> failure (Kafka or the Schema Registry unavailable).</param>
 /// <param name="StopCause">When stopped: the failure description (category and cause; never payload values).</param>
 /// <param name="Deferred">Rows skipped untouched because their topic is in the preflight's negative cache.</param>
-public readonly record struct BatchOutcome(int Selected, int Published, int Failed, bool StoppedOnTransientFailure, string? StopCause = null, int Deferred = 0)
+/// <param name="NewHolds">Aggregates newly held back in this batch (their topic is unreachable): progress through the backlog.</param>
+public readonly record struct BatchOutcome(int Selected, int Published, int Failed, bool StoppedOnTransientFailure, string? StopCause = null, int Deferred = 0, int NewHolds = 0)
 {
     /// <summary>Rows actually attempted (published or failed); deferred and EV-R3-skipped rows do not count.</summary>
     public int Attempted => Published + Failed;
@@ -63,7 +64,7 @@ public sealed partial class OutboxBatchProcessor
     private readonly int _maxAttempts;
     private readonly ILogger _logger;
 
-    public OutboxBatchProcessor(IEventPublisher publisher, RelayMetrics metrics, TimeProvider timeProvider, int maxAttempts, ILogger logger)
+    public OutboxBatchProcessor(IEventPublisher publisher, RelayMetrics metrics, TimeProvider timeProvider, int maxAttempts, ILogger logger, int maxHeldAggregates = HeldAggregates.DefaultCapacity)
     {
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(maxAttempts);
         _publisher = publisher;
@@ -71,7 +72,7 @@ public sealed partial class OutboxBatchProcessor
         _timeProvider = timeProvider;
         _maxAttempts = maxAttempts;
         _logger = logger;
-        Held = new HeldAggregates(timeProvider);
+        Held = new HeldAggregates(timeProvider, maxHeldAggregates);
     }
 
     /// <summary>Aggregates held back because their topic is unreachable; the caller excludes them from the next batch query.</summary>
@@ -82,7 +83,7 @@ public sealed partial class OutboxBatchProcessor
         ArgumentNullException.ThrowIfNull(batch);
 
         var blockedAggregates = new HashSet<Guid>();
-        int published = 0, failed = 0, deferred = 0;
+        int published = 0, failed = 0, deferred = 0, newHolds = 0;
         string? stopCause = null;
 
         foreach (var message in batch.Messages)
@@ -98,11 +99,22 @@ public sealed partial class OutboxBatchProcessor
                 continue;
             }
 
-            // Never publish without a confirmed lock (throws RelayLeadershipLostException: nothing
-            // is committed, every row stays as it was and the next leader publishes it).
-            await batch.ConfirmLeadershipAsync(CancellationToken.None).ConfigureAwait(false);
+            // A row whose topic is known unreachable is not produced: no lock round trip needed.
+            var result = _publisher.TryDefer(message) ?? default;
+            if (result.Kind != PublishFailureKind.TopicUnreachable || result.CountsAsAttempt)
+            {
+                // Never publish without a confirmed lock (throws RelayLeadershipLostException:
+                // nothing is committed, every row stays as it was and the next leader publishes it).
+                await batch.ConfirmLeadershipAsync(CancellationToken.None).ConfigureAwait(false);
+                result = await _publisher.PublishAsync(message, stoppingToken).ConfigureAwait(false);
+            }
+            if (result.Succeeded || result.Kind == PublishFailureKind.Row)
+            {
+                // The topic answered: if it was held as unreachable, release all its aggregates
+                // (their head rows come back in created_at, id order).
+                Held.ReleaseTopic(message.Topic);
+            }
 
-            var result = await _publisher.PublishAsync(message, stoppingToken).ConfigureAwait(false);
             if (result.Succeeded)
             {
                 var publishedAt = _timeProvider.GetUtcNow();
@@ -115,8 +127,12 @@ public sealed partial class OutboxBatchProcessor
             blockedAggregates.Add(message.AggregateId);
             if (result.Kind == PublishFailureKind.TopicUnreachable && result.HoldUntil is { } holdUntil)
             {
-                // Excluded from the next batches until the topic's negative cache expires.
-                Held.Hold(message.AggregateId, holdUntil);
+                // Excluded from the next batches while the topic stays unreachable (extended at
+                // every probe), released when the topic answers.
+                if (Held.Hold(message.Topic, message.AggregateId, holdUntil))
+                {
+                    newHolds++;
+                }
             }
 
             if (!result.CountsAsAttempt)
@@ -169,7 +185,7 @@ public sealed partial class OutboxBatchProcessor
             _metrics.BatchSize(batch.Messages.Count);
         }
 
-        return new BatchOutcome(batch.Messages.Count, published, failed, stopCause is not null, stopCause, deferred);
+        return new BatchOutcome(batch.Messages.Count, published, failed, stopCause is not null, stopCause, deferred, newHolds);
     }
 
     /// <summary>Truncates to <see cref="LastErrorMaxLength"/> and strips NUL (not storable in <c>text</c>).</summary>

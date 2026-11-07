@@ -224,6 +224,14 @@ public sealed partial class KafkaEventPublisher : IEventPublisher, IDisposable
         return PublishResult.Failure(description, RowErrors.Contains(error.Code) ? PublishFailureKind.Row : PublishFailureKind.InfraGlobal);
     }
 
+    public PublishResult? TryDefer(OutboxMessage message)
+    {
+        ArgumentNullException.ThrowIfNull(message);
+        return _topics.TryGetValue(message.Topic, out var cached) && cached.Error is not null && _timeProvider.GetUtcNow() < cached.Until
+            ? PublishResult.Deferred(cached.Error, cached.Until)
+            : null;
+    }
+
     /// <summary>Test seam: replaces the admin client's metadata call (topic, timeout).</summary>
     internal Func<string, TimeSpan, Metadata>? MetadataOverride { get; set; }
 
@@ -287,16 +295,22 @@ public sealed partial class KafkaEventPublisher : IEventPublisher, IDisposable
     private static string Describe(Exception ex) =>
         ex.InnerException is null ? ex.Message : $"{ex.Message} <- {ex.InnerException.GetType().Name}: {ex.InnerException.Message}";
 
+    /// <summary>Test seam: builds the admin client over the producer's handle.</summary>
+    internal Func<IProducer<string, byte[]>, IAdminClient>? AdminFactoryOverride { get; set; }
+
+    /// <summary>
+    /// The producer and its dependent admin client, each created on first use; if either fails to
+    /// build, the next call tries again (never left half-built for good).
+    /// </summary>
     private IProducer<string, byte[]> GetProducer()
     {
-        if (_producer is null)
-        {
-            _producer = BuildProducer();
-            _admin = new DependentAdminClientBuilder(_producer.Handle).Build();
-        }
-
+        _producer ??= BuildProducer();
+        _admin ??= BuildAdmin(_producer);
         return _producer;
     }
+
+    private IAdminClient BuildAdmin(IProducer<string, byte[]> producer) =>
+        AdminFactoryOverride?.Invoke(producer) ?? new DependentAdminClientBuilder(producer.Handle).Build();
 
     private IProducer<string, byte[]> BuildProducer() =>
         new ProducerBuilder<string, byte[]>(_config)
@@ -308,8 +322,10 @@ public sealed partial class KafkaEventPublisher : IEventPublisher, IDisposable
         LogRecreatingProducer(_logger, error.Code);
         var oldProducer = _producer;
         var oldAdmin = _admin;
-        _producer = BuildProducer();
-        _admin = new DependentAdminClientBuilder(_producer.Handle).Build();
+        // Rebuilt lazily by the next GetProducer (inside PublishAsync's guard): a failure to build
+        // them is then reported as InfraGlobal instead of escaping from here.
+        _producer = null;
+        _admin = null;
         oldAdmin?.Dispose();
         oldProducer?.Dispose();
     }

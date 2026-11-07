@@ -211,7 +211,11 @@ public sealed class OutboxPurgeAndMetricsTests(PostgresFixture db)
         metrics.SetPending(7, 12.5);
         listener.TryObserve(RelayMetrics.PendingName).ShouldBe(7);
         listener.TryObserve(RelayMetrics.OldestPendingAgeName).ShouldBe(12.5);
+        listener.TryObserve(RelayMetrics.HeldAggregatesName).ShouldBeNull();
+        metrics.SetHeldAggregates(42);
+        listener.TryObserve(RelayMetrics.HeldAggregatesName).ShouldBe(42);
         metrics.ClearPending();
+        listener.TryObserve(RelayMetrics.HeldAggregatesName).ShouldBeNull("lease lost: held count not reported");
         listener.TryObserve(RelayMetrics.PendingName).ShouldBeNull("lease lost: the stale value is not reported");
         listener.TryObserve(RelayMetrics.OldestPendingAgeName).ShouldBeNull("lease lost: the stale age is not reported");
     }

@@ -71,6 +71,14 @@ public sealed class RelayOptions
     public int PurgeMaxChunksPerPass { get; set; } = 10;
 
     /// <summary>
+    /// [+] Maximum aggregates held back in memory because their topic is unreachable (excluded from
+    /// the batch query until the topic answers). Beyond it, rows of those topics are selected and
+    /// skipped on every pass and can starve later rows again (alert on
+    /// <c>nexus_outbox_oldest_pending_age_seconds</c>; see <c>nexus_outbox_held_aggregates</c>).
+    /// </summary>
+    public int MaxHeldAggregates { get; set; } = HeldAggregates.DefaultCapacity;
+
+    /// <summary>
     /// [+] Root of the Avro contracts, laid out like <c>contracts/events</c> (ADR-0018): the relay
     /// encodes each row with the local <c>&lt;root&gt;/&lt;context&gt;/&lt;aggregate&gt;.&lt;event&gt;.v&lt;n&gt;.avsc</c>
     /// its writer validated. Empty: <c>contracts/events</c> next to the binaries (copied there by the

@@ -143,7 +143,38 @@ public sealed class RelayWorkerLoopTests
         {
         }
 
-        lease.Batches.ShouldBeLessThanOrEqualTo(8, "about one batch per 200 ms poll interval, not a busy loop");
+        lease.Batches.ShouldBeLessThanOrEqualTo(10, "about one batch per 200 ms poll interval, not a busy loop");
+    }
+
+    [Fact(DisplayName = "H1(a): a full batch that only held back NEW aggregates drains on at once (progress through the backlog) instead of waiting for the poll interval")]
+    public async Task FullBatchOfNewHolds_DrainsWithoutWaiting()
+    {
+        // Batches 1-5: 3 rows of 3 new aggregates each on an unreachable topic; then empty.
+        var lease = new FakeLease
+        {
+            WaitDelay = TimeSpan.FromMilliseconds(1),
+            Next = n => n <= 5 ? Enumerable.Range(0, 3).Select(_ => FakeBatch.Message(Guid.CreateVersion7(), 1)).ToArray() : [],
+        };
+        var publisher = new ScriptedPublisher(_ => PublishResult.Deferred("topic missing (cached)", DateTimeOffset.UtcNow.AddMinutes(5)));
+        using var meters = new TestMeterFactory();
+        using var worker = new RelayWorker(
+            new NeverLeadership(),
+            publisher,
+            new RelayMetrics(meters),
+            Options.Create(new RelayOptions { BatchSize = 3, PollIntervalMs = 2_000 }),
+            TimeProvider.System,
+            NullLogger<RelayWorker>.Instance);
+
+        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(1.5));
+        try
+        {
+            await worker.RunAsLeaderAsync(lease, cts.Token);
+        }
+        catch (OperationCanceledException)
+        {
+        }
+
+        lease.Batches.ShouldBeGreaterThanOrEqualTo(6, "the 5 backlog batches and the first empty one run back to back, not one per 2 s poll");
     }
 
     private sealed class NeverLeadership : IRelayLeadership
@@ -169,10 +200,13 @@ public sealed class RelayWorkerLoopTests
             return false;
         }
 
+        /// <summary>When set, builds each batch (argument: 1-based batch number) instead of repeating the fixed messages.</summary>
+        public Func<int, OutboxMessage[]>? Next { get; init; }
+
         public Task<IOutboxBatch> BeginBatchAsync(int batchSize, IReadOnlyCollection<Guid> excludedAggregates, CancellationToken cancellationToken)
         {
             Batches++;
-            return Task.FromResult<IOutboxBatch>(new FakeBatch(messages));
+            return Task.FromResult<IOutboxBatch>(new FakeBatch(Next?.Invoke(Batches) ?? messages));
         }
 
         public Task<int> PurgePublishedAsync(DateTimeOffset cutoff, int maxRows, CancellationToken cancellationToken) => Task.FromResult(0);

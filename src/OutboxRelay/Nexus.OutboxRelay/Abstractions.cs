@@ -114,6 +114,14 @@ public interface IEventPublisher
     /// so the batch can record them.
     /// </summary>
     Task<PublishResult> PublishAsync(OutboxMessage message, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Without any I/O: a <see cref="PublishResult.Deferred"/> result when <paramref name="message"/>
+    /// would not be produced anyway (its topic is in the preflight's negative cache), else null.
+    /// Lets the batch skip such rows without the per-produce leader-lock round trip, so walking a
+    /// large held backlog costs no database calls per row.
+    /// </summary>
+    PublishResult? TryDefer(OutboxMessage message) => null;
 }
 
 /// <summary>

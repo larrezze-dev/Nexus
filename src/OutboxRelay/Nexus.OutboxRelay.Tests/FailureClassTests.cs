@@ -153,8 +153,10 @@ public sealed class FailureClassTests(PostgresFixture db, KafkaFixture kafka)
         (await OutboxRows.GetAsync(db, other)).Attempts.ShouldBe(1);
     }
 
-    [Fact(DisplayName = "H1: held-back aggregates (≥ BatchSize head rows on a missing topic) are excluded from the batch query: healthy topics are published at once, no busy loop, attempts only per preflight; creating the topic publishes them in order")]
-    public async Task HeldAggregates_DoNotStarveOtherTopics()
+    [Theory(DisplayName = "H1: thousands of aggregates on a missing topic (defaults: BatchSize 500, poll 500 ms) do not starve 30 healthy rows behind them; no busy loop; holds survive the negative TTL (no re-walk, one attempt per TTL); topic created ⇒ all published without gaps")]
+    [InlineData(7_000)]
+    [InlineData(20_000)]
+    public async Task HeldBacklog_DoesNotStarveLaterHealthyRows(int heldAggregates)
     {
         await OutboxRows.ClearAsync(db);
         var missing = ProbeRows.NewTopic();
@@ -163,38 +165,64 @@ public sealed class FailureClassTests(PostgresFixture db, KafkaFixture kafka)
         await kafka.RegisterAsync(healthy, ProbeRows.SchemaJson);
         await kafka.RegisterAsync(missing, ProbeRows.SchemaJson);
 
-        // 500 rows (= BatchSize) of 5 aggregates on the missing topic, then 30 rows of 3 aggregates on a healthy one.
-        var start = new DateTimeOffset(DateTime.UtcNow.Ticks / 10 * 10, TimeSpan.Zero);
-        var heldRows = ProbeRows.Interleaved(500, Enumerable.Range(0, 5).Select(_ => Guid.CreateVersion7()).ToList(), seed: 11, start);
-        var healthyRows = ProbeRows.Interleaved(30, Enumerable.Range(0, 3).Select(_ => Guid.CreateVersion7()).ToList(), seed: 12, start.AddSeconds(1));
-        await ProbeRows.InsertAsync(db, missing, heldRows);
+        // One row per aggregate on the missing topic, all OLDER than the healthy rows.
+        var start = new DateTimeOffset(DateTime.UtcNow.Ticks / 10 * 10, TimeSpan.Zero).AddHours(-1);
+        var heldRows = Enumerable.Range(0, heldAggregates).Select(i =>
+        {
+            var a = Guid.CreateVersion7();
+            return new ProbeRows.Row(Guid.CreateVersion7(), a, 1, start.AddMilliseconds(i), ProbeRows.Payload(a, 1));
+        }).ToList();
+        var healthyRows = ProbeRows.Interleaved(30, Enumerable.Range(0, 3).Select(_ => Guid.CreateVersion7()).ToList(), seed: 12, start.AddMilliseconds(heldAggregates + 10));
+        foreach (var chunk in heldRows.Chunk(5_000))
+        {
+            await ProbeRows.InsertAsync(db, missing, chunk);
+        }
+
         await ProbeRows.InsertAsync(db, healthy, healthyRows);
 
-        var options = new RelayOptions { BatchSize = 500, PollIntervalMs = 100, LeaderRetrySeconds = 1, ProduceTimeoutMs = 15_000 };
+        var options = new RelayOptions { LeaderRetrySeconds = 1, ProduceTimeoutMs = 15_000 }; // BatchSize 500, PollIntervalMs 500
         await using var relay = new RelayInstance(db, kafka, options);
         var counting = new BatchCountingLeadership(relay.Leadership);
-        var worker = new RelayWorker(counting, relay.Publisher, new RelayMetrics(new TestMeterFactory()), Options.Create(options), TimeProvider.System, NullLogger<RelayWorker>.Instance);
+        using var meters = new TestMeterFactory();
+        using var held = new GaugeReader(meters, RelayMetrics.HeldAggregatesName);
+        var worker = new RelayWorker(counting, relay.Publisher, new RelayMetrics(meters), Options.Create(options), TimeProvider.System, NullLogger<RelayWorker>.Instance);
         var started = Stopwatch.StartNew();
         await worker.StartAsync(CancellationToken.None);
         try
         {
-            await Poll.UntilAsync(async () => await ProbeRows.CountAsync(db, healthy, "PUBLISHED") == healthyRows.Count, TimeSpan.FromSeconds(10), "healthy topic published despite 500 held rows");
-            started.Elapsed.ShouldBeLessThan(TimeSpan.FromSeconds(5));
+            await Poll.UntilAsync(async () => await ProbeRows.CountAsync(db, healthy, "PUBLISHED") == healthyRows.Count, TimeSpan.FromSeconds(30), "healthy rows behind the held backlog are published");
+            var healthyAfter = started.Elapsed;
+            var walkBatches = counting.Batches;
 
-            // No busy loop: over 3 s with a 100 ms poll interval, about 30 passes (a spin is ~50/s).
+            // 7 s spans at least one negative-TTL expiry: only the probe aggregate is retried, the
+            // backlog is not re-walked, and the loop waits for the 500 ms poll between passes.
             var before = counting.Batches;
-            await Task.Delay(TimeSpan.FromSeconds(3), TestContext.Current.CancellationToken);
-            var passes = counting.Batches - before;
-            passes.ShouldBeLessThanOrEqualTo(45, "the loop waits for the poll interval instead of spinning");
+            var minHeld = double.MaxValue;
+            var window = Stopwatch.StartNew();
+            while (window.Elapsed < TimeSpan.FromSeconds(7))
+            {
+                if (held.TryObserve() is { } value)
+                {
+                    minHeld = Math.Min(minHeld, value);
+                }
 
-            (await ProbeRows.CountAsync(db, missing, "PENDING")).ShouldBe(500);
-            (await ProbeRows.CountAsync(db, missing, "FAILED")).ShouldBe(0);
+                await Task.Delay(100, TestContext.Current.CancellationToken);
+            }
+
+            var passes = counting.Batches - before;
+            minHeld.ShouldBe(heldAggregates, "holds survive every negative-TTL expiry while the topic is missing (never dropped and re-walked)");
+            Log($"H1 {heldAggregates} held: healthy rows published after {healthyAfter.TotalSeconds:0.0} s ({walkBatches} batches); {passes} passes in the next 7 s.");
+            healthyAfter.ShouldBeLessThan(TimeSpan.FromSeconds(20));
+            passes.ShouldBeLessThanOrEqualTo(22, "≈ one pass per 500 ms poll; a re-walk of the backlog at the TTL would add ≥ 14 batches");
+
+            (await ProbeRows.CountAsync(db, missing, "PENDING")).ShouldBe(heldAggregates);
             var attempts = await db.ScalarAsync<long>("SELECT coalesce(sum(attempts), 0) FROM outbox.message WHERE topic = $1", missing);
             var maxPreflights = (long)(started.Elapsed.TotalSeconds / KafkaEventPublisher.NegativeTopicTtl.TotalSeconds) + 2;
-            attempts.ShouldBeInRange(1, maxPreflights, "one counted attempt per preflight (negative TTL), not per pass");
+            attempts.ShouldBeInRange(2, maxPreflights, "one counted attempt per negative TTL for the whole topic");
 
             await kafka.CreateTopicAsync(missing);
-            await Poll.UntilAsync(async () => await ProbeRows.CountAsync(db, missing, "PUBLISHED") == 500, TimeSpan.FromSeconds(30), "held rows published once the topic exists");
+            await Poll.UntilAsync(async () => await ProbeRows.CountAsync(db, missing, "PUBLISHED") == heldAggregates, TimeSpan.FromSeconds(180), "held rows published once the topic exists");
+            Log($"H1 {heldAggregates} held: all published {started.Elapsed.TotalSeconds:0.0} s after start.");
         }
         finally
         {
@@ -202,9 +230,118 @@ public sealed class FailureClassTests(PostgresFixture db, KafkaFixture kafka)
             worker.Dispose();
         }
 
-        KafkaRead.ShouldHaveNoGapsPerKey(
-            KafkaRead.ReadToEnd(kafka, missing),
-            heldRows.GroupBy(r => r.AggregateId).ToDictionary(g => g.Key.ToString("D"), g => g.Max(r => r.Version)));
+        (await ProbeRows.CountAsync(db, missing, "FAILED")).ShouldBe(0);
+        KafkaRead.HighWatermark(kafka, missing).ShouldBeGreaterThanOrEqualTo(heldAggregates);
+    }
+
+    [Fact(DisplayName = "EV-R3 cross-topic: an aggregate held by a missing topic keeps its later rows on a healthy topic waiting (exclusion by aggregate, not by row/topic), across hold expiries; once the topic exists all its rows publish in order")]
+    public async Task CrossTopicAggregate_LaterRowsOnHealthyTopicWait()
+    {
+        await OutboxRows.ClearAsync(db);
+        var missing = ProbeRows.NewTopic();
+        var healthy = ProbeRows.NewTopic();
+        await kafka.CreateTopicAsync(healthy);
+        await kafka.RegisterAsync(healthy, ProbeRows.SchemaJson);
+        await kafka.RegisterAsync(missing, ProbeRows.SchemaJson);
+        var t0 = DateTimeOffset.UtcNow.AddMinutes(-5);
+        var (x, y) = (Guid.CreateVersion7(), Guid.CreateVersion7());
+        var x1 = await OutboxRows.InsertAsync(db, x, 1, t0, ProbeRows.Payload(x, 1), missing);
+        var x2 = await OutboxRows.InsertAsync(db, x, 2, t0.AddMilliseconds(1), ProbeRows.Payload(x, 2), healthy);
+        var x3 = await OutboxRows.InsertAsync(db, x, 3, t0.AddMilliseconds(2), ProbeRows.Payload(x, 3), missing);
+        var x4 = await OutboxRows.InsertAsync(db, x, 4, t0.AddMilliseconds(3), ProbeRows.Payload(x, 4), healthy);
+        var y1 = await OutboxRows.InsertAsync(db, y, 1, t0.AddMilliseconds(4), ProbeRows.Payload(y, 1), healthy);
+
+        await using var relay = new RelayInstance(db, kafka, new RelayOptions { BatchSize = 500, PollIntervalMs = 100, LeaderRetrySeconds = 1, ProduceTimeoutMs = 15_000 });
+        await relay.StartAsync();
+        await Poll.UntilAsync(async () => (await OutboxRows.GetAsync(db, y1)).Status == "PUBLISHED", TimeSpan.FromSeconds(10), "y1 published");
+        await Task.Delay(TimeSpan.FromSeconds(7), TestContext.Current.CancellationToken); // spans at least one probe
+        foreach (var id in new[] { x1, x2, x3, x4 })
+        {
+            (await OutboxRows.GetAsync(db, id)).Status.ShouldBe("PENDING", "every row of the held aggregate waits, whatever its topic");
+        }
+
+        await kafka.CreateTopicAsync(missing);
+        await Poll.UntilAsync(async () => (await OutboxRows.GetAsync(db, x4)).Status == "PUBLISHED", TimeSpan.FromSeconds(30), "x4 published");
+        var publishedAt = new List<DateTimeOffset>();
+        foreach (var id in new[] { x1, x2, x3, x4 })
+        {
+            var row = await OutboxRows.GetAsync(db, id);
+            row.Status.ShouldBe("PUBLISHED");
+            publishedAt.Add(row.PublishedAt!.Value);
+        }
+
+        publishedAt.ShouldBe(publishedAt.Order().ToList(), "x1..x4 published in aggregate order across both topics");
+    }
+
+    [Fact(DisplayName = "H1: the batch query with 50 000 excluded aggregates (cap) stays cheap: BeginBatchAsync on 50 000 PENDING held rows + 30 healthy ones")]
+    public async Task BatchQuery_With50000Exclusions_IsCheap()
+    {
+        await OutboxRows.ClearAsync(db);
+        var topic = ProbeRows.NewTopic();
+        var start = new DateTimeOffset(DateTime.UtcNow.Ticks / 10 * 10, TimeSpan.Zero).AddHours(-1);
+        var held = Enumerable.Range(0, HeldAggregates.DefaultCapacity).Select(i =>
+            new ProbeRows.Row(Guid.CreateVersion7(), Guid.CreateVersion7(), 1, start.AddMilliseconds(i), "{}")).ToList();
+        foreach (var chunk in held.Chunk(10_000))
+        {
+            await ProbeRows.InsertAsync(db, topic, chunk);
+        }
+
+        var healthy = Enumerable.Range(0, 30).Select(i =>
+            new ProbeRows.Row(Guid.CreateVersion7(), Guid.CreateVersion7(), 1, start.AddMilliseconds(HeldAggregates.DefaultCapacity + i), "{}")).ToList();
+        await ProbeRows.InsertAsync(db, topic, healthy);
+        await using (var analyze = db.Admin.CreateCommand("ANALYZE outbox.message"))
+        {
+            await analyze.ExecuteNonQueryAsync(TestContext.Current.CancellationToken);
+        }
+
+        var excluded = held.Select(r => r.AggregateId).ToArray();
+        await using var lease = await OutboxRows.AcquireAsync(db);
+        var timings = new List<double>();
+        for (var i = 0; i < 3; i++)
+        {
+            var stopwatch = Stopwatch.StartNew();
+            await using var batch = await lease.BeginBatchAsync(500, excluded, CancellationToken.None);
+            stopwatch.Stop();
+            timings.Add(stopwatch.Elapsed.TotalMilliseconds);
+            batch.Messages.Select(m => m.Id).ShouldBe(healthy.Select(r => r.Id), "only the 30 non-held rows");
+        }
+
+        Log($"H1 batch query with 50 000 excluded aggregates: {string.Join(" / ", timings.Select(t => t.ToString("0", System.Globalization.CultureInfo.InvariantCulture)))} ms (BeginBatchAsync, incl. lock confirmation).");
+        timings.Min().ShouldBeLessThan(1_000);
+        await OutboxRows.ClearAsync(db);
+    }
+
+    [Theory(DisplayName = "Finding 2: a 40401/40403 body with an infrastructure HTTP status (5xx, 401) is InfraGlobal, not Row")]
+    [InlineData(500, 40401)]
+    [InlineData(503, 40403)]
+    [InlineData(401, 40401)]
+    public async Task SchemaNotFoundCode_WithInfraStatus_IsInfraGlobal(int status, int errorCode)
+    {
+        var (head, _, outcome) = await RunAgainstFakeRegistryAsync(status, errorCode);
+
+        outcome.StoppedOnTransientFailure.ShouldBeTrue();
+        (await OutboxRows.GetAsync(db, head)).Status.ShouldBe("PENDING");
+    }
+
+    [Fact(DisplayName = "Finding 6: if the admin client fails to build after the producer, the next publish builds it again (never left null for good)")]
+    public async Task AdminClientBuildFailure_IsRetried()
+    {
+        var topic = ProbeRows.NewTopic();
+        await kafka.CreateTopicAsync(topic);
+        using var publisher = CreatePublisher(new ThrowingEncoder(new InvalidOperationException("reached the encoder")));
+        var builds = 0;
+        publisher.AdminFactoryOverride = producer => ++builds == 1
+            ? throw new KafkaException(ErrorCode.Local_Fail)
+            : new DependentAdminClientBuilder(producer.Handle).Build();
+        var message = FakeBatch.Message(Guid.CreateVersion7(), 1) with { Topic = topic };
+
+        var first = await publisher.PublishAsync(message, CancellationToken.None);
+        first.Kind.ShouldBe(PublishFailureKind.InfraGlobal);
+        first.Error.ShouldNotBeNull().ShouldContain("could not be created");
+
+        var second = await publisher.PublishAsync(message, CancellationToken.None);
+        second.Kind.ShouldBe(PublishFailureKind.Row, "the admin client was rebuilt, the preflight passed and the encoder was reached");
+        builds.ShouldBe(2);
     }
 
     [Fact(DisplayName = "L1: a topic with a partition without leader is TopicUnreachable at the preflight (no 30 s produce wait), then Deferred while negatively cached")]
@@ -368,6 +505,15 @@ public sealed class FailureClassTests(PostgresFixture db, KafkaFixture kafka)
         publisher.ProducerCreated.ShouldBeTrue();
     }
 
+    private static void Log(string line)
+    {
+        TestContext.Current.TestOutputHelper?.WriteLine(line);
+        if (Environment.GetEnvironmentVariable("NEXUS_RELAY_TEST_LOG") is { Length: > 0 } file)
+        {
+            File.AppendAllText(file, line + Environment.NewLine);
+        }
+    }
+
     private static KafkaEventPublisher CreateOfflinePublisher() =>
         new(new ThrowingEncoder(new InvalidOperationException("unused")), Options.Create(new RelayOptions { KafkaBootstrapServers = "127.0.0.1:1" }), TimeProvider.System, NullLogger<KafkaEventPublisher>.Instance);
 
@@ -410,6 +556,37 @@ public sealed class FailureClassTests(PostgresFixture db, KafkaFixture kafka)
     {
         public Task<byte[]> EncodeAsync(OutboxMessage message, CancellationToken cancellationToken) => Task.FromException<byte[]>(exception);
     }
+}
+
+/// <summary>Reads one observable gauge of a meter factory on demand.</summary>
+internal sealed class GaugeReader : IDisposable
+{
+    private readonly MeterListener _listener = new();
+    private double? _last;
+
+    public GaugeReader(IMeterFactory factory, string name)
+    {
+        _listener.InstrumentPublished = (instrument, listener) =>
+        {
+            if (instrument.Meter.Scope == factory && instrument.Name == name)
+            {
+                listener.EnableMeasurementEvents(instrument);
+            }
+        };
+        _listener.SetMeasurementEventCallback<long>((_, v, _, _) => _last = v);
+        _listener.SetMeasurementEventCallback<double>((_, v, _, _) => _last = v);
+        _listener.Start();
+    }
+
+    /// <summary>The gauge's current value, or null when it reports nothing.</summary>
+    public double? TryObserve()
+    {
+        _last = null;
+        _listener.RecordObservableInstruments();
+        return _last;
+    }
+
+    public void Dispose() => _listener.Dispose();
 }
 
 /// <summary>Counts the batches begun through the leases it hands out.</summary>

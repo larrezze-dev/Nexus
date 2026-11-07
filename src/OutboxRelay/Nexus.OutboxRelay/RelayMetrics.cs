@@ -14,6 +14,7 @@ public sealed class RelayMetrics
 
     public const string PendingName = "nexus_outbox_pending";
     public const string OldestPendingAgeName = "nexus_outbox_oldest_pending_age_seconds";
+    public const string HeldAggregatesName = "nexus_outbox_held_aggregates";
     public const string PublishLatencyName = "nexus_outbox_publish_latency_seconds";
     public const string BatchSizeName = "nexus_outbox_batch_size";
     public const string ErrorsTotalName = "nexus_outbox_errors_total";
@@ -46,6 +47,8 @@ public sealed class RelayMetrics
     private readonly Histogram<int> _batchSize;
     private long _pending;
     private double _oldestPendingAge;
+    private long _held;
+    private int _heldKnown;
     private int _pendingKnown; // 1 while the leader publishes a value; 0 = gauge not observed
 
     public RelayMetrics(IMeterFactory meterFactory)
@@ -86,6 +89,11 @@ public sealed class RelayMetrics
             ObserveOldestPendingAge,
             unit: "s",
             description: "Age of the oldest PENDING outbox row (0 when none), refreshed with nexus_outbox_pending and reported only by the leader. Grows during an outage or while a topic is missing.");
+        meter.CreateObservableGauge(
+            HeldAggregatesName,
+            () => Volatile.Read(ref _heldKnown) == 1 ? [new Measurement<long>(Volatile.Read(ref _held))] : Array.Empty<Measurement<long>>(),
+            unit: "{aggregate}",
+            description: "Aggregates held back because their topic is unreachable (excluded from batches until it answers). Reported only by the leader; near MaxHeldAggregates, later rows can be starved.");
     }
 
     /// <summary>
@@ -104,7 +112,18 @@ public sealed class RelayMetrics
     /// next <see cref="SetPending"/>, so dashboards summing the gauge over instances do not count a
     /// former leader's frozen value.
     /// </summary>
-    public void ClearPending() => Volatile.Write(ref _pendingKnown, 0);
+    public void ClearPending()
+    {
+        Volatile.Write(ref _pendingKnown, 0);
+        Volatile.Write(ref _heldKnown, 0);
+    }
+
+    /// <summary>Current number of held aggregates (written by the leader after each batch).</summary>
+    public void SetHeldAggregates(long count)
+    {
+        Volatile.Write(ref _held, count);
+        Volatile.Write(ref _heldKnown, 1);
+    }
 
     public void PublishLatency(TimeSpan latency) => _latency.Record(Math.Max(0, latency.TotalSeconds));
 

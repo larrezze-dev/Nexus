@@ -131,37 +131,76 @@ public sealed class OutboxBatchProcessorTests
         outcome.ShouldSatisfyAllConditions(o => o.Deferred.ShouldBe(1), o => o.Failed.ShouldBe(0), o => o.StoppedOnTransientFailure.ShouldBeFalse());
     }
 
-    [Fact(DisplayName = "H1: a TopicUnreachable result (counted or deferred) holds its aggregate until the topic's negative cache expires; other aggregates are not held")]
-    public async Task TopicUnreachable_HoldsAggregateUntilExpiry()
+    [Fact(DisplayName = "H1(b): holds are grouped by topic and do not expire while the topic is unreachable: at the probe time only the probe aggregate is released; still unreachable ⇒ all extended; the topic answers ⇒ all released")]
+    public async Task Holds_SurviveWhileTopicUnreachable_ReleasedWhenItAnswers()
     {
+        const string Down = "nexus.test.down.created";
         var time = new ManualTime(new DateTimeOffset(2026, 11, 7, 10, 0, 0, TimeSpan.Zero));
         var (a, b, c) = (Guid.CreateVersion7(), Guid.CreateVersion7(), Guid.CreateVersion7());
-        var until = time.GetUtcNow().AddSeconds(5);
+        var topicUp = false;
         var publisher = new ScriptedPublisher(m =>
-            m.AggregateId == a ? PublishResult.TopicUnreachable("topic missing", until)
-            : m.AggregateId == b ? PublishResult.Deferred("topic missing (cached)", until)
-            : PublishResult.Success);
+            m.Topic != Down || topicUp ? PublishResult.Success
+            : m.AggregateId == a ? PublishResult.TopicUnreachable("topic missing", time.GetUtcNow().AddSeconds(5))
+            : PublishResult.Deferred("topic missing (cached)", time.GetUtcNow().AddSeconds(5)));
         using var meters = new TestMeterFactory();
         var processor = new OutboxBatchProcessor(publisher, new RelayMetrics(meters), time, 10, NullLogger.Instance);
+        OutboxMessage Row(Guid aggregate) => FakeBatch.Message(aggregate, 1) with { Topic = Down };
 
-        await processor.ProcessAsync(new FakeBatch(FakeBatch.Message(a, 1), FakeBatch.Message(b, 1), FakeBatch.Message(c, 1)), CancellationToken.None);
-
+        var first = await processor.ProcessAsync(new FakeBatch(Row(a), Row(b), FakeBatch.Message(c, 1)), CancellationToken.None);
+        first.NewHolds.ShouldBe(2);
         processor.Held.Current().ShouldBe([a, b], ignoreOrder: true);
+
         time.Advance(TimeSpan.FromSeconds(5));
-        processor.Held.Current().ShouldBeEmpty("expired with the negative cache: the next batch selects them and the preflight re-runs");
+        processor.Held.Current().ShouldBe([b], "probe due: only the topic's probe aggregate (the first held) is released; b stays held");
+
+        // The probe finds the topic still missing: every hold is extended, nothing new is held.
+        var probe = await processor.ProcessAsync(new FakeBatch(Row(a)), CancellationToken.None);
+        probe.NewHolds.ShouldBe(0);
+        processor.Held.Current().ShouldBe([a, b], ignoreOrder: true);
+        time.Advance(TimeSpan.FromSeconds(4));
+        processor.Held.Current().ShouldBe([a, b], ignoreOrder: true, "extended to the new probe time, not expired");
+
+        // Next probe: the topic answers ⇒ every hold of it is released.
+        time.Advance(TimeSpan.FromSeconds(1));
+        topicUp = true;
+        await processor.ProcessAsync(new FakeBatch(Row(a)), CancellationToken.None);
+        processor.Held.Current().ShouldBeEmpty();
+        processor.Held.Count.ShouldBe(0);
     }
 
-    [Fact(DisplayName = "H1: HeldAggregates is bounded to 10 000 aggregates")]
+    [Fact(DisplayName = "H1: rows the publisher defers without I/O (topic negative-cached) skip the leader-lock round trip and are not published; other rows still confirm the lock")]
+    public async Task TryDefer_SkipsLockConfirmation()
+    {
+        var down = Enumerable.Range(0, 4).Select(_ => FakeBatch.Message(Guid.CreateVersion7(), 1) with { Topic = "nexus.test.down.created" }).ToArray();
+        var ok = FakeBatch.Message(Guid.CreateVersion7(), 1);
+        var batch = new FakeBatch([.. down, ok]);
+        var publisher = new ScriptedPublisher(_ => PublishResult.Success)
+        {
+            Defer = m => m.Topic == "nexus.test.down.created" ? PublishResult.Deferred("topic missing (cached)", DateTimeOffset.UtcNow.AddSeconds(5)) : null,
+        };
+        using var meters = new TestMeterFactory();
+
+        var outcome = await new OutboxBatchProcessor(publisher, new RelayMetrics(meters), TimeProvider.System, 10, NullLogger.Instance)
+            .ProcessAsync(batch, CancellationToken.None);
+
+        batch.Confirmations.ShouldBe(1, "only the produced row confirms the lock");
+        publisher.Attempted.ShouldBe([ok]);
+        outcome.ShouldSatisfyAllConditions(o => o.Deferred.ShouldBe(4), o => o.NewHolds.ShouldBe(4), o => o.Published.ShouldBe(1));
+    }
+
+    [Fact(DisplayName = "H1: HeldAggregates is bounded (MaxHeldAggregates, default 50 000)")]
     public void HeldAggregates_Bounded()
     {
+        new RelayOptions().MaxHeldAggregates.ShouldBe(50_000);
         var time = new ManualTime(DateTimeOffset.UtcNow);
-        var held = new HeldAggregates(time);
-        for (var i = 0; i < HeldAggregates.Capacity + 50; i++)
+        var held = new HeldAggregates(time, capacity: 100);
+        for (var i = 0; i < 150; i++)
         {
-            held.Hold(Guid.CreateVersion7(), time.GetUtcNow().AddSeconds(5));
+            held.Hold(i % 2 == 0 ? "t1" : "t2", Guid.CreateVersion7(), time.GetUtcNow().AddSeconds(5));
         }
 
-        held.Current().Count.ShouldBe(HeldAggregates.Capacity);
+        held.Count.ShouldBe(100);
+        held.Current().Count.ShouldBe(100);
     }
 
     [Fact(DisplayName = "InfraGlobal: the batch stops at once and the outcome carries the cause (for the back-off log)")]

@@ -142,7 +142,7 @@ public sealed class SchemaRegistryPayloadEncoder : IPayloadEncoder
         {
             registered = await _registry.LookupSchemaAsync(subject, new Confluent.SchemaRegistry.Schema(schemaJson, SchemaType.Avro), ignoreDeletedSchemas: true).ConfigureAwait(false);
         }
-        catch (SchemaRegistryException ex) when (ex.ErrorCode is SubjectNotFound or SchemaNotFound)
+        catch (SchemaRegistryException ex) when (ex.ErrorCode is SubjectNotFound or SchemaNotFound && !IsInfrastructureStatus(ex.Status))
         {
             throw new PayloadEncodingException(
                 $"Schema '{path}' is not registered in subject '{subject}' (error {ex.ErrorCode}); register it (tools/register-schemas.sh).",

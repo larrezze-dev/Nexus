@@ -162,6 +162,11 @@ internal sealed class ScriptedPublisher(Func<OutboxMessage, PublishResult> scrip
 {
     public List<OutboxMessage> Attempted { get; } = [];
 
+    /// <summary>Optional <see cref="IEventPublisher.TryDefer"/> script.</summary>
+    public Func<OutboxMessage, PublishResult?>? Defer { get; init; }
+
+    public PublishResult? TryDefer(OutboxMessage message) => Defer?.Invoke(message);
+
     public Task<PublishResult> PublishAsync(OutboxMessage message, CancellationToken cancellationToken)
     {
         Attempted.Add(message);
@@ -183,8 +188,11 @@ internal sealed class FakeBatch(params OutboxMessage[] messages) : IOutboxBatch
     /// <summary>Confirmations left before the fake reports the lock as lost (null: never).</summary>
     public int? LeadershipChecksBeforeLoss { get; set; }
 
+    public int Confirmations { get; private set; }
+
     public Task ConfirmLeadershipAsync(CancellationToken cancellationToken)
     {
+        Confirmations++;
         if (LeadershipChecksBeforeLoss is { } left)
         {
             if (left == 0)

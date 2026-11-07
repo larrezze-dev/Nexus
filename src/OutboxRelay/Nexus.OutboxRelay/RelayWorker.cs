@@ -43,7 +43,7 @@ public sealed partial class RelayWorker : BackgroundService
         _logger = logger;
         _metrics = metrics;
         _maintenance = new OutboxMaintenance(metrics, _options, timeProvider, logger);
-        _processor = new OutboxBatchProcessor(publisher, metrics, timeProvider, _options.MaxAttempts, logger);
+        _processor = new OutboxBatchProcessor(publisher, metrics, timeProvider, _options.MaxAttempts, logger, _options.MaxHeldAggregates);
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -119,6 +119,8 @@ public sealed partial class RelayWorker : BackgroundService
                 outcome = await _processor.ProcessAsync(batch, stoppingToken).ConfigureAwait(false);
             }
 
+            _metrics.SetHeldAggregates(_processor.Held.Count);
+
             if (outcome.StoppedOnTransientFailure)
             {
                 backoff = backoff == TimeSpan.Zero ? pollInterval : TimeSpan.FromTicks(Math.Min(backoff.Ticks * 2, maxBackoff.Ticks));
@@ -127,10 +129,12 @@ public sealed partial class RelayWorker : BackgroundService
             else
             {
                 backoff = TimeSpan.Zero;
-                // A full batch means there is probably more: go again without waiting.
-                // Only rows actually attempted count: a batch full of deferred or EV-R3-skipped rows
-                // must wait for the next wake-up instead of spinning.
-                drainNow = outcome.Attempted >= _options.BatchSize;
+                // A full batch means there is probably more: go again without waiting — if it made
+                // progress: it attempted a full batch, or it was full and held back new aggregates
+                // (the next batch excludes them and advances through the backlog). A full batch of
+                // already-held/deferred or EV-R3-skipped rows waits for the next wake-up instead.
+                drainNow = outcome.Attempted >= _options.BatchSize
+                    || (outcome.Selected >= _options.BatchSize && outcome.NewHolds > 0);
             }
         }
     }
