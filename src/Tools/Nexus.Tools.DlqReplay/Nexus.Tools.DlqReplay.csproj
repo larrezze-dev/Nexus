@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- `make dlq-replay TOPIC=<topic>.DLQ` (step 0.7 track S). A console rather than a shell script
+       over the Kafka CLI tools: those print values as text, which corrupts Avro binary payloads. -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\BuildingBlocks\Nexus.BuildingBlocks.Messaging\Nexus.BuildingBlocks.Messaging.csproj" />
+  </ItemGroup>
+
+</Project>

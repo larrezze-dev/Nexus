@@ -1,4 +1,4 @@
-.PHONY: up down reset logs ps doctor db-migrate db-info db-validate seed-dev contracts mock-api build test test-rls test-e2e lint rule-coverage
+.PHONY: up down reset logs ps doctor db-migrate db-info db-validate seed-dev contracts mock-api build test test-rls test-e2e lint rule-coverage dlq-replay
 
 COMPOSE_FILE  := infra/compose/docker-compose.yml
 COMPOSE_ENV   := infra/compose/.env
@@ -197,6 +197,11 @@ lint:
 	@if [ -f "web/package.json" ]; then \
 		npm --prefix web run lint; \
 	fi
+
+# Re-injects <topic>.DLQ into <topic> after a y/N confirmation (YES=1 skips it). See tools/dlq-replay.sh.
+dlq-replay:
+	@if [ -z "$(TOPIC)" ]; then echo "ERROR: usage: make dlq-replay TOPIC=<topic>.DLQ [YES=1]"; exit 1; fi
+	@bash tools/dlq-replay.sh "$(TOPIC)" $(if $(YES),--yes,)
 
 rule-coverage:
 	@if [ -f "tools/rule-coverage.sh" ]; then \

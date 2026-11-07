@@ -22,5 +22,6 @@ Antes de lanzar 0.1 tienen que estar en `Aceptado` los ADR 0001–0010. El 0011 
 | [0014](0014-openapi-conformance-vs-fluentvalidation.md) | Conformidad OpenAPI del servicio vs. reglas de FluentValidation | Aceptado | 0.4 (track B5), todo paso con FluentValidation |
 | [0015](0015-has-permission-group-scope.md) | Cobertura de alcance `GROUP` en `access.has_permission` (ACC-R4) | Aceptado | nada (implementado; el fail-closed de 0.6-B para destinos `GROUP` ya no aplica) |
 | [0016](0016-client-supplied-instant-precision.md) | Precisión de los instantes que envía el cliente (sub-microsegundo) | Aceptado | nada (implementado: `MustBeMicrosecondPrecision()` en `createRoleAssignment`) |
+| [0017](0017-consumer-identity-in-unit-of-work.md) | Identidad del consumidor dentro del `UnitOfWork` | Aceptado | 0.7 track S (consumidores) |
 
 Para un ADR nuevo: copiar `0000-template.md`, siguiente número libre, estado `Propuesto`, y añadir la fila aquí.
