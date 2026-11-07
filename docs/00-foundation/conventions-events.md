@@ -119,6 +119,7 @@ La retención infinita permite reconstruir cualquier proyección desde el inicio
 
 - **EV-R4:** los eventos de **master data** llevan el estado completo del agregado tras el cambio (permiten réplicas locales). Los eventos **transaccionales** llevan el hecho y los ids necesarios.
 - **EV-R5:** nunca se publican campos PII en claro salvo en eventos del propio contexto `org`/`hr` que los necesiten; ver `domain/gdpr.md`.
+- Con `BACKWARD`, **quitar** un campo es compatible y **añadir** un campo obligatorio sin `default` no lo es (el Schema Registry responde 409). Por eso todo campo nuevo debe llevar `default`. `[+]`
 - Un cambio incompatible crea `v<n+1>` en un **topic nuevo** (`...posted.v2`) y se mantiene el antiguo hasta migrar consumidores.
 
 ## §7 Consumidores .NET
