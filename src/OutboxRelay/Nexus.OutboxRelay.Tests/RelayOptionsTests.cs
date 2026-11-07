@@ -4,7 +4,7 @@ namespace Nexus.OutboxRelay.Tests;
 
 public sealed class RelayOptionsTests
 {
-    // Smoke test of the scaffold: the options carry the step 0.7 defaults and the section name.
+    // The options carry the step 0.7 defaults (and the [+] ones) and the section name.
     [Fact]
     public void Defaults_MatchStep07Values()
     {
@@ -16,5 +16,8 @@ public sealed class RelayOptionsTests
         options.LeaderRetrySeconds.ShouldBe(5);
         options.MaxAttempts.ShouldBe(10);
         options.PurgeRetentionDays.ShouldBe(7);
+        options.PurgeMaxChunksPerPass.ShouldBe(10);
+        options.ContractsDirectory.ShouldBeEmpty();
+        options.ResolveContractsDirectory().ShouldBe(Path.Combine(AppContext.BaseDirectory, "contracts", "events"));
     }
 }

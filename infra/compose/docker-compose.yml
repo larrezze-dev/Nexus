@@ -237,8 +237,11 @@ services:
   # step where it's born.
 
   nexus-relay:
-    # TODO(0.7 B1): no Dockerfile exists in the repo yet (no app has one), so there is no
-    # `build:` key. Add `build:` once the image build pattern is decided.
+    # Built from the repository root (src/OutboxRelay/Dockerfile); the image carries
+    # contracts/events (ADR-0018: rows are encoded with their own local .avsc).
+    build:
+      context: ../..
+      dockerfile: src/OutboxRelay/Dockerfile
     image: nexus-relay:local
     container_name: nexus-relay
     profiles: ["apps"]
@@ -265,6 +268,9 @@ services:
       NEXUS__RELAY__PURGECHUNKSIZE: "5000"
       NEXUS__RELAY__PRODUCETIMEOUTMS: "30000"
       NEXUS__RELAY__MAXBACKOFFSECONDS: "60"
+      NEXUS__RELAY__PURGEMAXCHUNKSPERPASS: "10"
+      # Where the image keeps contracts/events (also the image's default; ADR-0018).
+      NEXUS__RELAY__CONTRACTSDIRECTORY: /app/contracts/events
       # Inside the compose network the Aspire Dashboard listens on 18889 (host 4317).
       NEXUS__TELEMETRY__OTLPENDPOINT: http://otel:18889
     networks:

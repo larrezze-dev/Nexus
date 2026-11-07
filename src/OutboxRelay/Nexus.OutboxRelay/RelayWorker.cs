@@ -11,8 +11,9 @@ namespace Nexus.OutboxRelay;
 ///   <item>As leader: drain batches back to back while they come back full; otherwise wait for
 ///   <c>NOTIFY outbox_new</c> or <see cref="RelayOptions.PollIntervalMs"/>, whichever comes first.</item>
 ///   <item>After a transient failure (Kafka / Schema Registry down) back off exponentially from
-///   the poll interval up to <see cref="RelayOptions.MaxBackoffSeconds"/>, so an outage burns the
-///   head row's attempts slowly instead of reaching <c>FAILED</c> in seconds.</item>
+///   the poll interval up to <see cref="RelayOptions.MaxBackoffSeconds"/>, so an outage does not
+///   hammer the cluster. The head row's <c>attempts</c> grow by one per step, but a transient
+///   failure never makes it <c>FAILED</c> (D-H1).</item>
 ///   <item>Any failure of the leader session (connection lost, lock not confirmed) ends the
 ///   lease at once: nothing is published until the lock is acquired again.</item>
 /// </list>
@@ -22,6 +23,7 @@ public sealed partial class RelayWorker : BackgroundService
     private readonly IRelayLeadership _leadership;
     private readonly OutboxBatchProcessor _processor;
     private readonly OutboxMaintenance _maintenance;
+    private readonly RelayMetrics _metrics;
     private readonly RelayOptions _options;
     private readonly TimeProvider _timeProvider;
     private readonly ILogger<RelayWorker> _logger;
@@ -39,6 +41,7 @@ public sealed partial class RelayWorker : BackgroundService
         _options = options.Value;
         _timeProvider = timeProvider;
         _logger = logger;
+        _metrics = metrics;
         _maintenance = new OutboxMaintenance(metrics, _options, timeProvider, logger);
         _processor = new OutboxBatchProcessor(publisher, metrics, timeProvider, _options.MaxAttempts, logger);
     }
@@ -77,6 +80,8 @@ public sealed partial class RelayWorker : BackgroundService
             {
                 if (lease is not null)
                 {
+                    // No longer the leader: stop reporting the pending gauge (H7).
+                    _metrics.ClearPending();
                     await lease.DisposeAsync().ConfigureAwait(false);
                 }
             }

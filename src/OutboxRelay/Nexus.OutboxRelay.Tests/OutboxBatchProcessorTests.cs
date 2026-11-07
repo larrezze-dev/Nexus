@@ -47,6 +47,40 @@ public sealed class OutboxBatchProcessorTests
         counter.Total.ShouldBe(1);
     }
 
+    [Theory(DisplayName = "§4.5 + D-H1: a transient failure never makes a row FAILED, even at or beyond MaxAttempts; attempts and last_error are still recorded")]
+    [InlineData(9)]
+    [InlineData(10)]
+    [InlineData(57)]
+    public async Task TransientFailure_NeverTerminal(int storedAttempts)
+    {
+        var row = FakeBatch.Message(Guid.CreateVersion7(), 1, attempts: storedAttempts);
+        var batch = new FakeBatch(row);
+        using var meters = new TestMeterFactory();
+        using var counter = new FailedCounterListener(meters);
+
+        var outcome = await new OutboxBatchProcessor(new ScriptedPublisher(_ => PublishResult.Failure("registry down", isTransient: true)), new RelayMetrics(meters), TimeProvider.System, 10, NullLogger.Instance)
+            .ProcessAsync(batch, CancellationToken.None);
+
+        batch.Failed[row.Id].ShouldBe((storedAttempts + 1, "registry down", false));
+        counter.Total.ShouldBe(0);
+        outcome.StoppedOnTransientFailure.ShouldBeTrue();
+    }
+
+    [Fact(DisplayName = "§4.5 + D-H1: after an outage pushed attempts past MaxAttempts, the next row-specific failure is terminal at once")]
+    public async Task RowFailureAfterOutage_IsTerminal()
+    {
+        var row = FakeBatch.Message(Guid.CreateVersion7(), 1, attempts: 14);
+        var batch = new FakeBatch(row);
+        using var meters = new TestMeterFactory();
+        using var counter = new FailedCounterListener(meters);
+
+        await new OutboxBatchProcessor(new ScriptedPublisher(_ => PublishResult.Failure("bad payload", isTransient: false)), new RelayMetrics(meters), TimeProvider.System, 10, NullLogger.Instance)
+            .ProcessAsync(batch, CancellationToken.None);
+
+        batch.Failed[row.Id].ShouldBe((15, "bad payload", true));
+        counter.Total.ShouldBe(1);
+    }
+
     [Fact(DisplayName = "§4.4: on shutdown no further row is attempted, and what was done is committed")]
     public async Task StopsBetweenRowsOnShutdown()
     {

@@ -25,6 +25,12 @@ public sealed class RelayOptions
 
     public int LeaderRetrySeconds { get; set; } = 5;
 
+    /// <summary>
+    /// A row becomes FAILED when a <b>row-specific</b> failure (payload does not decode/encode,
+    /// local <c>.avsc</c> missing, content not registered, message too large, unknown topic) leaves
+    /// it with <c>attempts &gt;= MaxAttempts</c>. Transient failures increment <c>attempts</c> too
+    /// but never make it FAILED (D-H1).
+    /// </summary>
     public int MaxAttempts { get; set; } = 10;
 
     public int PurgeRetentionDays { get; set; } = 7;
@@ -37,8 +43,11 @@ public sealed class RelayOptions
 
     /// <summary>
     /// [+] Cap of the exponential back-off after a transient failure (Kafka or Schema Registry
-    /// unavailable), starting at <see cref="PollIntervalMs"/>. With the defaults, the 10 attempts
-    /// of the head row span about 4 minutes of outage before it becomes FAILED.
+    /// unavailable), starting at <see cref="PollIntervalMs"/>. During an outage the head row's
+    /// <c>attempts</c> keep growing (one per back-off step, at most one per minute with the
+    /// defaults) but a transient failure never makes a row FAILED, however long the outage lasts
+    /// (decision D-H1, conventions-events.md §4 step 5): only row-specific failures count towards
+    /// <see cref="MaxAttempts"/>.
     /// </summary>
     public int MaxBackoffSeconds { get; set; } = 60;
 
@@ -47,4 +56,22 @@ public sealed class RelayOptions
 
     /// <summary>[+] Rows deleted per purge statement, so locks stay short.</summary>
     public int PurgeChunkSize { get; set; } = 5000;
+
+    /// <summary>
+    /// [+] Maximum purge statements per pass of the leader loop. A larger backlog is resumed on
+    /// the next pass (after the next batch), so the purge never holds publication for long.
+    /// </summary>
+    public int PurgeMaxChunksPerPass { get; set; } = 10;
+
+    /// <summary>
+    /// [+] Root of the Avro contracts, laid out like <c>contracts/events</c> (ADR-0018): the relay
+    /// encodes each row with the local <c>&lt;root&gt;/&lt;context&gt;/&lt;aggregate&gt;.&lt;event&gt;.v&lt;n&gt;.avsc</c>
+    /// its writer validated. Empty: <c>contracts/events</c> next to the binaries (copied there by the
+    /// build). The container sets it explicitly (<c>NEXUS__RELAY__CONTRACTSDIRECTORY</c>).
+    /// </summary>
+    public string ContractsDirectory { get; set; } = string.Empty;
+
+    /// <summary>Resolved <see cref="ContractsDirectory"/>.</summary>
+    public string ResolveContractsDirectory() =>
+        string.IsNullOrWhiteSpace(ContractsDirectory) ? Path.Combine(AppContext.BaseDirectory, "contracts", "events") : ContractsDirectory;
 }

@@ -193,6 +193,33 @@ internal static class ProbeRows
     public static string NewTopic() => $"nexus.test.relay-probe-{Guid.NewGuid():N}.created";
 }
 
+/// <summary>
+/// Scratch directories laid out like <c>contracts/events</c> (ADR-0018: the relay encodes each row
+/// with <c>&lt;root&gt;/&lt;context&gt;/&lt;aggregate&gt;.&lt;event&gt;.v&lt;n&gt;.avsc</c>).
+/// </summary>
+internal static class TestContracts
+{
+    private static readonly Lazy<string> ProbeRoot = new(() => Create(("test/relay-probe.created.v1.avsc", ProbeRows.SchemaJson)));
+
+    /// <summary>A root holding <c>test/relay-probe.created.v1.avsc</c> = <see cref="ProbeRows.SchemaJson"/>.</summary>
+    public static string Probe => ProbeRoot.Value;
+
+    /// <summary>A fresh root with <paramref name="files"/> (path relative to the root, content).</summary>
+    public static string Create(params (string RelativePath, string Content)[] files)
+    {
+        var root = Path.Combine(Path.GetTempPath(), "nexus-relay-tests", Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(root);
+        foreach (var (relativePath, content) in files)
+        {
+            var path = Path.Combine(root, relativePath);
+            Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+            File.WriteAllText(path, content);
+        }
+
+        return root;
+    }
+}
+
 /// <summary>A message as read back from Kafka (single-partition topic, offset order).</summary>
 internal sealed record ConsumedEvent(long Offset, string Key, Guid EventId, long AggregateVersion, byte[] Value)
 {
@@ -281,12 +308,13 @@ internal sealed class RelayInstance : IAsyncDisposable
     private readonly KafkaEventPublisher _kafkaPublisher;
     private bool _started;
 
-    public RelayInstance(PostgresFixture db, KafkaFixture kafka, RelayOptions options, Confluent.SchemaRegistry.ISchemaRegistryClient? registry = null)
+    public RelayInstance(PostgresFixture db, KafkaFixture kafka, RelayOptions options, Confluent.SchemaRegistry.ISchemaRegistryClient? registry = null, string? contractsDirectory = null)
     {
         options.KafkaBootstrapServers = kafka.BootstrapServers;
         options.SchemaRegistryUrl = kafka.SchemaRegistryUrl;
+        options.ContractsDirectory = contractsDirectory ?? TestContracts.Probe;
         Registry = registry ?? kafka.CreateRegistryClient();
-        _kafkaPublisher = new KafkaEventPublisher(new SchemaRegistryPayloadEncoder(Registry), Options.Create(options), NullLogger<KafkaEventPublisher>.Instance);
+        _kafkaPublisher = new KafkaEventPublisher(new SchemaRegistryPayloadEncoder(Registry, options.ContractsDirectory), Options.Create(options), NullLogger<KafkaEventPublisher>.Instance);
         Publisher = new CountingPublisher(_kafkaPublisher);
         Leadership = new CrashableLeadership(new PostgresRelayLeadership(db.GetConnectionString("svc_relay"), NullLoggerFactory.Instance));
         Worker = new RelayWorker(Leadership, Publisher, new RelayMetrics(_meters), Options.Create(options), TimeProvider.System, NullLogger<RelayWorker>.Instance);

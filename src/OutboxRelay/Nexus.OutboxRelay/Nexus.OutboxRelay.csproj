@@ -6,8 +6,8 @@
     <RootNamespace>Nexus.OutboxRelay</RootNamespace>
   </PropertyGroup>
 
-  <!-- Outbox relay worker (svc_relay role). Package versions are centrally managed in
-       src/Directory.Packages.props. Step 0.7 track B1: scaffold only, no relay logic yet. -->
+  <!-- Outbox relay worker (svc_relay role, conventions-events.md §4). Package versions are
+       centrally managed in src/Directory.Packages.props. -->
   <ItemGroup>
     <PackageReference Include="Npgsql" />
     <PackageReference Include="Confluent.Kafka" />
@@ -19,7 +19,8 @@
   </ItemGroup>
 
   <!-- Microsoft.Extensions.Hosting is not in the approved package list (conventions-backend.md §10);
-       the ASP.NET Core shared framework provides it without a new package (same choice as BuildingBlocks.Messaging). -->
+       the ASP.NET Core shared framework provides it without a new package (same choice as
+       Nexus.BuildingBlocks.Web.csproj). -->
   <ItemGroup>
     <FrameworkReference Include="Microsoft.AspNetCore.App" />
   </ItemGroup>
@@ -27,6 +28,16 @@
   <!-- OutboxHeaders: the keys of outbox.message.headers, single source of truth shared with OutboxWriter. -->
   <ItemGroup>
     <ProjectReference Include="..\..\BuildingBlocks\Nexus.BuildingBlocks.Persistence\Nexus.BuildingBlocks.Persistence.csproj" />
+  </ItemGroup>
+
+  <!-- ADR-0018: the relay encodes every row with the local .avsc its writer validated, so it ships
+       with every context's event contracts (contracts/events/<context>/*.avsc; not the _test
+       fixtures). Copied next to the binaries: the default RelayOptions.ContractsDirectory. -->
+  <ItemGroup>
+    <None Include="..\..\..\contracts\events\**\*.avsc"
+          Exclude="..\..\..\contracts\events\_test\**"
+          Link="contracts\events\%(RecursiveDir)%(Filename)%(Extension)"
+          CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
   <ItemGroup>

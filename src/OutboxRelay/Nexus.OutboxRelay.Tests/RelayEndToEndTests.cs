@@ -155,26 +155,31 @@ public sealed class RelayEndToEndTests(PostgresFixture db, KafkaFixture kafka)
         }
     }
 
-    [Fact(DisplayName = "§4.4/§4.5: Schema Registry down ⇒ rows stay PENDING, only the head row's attempts grow (never FAILED during the outage); registry back ⇒ all published in order")]
+    [Fact(DisplayName = "§4.4/§4.5 + D-H1: Schema Registry down for longer than MaxAttempts ⇒ the head row's attempts exceed MaxAttempts and it is STILL PENDING (a transient failure never makes a row FAILED); registry back ⇒ all published in order")]
     public async Task RegistryDown_RowsStayPending_PublishedWhenBack()
     {
         var topic = await NewProbeTopicAsync();
         var aggregates = Enumerable.Range(0, 3).Select(_ => Guid.CreateVersion7()).ToList();
         var rows = ProbeRows.Interleaved(6, aggregates, seed: 3, Start());
 
+        // A low MaxAttempts and a short back-off so the simulated outage outlasts MaxAttempts in a
+        // few seconds (production: 10 attempts, back-off up to 60 s).
         var options = new RelayOptions
         {
-            PollIntervalMs = 200,
-            MaxBackoffSeconds = 2,
+            PollIntervalMs = 100,
+            MaxBackoffSeconds = 1,
             LeaderRetrySeconds = 1,
-            MaxAttempts = 10,
+            MaxAttempts = 3,
             ProduceTimeoutMs = 15_000,
             SchemaRegistryUrl = kafka.SchemaRegistryUrl,
         };
+        const int AttemptsBeyondMax = 6;
         // The production client configuration, with a shorter request timeout so the test is fast.
         // A fresh client and encoder: nothing is cached for this topic yet.
         var registryConfig = SchemaRegistryPayloadEncoder.CreateClientConfig(options);
-        registryConfig.RequestTimeoutMs = 2_000;
+        registryConfig.RequestTimeoutMs = 500;
+        // Not 0: Confluent.SchemaRegistry 2.16 with MaxRetries = 0 never sends the request and
+        // throws NullReferenceException even when the registry is up.
         registryConfig.MaxRetries = 1;
         await using var relay = new RelayInstance(db, kafka, options, new CachedSchemaRegistryClient(registryConfig));
 
@@ -191,20 +196,21 @@ public sealed class RelayEndToEndTests(PostgresFixture db, KafkaFixture kafka)
                 async () =>
                 {
                     var row = await OutboxRows.GetAsync(db, head);
-                    row.Status.ShouldBe("PENDING", "never FAILED (nor PUBLISHED) while the registry is down");
+                    row.Status.ShouldBe("PENDING", $"never FAILED (nor PUBLISHED) while the registry is down (attempts {row.Attempts}, MaxAttempts {options.MaxAttempts})");
                     if (observed.Count == 0 || observed[^1] != row.Attempts)
                     {
                         observed.Add(row.Attempts);
                     }
 
-                    return row.Attempts >= 3;
+                    return row.Attempts >= AttemptsBeyondMax;
                 },
                 TimeSpan.FromSeconds(120),
-                "the head row records at least 3 failed attempts");
+                $"the head row records {AttemptsBeyondMax} failed attempts (MaxAttempts = {options.MaxAttempts})");
 
             observed.ShouldBe(observed.Order().ToList(), "attempts only grow");
             var final = await OutboxRows.GetAsync(db, head);
-            final.Attempts.ShouldBeLessThan(options.MaxAttempts);
+            final.Status.ShouldBe("PENDING");
+            final.Attempts.ShouldBeGreaterThan(options.MaxAttempts, "the outage outlasted MaxAttempts");
             final.LastError.ShouldNotBeNull().ShouldContain("unavailable");
             (await ProbeRows.CountAsync(db, topic, "PENDING")).ShouldBe(rows.Count);
             (await ProbeRows.CountAsync(db, topic, "FAILED")).ShouldBe(0);
@@ -214,14 +220,23 @@ public sealed class RelayEndToEndTests(PostgresFixture db, KafkaFixture kafka)
             }
 
             relay.Publisher.Count.ShouldBe(0);
-            Log($"Registry outage: {outage.Elapsed.TotalSeconds:0.0} s, head row attempts observed {string.Join(" -> ", observed)} (MaxAttempts = {options.MaxAttempts}).");
+            Log($"Registry outage: {outage.Elapsed.TotalSeconds:0.0} s, head row attempts observed {string.Join(" -> ", observed)} (MaxAttempts = {options.MaxAttempts}), still PENDING.");
         }
         finally
         {
             await kafka.UnpauseRegistryAsync();
         }
 
-        await Poll.UntilAsync(async () => await ProbeRows.CountAsync(db, topic, "PUBLISHED") == rows.Count, TimeSpan.FromSeconds(60), "published once the registry is back");
+        try
+        {
+            await Poll.UntilAsync(async () => await ProbeRows.CountAsync(db, topic, "PUBLISHED") == rows.Count, TimeSpan.FromSeconds(60), "published once the registry is back");
+        }
+        catch (TimeoutException)
+        {
+            var stuck = await OutboxRows.GetAsync(db, head);
+            Log($"DIAG head after outage: {stuck.Status} attempts={stuck.Attempts} last_error={stuck.LastError}");
+            throw;
+        }
         var recovered = outage.Elapsed;
         Log($"Registry back: all {rows.Count} rows published {recovered.TotalSeconds:0.0} s after the outage started.");
 
@@ -233,7 +248,7 @@ public sealed class RelayEndToEndTests(PostgresFixture db, KafkaFixture kafka)
             versions.ShouldBe(Enumerable.Range(1, versions.Count).Select(v => (long)v).ToList(), $"key {group.Key}: in order");
         }
 
-        // Documented behaviour: once a (subject, version) has been resolved, the encoder no longer
+        // Documented behaviour: once a (subject, event_type, schema_version) has been resolved, the encoder no longer
         // needs the registry for it. A second outage is invisible for rows of the same topic and
         // schema version (relevant for the ficha's manual check 3: it only shows attempts rising if
         // the relay has not yet published that event type since it started).

@@ -97,6 +97,58 @@ public sealed class LeadershipTests(PostgresFixture db)
         (await OutboxRows.GetAsync(db, id)).ShouldSatisfyAllConditions(r => r.Status.ShouldBe("PENDING"), r => r.Attempts.ShouldBe(0));
     }
 
+    [Fact(DisplayName = "§4.1 (H6): BeginBatchAsync refuses on a live session that no longer holds the advisory lock, and locks no row")]
+    public async Task BeginBatch_RefusesWhenLockNotHeldOnLiveSession()
+    {
+        await OutboxRows.ClearAsync(db);
+        var id = await OutboxRows.InsertAsync(db, Guid.CreateVersion7(), 1, DateTimeOffset.UtcNow);
+
+        var lease = (PostgresRelayLease)await OutboxRows.AcquireAsync(db);
+        try
+        {
+            // The session stays alive; only the lock goes (nothing in the relay does this).
+            await using (var unlock = new NpgsqlCommand("SELECT pg_advisory_unlock(hashtext('nexus-relay'))", lease.SessionForTests))
+            {
+                ((bool)(await unlock.ExecuteScalarAsync(TestContext.Current.CancellationToken))!).ShouldBeTrue();
+            }
+
+            var ex = await Should.ThrowAsync<RelayLeadershipLostException>(() => lease.BeginBatchAsync(10, CancellationToken.None));
+            ex.Message.ShouldContain("no longer held");
+
+            // Nothing was left locked by the refused batch: another session can lock the row at once.
+            await using var other = new NpgsqlConnection(db.GetConnectionString("svc_relay"));
+            await other.OpenAsync(TestContext.Current.CancellationToken);
+            await using var tx = await other.BeginTransactionAsync(TestContext.Current.CancellationToken);
+            await using var probe = new NpgsqlCommand("SELECT id FROM outbox.message WHERE id = $1 FOR UPDATE SKIP LOCKED", other, tx);
+            probe.Parameters.Add(new NpgsqlParameter<Guid> { TypedValue = id });
+            ((Guid?)await probe.ExecuteScalarAsync(TestContext.Current.CancellationToken)).ShouldBe(id, "the row is not locked by the refused batch");
+        }
+        finally
+        {
+            await lease.DisposeAsync();
+        }
+    }
+
+    [Fact(DisplayName = "§4.1 (H2): the leader session runs with server-side TCP keepalives and user timeout, so a vanished leader node frees the lock in about 11 s")]
+    public async Task LeaderSession_HasServerKeepalives()
+    {
+        await using var lease = (PostgresRelayLease)await OutboxRows.AcquireAsync(db);
+
+        async Task<string> Show(string setting)
+        {
+            await using var command = new NpgsqlCommand($"SHOW {setting}", lease.SessionForTests);
+            return (string)(await command.ExecuteScalarAsync(TestContext.Current.CancellationToken))!;
+        }
+
+        (await Show("tcp_keepalives_idle")).ShouldBe("5");
+        (await Show("tcp_keepalives_interval")).ShouldBe("2");
+        (await Show("tcp_keepalives_count")).ShouldBe("3");
+        (await Show("tcp_user_timeout")).ShouldBe("11000"); // milliseconds
+
+        // Applied to the leader session only, not server-wide.
+        (await db.ScalarAsync<string>("SHOW tcp_keepalives_idle")).ShouldNotBe("5");
+    }
+
     [Fact(DisplayName = "§4.1: the per-batch lock confirmation fails if the session no longer holds the advisory lock")]
     public async Task LockNotConfirmed_Throws()
     {

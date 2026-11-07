@@ -16,7 +16,9 @@ public static class RelayServiceCollectionExtensions
         services.AddSingleton<RelayMetrics>();
         services.AddSingleton<ISchemaRegistryClient>(sp =>
             new CachedSchemaRegistryClient(SchemaRegistryPayloadEncoder.CreateClientConfig(sp.GetRequiredService<IOptions<RelayOptions>>().Value)));
-        services.AddSingleton<IPayloadEncoder, SchemaRegistryPayloadEncoder>();
+        services.AddSingleton<IPayloadEncoder>(sp => new SchemaRegistryPayloadEncoder(
+            sp.GetRequiredService<ISchemaRegistryClient>(),
+            sp.GetRequiredService<IOptions<RelayOptions>>().Value.ResolveContractsDirectory()));
         services.AddSingleton<IEventPublisher, KafkaEventPublisher>();
         services.AddSingleton<IRelayLeadership, PostgresRelayLeadership>();
         services.AddHostedService<RelayWorker>();

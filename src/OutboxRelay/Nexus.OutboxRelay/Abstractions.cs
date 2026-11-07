@@ -86,7 +86,8 @@ public interface IOutboxBatch : IAsyncDisposable
     /// <summary>
     /// Records a failed attempt: <c>attempts</c> becomes <paramref name="attempts"/> and
     /// <c>last_error</c> <paramref name="lastError"/>; the row becomes <c>FAILED</c> when
-    /// <paramref name="terminal"/>, else stays <c>PENDING</c>.
+    /// <paramref name="terminal"/>, else stays <c>PENDING</c>. Terminal only for a row-specific
+    /// failure at <c>attempts &gt;= MaxAttempts</c>, never for a transient one (D-H1).
     /// </summary>
     void MarkFailed(Guid id, int attempts, string lastError, bool terminal);
 
@@ -119,7 +120,8 @@ public interface IPayloadEncoder
 /// <param name="IsTransient">
 /// The failure is about the infrastructure (Kafka or Schema Registry unreachable, timeouts), not
 /// about this row: the rest of the batch would fail the same way, so the batch stops and the relay
-/// backs off instead of burning one attempt of every row in it.
+/// backs off instead of burning one attempt of every row in it. A transient failure still
+/// increments the row's <c>attempts</c> but never makes it <c>FAILED</c> (D-H1).
 /// </param>
 public readonly record struct PublishResult(bool Succeeded, string? Error, bool IsTransient)
 {
@@ -128,7 +130,10 @@ public readonly record struct PublishResult(bool Succeeded, string? Error, bool 
     public static PublishResult Failure(string error, bool isTransient) => new(false, error, isTransient);
 }
 
-/// <summary>The payload could not be encoded (schema missing in the registry, payload does not match, registry down...).</summary>
+/// <summary>
+/// The payload could not be encoded: local <c>.avsc</c> missing, schema not registered, payload
+/// does not match (row failures) or registry unreachable (<see cref="IsTransient"/>).
+/// </summary>
 public sealed class PayloadEncodingException : Exception
 {
     public PayloadEncodingException()

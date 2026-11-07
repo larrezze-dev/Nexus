@@ -25,12 +25,17 @@ public sealed class KafkaPublishingTests(PostgresFixture db, KafkaFixture kafka)
 {
     private static readonly DateTimeOffset T0 = new(2026, 11, 7, 10, 0, 0, TimeSpan.Zero);
 
-    private const string ProbeV1 =
+    // A legacy shape registered first, so the subject's version numbers and the files' v<n> differ.
+    private const string ProbeV0 =
         """
         {"type":"record","name":"RelayProbeCreated","namespace":"ch.nussli.nexus.test","fields":[
           {"name":"probeId","type":{"type":"string","logicalType":"uuid"}},
-          {"name":"amount","type":{"type":"bytes","logicalType":"decimal","precision":19,"scale":4}}]}
+          {"name":"amount","type":{"type":"bytes","logicalType":"decimal","precision":19,"scale":4}},
+          {"name":"legacyCode","type":"string"}]}
         """;
+
+    // BACKWARD-compatible with V0 (a field removed).
+    private const string ProbeV1 = ProbeRows.SchemaJson;
 
     // BACKWARD-compatible evolution: a new optional field with a default.
     private const string ProbeV2 =
@@ -39,6 +44,15 @@ public sealed class KafkaPublishingTests(PostgresFixture db, KafkaFixture kafka)
           {"name":"probeId","type":{"type":"string","logicalType":"uuid"}},
           {"name":"amount","type":{"type":"bytes","logicalType":"decimal","precision":19,"scale":4}},
           {"name":"note","type":["null","string"],"default":null}]}
+        """;
+
+    // Incompatible with V1 (a new required field): lives in a new topic "...created.v2" (§6).
+    private const string ProbeIncompatibleV2 =
+        """
+        {"type":"record","name":"RelayProbeCreated","namespace":"ch.nussli.nexus.test","fields":[
+          {"name":"probeId","type":{"type":"string","logicalType":"uuid"}},
+          {"name":"total","type":{"type":"bytes","logicalType":"decimal","precision":19,"scale":4}},
+          {"name":"currency","type":"string"}]}
         """;
 
     [Fact(DisplayName = "§2/§4.4: an event written by the real UnitOfWork is produced with key = aggregate_id, every nexus-* header, and an Avro value that round-trips")]
@@ -64,7 +78,8 @@ public sealed class KafkaPublishingTests(PostgresFixture db, KafkaFixture kafka)
 
         var (rowId, headersJson) = await ReadRowAsync(eventAggregateId);
 
-        using var publisher = CreatePublisher();
+        // The relay reads the same contracts root the writer validated against (ADR-0018).
+        using var publisher = CreatePublisher(RepoRoot.Find("contracts/events/_test"));
         var outcome = await RunBatchAsync(publisher);
         outcome.Published.ShouldBe(1);
         (await OutboxRows.GetAsync(db, rowId)).Status.ShouldBe("PUBLISHED");
@@ -100,16 +115,21 @@ public sealed class KafkaPublishingTests(PostgresFixture db, KafkaFixture kafka)
         record["name"].ShouldBe("héllo");
     }
 
-    [Fact(DisplayName = "§4.4: the encoder uses the subject version = the row's schema_version (v1 and v2 rows get their own schema id); decimals with \\u0000 bytes round-trip")]
-    public async Task EncoderPinsRowSchemaVersion()
+    [Fact(DisplayName = "ADR-0018: same subject, v1.avsc = subject version 2 and v2.avsc = subject version 3 ⇒ each row is encoded with the id of its own .avsc content and decodes back; decimals with \\u0000 bytes round-trip")]
+    public async Task SameSubject_EachRowGetsTheIdOfItsOwnContent()
     {
         await OutboxRows.ClearAsync(db);
-        var topic = $"nexus.test.relay-probe-{Guid.NewGuid():N}.created";
+        var topic = ProbeRows.NewTopic();
         await kafka.CreateTopicAsync(topic);
+        var (_, version0) = await kafka.RegisterAsync(topic, ProbeV0);
         var (idV1, versionV1) = await kafka.RegisterAsync(topic, ProbeV1);
         var (idV2, versionV2) = await kafka.RegisterAsync(topic, ProbeV2);
-        (versionV1, versionV2).ShouldBe((1, 2));
+        (version0, versionV1, versionV2).ShouldBe((1, 2, 3), "the subject's numbering is not the files' v<n>");
         idV1.ShouldNotBe(idV2);
+
+        var contracts = TestContracts.Create(
+            ("test/relay-probe.created.v1.avsc", ProbeV1),
+            ("test/relay-probe.created.v2.avsc", ProbeV2));
 
         var v1 = (RecordSchema)Schema.Parse(ProbeV1);
         var v2 = (RecordSchema)Schema.Parse(ProbeV2);
@@ -132,56 +152,154 @@ public sealed class KafkaPublishingTests(PostgresFixture db, KafkaFixture kafka)
         await OutboxRows.InsertAsync(db, aggregate, 1, T0.AddMilliseconds(1), json1, topic, schemaVersion: 1, headers: OutboxRows.Headers(legalEntity));
         await OutboxRows.InsertAsync(db, aggregate, 2, T0.AddMilliseconds(2), json2, topic, schemaVersion: 2, headers: OutboxRows.Headers(legalEntity));
 
-        using var publisher = CreatePublisher();
+        using var publisher = CreatePublisher(contracts);
         (await RunBatchAsync(publisher)).Published.ShouldBe(2);
 
         var messages = kafka.ReadAll(topic, expected: 2, TimeSpan.FromSeconds(30));
         messages.Count.ShouldBe(2);
 
         var (wire1, d1) = AvroJson.DecodeWire(messages[0].Message.Value, v1);
-        wire1.ShouldBe(idV1);
+        wire1.ShouldBe(idV1, "schema_version 1 ⇒ the id of v1.avsc's content (subject version 2), not of subject version 1");
         var r1 = (GenericRecord)d1;
         r1["probeId"].ShouldBe(aggregate);
         ((AvroDecimal)r1["amount"]).ShouldBe(new AvroDecimal(16.0000m));
 
         var (wire2, d2) = AvroJson.DecodeWire(messages[1].Message.Value, v2);
-        wire2.ShouldBe(idV2);
+        wire2.ShouldBe(idV2, "schema_version 2 ⇒ the id of v2.avsc's content (subject version 3)");
         var r2 = (GenericRecord)d2;
         ((AvroDecimal)r2["amount"]).ShouldBe(new AvroDecimal(-1234.5678m));
         r2["note"].ShouldBe("second");
 
         Encoding.UTF8.GetString(messages[0].Message.Headers.GetLastBytes(RelayKafkaHeaders.LegalEntityId)).ShouldBe(legalEntity.ToString("D"));
         Encoding.UTF8.GetString(messages[1].Message.Headers.GetLastBytes(RelayKafkaHeaders.AggregateVersion)).ShouldBe("2");
+        Encoding.UTF8.GetString(messages[1].Message.Headers.GetLastBytes(RelayKafkaHeaders.SchemaVersion)).ShouldBe("2");
     }
 
-    [Fact(DisplayName = "§4.5: a schema_version not registered in the Schema Registry is a per-row (non-transient) failure; the row stays PENDING with attempts+1")]
-    public async Task UnknownSchemaVersion_IsPermanentFailure()
+    [Fact(DisplayName = "ADR-0018 / §6: incompatible change in a new topic '.v2' (its subject starts at version 1, schema_version = 2) ⇒ encoded with the id of v2.avsc; the v1 topic keeps v1.avsc")]
+    public async Task NewV2Topic_SubjectVersionOneIsSchemaVersionTwo()
     {
         await OutboxRows.ClearAsync(db);
-        var topic = $"nexus.test.relay-probe-{Guid.NewGuid():N}.created";
+        var topicV1 = ProbeRows.NewTopic();
+        var topicV2 = topicV1 + ".v2";
+        await kafka.CreateTopicAsync(topicV1);
+        await kafka.CreateTopicAsync(topicV2);
+        var (idV1, _) = await kafka.RegisterAsync(topicV1, ProbeV1);
+        var (idNew, subjectVersion) = await kafka.RegisterAsync(topicV2, ProbeIncompatibleV2);
+        subjectVersion.ShouldBe(1, "a new topic's subject starts at version 1");
+
+        var contracts = TestContracts.Create(
+            ("test/relay-probe.created.v1.avsc", ProbeV1),
+            ("test/relay-probe.created.v2.avsc", ProbeIncompatibleV2));
+
+        var schemaNew = (RecordSchema)Schema.Parse(ProbeIncompatibleV2);
+        var aggregate = Guid.CreateVersion7();
+        var record = new GenericRecord(schemaNew);
+        record.Add("probeId", aggregate);
+        record.Add("total", new AvroDecimal(42.5000m));
+        record.Add("currency", "CHF");
+        var oldRow = await OutboxRows.InsertAsync(db, Guid.CreateVersion7(), 1, T0, ProbeRows.Payload(Guid.CreateVersion7(), 1), topicV1, schemaVersion: 1);
+        var newRow = await OutboxRows.InsertAsync(db, aggregate, 1, T0.AddMilliseconds(1), AvroJson.Encode(schemaNew, record), topicV2, schemaVersion: 2);
+
+        using var publisher = CreatePublisher(contracts);
+        (await RunBatchAsync(publisher)).Published.ShouldBe(2);
+        (await OutboxRows.GetAsync(db, oldRow)).Status.ShouldBe("PUBLISHED");
+        (await OutboxRows.GetAsync(db, newRow)).Status.ShouldBe("PUBLISHED");
+
+        var (wireOld, _) = AvroJson.DecodeWire(kafka.ReadAll(topicV1, expected: 1, TimeSpan.FromSeconds(30)).ShouldHaveSingleItem().Message.Value, ProbeRows.Schema);
+        wireOld.ShouldBe(idV1);
+
+        var (wireNew, datum) = AvroJson.DecodeWire(kafka.ReadAll(topicV2, expected: 1, TimeSpan.FromSeconds(30)).ShouldHaveSingleItem().Message.Value, schemaNew);
+        wireNew.ShouldBe(idNew);
+        var decoded = (GenericRecord)datum;
+        decoded["probeId"].ShouldBe(aggregate);
+        ((AvroDecimal)decoded["total"]).ShouldBe(new AvroDecimal(42.5000m));
+        decoded["currency"].ShouldBe("CHF");
+    }
+
+    [Fact(DisplayName = "ADR-0018 §4: a schema_version without a local .avsc is a row failure naming the expected file; other aggregates of the batch are published")]
+    public async Task MissingLocalSchema_IsRowFailure()
+    {
+        await OutboxRows.ClearAsync(db);
+        var topic = ProbeRows.NewTopic();
         await kafka.CreateTopicAsync(topic);
         await kafka.RegisterAsync(topic, ProbeV1);
-        var id = await OutboxRows.InsertAsync(db, Guid.CreateVersion7(), 1, T0, "{}", topic, schemaVersion: 5);
+        var missing = await OutboxRows.InsertAsync(db, Guid.CreateVersion7(), 1, T0, "{}", topic, schemaVersion: 5);
+        var other = Guid.CreateVersion7();
+        var fine = await OutboxRows.InsertAsync(db, other, 1, T0.AddMilliseconds(1), ProbeRows.Payload(other, 1), topic, schemaVersion: 1);
 
-        using var publisher = CreatePublisher();
+        using var publisher = CreatePublisher(TestContracts.Probe);
+        var outcome = await RunBatchAsync(publisher);
+
+        outcome.StoppedOnTransientFailure.ShouldBeFalse("a missing file is about this row, not the infrastructure");
+        var row = await OutboxRows.GetAsync(db, missing);
+        row.Status.ShouldBe("PENDING");
+        row.Attempts.ShouldBe(1);
+        row.LastError.ShouldNotBeNull().ShouldContain(Path.Combine("test", "relay-probe.created.v5.avsc"));
+        (await OutboxRows.GetAsync(db, fine)).Status.ShouldBe("PUBLISHED");
+    }
+
+    [Fact(DisplayName = "ADR-0018 §4: a local .avsc whose content is not registered (40403) or whose subject does not exist (40401) is a row failure; failures are not cached, so registering it lets the next batch publish")]
+    public async Task UnregisteredContent_IsRowFailure_NotCached()
+    {
+        await OutboxRows.ClearAsync(db);
+        var notInSubject = ProbeRows.NewTopic();
+        var noSubject = ProbeRows.NewTopic();
+        var registered = ProbeRows.NewTopic();
+        foreach (var t in new[] { notInSubject, noSubject, registered })
+        {
+            await kafka.CreateTopicAsync(t);
+        }
+
+        await kafka.RegisterAsync(notInSubject, ProbeV1); // the subject exists, but not with v1.avsc's current content
+        await kafka.RegisterAsync(registered, ProbeV2);
+
+        // v1.avsc edited in place (compatible change) but not registered yet in every subject.
+        var contracts = TestContracts.Create(("test/relay-probe.created.v1.avsc", ProbeV2));
+        var v2 = (RecordSchema)Schema.Parse(ProbeV2);
+        string Payload(Guid aggregate)
+        {
+            var record = new GenericRecord(v2);
+            record.Add("probeId", aggregate);
+            record.Add("amount", new AvroDecimal(1.0000m));
+            record.Add("note", null);
+            return AvroJson.Encode(v2, record);
+        }
+
+        var (a, b, c) = (Guid.CreateVersion7(), Guid.CreateVersion7(), Guid.CreateVersion7());
+        var rowA = await OutboxRows.InsertAsync(db, a, 1, T0, Payload(a), notInSubject);
+        var rowB = await OutboxRows.InsertAsync(db, b, 1, T0.AddMilliseconds(1), Payload(b), noSubject);
+        var rowC = await OutboxRows.InsertAsync(db, c, 1, T0.AddMilliseconds(2), Payload(c), registered);
+
+        using var publisher = CreatePublisher(contracts);
         var outcome = await RunBatchAsync(publisher);
 
         outcome.StoppedOnTransientFailure.ShouldBeFalse();
-        var row = await OutboxRows.GetAsync(db, id);
-        row.Status.ShouldBe("PENDING");
-        row.Attempts.ShouldBe(1);
-        row.LastError.ShouldNotBeNull().ShouldContain("version 5");
+        outcome.Published.ShouldBe(1);
+        var failedA = await OutboxRows.GetAsync(db, rowA);
+        failedA.ShouldSatisfyAllConditions(r => r.Status.ShouldBe("PENDING"), r => r.Attempts.ShouldBe(1));
+        failedA.LastError.ShouldNotBeNull().ShouldContain($"not registered in subject '{notInSubject}-value' (error 40403)");
+        var failedB = await OutboxRows.GetAsync(db, rowB);
+        failedB.Attempts.ShouldBe(1);
+        failedB.LastError.ShouldNotBeNull().ShouldContain($"not registered in subject '{noSubject}-value' (error 40401)");
+        (await OutboxRows.GetAsync(db, rowC)).Status.ShouldBe("PUBLISHED");
+
+        // Same encoder (same cache): registering the content fixes the row's next attempt.
+        await kafka.RegisterAsync(notInSubject, ProbeV2);
+        (await RunBatchAsync(publisher)).Published.ShouldBe(1);
+        (await OutboxRows.GetAsync(db, rowA)).Status.ShouldBe("PUBLISHED");
+        (await OutboxRows.GetAsync(db, rowB)).Attempts.ShouldBe(2);
     }
 
     [Fact(DisplayName = "§4.4: Schema Registry unreachable is a transient failure: no message is lost, the row stays PENDING with attempts+1")]
     public async Task RegistryDown_IsTransient()
     {
         await OutboxRows.ClearAsync(db);
-        var id = await OutboxRows.InsertAsync(db, Guid.CreateVersion7(), 1, T0);
+        var aggregate = Guid.CreateVersion7();
+        var id = await OutboxRows.InsertAsync(db, aggregate, 1, T0, ProbeRows.Payload(aggregate, 1));
 
-        // Port 9 (discard) on loopback: connection refused.
-        using var registry = new CachedSchemaRegistryClient(new SchemaRegistryConfig { Url = "http://127.0.0.1:9", RequestTimeoutMs = 2000, MaxRetries = 0 });
-        using var publisher = new KafkaEventPublisher(new SchemaRegistryPayloadEncoder(registry), Options(), NullLogger<KafkaEventPublisher>.Instance);
+        // Port 9 (discard) on loopback: connection refused. The local .avsc exists, so the failure is the registry's.
+        using var registry = new CachedSchemaRegistryClient(new SchemaRegistryConfig { Url = "http://127.0.0.1:9", RequestTimeoutMs = 2000, MaxRetries = 1 });
+        using var publisher = new KafkaEventPublisher(new SchemaRegistryPayloadEncoder(registry, TestContracts.Probe), Options(), NullLogger<KafkaEventPublisher>.Instance);
         var outcome = await RunBatchAsync(publisher);
 
         outcome.StoppedOnTransientFailure.ShouldBeTrue();
@@ -191,8 +309,8 @@ public sealed class KafkaPublishingTests(PostgresFixture db, KafkaFixture kafka)
         row.LastError.ShouldNotBeNull().ShouldContain("unavailable");
     }
 
-    private KafkaEventPublisher CreatePublisher() =>
-        new(new SchemaRegistryPayloadEncoder(kafka.CreateRegistryClient()), Options(), NullLogger<KafkaEventPublisher>.Instance);
+    private KafkaEventPublisher CreatePublisher(string contractsDirectory) =>
+        new(new SchemaRegistryPayloadEncoder(kafka.CreateRegistryClient(), contractsDirectory), Options(), NullLogger<KafkaEventPublisher>.Instance);
 
     private IOptions<RelayOptions> Options() =>
         Microsoft.Extensions.Options.Options.Create(new RelayOptions

@@ -14,12 +14,13 @@ public sealed class OutboxPurgeAndMetricsTests(PostgresFixture db)
 {
     private static readonly DateTimeOffset Now = new(2026, 11, 7, 10, 0, 0, TimeSpan.Zero);
 
-    [Fact(DisplayName = "EV-PURGE: §4.6 deletes only PUBLISHED rows older than 7 days; keeps PUBLISHED at 6 days, PENDING and FAILED forever")]
+    [Fact(DisplayName = "EV-PURGE: §4.6 deletes only PUBLISHED rows older than 7 days (edge pinned at −7 d ± 1 s); keeps PENDING and FAILED forever")]
     public async Task Purge_DeletesOnlyOldPublished()
     {
         await OutboxRows.ClearAsync(db);
         var old = await InsertPublishedAsync(Now.AddDays(-8));
         var exactlyOld = await InsertPublishedAsync(Now.AddDays(-7).AddSeconds(-1));
+        var justInside = await InsertPublishedAsync(Now.AddDays(-7).AddSeconds(1));
         var recent = await InsertPublishedAsync(Now.AddDays(-6));
         var pending = await OutboxRows.InsertAsync(db, Guid.CreateVersion7(), 1, Now.AddDays(-100));
         var failed = await OutboxRows.InsertAsync(db, Guid.CreateVersion7(), 1, Now.AddDays(-100), status: "FAILED", attempts: 10);
@@ -29,7 +30,8 @@ public sealed class OutboxPurgeAndMetricsTests(PostgresFixture db)
         (await service.PurgeIfDueAsync(lease, CancellationToken.None)).ShouldBe(2);
 
         (await Exists(old)).ShouldBeFalse();
-        (await Exists(exactlyOld)).ShouldBeFalse();
+        (await Exists(exactlyOld)).ShouldBeFalse("7 days and 1 second old");
+        (await Exists(justInside)).ShouldBeTrue("1 second short of 7 days");
         (await Exists(recent)).ShouldBeTrue();
         (await Exists(pending)).ShouldBeTrue();
         (await Exists(failed)).ShouldBeTrue();
@@ -59,6 +61,41 @@ public sealed class OutboxPurgeAndMetricsTests(PostgresFixture db)
         time.Advance(TimeSpan.FromHours(2));
         (await service.PurgeIfDueAsync(lease, CancellationToken.None)).ShouldBe(1);
         options.PurgeIntervalHours.ShouldBe(24);
+    }
+
+    [Fact(DisplayName = "EV-PURGE (H8): one pass deletes at most PurgeMaxChunksPerPass chunks; the backlog is resumed on the next pass without waiting for the interval, then the purge is not due again for 24 h")]
+    public async Task Purge_BoundedPerPass_ResumesNextPass()
+    {
+        await OutboxRows.ClearAsync(db);
+        for (var i = 0; i < 12; i++)
+        {
+            await InsertPublishedAsync(Now.AddDays(-10));
+        }
+
+        var time = new FakeTime(Now);
+        var options = new RelayOptions { PurgeChunkSize = 5, PurgeMaxChunksPerPass = 2 };
+        var service = new OutboxMaintenance(new RelayMetrics(new TestMeterFactory()), options, time, NullLogger.Instance);
+        await using var lease = await OutboxRows.AcquireAsync(db);
+
+        (await service.PurgeIfDueAsync(lease, CancellationToken.None)).ShouldBe(10, "two chunks of 5, then the pass yields to publication");
+        (await db.ScalarAsync<long>("SELECT count(*) FROM outbox.message")).ShouldBe(2);
+
+        time.Advance(TimeSpan.FromSeconds(1));
+        (await service.PurgeIfDueAsync(lease, CancellationToken.None)).ShouldBe(2, "the next pass resumes the unfinished purge");
+        (await db.ScalarAsync<long>("SELECT count(*) FROM outbox.message")).ShouldBe(0);
+
+        await InsertPublishedAsync(Now.AddDays(-10));
+        time.Advance(TimeSpan.FromSeconds(1));
+        (await service.PurgeIfDueAsync(lease, CancellationToken.None)).ShouldBe(0, "finished: not due until the interval elapses");
+        time.Advance(TimeSpan.FromHours(24));
+        (await service.PurgeIfDueAsync(lease, CancellationToken.None)).ShouldBe(1);
+    }
+
+    [Fact(DisplayName = "EV-PURGE (H8): the default cap (10 chunks of 5000) bounds a pass to 50 000 rows")]
+    public void Purge_DefaultCap()
+    {
+        var options = new RelayOptions();
+        (options.PurgeChunkSize * options.PurgeMaxChunksPerPass).ShouldBe(50_000);
     }
 
     [Fact(DisplayName = "EV-PURGE: §4.6 the leader's loop purges old PUBLISHED rows")]
@@ -136,6 +173,98 @@ public sealed class OutboxPurgeAndMetricsTests(PostgresFixture db)
         listener.Tagged(RelayMetrics.ErrorsTotalName, "kind", RelayMetrics.ErrorKindTemporary).ShouldBe(1);
     }
 
+    [Fact(DisplayName = "Metrics (H4): the latency and batch-size histograms carry explicit bucket boundaries (latency 0.005 s … 60 s)")]
+    public void Histograms_HaveExplicitBuckets()
+    {
+        using var meters = new TestMeterFactory();
+        var instruments = new Dictionary<string, Instrument>();
+        using var listener = new MeterListener
+        {
+            InstrumentPublished = (instrument, _) =>
+            {
+                if (instrument.Meter.Scope == meters)
+                {
+                    instruments[instrument.Name] = instrument;
+                }
+            },
+        };
+        listener.Start();
+        _ = new RelayMetrics(meters);
+
+        var latency = instruments[RelayMetrics.PublishLatencyName].ShouldBeOfType<Histogram<double>>();
+        latency.Advice.ShouldNotBeNull().HistogramBucketBoundaries.ShouldBe(
+            [0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10, 30, 60]);
+
+        var batch = instruments[RelayMetrics.BatchSizeName].ShouldBeOfType<Histogram<int>>();
+        batch.Advice.ShouldNotBeNull().HistogramBucketBoundaries.ShouldBe([1, 5, 10, 25, 50, 100, 250, 500, 1000]);
+    }
+
+    [Fact(DisplayName = "Metrics (H7): nexus_outbox_pending is not reported before the first refresh nor after ClearPending")]
+    public void PendingGauge_NotReportedWithoutLeader()
+    {
+        using var meters = new TestMeterFactory();
+        using var listener = new MetricListener(meters);
+        var metrics = new RelayMetrics(meters);
+
+        listener.TryObserve(RelayMetrics.PendingName).ShouldBeNull("never leader: nothing to report");
+        metrics.SetPending(7);
+        listener.TryObserve(RelayMetrics.PendingName).ShouldBe(7);
+        metrics.ClearPending();
+        listener.TryObserve(RelayMetrics.PendingName).ShouldBeNull("lease lost: the stale value is not reported");
+    }
+
+    [Fact(DisplayName = "Metrics (H7): a passive worker never reports nexus_outbox_pending; a leader stops reporting it once it loses the lease")]
+    public async Task PendingGauge_FollowsTheLease()
+    {
+        await OutboxRows.ClearAsync(db);
+        await OutboxRows.InsertAsync(db, Guid.CreateVersion7(), 1, DateTimeOffset.UtcNow, status: "FAILED", attempts: 10);
+
+        // Passive: someone else holds the lock.
+        using (var meters = new TestMeterFactory())
+        using (var listener = new MetricListener(meters))
+        {
+            await using var holder = await OutboxRows.AcquireAsync(db);
+            using var passive = CreateWorker(new RelayMetrics(meters));
+            await passive.StartAsync(CancellationToken.None);
+            try
+            {
+                await Task.Delay(TimeSpan.FromSeconds(2.5), TestContext.Current.CancellationToken);
+                listener.TryObserve(RelayMetrics.PendingName).ShouldBeNull("a passive instance reports nothing");
+            }
+            finally
+            {
+                await passive.StopAsync(CancellationToken.None);
+            }
+        }
+
+        // Leader, then the lease is lost (session terminated) and someone else takes the lock.
+        using (var meters = new TestMeterFactory())
+        using (var listener = new MetricListener(meters))
+        {
+            var leadership = new CrashableLeadership(OutboxRows.Leadership(db));
+            using var worker = new RelayWorker(
+                leadership,
+                new ScriptedPublisher(_ => PublishResult.Success),
+                new RelayMetrics(meters),
+                Options.Create(new RelayOptions { PollIntervalMs = 100, LeaderRetrySeconds = 1 }),
+                TimeProvider.System,
+                NullLogger<RelayWorker>.Instance);
+            await worker.StartAsync(CancellationToken.None);
+            try
+            {
+                await WaitUntilAsync(() => Task.FromResult(listener.TryObserve(RelayMetrics.PendingName) is not null));
+                listener.TryObserve(RelayMetrics.PendingName).ShouldBe(0);
+
+                await leadership.CrashAsync(db); // terminates the leader session; this instance never re-acquires
+                await WaitUntilAsync(() => Task.FromResult(listener.TryObserve(RelayMetrics.PendingName) is null));
+            }
+            finally
+            {
+                await worker.StopAsync(CancellationToken.None);
+            }
+        }
+    }
+
     [Fact(DisplayName = "Metrics: nexus_outbox_pending gauge reflects the PENDING count, refreshed at most every 5 s")]
     public async Task PendingGauge_ReflectsCount()
     {
@@ -167,11 +296,11 @@ public sealed class OutboxPurgeAndMetricsTests(PostgresFixture db)
         return (new OutboxMaintenance(new RelayMetrics(new TestMeterFactory()), options, time, NullLogger.Instance), options);
     }
 
-    private RelayWorker CreateWorker() =>
+    private RelayWorker CreateWorker(RelayMetrics? metrics = null) =>
         new(
             OutboxRows.Leadership(db),
             new ScriptedPublisher(_ => PublishResult.Success),
-            new RelayMetrics(new TestMeterFactory()),
+            metrics ?? new RelayMetrics(new TestMeterFactory()),
             Options.Create(new RelayOptions { PollIntervalMs = 100, LeaderRetrySeconds = 1 }),
             TimeProvider.System,
             NullLogger<RelayWorker>.Instance);
@@ -265,6 +394,19 @@ public sealed class OutboxPurgeAndMetricsTests(PostgresFixture db)
 
             _listener.RecordObservableInstruments();
             return Values(name).Last();
+        }
+
+        /// <summary>Polls the observable instruments; the last value of <paramref name="name"/>, or null when nothing was reported.</summary>
+        public double? TryObserve(string name)
+        {
+            lock (_measurements)
+            {
+                _measurements.RemoveAll(m => m.Name == name);
+            }
+
+            _listener.RecordObservableInstruments();
+            var values = Values(name);
+            return values.Count == 0 ? null : values[^1];
         }
 
         public void Dispose() => _listener.Dispose();

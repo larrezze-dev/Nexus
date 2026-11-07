@@ -16,9 +16,14 @@ public readonly record struct BatchOutcome(int Selected, int Published, int Fail
 /// <para>Per row, in <c>created_at, id</c> order:</para>
 /// <list type="bullet">
 ///   <item>Success: <c>PUBLISHED</c> + <c>published_at</c> (from <see cref="TimeProvider"/>).</item>
-///   <item>Failure: <c>attempts + 1</c> and <c>last_error</c> (truncated); at
-///   <c>attempts &gt;= MaxAttempts</c> the row becomes <c>FAILED</c> and
-///   <c>nexus_outbox_failed_total</c> is incremented.</item>
+///   <item>Failure: <c>attempts + 1</c> and <c>last_error</c> (truncated). Only a
+///   <b>row-specific</b> failure (<see cref="PublishResult.IsTransient"/> false: payload does not
+///   decode/encode, local schema missing or not registered, message too large, unknown topic) at
+///   <c>attempts &gt;= MaxAttempts</c> makes the row <c>FAILED</c> and increments
+///   <c>nexus_outbox_failed_total</c>: <c>terminal = !IsTransient &amp;&amp; attempts &gt;= MaxAttempts</c>.
+///   A transient failure (Kafka / Schema Registry unreachable, timeouts) increments
+///   <c>attempts</c> and records <c>last_error</c> but never makes the row <c>FAILED</c>, however
+///   long the outage (decision D-H1, conventions-events.md §4 step 5).</item>
 ///   <item><b>EV-R3 guard:</b> after a failure, the rest of that aggregate's rows in this batch are
 ///   skipped and left untouched (still <c>PENDING</c>, attempts unchanged), so a later version is
 ///   never published before an earlier one. Other aggregates continue. Across batches, the batch
@@ -93,7 +98,9 @@ public sealed partial class OutboxBatchProcessor
             _metrics.Error(result.IsTransient ? RelayMetrics.ErrorKindTemporary : RelayMetrics.ErrorKindRow);
             blockedAggregates.Add(message.AggregateId);
             var attempts = message.Attempts + 1;
-            var terminal = attempts >= _maxAttempts;
+            // D-H1: an infrastructure outage must never block an aggregate (FAILED); only a
+            // failure of this row does, once it has used up its attempts.
+            var terminal = !result.IsTransient && attempts >= _maxAttempts;
             batch.MarkFailed(message.Id, attempts, Truncate(result.Error), terminal);
 
             if (terminal)

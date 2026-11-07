@@ -47,10 +47,9 @@ public sealed partial class PostgresRelayLease : IRelayLease
     /// The aggregate is identified by <c>aggregate_id</c> alone: it is the Kafka key (§2) and a
     /// UUIDv7, unique across aggregate types.
     ///
-    /// Cost: there is no index on <c>(aggregate_id) WHERE status = 'FAILED'</c>, so the anti-join
-    /// reads the FAILED rows with a scan of <c>outbox.message</c> (PUBLISHED rows are kept 7 days).
-    /// A partial index is recommended for track C (reported, not added here: migrations are not
-    /// this track's to change).
+    /// Cost: the anti-join is served by the partial index <c>ix_outbox_failed_aggregate</c>
+    /// (<c>(aggregate_id, created_at, id) WHERE status = 'FAILED'</c>, migration
+    /// <c>V202611071600__infra__outbox_failed_index.sql</c>), so it never scans the PUBLISHED rows.
     /// </summary>
     internal const string SelectBatchSql =
         """
@@ -85,6 +84,9 @@ public sealed partial class PostgresRelayLease : IRelayLease
 
     /// <summary>Backend pid of the leader session (diagnostics and tests).</summary>
     public int BackendProcessId => _connection.ProcessID;
+
+    /// <summary>The leader session itself (tests only: inspect its settings, drop its lock).</summary>
+    internal NpgsqlConnection SessionForTests => _connection;
 
     internal async Task StartListeningAsync(CancellationToken cancellationToken)
     {
