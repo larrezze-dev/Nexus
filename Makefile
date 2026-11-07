@@ -25,6 +25,9 @@ up:
 			sleep 3; \
 		done; \
 	fi
+	@if [ -f tools/create-topics.sh ]; then \
+		bash tools/create-topics.sh; \
+	fi
 
 down:
 	@$(COMPOSE) --profile infra down
@@ -160,6 +163,22 @@ contracts:
 	fi
 	@if [ -f "tools/check-permissions.sh" ]; then \
 		bash tools/check-permissions.sh; \
+	fi
+	@if [ -f "tools/validate-topics.sh" ]; then \
+		bash tools/validate-topics.sh; \
+	fi
+	@if [ -f "contracts/events/topics.yaml" ]; then \
+		if ! command -v dotnet >/dev/null 2>&1; then \
+			echo "dotnet not found - skipping Avro class generation"; \
+		else \
+			dotnet tool restore; \
+			rm -rf src/Contracts/Nexus.Contracts.Events/Generated; \
+			mkdir -p src/Contracts/Nexus.Contracts.Events/Generated; \
+			find contracts/events -mindepth 2 -maxdepth 2 -name '*.avsc' -not -path '*/_test/*' | while read -r f; do \
+				echo "Generating Avro classes for $$f"; \
+				dotnet avrogen -s "$$f" src/Contracts/Nexus.Contracts.Events/Generated || exit 1; \
+			done; \
+		fi; \
 	fi
 
 build:

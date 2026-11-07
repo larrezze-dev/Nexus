@@ -1,0 +1,101 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://nexus.internal/contracts/events/topics.schema.json",
+  "title": "NEXUS Kafka topic registry",
+  "description": "Structural schema for contracts/events/topics.yaml (conventions-events.md §5).",
+  "type": "object",
+  "required": ["topics"],
+  "additionalProperties": false,
+  "properties": {
+    "topics": {
+      "type": "array",
+      "items": { "$ref": "#/definitions/topic" }
+    }
+  },
+  "definitions": {
+    "topic": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "context",
+        "aggregate",
+        "event",
+        "version",
+        "compatibility",
+        "schema",
+        "partitions",
+        "pii",
+        "owner"
+      ],
+      "properties": {
+        "name": {
+          "type": "string",
+          "$comment": "Trailing .v<n> (n>=2) is allowed: conventions-events.md §6, an incompatible schema change creates a new topic '...posted.v2' rather than reusing the old one.",
+          "pattern": "^nexus\\.[a-z0-9-]+\\.[a-z0-9-]+\\.[a-z0-9-]+(\\.v([2-9]|[1-9][0-9]+))?$"
+        },
+        "context": {
+          "type": "string",
+          "enum": [
+            "platform",
+            "org",
+            "catalog",
+            "project",
+            "stock",
+            "logistics",
+            "solver",
+            "commercial",
+            "billing",
+            "hr",
+            "controlling",
+            "warehouse",
+            "commissioning",
+            "field"
+          ]
+        },
+        "aggregate": {
+          "type": "string",
+          "minLength": 1
+        },
+        "event": {
+          "type": "string",
+          "minLength": 1
+        },
+        "version": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "compatibility": {
+          "type": "string",
+          "enum": ["BACKWARD"]
+        },
+        "schema": {
+          "type": "string",
+          "pattern": "^contracts/events/.+\\.avsc$"
+        },
+        "partitions": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["local", "azure"],
+          "properties": {
+            "local": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "azure": {
+              "type": "integer",
+              "minimum": 1
+            }
+          }
+        },
+        "pii": {
+          "type": "boolean"
+        },
+        "owner": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    }
+  }
+}
