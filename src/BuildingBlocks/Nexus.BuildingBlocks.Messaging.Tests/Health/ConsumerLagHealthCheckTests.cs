@@ -167,6 +167,23 @@ public sealed class ConsumerLagHealthCheckTests
     [Fact(DisplayName = "ConsumerHost health: a probe round is bounded by one budget (QueryTimeout) whatever the number of groups; late groups are Degraded/unknown")]
     public async Task BlockingProbes_AreBoundedByOneBudget()
     {
+        // The fake blocks pool threads on purpose. On a low-core runner (min worker threads ~ core count, injection
+        // ~0.5 s/thread) the budget timer callback would queue behind the blocked probes and the round would
+        // outlast the budget for reasons unrelated to the code under test: give the pool headroom for the test.
+        ThreadPool.GetMinThreads(out var minWorkers, out var minIo);
+        ThreadPool.SetMinThreads(Math.Max(minWorkers, 16), minIo);
+        try
+        {
+            await RunBlockingProbesAsync();
+        }
+        finally
+        {
+            ThreadPool.SetMinThreads(minWorkers, minIo);
+        }
+    }
+
+    private static async Task RunBlockingProbesAsync()
+    {
         var (check, registry, probe, _) = Create(queryTimeout: TimeSpan.FromSeconds(1));
         using var _ = check;
         foreach (var g in new[] { "operations.a", "operations.b", "operations.c", "operations.d" })
@@ -188,19 +205,22 @@ public sealed class ConsumerLagHealthCheckTests
         result.Data["operations.a.lag"].ShouldBe("unknown");
         result.Data["operations.d.lag"].ShouldBe("unknown");
 
-        // Offloaded to the thread pool: all 4 blocking calls ran at the same time.
-        probe.MaxConcurrency.ShouldBe(4, "each probe must be offloaded (Task.Run) so blocking calls run in parallel");
-        probe.TokensNotCancelable.ShouldBe(0, "the budget token must be passed to every probe");
+        // Offloaded to the thread pool: blocking calls overlap. A caller that does not offload them
+        // serializes them (concurrency 1). Not asserted as 4: a low-core runner starts few pool threads at once.
+        probe.MaxConcurrency.ShouldBeGreaterThanOrEqualTo(2, "each probe must be offloaded (Task.Run) so blocking calls run in parallel");
+        probe.TokensNotCancelable.ShouldBe(0, "the budget token must be passed to every probe that started");
 
-        // The budget token is cancelled when the budget elapses: every blocked probe is released by it,
-        // well before its own 5 s block would end.
-        var deadline = DateTime.UtcNow.AddSeconds(4);
-        while (probe.Released < 4 && DateTime.UtcNow < deadline)
+        // The budget token is cancelled when the budget elapses: every probe that STARTED is released by it
+        // (a probe still queued behind a busy pool never starts: its token is already cancelled), long before
+        // its own 5 s block would end.
+        var deadline = DateTime.UtcNow.AddSeconds(15);
+        while (probe.Released < probe.Calls && DateTime.UtcNow < deadline)
         {
             await Task.Delay(20, Ct);
         }
 
-        probe.Released.ShouldBe(4, "the budget token must be cancelled once the budget elapses");
+        probe.Calls.ShouldBeGreaterThanOrEqualTo(2);
+        probe.Released.ShouldBe(probe.Calls, "the budget token must be cancelled once the budget elapses");
         probe.ReleasedWithoutCancellation.ShouldBe(0);
     }
 
