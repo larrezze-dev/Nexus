@@ -47,6 +47,11 @@ public sealed partial class PostgresRelayLease : IRelayLease
     /// The aggregate is identified by <c>aggregate_id</c> alone: it is the Kafka key (§2) and a
     /// UUIDv7, unique across aggregate types.
     ///
+    /// <c>$2</c> (uuid[]): aggregates held back in memory because their topic is unreachable
+    /// (<c>HeldAggregates</c>). Excluded by aggregate, never by topic: an aggregate may publish to
+    /// several topics, and its later rows must wait too (EV-R3). Without it, held head rows could
+    /// fill every batch and starve the other topics.
+    ///
     /// Cost: the anti-join is served by the partial index <c>ix_outbox_failed_aggregate</c>
     /// (<c>(aggregate_id, created_at, id) WHERE status = 'FAILED'</c>, migration
     /// <c>V202611071600__infra__outbox_failed_index.sql</c>), so it never scans the PUBLISHED rows.
@@ -63,6 +68,7 @@ public sealed partial class PostgresRelayLease : IRelayLease
                 WHERE f.status = 'FAILED'
                   AND f.aggregate_id = m.aggregate_id
                   AND (f.created_at, f.id) < (m.created_at, m.id))
+          AND NOT (m.aggregate_id = ANY($2))
         ORDER BY m.created_at, m.id
         LIMIT $1
         FOR UPDATE OF m SKIP LOCKED
@@ -115,8 +121,12 @@ public sealed partial class PostgresRelayLease : IRelayLease
         }
     }
 
-    public async Task<IOutboxBatch> BeginBatchAsync(int batchSize, CancellationToken cancellationToken)
+    public Task<IOutboxBatch> BeginBatchAsync(int batchSize, CancellationToken cancellationToken) =>
+        BeginBatchAsync(batchSize, [], cancellationToken);
+
+    public async Task<IOutboxBatch> BeginBatchAsync(int batchSize, IReadOnlyCollection<Guid> excludedAggregates, CancellationToken cancellationToken)
     {
+        ArgumentNullException.ThrowIfNull(excludedAggregates);
         ObjectDisposedException.ThrowIf(_disposed, this);
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(batchSize);
 
@@ -138,6 +148,7 @@ public sealed partial class PostgresRelayLease : IRelayLease
             await using (var command = new NpgsqlCommand(SelectBatchSql, _connection, transaction))
             {
                 command.Parameters.Add(new NpgsqlParameter<int> { TypedValue = batchSize, NpgsqlDbType = NpgsqlDbType.Integer });
+                command.Parameters.Add(new NpgsqlParameter<Guid[]> { TypedValue = [.. excludedAggregates], NpgsqlDbType = NpgsqlDbType.Array | NpgsqlDbType.Uuid });
                 await using var reader = await command.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
                 while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
                 {

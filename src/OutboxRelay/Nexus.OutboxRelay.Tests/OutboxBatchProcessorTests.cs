@@ -117,7 +117,7 @@ public sealed class OutboxBatchProcessorTests
         var a2 = FakeBatch.Message(a, 2);
         var b1 = FakeBatch.Message(Guid.CreateVersion7(), 1);
         var batch = new FakeBatch(a1, b1, a2);
-        var publisher = new ScriptedPublisher(m => m.AggregateId == a ? PublishResult.Deferred("topic missing (cached)") : PublishResult.Success);
+        var publisher = new ScriptedPublisher(m => m.AggregateId == a ? PublishResult.Deferred("topic missing (cached)", DateTimeOffset.UtcNow.AddSeconds(5)) : PublishResult.Success);
         using var meters = new TestMeterFactory();
         using var errors = new ErrorKindListener(meters);
 
@@ -129,6 +129,39 @@ public sealed class OutboxBatchProcessorTests
         batch.Published.Keys.ShouldBe([b1.Id]);
         errors.Count(RelayMetrics.ErrorKindTopic).ShouldBe(0);
         outcome.ShouldSatisfyAllConditions(o => o.Deferred.ShouldBe(1), o => o.Failed.ShouldBe(0), o => o.StoppedOnTransientFailure.ShouldBeFalse());
+    }
+
+    [Fact(DisplayName = "H1: a TopicUnreachable result (counted or deferred) holds its aggregate until the topic's negative cache expires; other aggregates are not held")]
+    public async Task TopicUnreachable_HoldsAggregateUntilExpiry()
+    {
+        var time = new ManualTime(new DateTimeOffset(2026, 11, 7, 10, 0, 0, TimeSpan.Zero));
+        var (a, b, c) = (Guid.CreateVersion7(), Guid.CreateVersion7(), Guid.CreateVersion7());
+        var until = time.GetUtcNow().AddSeconds(5);
+        var publisher = new ScriptedPublisher(m =>
+            m.AggregateId == a ? PublishResult.TopicUnreachable("topic missing", until)
+            : m.AggregateId == b ? PublishResult.Deferred("topic missing (cached)", until)
+            : PublishResult.Success);
+        using var meters = new TestMeterFactory();
+        var processor = new OutboxBatchProcessor(publisher, new RelayMetrics(meters), time, 10, NullLogger.Instance);
+
+        await processor.ProcessAsync(new FakeBatch(FakeBatch.Message(a, 1), FakeBatch.Message(b, 1), FakeBatch.Message(c, 1)), CancellationToken.None);
+
+        processor.Held.Current().ShouldBe([a, b], ignoreOrder: true);
+        time.Advance(TimeSpan.FromSeconds(5));
+        processor.Held.Current().ShouldBeEmpty("expired with the negative cache: the next batch selects them and the preflight re-runs");
+    }
+
+    [Fact(DisplayName = "H1: HeldAggregates is bounded to 10 000 aggregates")]
+    public void HeldAggregates_Bounded()
+    {
+        var time = new ManualTime(DateTimeOffset.UtcNow);
+        var held = new HeldAggregates(time);
+        for (var i = 0; i < HeldAggregates.Capacity + 50; i++)
+        {
+            held.Hold(Guid.CreateVersion7(), time.GetUtcNow().AddSeconds(5));
+        }
+
+        held.Current().Count.ShouldBe(HeldAggregates.Capacity);
     }
 
     [Fact(DisplayName = "InfraGlobal: the batch stops at once and the outcome carries the cause (for the back-off log)")]

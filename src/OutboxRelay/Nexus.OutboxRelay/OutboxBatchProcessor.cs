@@ -9,7 +9,11 @@ namespace Nexus.OutboxRelay;
 /// <param name="StoppedOnTransientFailure">The batch stopped early on a <see cref="PublishFailureKind.InfraGlobal"/> failure (Kafka or the Schema Registry unavailable).</param>
 /// <param name="StopCause">When stopped: the failure description (category and cause; never payload values).</param>
 /// <param name="Deferred">Rows skipped untouched because their topic is in the preflight's negative cache.</param>
-public readonly record struct BatchOutcome(int Selected, int Published, int Failed, bool StoppedOnTransientFailure, string? StopCause = null, int Deferred = 0);
+public readonly record struct BatchOutcome(int Selected, int Published, int Failed, bool StoppedOnTransientFailure, string? StopCause = null, int Deferred = 0)
+{
+    /// <summary>Rows actually attempted (published or failed); deferred and EV-R3-skipped rows do not count.</summary>
+    public int Attempted => Published + Failed;
+}
 
 /// <summary>
 /// Publishes one locked batch and records the outcome of every attempted row in the same
@@ -67,7 +71,11 @@ public sealed partial class OutboxBatchProcessor
         _timeProvider = timeProvider;
         _maxAttempts = maxAttempts;
         _logger = logger;
+        Held = new HeldAggregates(timeProvider);
     }
+
+    /// <summary>Aggregates held back because their topic is unreachable; the caller excludes them from the next batch query.</summary>
+    public HeldAggregates Held { get; }
 
     public async Task<BatchOutcome> ProcessAsync(IOutboxBatch batch, CancellationToken stoppingToken)
     {
@@ -105,6 +113,12 @@ public sealed partial class OutboxBatchProcessor
             }
 
             blockedAggregates.Add(message.AggregateId);
+            if (result.Kind == PublishFailureKind.TopicUnreachable && result.HoldUntil is { } holdUntil)
+            {
+                // Excluded from the next batches until the topic's negative cache expires.
+                Held.Hold(message.AggregateId, holdUntil);
+            }
+
             if (!result.CountsAsAttempt)
             {
                 // Topic still in the preflight's negative cache: no attempt, no UPDATE, no log, no

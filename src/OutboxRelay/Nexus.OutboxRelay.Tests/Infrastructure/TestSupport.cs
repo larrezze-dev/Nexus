@@ -266,9 +266,17 @@ internal sealed class FakeRegistryServer : IDisposable
     private readonly CancellationTokenSource _stop = new();
     private readonly Task _loop;
 
-    public FakeRegistryServer(int status)
+    private readonly int _errorCode;
+    private readonly string? _rawBody;
+
+    /// <param name="status">HTTP status of every answer.</param>
+    /// <param name="errorCode">Confluent <c>error_code</c> of the JSON body (default: status × 100 + 1).</param>
+    /// <param name="rawBody">When set, sent as <c>text/html</c> instead of the JSON error body (a proxy's error page).</param>
+    public FakeRegistryServer(int status, int? errorCode = null, string? rawBody = null)
     {
         Status = status;
+        _errorCode = errorCode ?? (status * 100) + 1;
+        _rawBody = rawBody;
         int port;
         var probe = new System.Net.Sockets.TcpListener(System.Net.IPAddress.Loopback, 0);
         probe.Start();
@@ -327,9 +335,9 @@ internal sealed class FakeRegistryServer : IDisposable
             }
 
             Interlocked.Increment(ref _requests);
-            var body = Encoding.UTF8.GetBytes($$"""{"error_code":{{Status * 100 + 1}},"message":"fake registry answer {{Status}}"}""");
+            var body = Encoding.UTF8.GetBytes(_rawBody ?? $$"""{"error_code":{{_errorCode}},"message":"fake registry answer {{Status}}"}""");
             context.Response.StatusCode = Status;
-            context.Response.ContentType = "application/vnd.schemaregistry.v1+json";
+            context.Response.ContentType = _rawBody is null ? "application/vnd.schemaregistry.v1+json" : "text/html";
             context.Response.ContentLength64 = body.Length;
             await context.Response.OutputStream.WriteAsync(body);
             context.Response.Close();

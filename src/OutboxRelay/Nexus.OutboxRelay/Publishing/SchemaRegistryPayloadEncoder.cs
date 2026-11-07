@@ -38,10 +38,11 @@ namespace Nexus.OutboxRelay.Publishing;
 ///
 /// <para>
 /// Failure classification (conventions-events.md §4 step 5): a missing or unparseable local
-/// <c>.avsc</c>, content not registered in the subject (40401 / 40403), any other 4xx from the
-/// registry except 401/403/408/429, and a payload that does not decode/encode are <b>row</b>
-/// failures (<see cref="PublishFailureKind.Row"/>). Registry unreachable, timeouts, 5xx, 401, 403,
-/// 408 and 429 are <see cref="PublishFailureKind.InfraGlobal"/>: they never make a row <c>FAILED</c>.
+/// <c>.avsc</c>, a schema-specific Confluent error (40401, 40403, 409xx, 422xx) and a payload that
+/// does not decode/encode are <b>row</b> failures (<see cref="PublishFailureKind.Row"/>). Registry
+/// unreachable, timeouts, 5xx, 401, 403, 408, 429 and every other 4xx (unknown route, proxy error
+/// page, 405, generic 400: a misconfigured URL) are <see cref="PublishFailureKind.InfraGlobal"/>:
+/// they never make a row <c>FAILED</c>.
 /// </para>
 ///
 /// <para>
@@ -148,21 +149,23 @@ public sealed class SchemaRegistryPayloadEncoder : IPayloadEncoder
                 isTransient: false,
                 ex);
         }
-        catch (SchemaRegistryException ex) when (IsInfrastructureStatus(ex.Status))
+        catch (SchemaRegistryException ex) when (!IsInfrastructureStatus(ex.Status) && IsSchemaSpecificError(ex.ErrorCode))
         {
-            // 5xx, 401/403 (credentials or ACL of the relay, not of this row), 408, 429: the next
-            // row would get the same answer.
+            // 409xx (incompatible) or 422xx (invalid schema/version): about this schema.
             throw new PayloadEncodingException(
-                $"Schema Registry unavailable looking up subject '{subject}' (HTTP {(int)ex.Status}, error {ex.ErrorCode}).",
-                isTransient: true,
+                $"Schema Registry rejected the lookup of '{path}' in subject '{subject}' (HTTP {(int)ex.Status}, error {ex.ErrorCode}).",
+                isTransient: false,
                 ex);
         }
         catch (SchemaRegistryException ex)
         {
-            // Any other 4xx (409, 422, a 404 that is not 40401/40403…): about this schema.
+            // 5xx, 401/403 (credentials or ACL of the relay), 408, 429, and every 4xx that is not a
+            // Confluent schema error (error_code equal to the HTTP status or -1: unknown route, HTML
+            // error page of a proxy, 405, generic 400 — a wrong SchemaRegistryUrl or path): the
+            // next row would get the same answer, so it must never make rows FAILED.
             throw new PayloadEncodingException(
-                $"Schema Registry rejected the lookup of '{path}' in subject '{subject}' (HTTP {(int)ex.Status}, error {ex.ErrorCode}).",
-                isTransient: false,
+                $"Schema Registry unavailable looking up subject '{subject}' (HTTP {(int)ex.Status}, error {ex.ErrorCode}).",
+                isTransient: true,
                 ex);
         }
         catch (Exception ex) when (ex is not OutOfMemoryException)
@@ -178,6 +181,13 @@ public sealed class SchemaRegistryPayloadEncoder : IPayloadEncoder
         _cache.TryAdd(key, writer);
         return writer;
     }
+
+    /// <summary>
+    /// Confluent error codes that are about the schema itself (class Row): 40401 subject not found,
+    /// 40403 schema not found, 409xx incompatible, 422xx invalid schema or version.
+    /// </summary>
+    internal static bool IsSchemaSpecificError(int errorCode) =>
+        errorCode is SubjectNotFound or SchemaNotFound or (>= 40900 and <= 40999) or (>= 42200 and <= 42299);
 
     /// <summary>
     /// Registry answers that are about the registry or the relay's access to it, not about the

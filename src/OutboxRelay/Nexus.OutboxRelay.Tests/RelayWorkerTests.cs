@@ -119,6 +119,33 @@ public sealed class RelayWorkerLoopTests
             && m.Contains("next batch in 100 ms", StringComparison.Ordinal));
     }
 
+    [Fact(DisplayName = "H1: a full batch whose rows are all deferred (topic unreachable) does not trigger an immediate re-drain: the loop waits for the poll interval instead of spinning")]
+    public async Task FullBatchOfDeferredRows_DoesNotSpin()
+    {
+        var topicDown = Enumerable.Range(0, 3).Select(_ => FakeBatch.Message(Guid.CreateVersion7(), 1)).ToArray();
+        var lease = new FakeLease(topicDown) { WaitDelay = TimeSpan.FromMilliseconds(1) };
+        var publisher = new ScriptedPublisher(_ => PublishResult.Deferred("topic missing (cached)", DateTimeOffset.UtcNow.AddSeconds(5)));
+        using var meters = new TestMeterFactory();
+        using var worker = new RelayWorker(
+            new NeverLeadership(),
+            publisher,
+            new RelayMetrics(meters),
+            Options.Create(new RelayOptions { BatchSize = 3, PollIntervalMs = 200 }),
+            TimeProvider.System,
+            NullLogger<RelayWorker>.Instance);
+
+        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(1));
+        try
+        {
+            await worker.RunAsLeaderAsync(lease, cts.Token);
+        }
+        catch (OperationCanceledException)
+        {
+        }
+
+        lease.Batches.ShouldBeLessThanOrEqualTo(8, "about one batch per 200 ms poll interval, not a busy loop");
+    }
+
     private sealed class NeverLeadership : IRelayLeadership
     {
         public Task<IRelayLease?> TryAcquireAsync(CancellationToken cancellationToken) => Task.FromResult<IRelayLease?>(null);
@@ -126,9 +153,27 @@ public sealed class RelayWorkerLoopTests
 
     private sealed class FakeLease(params OutboxMessage[] messages) : IRelayLease
     {
-        public Task<bool> WaitForWakeUpAsync(TimeSpan timeout, CancellationToken cancellationToken) => Task.FromResult(false);
+        public Task<bool> WaitForWakeUpAsync(TimeSpan timeout, CancellationToken cancellationToken) => WaitAsync(timeout, cancellationToken);
 
-        public Task<IOutboxBatch> BeginBatchAsync(int batchSize, CancellationToken cancellationToken) => Task.FromResult<IOutboxBatch>(new FakeBatch(messages));
+        public int Batches { get; private set; }
+
+        public TimeSpan WaitDelay { get; init; } = TimeSpan.Zero;
+
+        public async Task<bool> WaitAsync(TimeSpan timeout, CancellationToken cancellationToken)
+        {
+            if (WaitDelay > TimeSpan.Zero)
+            {
+                await Task.Delay(timeout, cancellationToken);
+            }
+
+            return false;
+        }
+
+        public Task<IOutboxBatch> BeginBatchAsync(int batchSize, IReadOnlyCollection<Guid> excludedAggregates, CancellationToken cancellationToken)
+        {
+            Batches++;
+            return Task.FromResult<IOutboxBatch>(new FakeBatch(messages));
+        }
 
         public Task<int> PurgePublishedAsync(DateTimeOffset cutoff, int maxRows, CancellationToken cancellationToken) => Task.FromResult(0);
 

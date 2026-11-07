@@ -116,7 +116,19 @@ public sealed partial class KafkaEventPublisher : IEventPublisher, IDisposable
     public async Task<PublishResult> PublishAsync(OutboxMessage message, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(message);
-        var producer = GetProducer();
+        IProducer<string, byte[]> producer;
+        try
+        {
+            producer = GetProducer();
+        }
+#pragma warning disable CA1031 // Contract of IEventPublisher: failures are returned, never thrown.
+        catch (Exception ex) when (ex is not OutOfMemoryException)
+#pragma warning restore CA1031
+        {
+            // E.g. an invalid producer configuration: nothing can be published, so stop and back
+            // off (never mistaken for a lost leadership by the loop, never FAILED).
+            return PublishResult.Failure($"Kafka producer could not be created: {ex.GetType().Name}: {ex.Message}", PublishFailureKind.InfraGlobal);
+        }
 
         var topicFailure = await PreflightTopicAsync(message.Topic).ConfigureAwait(false);
         if (topicFailure is not null)
@@ -204,16 +216,22 @@ public sealed partial class KafkaEventPublisher : IEventPublisher, IDisposable
         var description = $"Kafka error {error.Code} on topic '{topic}': {error.Reason}";
         if (TopicErrors.Contains(error.Code))
         {
-            _topics[topic] = (description, _timeProvider.GetUtcNow() + NegativeTopicTtl);
-            return PublishResult.Failure(description, PublishFailureKind.TopicUnreachable);
+            var until = _timeProvider.GetUtcNow() + NegativeTopicTtl;
+            _topics[topic] = (description, until);
+            return PublishResult.TopicUnreachable(description, until);
         }
 
         return PublishResult.Failure(description, RowErrors.Contains(error.Code) ? PublishFailureKind.Row : PublishFailureKind.InfraGlobal);
     }
 
+    /// <summary>Test seam: replaces the admin client's metadata call (topic, timeout).</summary>
+    internal Func<string, TimeSpan, Metadata>? MetadataOverride { get; set; }
+
     /// <summary>
-    /// Null when the topic can be produced to; otherwise the failure (TopicUnreachable, or
-    /// InfraGlobal when the cluster cannot be asked).
+    /// Null when the topic can be produced to; otherwise the failure: TopicUnreachable (missing,
+    /// not authorised, no partitions, a partition without leader, other topic-level errors; cached
+    /// for <see cref="NegativeTopicTtl"/>), Row (invalid topic name: about the row's data), or
+    /// InfraGlobal when the cluster cannot be asked.
     /// </summary>
     private async Task<PublishResult?> PreflightTopicAsync(string topic)
     {
@@ -221,32 +239,46 @@ public sealed partial class KafkaEventPublisher : IEventPublisher, IDisposable
         if (_topics.TryGetValue(topic, out var cached) && now < cached.Until)
         {
             // Negative cache: nothing new was asked of the cluster, so no attempt is recorded.
-            return cached.Error is null ? null : PublishResult.Deferred(cached.Error);
+            return cached.Error is null ? null : PublishResult.Deferred(cached.Error, cached.Until);
         }
 
         Metadata metadata;
         try
         {
-            var admin = _admin!;
+            var getMetadata = MetadataOverride ?? _admin!.GetMetadata;
             // librdkafka's metadata call is synchronous; keep it off the caller's thread.
-            metadata = await Task.Run(() => admin.GetMetadata(topic, _preflightTimeout)).ConfigureAwait(false);
+            metadata = await Task.Run(() => getMetadata(topic, _preflightTimeout)).ConfigureAwait(false);
         }
         catch (KafkaException ex)
         {
             return PublishResult.Failure($"Kafka metadata for topic '{topic}' unavailable: {ex.Error.Code}: {ex.Error.Reason}", PublishFailureKind.InfraGlobal);
         }
+#pragma warning disable CA1031 // Contract of IEventPublisher: failures are returned, never thrown.
+        catch (Exception ex) when (ex is not OutOfMemoryException)
+#pragma warning restore CA1031
+        {
+            return PublishResult.Failure($"Kafka metadata request for topic '{topic}' failed: {ex.GetType().Name}: {ex.Message}", PublishFailureKind.InfraGlobal);
+        }
 
         var entry = metadata.Topics.FirstOrDefault(t => t.Topic == topic);
+        if (entry is { Error.Code: ErrorCode.TopicException })
+        {
+            // Invalid topic name: comes from the row's data, consistent with the produce path. Not cached.
+            return PublishResult.Failure($"Kafka topic name '{topic}' is invalid: {entry.Error.Code}.", PublishFailureKind.Row);
+        }
+
         string? error = entry switch
         {
             null => $"Kafka topic '{topic}' does not exist (no metadata).",
             { Error.Code: not ErrorCode.NoError } => $"Kafka topic '{topic}' is not available: {entry.Error.Code}.",
             { Partitions.Count: 0 } => $"Kafka topic '{topic}' has no partitions.",
+            _ when entry.Partitions.Any(p => p.Leader < 0) => $"Kafka topic '{topic}' has partitions without a leader.",
             _ => null,
         };
 
-        _topics[topic] = (error, now + (error is null ? PositiveTopicTtl : NegativeTopicTtl));
-        return error is null ? null : PublishResult.Failure(error, PublishFailureKind.TopicUnreachable);
+        var until = now + (error is null ? PositiveTopicTtl : NegativeTopicTtl);
+        _topics[topic] = (error, until);
+        return error is null ? null : PublishResult.TopicUnreachable(error, until);
     }
 
     private static bool IsInfrastructureException(Exception ex) =>

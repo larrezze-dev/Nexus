@@ -50,10 +50,15 @@ public interface IRelayLease : IAsyncDisposable
 
     /// <summary>
     /// Confirms the leader lock, opens a transaction and locks the next batch of publishable
-    /// rows (conventions-events.md §4.3). Throws <see cref="RelayLeadershipLostException"/> when the
+    /// rows (conventions-events.md §4.3), skipping every row of <c>excludedAggregates</c> (aggregates
+    /// held back because their topic is unreachable; by aggregate, not by topic, so EV-R3 holds even
+    /// for an aggregate that publishes to several topics). Throws <see cref="RelayLeadershipLostException"/> when the
     /// lock cannot be confirmed: the caller must stop publishing immediately.
     /// </summary>
-    Task<IOutboxBatch> BeginBatchAsync(int batchSize, CancellationToken cancellationToken);
+    Task<IOutboxBatch> BeginBatchAsync(int batchSize, IReadOnlyCollection<Guid> excludedAggregates, CancellationToken cancellationToken);
+
+    /// <summary><see cref="BeginBatchAsync(int, IReadOnlyCollection{Guid}, CancellationToken)"/> without exclusions.</summary>
+    Task<IOutboxBatch> BeginBatchAsync(int batchSize, CancellationToken cancellationToken) => BeginBatchAsync(batchSize, [], cancellationToken);
 
     /// <summary>
     /// Deletes at most <paramref name="maxRows"/> <c>PUBLISHED</c> rows with
@@ -164,7 +169,12 @@ public enum PublishFailureKind
 /// nothing was asked of the cluster. The aggregate is skipped for the rest of the batch, but the
 /// row is not updated (no <c>attempts + 1</c>, no <c>last_error</c>), nothing is logged or counted.
 /// </param>
-public readonly record struct PublishResult(bool Succeeded, string? Error, PublishFailureKind Kind, bool CountsAsAttempt = true)
+/// <param name="HoldUntil">
+/// For <see cref="PublishFailureKind.TopicUnreachable"/>: until when the topic is known to be
+/// unreachable (the preflight's negative cache). The processor holds the row's aggregate back until
+/// then, and the batch query excludes it, so held aggregates neither fill the batch nor busy-loop.
+/// </param>
+public readonly record struct PublishResult(bool Succeeded, string? Error, PublishFailureKind Kind, bool CountsAsAttempt = true, DateTimeOffset? HoldUntil = null)
 {
     public static PublishResult Success { get; } = new(true, null, PublishFailureKind.None);
 
@@ -173,7 +183,12 @@ public readonly record struct PublishResult(bool Succeeded, string? Error, Publi
     /// its aggregate without recording an attempt. A real attempt is counted only when the
     /// preflight runs again, i.e. at most once per topic per negative TTL.
     /// </summary>
-    public static PublishResult Deferred(string reason) => new(false, reason, PublishFailureKind.TopicUnreachable, CountsAsAttempt: false);
+    public static PublishResult Deferred(string reason, DateTimeOffset holdUntil) =>
+        new(false, reason, PublishFailureKind.TopicUnreachable, CountsAsAttempt: false, HoldUntil: holdUntil);
+
+    /// <summary>A counted <see cref="PublishFailureKind.TopicUnreachable"/> failure (the cluster was asked), held until <paramref name="holdUntil"/>.</summary>
+    public static PublishResult TopicUnreachable(string error, DateTimeOffset holdUntil) =>
+        new(false, error, PublishFailureKind.TopicUnreachable, CountsAsAttempt: true, HoldUntil: holdUntil);
 
     public static PublishResult Failure(string error, PublishFailureKind kind)
     {

@@ -114,7 +114,7 @@ public sealed partial class RelayWorker : BackgroundService
             await _maintenance.RunAsync(lease, stoppingToken).ConfigureAwait(false);
 
             BatchOutcome outcome;
-            await using (var batch = await lease.BeginBatchAsync(_options.BatchSize, stoppingToken).ConfigureAwait(false))
+            await using (var batch = await lease.BeginBatchAsync(_options.BatchSize, _processor.Held.Current(), stoppingToken).ConfigureAwait(false))
             {
                 outcome = await _processor.ProcessAsync(batch, stoppingToken).ConfigureAwait(false);
             }
@@ -128,7 +128,9 @@ public sealed partial class RelayWorker : BackgroundService
             {
                 backoff = TimeSpan.Zero;
                 // A full batch means there is probably more: go again without waiting.
-                drainNow = outcome.Selected >= _options.BatchSize;
+                // Only rows actually attempted count: a batch full of deferred or EV-R3-skipped rows
+                // must wait for the next wake-up instead of spinning.
+                drainNow = outcome.Attempted >= _options.BatchSize;
             }
         }
     }
