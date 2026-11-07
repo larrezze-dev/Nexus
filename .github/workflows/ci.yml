@@ -20,13 +20,63 @@ jobs:
           cache: 'npm'
           cache-dependency-path: web/package-lock.json
 
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+          cache: true
+          cache-dependency-path: src/Directory.Packages.props
+
       # `make contracts` now also runs ng-openapi-gen (step 0.5 track F), which resolves from
       # web/node_modules/.bin -- not npx -- so web's own dependencies must be installed first.
       - name: Install web dependencies
         run: npm --prefix web ci
 
-      - name: Lint contracts (Spectral + permissions) and generate the Angular client
+      # tools/register-schemas.sh (step 0.7 track C) needs a real Schema Registry (which
+      # itself needs a real Kafka) to register contracts/events/*.avsc against -- reuses the
+      # same compose service definitions `make up` uses locally, started with --wait so the
+      # job doesn't race their health checks, and scoped to just these two services (no
+      # need for Postgres/ClickHouse/Keycloak/etc. in this job).
+      - name: Start Kafka + Schema Registry
+        run: |
+          cp infra/compose/.env.example infra/compose/.env
+          docker compose -f infra/compose/docker-compose.yml --env-file infra/compose/.env \
+            --profile infra up -d --wait kafka schema-registry
+
+      - name: Lint contracts (Spectral + permissions + topics.yaml), generate the Angular client and Avro classes
         run: make contracts
+
+      - name: Create Kafka topics from topics.yaml
+        run: bash tools/create-topics.sh
+
+      # Registers main's current schemas FIRST, so each subject already has a
+      # previous version on file by the time the PR's own schemas are registered
+      # below -- without this, every job starts from a completely empty Schema
+      # Registry, and an incompatible change in the PR would be accepted as
+      # harmless "version 1" with no complaint (ficha Aceptación C #2 would
+      # never actually fire). A topic the PR adds that doesn't exist on main yet
+      # simply isn't in main's topics.yaml, so this step never touches it.
+      # Guarded for this specific PR, which is the one introducing
+      # tools/register-schemas.sh in the first place -- main has no such script
+      # yet, so there is nothing to register as a baseline this one time; every
+      # PR after this one merges will have both the script and a real baseline.
+      - name: Register main's schemas as a compatibility baseline
+        run: |
+          git fetch origin main
+          git worktree add /tmp/nexus-main-baseline origin/main
+          if [[ -f /tmp/nexus-main-baseline/tools/register-schemas.sh ]]; then
+            (cd /tmp/nexus-main-baseline && bash tools/register-schemas.sh)
+          else
+            echo "main has no tools/register-schemas.sh yet (expected only for the PR that introduces it) - skipping baseline registration."
+          fi
+          git worktree remove /tmp/nexus-main-baseline --force
+
+      - name: Register Avro schemas in the Schema Registry
+        run: bash tools/register-schemas.sh
+
+      - name: Stop Kafka + Schema Registry
+        if: always()
+        run: docker compose -f infra/compose/docker-compose.yml --env-file infra/compose/.env --profile infra down -v
 
   dotnet:
     name: dotnet

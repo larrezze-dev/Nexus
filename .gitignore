@@ -13,6 +13,9 @@ npm-debug.log*
 # Generated API clients (make contracts, ng-openapi-gen)
 web/src/app/api/
 
+# Generated Avro classes (make contracts, avrogen) - not versioned (ADR-0008)
+src/Contracts/Nexus.Contracts.Events/Generated/
+
 # Gradle
 .gradle/
 build/

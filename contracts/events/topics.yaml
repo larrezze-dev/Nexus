@@ -22,6 +22,17 @@
 #                     nexus-schema-version).
 #     compatibility:  modo de compatibilidad del subject en el Schema
 #                     Registry. Obligatorio BACKWARD (D8).
+#     schema:         ruta al fichero Avro del evento, siempre
+#                     "contracts/events/<contexto>/<aggregate>.<evento>.v<n>.avsc".
+#                     Debe existir en disco; el registro no crea ficheros.
+#     partitions:     número de particiones por entorno (mapa anidado).
+#                     `local: 1` y `azure: 6` por defecto; los topics de
+#                     contextos stock, warehouse y field usan `azure: 12`.
+#     pii:            booleano. `true` si el payload contiene datos personales
+#                     (agregados party y user de org); `false` en el resto.
+#                     Aplica el tratamiento de GDPR (docs/domain/gdpr.md).
+#     owner:          servicio propietario del topic (ver architecture.md §3).
+#                     Todos los topics actuales son de nexus-platform.
 #
 # Ejemplo (no activo, solo ilustrativo del formato):
 #
@@ -31,6 +42,12 @@
 #     event: posted
 #     version: 1
 #     compatibility: BACKWARD
+#     schema: contracts/events/stock/movement.posted.v1.avsc
+#     partitions:
+#       local: 1
+#       azure: 12
+#     pii: false
+#     owner: <servicio-propietario>
 
 topics:
   - name: nexus.org.party.created
@@ -39,123 +56,249 @@ topics:
     event: created
     version: 1
     compatibility: BACKWARD
+    schema: contracts/events/org/party.created.v1.avsc
+    partitions:
+      local: 1
+      azure: 6
+    pii: true
+    owner: nexus-platform
   - name: nexus.org.party.updated
     context: org
     aggregate: party
     event: updated
     version: 1
     compatibility: BACKWARD
+    schema: contracts/events/org/party.updated.v1.avsc
+    partitions:
+      local: 1
+      azure: 6
+    pii: true
+    owner: nexus-platform
   - name: nexus.org.party.deactivated
     context: org
     aggregate: party
     event: deactivated
     version: 1
     compatibility: BACKWARD
+    schema: contracts/events/org/party.deactivated.v1.avsc
+    partitions:
+      local: 1
+      azure: 6
+    pii: true
+    owner: nexus-platform
   - name: nexus.org.group.created
     context: org
     aggregate: group
     event: created
     version: 1
     compatibility: BACKWARD
+    schema: contracts/events/org/group.created.v1.avsc
+    partitions:
+      local: 1
+      azure: 6
+    pii: false
+    owner: nexus-platform
   - name: nexus.org.group.updated
     context: org
     aggregate: group
     event: updated
     version: 1
     compatibility: BACKWARD
+    schema: contracts/events/org/group.updated.v1.avsc
+    partitions:
+      local: 1
+      azure: 6
+    pii: false
+    owner: nexus-platform
   - name: nexus.org.legal-entity.created
     context: org
     aggregate: legal-entity
     event: created
     version: 1
     compatibility: BACKWARD
+    schema: contracts/events/org/legal-entity.created.v1.avsc
+    partitions:
+      local: 1
+      azure: 6
+    pii: false
+    owner: nexus-platform
   - name: nexus.org.legal-entity.updated
     context: org
     aggregate: legal-entity
     event: updated
     version: 1
     compatibility: BACKWARD
+    schema: contracts/events/org/legal-entity.updated.v1.avsc
+    partitions:
+      local: 1
+      azure: 6
+    pii: false
+    owner: nexus-platform
   - name: nexus.org.legal-entity.deactivated
     context: org
     aggregate: legal-entity
     event: deactivated
     version: 1
     compatibility: BACKWARD
+    schema: contracts/events/org/legal-entity.deactivated.v1.avsc
+    partitions:
+      local: 1
+      azure: 6
+    pii: false
+    owner: nexus-platform
   - name: nexus.org.business-unit.created
     context: org
     aggregate: business-unit
     event: created
     version: 1
     compatibility: BACKWARD
+    schema: contracts/events/org/business-unit.created.v1.avsc
+    partitions:
+      local: 1
+      azure: 6
+    pii: false
+    owner: nexus-platform
   - name: nexus.org.business-unit.updated
     context: org
     aggregate: business-unit
     event: updated
     version: 1
     compatibility: BACKWARD
+    schema: contracts/events/org/business-unit.updated.v1.avsc
+    partitions:
+      local: 1
+      azure: 6
+    pii: false
+    owner: nexus-platform
   - name: nexus.org.business-unit.deactivated
     context: org
     aggregate: business-unit
     event: deactivated
     version: 1
     compatibility: BACKWARD
+    schema: contracts/events/org/business-unit.deactivated.v1.avsc
+    partitions:
+      local: 1
+      azure: 6
+    pii: false
+    owner: nexus-platform
   - name: nexus.org.location.created
     context: org
     aggregate: location
     event: created
     version: 1
     compatibility: BACKWARD
+    schema: contracts/events/org/location.created.v1.avsc
+    partitions:
+      local: 1
+      azure: 6
+    pii: false
+    owner: nexus-platform
   - name: nexus.org.location.updated
     context: org
     aggregate: location
     event: updated
     version: 1
     compatibility: BACKWARD
+    schema: contracts/events/org/location.updated.v1.avsc
+    partitions:
+      local: 1
+      azure: 6
+    pii: false
+    owner: nexus-platform
   - name: nexus.org.warehouse.created
     context: org
     aggregate: warehouse
     event: created
     version: 1
     compatibility: BACKWARD
+    schema: contracts/events/org/warehouse.created.v1.avsc
+    partitions:
+      local: 1
+      azure: 6
+    pii: false
+    owner: nexus-platform
   - name: nexus.org.warehouse.updated
     context: org
     aggregate: warehouse
     event: updated
     version: 1
     compatibility: BACKWARD
+    schema: contracts/events/org/warehouse.updated.v1.avsc
+    partitions:
+      local: 1
+      azure: 6
+    pii: false
+    owner: nexus-platform
   - name: nexus.org.warehouse.deactivated
     context: org
     aggregate: warehouse
     event: deactivated
     version: 1
     compatibility: BACKWARD
+    schema: contracts/events/org/warehouse.deactivated.v1.avsc
+    partitions:
+      local: 1
+      azure: 6
+    pii: false
+    owner: nexus-platform
   - name: nexus.org.user.created
     context: org
     aggregate: user
     event: created
     version: 1
     compatibility: BACKWARD
+    schema: contracts/events/org/user.created.v1.avsc
+    partitions:
+      local: 1
+      azure: 6
+    pii: true
+    owner: nexus-platform
   - name: nexus.org.user.updated
     context: org
     aggregate: user
     event: updated
     version: 1
     compatibility: BACKWARD
+    schema: contracts/events/org/user.updated.v1.avsc
+    partitions:
+      local: 1
+      azure: 6
+    pii: true
+    owner: nexus-platform
   - name: nexus.org.user.deactivated
     context: org
     aggregate: user
     event: deactivated
     version: 1
     compatibility: BACKWARD
+    schema: contracts/events/org/user.deactivated.v1.avsc
+    partitions:
+      local: 1
+      azure: 6
+    pii: true
+    owner: nexus-platform
   - name: nexus.platform.role-assignment.changed
     context: platform
     aggregate: role-assignment
     event: changed
     version: 1
     compatibility: BACKWARD
+    schema: contracts/events/platform/role-assignment.changed.v1.avsc
+    partitions:
+      local: 1
+      azure: 6
+    pii: false
+    owner: nexus-platform
   - name: nexus.platform.role.updated
     context: platform
     aggregate: role
     event: updated
     version: 1
     compatibility: BACKWARD
+    schema: contracts/events/platform/role.updated.v1.avsc
+    partitions:
+      local: 1
+      azure: 6
+    pii: false
+    owner: nexus-platform
