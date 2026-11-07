@@ -1,0 +1,36 @@
+<Project Sdk="Microsoft.NET.Sdk.Worker">
+
+  <PropertyGroup>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RootNamespace>Nexus.OutboxRelay</RootNamespace>
+  </PropertyGroup>
+
+  <!-- Outbox relay worker (svc_relay role). Package versions are centrally managed in
+       src/Directory.Packages.props. Step 0.7 track B1: scaffold only, no relay logic yet. -->
+  <ItemGroup>
+    <PackageReference Include="Npgsql" />
+    <PackageReference Include="Confluent.Kafka" />
+    <PackageReference Include="Confluent.SchemaRegistry" />
+    <PackageReference Include="Confluent.SchemaRegistry.Serdes.Avro" />
+    <PackageReference Include="Apache.Avro" />
+    <PackageReference Include="OpenTelemetry.Extensions.Hosting" />
+    <PackageReference Include="OpenTelemetry.Exporter.OpenTelemetryProtocol" />
+  </ItemGroup>
+
+  <!-- Microsoft.Extensions.Hosting is not in the approved package list (conventions-backend.md §10);
+       the ASP.NET Core shared framework provides it without a new package (same choice as BuildingBlocks.Messaging). -->
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <!-- OutboxHeaders: the keys of outbox.message.headers, single source of truth shared with OutboxWriter. -->
+  <ItemGroup>
+    <ProjectReference Include="..\..\BuildingBlocks\Nexus.BuildingBlocks.Persistence\Nexus.BuildingBlocks.Persistence.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="Nexus.OutboxRelay.Tests" />
+  </ItemGroup>
+
+</Project>
