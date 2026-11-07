@@ -22,7 +22,11 @@ public sealed class ConsumerLagHealthCheckTests
 
         public bool Throw { get; set; }
 
-        /// <summary>Blocks the calling thread like a Kafka admin call stuck on an unreachable broker.</summary>
+        /// <summary>
+        /// Blocks the CALLING thread like a Kafka admin call stuck on an unreachable broker (synchronously,
+        /// so a caller that does not offload it is serialized), but cooperatively: it is released as soon
+        /// as the probe's token is cancelled, so no thread-pool thread stays pinned after the test.
+        /// </summary>
         public TimeSpan? BlockFor { get; set; }
 
         private int _calls;
@@ -34,7 +38,8 @@ public sealed class ConsumerLagHealthCheckTests
             Interlocked.Increment(ref _calls);
             if (BlockFor is { } block)
             {
-                Thread.Sleep(block);
+                ct.WaitHandle.WaitOne(block);
+                ct.ThrowIfCancellationRequested(); // like the real probe once its budget is spent
             }
 
             if (Throw)
@@ -136,7 +141,9 @@ public sealed class ConsumerLagHealthCheckTests
             registry.Report(g, ConsumerLoopState.Running);
         }
 
-        probe.BlockFor = TimeSpan.FromSeconds(15);
+        // 4 groups x 5 s if probed serially = 20 s; one 1 s budget for the whole round = ~1 s (x4 margin below).
+
+        probe.BlockFor = TimeSpan.FromSeconds(5);
 
         var started = System.Diagnostics.Stopwatch.StartNew();
         var result = await check.CheckHealthAsync(Context(), Ct).WaitAsync(TimeSpan.FromSeconds(10), Ct);

@@ -204,6 +204,85 @@ public sealed class NexusConsumerPipelineTests(KafkaFixture kafka, PostgresFixtu
         Header(dead[0].Message.Headers, EventHeaderNames.EventId).ShouldBe(failing.EventId.ToString("D"));
     }
 
+    [Fact(DisplayName = "NexusConsumer: a rebalance while paused on a DLQ outage does not reprocess the in-flight record nor dead-letter it twice")]
+    public async Task DlqUnavailable_RebalanceWhilePaused_NoReprocessingNoDuplicate()
+    {
+        var topic = NewTopic();
+        await kafka.CreateTopicWithDlqAsync(topic);
+        var dlq = new ToggleDlqPublisher(_dlq);
+        var health = new ConsumerHealthRegistry(TimeProvider.System);
+        var failingLe = LegalEntity("LE-FAIL");
+        var failing = Envelope(failingLe.id);
+        var nextLe = LegalEntity("LE-NEXT");
+        var next = Envelope(nextLe.id);
+
+        TestLegalEntityConsumer consumer = null!;
+        consumer = Consumer(Runtime(health, dlq), topic, "rebalance-while-paused-test", (_, e, sp, ct) =>
+            e.EventId == failing.EventId ? throw new InvalidOperationException("boom") : WriteEffect(consumer, e, sp, ct));
+        await ProduceAsync(kafka, topic, failingLe, failing);
+        await ProduceAsync(kafka, topic, nextLe, next);
+
+        await consumer.StartAsync(TestContext.Current.CancellationToken);
+        try
+        {
+            await WaitUntilAsync(() => Task.FromResult(State(health, consumer.GroupId) == ConsumerLoopState.DlqUnavailable), "the loop is paused");
+
+            // A second member joins the group (revoke/assign) and then leaves (another revoke/assign).
+            using (var other = new ConsumerBuilder<Ignore, Ignore>(new ConsumerConfig
+                   {
+                       BootstrapServers = kafka.BootstrapServers,
+                       GroupId = consumer.GroupId,
+                       EnableAutoCommit = false,
+                       AutoOffsetReset = AutoOffsetReset.Earliest,
+                   }).Build())
+            {
+                other.Subscribe(topic);
+                var until = DateTime.UtcNow.AddSeconds(15);
+                while (DateTime.UtcNow < until)
+                {
+                    other.Consume(TimeSpan.FromMilliseconds(200));
+                }
+
+                other.Close();
+            }
+
+            await Task.Delay(TimeSpan.FromSeconds(8), TestContext.Current.CancellationToken);
+            dlq.Up = true;
+            await WaitUntilAsync(async () => await EffectsAsync(consumer.GroupId, next.EventId) == 1, "the next record is processed");
+            await Task.Delay(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
+        }
+        finally
+        {
+            await consumer.StopAsync(CancellationToken.None);
+        }
+
+        var dead = kafka.ReadAll(DlqHeaders.TopicFor(topic), expected: 3, TimeSpan.FromSeconds(3));
+        var info = $"invocations={consumer.Invocations[failing.EventId]} dlqRecords={dead.Count} publishes={dlq.Publishes}";
+        consumer.Invocations[failing.EventId].ShouldBe(4, info);
+        dead.Count.ShouldBe(1, info);
+        kafka.CommittedOffset(consumer.GroupId, topic).ShouldBe(2);
+    }
+
+    [Fact(DisplayName = "NexusConsumer: a Degraded loop returns to Running on an idle topic once polls succeed (no record needed)")]
+    public async Task Degraded_ClearedOnIdleTopic()
+    {
+        var topic = NewTopic(); // NOT created yet
+        var health = new ConsumerHealthRegistry(TimeProvider.System);
+        var consumer = Consumer(Runtime(health), topic, "degraded-idle-test", (_, _, _, _) => Task.CompletedTask);
+        await consumer.StartAsync(TestContext.Current.CancellationToken);
+        try
+        {
+            await WaitUntilAsync(() => Task.FromResult(State(health, consumer.GroupId) == ConsumerLoopState.Degraded), "the loop reports Degraded");
+            await kafka.CreateTopicWithDlqAsync(topic);
+            await Task.Delay(TimeSpan.FromSeconds(20), TestContext.Current.CancellationToken);
+            State(health, consumer.GroupId).ShouldBe(ConsumerLoopState.Running, "the topic exists and polls succeed, though no record arrived");
+        }
+        finally
+        {
+            await consumer.StopAsync(CancellationToken.None);
+        }
+    }
+
     [Fact(DisplayName = "NexusConsumer: on cancellation while the DLQ is down the loop stops cleanly (Stopped, not Faulted) without committing")]
     public async Task DlqUnavailable_CancellationStopsCleanlyWithoutCommit()
     {
@@ -428,6 +507,33 @@ internal sealed class CountingDlqPublisher(IDlqPublisher inner) : IDlqPublisher
             Interlocked.Increment(ref _failures);
             throw;
         }
+    }
+}
+
+/// <summary>A DLQ that is down until <see cref="Up"/> is set, then forwards to the real one.</summary>
+internal sealed class ToggleDlqPublisher(IDlqPublisher inner) : IDlqPublisher
+{
+    private int _publishes;
+    private volatile bool _up;
+
+    public bool Up
+    {
+        get => _up;
+        set => _up = value;
+    }
+
+    public int Publishes => Volatile.Read(ref _publishes);
+
+    public Task PublishAsync(
+        string topic, string? key, byte[]? rawValue, Headers? originalHeaders, Exception failure, string consumerGroup, CancellationToken ct = default)
+    {
+        if (!Up)
+        {
+            return Task.FromException(new KafkaException(new Error(ErrorCode.Local_MsgTimedOut, "DLQ down (test)")));
+        }
+
+        Interlocked.Increment(ref _publishes);
+        return inner.PublishAsync(topic, key, rawValue, originalHeaders, failure, consumerGroup, ct);
     }
 }
 

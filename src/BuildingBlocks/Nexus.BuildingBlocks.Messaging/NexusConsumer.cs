@@ -37,14 +37,20 @@ namespace Nexus.BuildingBlocks.Messaging;
 /// back-off (<see cref="Retry.RetryOptions.DlqPublishInitialBackoff"/> doubling up to
 /// <see cref="Retry.RetryOptions.DlqPublishMaxBackoff"/>, ~30 s). While it waits it keeps polling the
 /// paused consumer (no record is delivered; the poll keeps the group membership alive and serves
-/// rebalances; a record of a partition assigned meanwhile is rewound and paused, never processed). When
-/// the publish succeeds the offset is committed, the partitions are resumed and the state returns to
-/// <see cref="ConsumerLoopState.Running"/>.
+/// rebalances; a record of a partition assigned meanwhile is rewound and paused, so it is processed only
+/// after the resume, never skipped). When the publish succeeds, the in-flight partition is positioned
+/// after the dead-lettered record (a rebalance during the pause would otherwise reset it to the last
+/// committed offset and the record would be reprocessed and dead-lettered again), the partitions are
+/// resumed, the offset is committed and the state returns to <see cref="ConsumerLoopState.Running"/>.
+/// If the partition moved to ANOTHER member during the pause, that member reprocesses the record and a
+/// second DLQ record is unavoidable (at-least-once): the inbox and <c>make dlq-replay</c> absorb it.
 /// </para>
 /// <para>
 /// <b>Poll errors.</b> A non-fatal error from the poll itself (unknown topic, broker unreachable...) is
 /// logged without payload, reported as <see cref="ConsumerLoopState.Degraded"/> and retried after a
-/// short back-off (1 s doubling to 5 s); the loop goes on and returns to Running on the next good poll.
+/// short back-off (1 s doubling to 5 s); the loop goes on and returns to Running when a record arrives,
+/// or when it has partitions assigned and no poll error for <see cref="DegradedQuietPeriod"/> (the poll
+/// uses a 1 s timeout, so an idle topic also recovers).
 /// Only a FATAL Kafka error (or a bug) ends the loop: it reports <see cref="ConsumerLoopState.Faulted"/>
 /// and rethrows, so the host stops (<c>BackgroundServiceExceptionBehavior.StopHost</c>) and its
 /// orchestrator restarts it.
@@ -61,6 +67,12 @@ public abstract partial class NexusConsumer<TEvent> : BackgroundService
     private static readonly TimeSpan PollErrorInitialBackoff = TimeSpan.FromSeconds(1);
     private static readonly TimeSpan PollErrorMaxBackoff = TimeSpan.FromSeconds(5);
     private static readonly TimeSpan KeepAlivePollTimeout = TimeSpan.FromMilliseconds(100);
+
+    /// <summary>Timeout of one poll of the main loop: an idle topic still returns control every second.</summary>
+    internal static readonly TimeSpan PollTimeout = TimeSpan.FromSeconds(1);
+
+    /// <summary>Error-free time (with partitions assigned) after which a Degraded loop is Running again.</summary>
+    internal static readonly TimeSpan DegradedQuietPeriod = TimeSpan.FromSeconds(5);
 
     private readonly NexusConsumerRuntime _runtime;
     private readonly RetryPolicy _retry;
@@ -173,6 +185,21 @@ public abstract partial class NexusConsumer<TEvent> : BackgroundService
         {
             if (paused && _consumer is { } c)
             {
+                if (c.Assignment.Contains(result.TopicPartition))
+                {
+                    // A rebalance during the pause (revoke + re-assign of this partition) resets its
+                    // position to the last committed offset, i.e. back to this record. It is now in the
+                    // DLQ: move past it so it is neither reprocessed nor dead-lettered twice.
+                    try
+                    {
+                        c.Seek(new TopicPartitionOffset(result.TopicPartition, result.Offset + 1));
+                    }
+                    catch (KafkaException ex)
+                    {
+                        LogSeekFailed(_logger, ex, Options.GroupId, result.Topic, result.Partition.Value, result.Offset.Value);
+                    }
+                }
+
                 // The current assignment: partitions revoked meanwhile are gone, new ones were paused.
                 c.Resume(c.Assignment);
             }
@@ -296,18 +323,22 @@ public abstract partial class NexusConsumer<TEvent> : BackgroundService
 
                 var pollBackoff = PollErrorInitialBackoff;
                 var degraded = false;
+                var lastPollError = 0L;
                 while (!stoppingToken.IsCancellationRequested)
                 {
                     ConsumeResult<string?, byte[]?>? result;
                     try
                     {
-                        result = consumer.Consume(stoppingToken);
+                        // Bounded poll (not Consume(token)): an idle topic must not block the loop, or a
+                        // Degraded state would never be cleared until the next record.
+                        result = consumer.Consume(PollTimeout);
                     }
                     catch (ConsumeException e) when (!e.Error.IsFatal)
                     {
                         // Transient (unknown topic, broker unreachable, ...): never stop the host for it.
                         // Logged without the record: only the error code and reason.
                         LogPollError(_logger, Options.GroupId, Options.Topic, e.Error.Code, e.Error.Reason);
+                        lastPollError = _runtime.TimeProvider.GetTimestamp();
                         if (!degraded)
                         {
                             _runtime.Health.Report(Options.GroupId, ConsumerLoopState.Degraded);
@@ -319,7 +350,13 @@ public abstract partial class NexusConsumer<TEvent> : BackgroundService
                         continue;
                     }
 
-                    if (degraded)
+                    // librdkafka reports some errors (unknown topic, broker down) periodically, with
+                    // empty polls in between: only a record, or a quiet period with partitions
+                    // assigned, proves the loop is consuming again.
+                    if (degraded
+                        && (result is { IsPartitionEOF: false, Message: not null }
+                            || (consumer.Assignment.Count > 0
+                                && _runtime.TimeProvider.GetElapsedTime(lastPollError) >= DegradedQuietPeriod)))
                     {
                         _runtime.Health.Report(Options.GroupId, ConsumerLoopState.Running);
                         degraded = false;
@@ -396,6 +433,10 @@ public abstract partial class NexusConsumer<TEvent> : BackgroundService
     [LoggerMessage(Level = LogLevel.Error,
         Message = "Consumer {GroupId}: DLQ publish #{Attempt} of {Topic}[{Partition}]@{Offset} failed; consumption paused, retrying in {Backoff}")]
     private static partial void LogDlqPublishFailed(ILogger logger, Exception ex, string groupId, string topic, int partition, long offset, int attempt, TimeSpan backoff);
+
+    [LoggerMessage(Level = LogLevel.Warning,
+        Message = "Consumer {GroupId}: could not move past dead-lettered {Topic}[{Partition}]@{Offset}; it may be dead-lettered again")]
+    private static partial void LogSeekFailed(ILogger logger, Exception ex, string groupId, string topic, int partition, long offset);
 
     [LoggerMessage(Level = LogLevel.Information, Message = "Consumer {GroupId}: DLQ reachable again, consumption of {Topic} resumed")]
     private static partial void LogResumed(ILogger logger, string groupId, string topic);

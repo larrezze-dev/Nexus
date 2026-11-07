@@ -25,6 +25,12 @@
 
 - Con (A): sin cambios en `Persistence`; el orden de `Add*` pasa a ser un invariante a documentar y revisar (`security-review` sobre el decorador antes del merge).
 - Efecto secundario aceptado: un efecto que despache un handler de comandos debe convertir un `Result` fallido en excepción; si no, el procesador confirma lo escrito antes del fallo.
+- Mitigaciones implementadas del riesgo de (A) (paso 0.7, track S):
+  - `IInboxProcessor`/`InboxProcessor` son `internal` y no se registran en DI: ningún endpoint ni handler puede resolverlos para suplantar a un usuario; solo `NexusConsumer` los instancia, uno por intento, en su propio scope (`ActivatorUtilities.CreateInstance`).
+  - El procesador se niega a ejecutarse si el scope ya tiene un `ICurrentUser` autenticado o si hay un `HttpContext` (petición HTTP), antes de fijar la identidad del consumidor.
+  - Si tras fijarla el `ICurrentUser` del scope no la refleja (p. ej. un `ICurrentUser` registrado después de `AddNexusInbox`), se niega a abrir la transacción.
+  - La identidad del consumidor se borra en un `finally` al terminar `ProcessOnceAsync`, haya éxito o error.
+- Con `OnBehalfOfActor` la identidad sale de la cabecera `nexus-actor-user-id` del evento, así que quien pueda producir en un topic puede actuar como cualquier usuario: las ACL de producción de Kafka son una frontera de seguridad (se aplicarán en el paso 0.11).
 
 ## Cómo se verifica
 
