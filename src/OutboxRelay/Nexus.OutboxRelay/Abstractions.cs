@@ -50,14 +50,18 @@ public interface IRelayLease : IAsyncDisposable
 
     /// <summary>
     /// Confirms the leader lock, opens a transaction and locks the next batch of publishable
-    /// rows (conventions-events.md §4.3), skipping every row of <c>excludedAggregates</c> (aggregates
-    /// held back because their topic is unreachable; by aggregate, not by topic, so EV-R3 holds even
-    /// for an aggregate that publishes to several topics). Throws <see cref="RelayLeadershipLostException"/> when the
-    /// lock cannot be confirmed: the caller must stop publishing immediately.
+    /// rows (conventions-events.md §4.3), skipping every PENDING row on a topic of
+    /// <paramref name="excludedTopics"/> (topics held back because they are unreachable,
+    /// <see cref="HeldTopics"/>) and every PENDING row of an aggregate that has an earlier PENDING
+    /// row on one of those topics (EV-R3: an aggregate spread over several topics waits entirely
+    /// behind its first row on an unreachable topic). <paramref name="excludedTopics"/> must not be
+    /// null nor contain null (empty when nothing is held). Throws
+    /// <see cref="RelayLeadershipLostException"/> when the lock cannot be confirmed: the caller must
+    /// stop publishing immediately.
     /// </summary>
-    Task<IOutboxBatch> BeginBatchAsync(int batchSize, IReadOnlyCollection<Guid> excludedAggregates, CancellationToken cancellationToken);
+    Task<IOutboxBatch> BeginBatchAsync(int batchSize, IReadOnlyCollection<string> excludedTopics, CancellationToken cancellationToken);
 
-    /// <summary><see cref="BeginBatchAsync(int, IReadOnlyCollection{Guid}, CancellationToken)"/> without exclusions.</summary>
+    /// <summary><see cref="BeginBatchAsync(int, IReadOnlyCollection{string}, CancellationToken)"/> without exclusions.</summary>
     Task<IOutboxBatch> BeginBatchAsync(int batchSize, CancellationToken cancellationToken) => BeginBatchAsync(batchSize, [], cancellationToken);
 
     /// <summary>
@@ -179,8 +183,9 @@ public enum PublishFailureKind
 /// </param>
 /// <param name="HoldUntil">
 /// For <see cref="PublishFailureKind.TopicUnreachable"/>: until when the topic is known to be
-/// unreachable (the preflight's negative cache). The processor holds the row's aggregate back until
-/// then, and the batch query excludes it, so held aggregates neither fill the batch nor busy-loop.
+/// unreachable (the preflight's negative cache). The processor holds the topic back until then
+/// (<see cref="HeldTopics"/>) and the batch query excludes it, so its rows neither fill the batch
+/// nor busy-loop.
 /// </param>
 public readonly record struct PublishResult(bool Succeeded, string? Error, PublishFailureKind Kind, bool CountsAsAttempt = true, DateTimeOffset? HoldUntil = null)
 {

@@ -9,7 +9,11 @@ namespace Nexus.OutboxRelay;
 /// <param name="StoppedOnTransientFailure">The batch stopped early on a <see cref="PublishFailureKind.InfraGlobal"/> failure (Kafka or the Schema Registry unavailable).</param>
 /// <param name="StopCause">When stopped: the failure description (category and cause; never payload values).</param>
 /// <param name="Deferred">Rows skipped untouched because their topic is in the preflight's negative cache.</param>
-/// <param name="NewHolds">Aggregates newly held back in this batch (their topic is unreachable): progress through the backlog.</param>
+/// <param name="NewHolds">
+/// Topics that entered the exclusion list of the next batch in this one (<see cref="HeldTopics.Hold"/>):
+/// newly found unreachable, or probed and still unreachable. The next batch skips their rows, so a
+/// full batch with new holds is progress through the backlog (the loop drains again at once).
+/// </param>
 public readonly record struct BatchOutcome(int Selected, int Published, int Failed, bool StoppedOnTransientFailure, string? StopCause = null, int Deferred = 0, int NewHolds = 0)
 {
     /// <summary>Rows actually attempted (published or failed); deferred and EV-R3-skipped rows do not count.</summary>
@@ -44,7 +48,9 @@ public readonly record struct BatchOutcome(int Selected, int Published, int Fail
 ///   <item><b>EV-R3 guard:</b> after a failure, the rest of that aggregate's rows in this batch are
 ///   skipped and left untouched (still <c>PENDING</c>, attempts unchanged), so a later version is
 ///   never published before an earlier one. Across batches, the batch query never selects a row
-///   that has an earlier <c>FAILED</c> row of the same aggregate.</item>
+///   that has an earlier <c>FAILED</c> row of the same aggregate, nor (while its topic is held,
+///   <see cref="HeldTopics"/>) a row behind an earlier <c>PENDING</c> row of the same aggregate on
+///   an unreachable topic.</item>
 /// </list>
 ///
 /// <para>
@@ -64,7 +70,7 @@ public sealed partial class OutboxBatchProcessor
     private readonly int _maxAttempts;
     private readonly ILogger _logger;
 
-    public OutboxBatchProcessor(IEventPublisher publisher, RelayMetrics metrics, TimeProvider timeProvider, int maxAttempts, ILogger logger, int maxHeldAggregates = HeldAggregates.DefaultCapacity)
+    public OutboxBatchProcessor(IEventPublisher publisher, RelayMetrics metrics, TimeProvider timeProvider, int maxAttempts, ILogger logger)
     {
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(maxAttempts);
         _publisher = publisher;
@@ -72,11 +78,11 @@ public sealed partial class OutboxBatchProcessor
         _timeProvider = timeProvider;
         _maxAttempts = maxAttempts;
         _logger = logger;
-        Held = new HeldAggregates(timeProvider, maxHeldAggregates);
+        Held = new HeldTopics(timeProvider);
     }
 
-    /// <summary>Aggregates held back because their topic is unreachable; the caller excludes them from the next batch query.</summary>
-    public HeldAggregates Held { get; }
+    /// <summary>Topics held back because they are unreachable; the caller excludes them from the next batch query (<see cref="HeldTopics.Current"/>).</summary>
+    public HeldTopics Held { get; }
 
     public async Task<BatchOutcome> ProcessAsync(IOutboxBatch batch, CancellationToken stoppingToken)
     {
@@ -110,8 +116,8 @@ public sealed partial class OutboxBatchProcessor
             }
             if (result.Succeeded || result.Kind == PublishFailureKind.Row)
             {
-                // The topic answered: if it was held as unreachable, release all its aggregates
-                // (their head rows come back in created_at, id order).
+                // The topic answered: if it was held (or probing), release it; its rows and the later
+                // rows of their aggregates come back in created_at, id order.
                 Held.ReleaseTopic(message.Topic);
             }
 
@@ -127,9 +133,9 @@ public sealed partial class OutboxBatchProcessor
             blockedAggregates.Add(message.AggregateId);
             if (result.Kind == PublishFailureKind.TopicUnreachable && result.HoldUntil is { } holdUntil)
             {
-                // Excluded from the next batches while the topic stays unreachable (extended at
-                // every probe), released when the topic answers.
-                if (Held.Hold(message.Topic, message.AggregateId, holdUntil))
+                // The topic is excluded from the next batches while it stays unreachable (probed
+                // again at holdUntil), released when it answers.
+                if (Held.Hold(message.Topic, holdUntil))
                 {
                     newHolds++;
                 }
@@ -138,7 +144,7 @@ public sealed partial class OutboxBatchProcessor
             if (!result.CountsAsAttempt)
             {
                 // Topic still in the preflight's negative cache: no attempt, no UPDATE, no log, no
-                // metric; the aggregate is only held back (EV-R3).
+                // metric; the aggregate is only skipped for the rest of the batch (EV-R3).
                 deferred++;
                 continue;
             }

@@ -199,7 +199,7 @@ public sealed class OutboxPurgeAndMetricsTests(PostgresFixture db)
         batch.Advice.ShouldNotBeNull().HistogramBucketBoundaries.ShouldBe([1, 5, 10, 25, 50, 100, 250, 500, 1000]);
     }
 
-    [Fact(DisplayName = "Metrics (H7, N5): nexus_outbox_pending and nexus_outbox_oldest_pending_age_seconds are not reported before the first refresh nor after ClearPending")]
+    [Fact(DisplayName = "Metrics (H7, N5): nexus_outbox_pending, nexus_outbox_oldest_pending_age_seconds and nexus_outbox_held_topics are not reported before the first refresh nor after ClearPending")]
     public void PendingGauge_NotReportedWithoutLeader()
     {
         using var meters = new TestMeterFactory();
@@ -211,16 +211,16 @@ public sealed class OutboxPurgeAndMetricsTests(PostgresFixture db)
         metrics.SetPending(7, 12.5);
         listener.TryObserve(RelayMetrics.PendingName).ShouldBe(7);
         listener.TryObserve(RelayMetrics.OldestPendingAgeName).ShouldBe(12.5);
-        listener.TryObserve(RelayMetrics.HeldAggregatesName).ShouldBeNull();
-        metrics.SetHeldAggregates(42);
-        listener.TryObserve(RelayMetrics.HeldAggregatesName).ShouldBe(42);
+        listener.TryObserve(RelayMetrics.HeldTopicsName).ShouldBeNull();
+        metrics.SetHeldTopics(3);
+        listener.TryObserve(RelayMetrics.HeldTopicsName).ShouldBe(3);
         metrics.ClearPending();
-        listener.TryObserve(RelayMetrics.HeldAggregatesName).ShouldBeNull("lease lost: held count not reported");
+        listener.TryObserve(RelayMetrics.HeldTopicsName).ShouldBeNull("lease lost: held topics not reported");
         listener.TryObserve(RelayMetrics.PendingName).ShouldBeNull("lease lost: the stale value is not reported");
         listener.TryObserve(RelayMetrics.OldestPendingAgeName).ShouldBeNull("lease lost: the stale age is not reported");
     }
 
-    [Fact(DisplayName = "Metrics (H7): a passive worker never reports nexus_outbox_pending; a leader stops reporting it once it loses the lease")]
+    [Fact(DisplayName = "Metrics (H7): a passive worker never reports nexus_outbox_pending; a leader stops reporting it (and nexus_outbox_held_topics) once it loses the lease")]
     public async Task PendingGauge_FollowsTheLease()
     {
         await OutboxRows.ClearAsync(db);
@@ -263,10 +263,12 @@ public sealed class OutboxPurgeAndMetricsTests(PostgresFixture db)
                 listener.TryObserve(RelayMetrics.PendingName).ShouldBe(0);
 
                 listener.TryObserve(RelayMetrics.OldestPendingAgeName).ShouldBe(0, "no PENDING row");
+                listener.TryObserve(RelayMetrics.HeldTopicsName).ShouldBe(0, "the leader reports its (empty) holds");
 
                 await leadership.CrashAsync(db); // terminates the leader session; this instance never re-acquires
                 await WaitUntilAsync(() => Task.FromResult(listener.TryObserve(RelayMetrics.PendingName) is null));
                 listener.TryObserve(RelayMetrics.OldestPendingAgeName).ShouldBeNull();
+                listener.TryObserve(RelayMetrics.HeldTopicsName).ShouldBeNull("lease lost: held topics not reported");
             }
             finally
             {

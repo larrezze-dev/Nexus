@@ -190,6 +190,36 @@ internal static class ProbeRows
         (await command.ExecuteNonQueryAsync()).ShouldBe(rows.Count);
     }
 
+    /// <summary>
+    /// Bulk arrange with binary COPY (tens of thousands of rows in about a second): PENDING, attempts 0,
+    /// one shared headers object. Fires the NOTIFY trigger like any insert.
+    /// </summary>
+    public static async Task CopyAsync(PostgresFixture db, IReadOnlyList<(string Topic, Row Row)> rows)
+    {
+        var headers = OutboxRows.Headers();
+        await using var connection = await db.Admin.OpenConnectionAsync();
+        await using var writer = await connection.BeginBinaryImportAsync(
+            "COPY outbox.message (id, topic, aggregate_type, aggregate_id, aggregate_version, event_type, schema_version, headers, payload, created_at, status, attempts) FROM STDIN (FORMAT BINARY)");
+        foreach (var (topic, row) in rows)
+        {
+            await writer.StartRowAsync();
+            await writer.WriteAsync(row.Id, NpgsqlDbType.Uuid);
+            await writer.WriteAsync(topic, NpgsqlDbType.Text);
+            await writer.WriteAsync("relay-probe", NpgsqlDbType.Text);
+            await writer.WriteAsync(row.AggregateId, NpgsqlDbType.Uuid);
+            await writer.WriteAsync(row.Version, NpgsqlDbType.Bigint);
+            await writer.WriteAsync("test.relay-probe.created", NpgsqlDbType.Text);
+            await writer.WriteAsync(1, NpgsqlDbType.Integer);
+            await writer.WriteAsync(headers, NpgsqlDbType.Jsonb);
+            await writer.WriteAsync(row.Payload, NpgsqlDbType.Text);
+            await writer.WriteAsync(row.CreatedAt, NpgsqlDbType.TimestampTz);
+            await writer.WriteAsync("PENDING", NpgsqlDbType.Text);
+            await writer.WriteAsync(0, NpgsqlDbType.Integer);
+        }
+
+        (await writer.CompleteAsync()).ShouldBe((ulong)rows.Count);
+    }
+
     public static async Task<long> CountAsync(PostgresFixture db, string topic, string status) =>
         await db.ScalarAsync<long>("SELECT count(*) FROM outbox.message WHERE topic = $1 AND status = $2", topic, status);
 
