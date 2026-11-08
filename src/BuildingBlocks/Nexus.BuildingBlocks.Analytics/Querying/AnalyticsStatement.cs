@@ -17,23 +17,38 @@ namespace Nexus.BuildingBlocks.Analytics.Querying;
 /// with <c>AND</c> (the predicate is parenthesized). The predicate references the column
 /// <c>legal_entity_id</c> unqualified, which every projection has (conventions-events.md §8).
 /// </para>
-/// Validated on construction (so a malformed query fails even when the filter is empty and
+/// <para>
+/// <b>What the validation is, and is not.</b> The checks below are a heuristic guard against
+/// common mistakes in in-house constant SQL; they are <b>not</b> a parser and <b>not</b> a
+/// guarantee that every row read is filtered. The real guarantees are elsewhere: the scope values
+/// are always bound (never concatenated), statements are compile-time constants written in this
+/// repository (never built from request input), the connection runs <c>readonly = 2</c> against
+/// the <c>default</c> database (so an unqualified projection name fails with
+/// <c>UNKNOWN_TABLE</c>), and an empty scope never reaches ClickHouse.
+/// </para>
+/// <para>
+/// <b>Remaining limitation:</b> placement is not checked positionally. The placeholder count is
+/// compared with the number of projection references, but a statement with two placeholders in
+/// one <c>UNION</c> branch and none in the other, or a placeholder in the <c>SELECT</c> list, still
+/// passes. Whoever reviews a new analytic query must check by hand that every <c>FROM</c>/<c>JOIN</c>
+/// of a projection (every branch, every subquery) has the placeholder in its own <c>WHERE</c>.
+/// </para>
+/// Rejected on construction (so a malformed query fails even when the filter is empty and
 /// ClickHouse is never called):
 /// <list type="bullet">
-///   <item>the SQL contains <see cref="ScopePlaceholder"/> at least once;</item>
-///   <item>the SQL contains no comment (<c>--</c>, <c>/*</c>, <c>#</c>): a placeholder inside a
-///   comment (e.g. a line commented out while debugging) would pass the check above and leave
-///   the query unfiltered. A placeholder inside a string literal is not detected; statements are
-///   in-house constants and must keep the placeholder in the <c>WHERE</c> clause.</item>
-///   <item>the placeholder appears at least as many times as the SQL names a
-///   <c>nexus_analytics.</c> table (case-insensitive, quoted or not), so a <c>UNION</c> branch or
-///   a subquery over another projection cannot escape the filter. One placeholder per
-///   <c>FROM</c>/<c>JOIN</c> of a projection. Projections must therefore always be named
-///   database-qualified (<c>nexus_analytics.event_log</c>), never relying on the connection's
-///   default database.</item>
-///   <item>it contains no other <c>__scope</c> token (the scope parameter is reserved for the
-///   executor; a statement cannot bind or reference it by hand);</item>
-///   <item>every parameter name is an identifier, is not reserved, has a non-null value, and is
+///   <item>no <see cref="ScopePlaceholder"/>;</item>
+///   <item>comments (<c>--</c>, <c>/*</c>, <c>#</c>): a placeholder in a commented-out line would
+///   count without filtering anything;</item>
+///   <item>fewer placeholders than <c>nexus_analytics.</c> table references (case-insensitive,
+///   quoted or not). Projections must always be named database-qualified;</item>
+///   <item><c>{name:Identifier}</c> parameters (a bound database or table name would hide the
+///   reference from the count above);</item>
+///   <item>table functions that read other tables or external data by name (<c>merge</c>,
+///   <c>cluster</c>, <c>clusterAllReplicas</c>, <c>remote</c>, <c>remoteSecure</c>, <c>view</c>,
+///   <c>loop</c>, <c>dictionary</c>, <c>url</c>, <c>file</c>, <c>s3</c>, <c>input</c>, ...) and any
+///   <c>nexus_analytics</c> inside a string literal (how such functions name a database);</item>
+///   <item>any other <c>__scope</c> token (the scope parameter is reserved for the executor);</item>
+///   <item>a parameter name that is not an identifier, is reserved, has a null value, or is not
 ///   referenced in the SQL as <c>{name:Type}</c>.</item>
 /// </list>
 /// Immutable.
@@ -70,6 +85,27 @@ public sealed partial class AnalyticsStatement
         {
             throw new ArgumentException(
                 "Analytic SQL must not contain comments ('--', '/*', '#'): a scope placeholder inside a comment would not filter anything.",
+                nameof(sql));
+        }
+
+        if (IdentifierParameterRegex().IsMatch(sql))
+        {
+            throw new ArgumentException(
+                "Identifier parameters ({name:Identifier}) are not allowed in analytic SQL: name projections literally.",
+                nameof(sql));
+        }
+
+        if (ForbiddenTableFunctionRegex().Match(sql) is { Success: true } tableFunction)
+        {
+            throw new ArgumentException(
+                $"Table function '{tableFunction.Groups["fn"].Value}' is not allowed in analytic SQL: it can read a projection without the scope filter.",
+                nameof(sql));
+        }
+
+        if (QuotedDatabaseRegex().IsMatch(sql))
+        {
+            throw new ArgumentException(
+                "'nexus_analytics' must not appear inside a string literal in analytic SQL (that is how table functions name a database).",
                 nameof(sql));
         }
 
@@ -140,6 +176,19 @@ public sealed partial class AnalyticsStatement
     // \z, not $: $ also matches before a trailing newline.
     [GeneratedRegex(@"^[A-Za-z_][A-Za-z0-9_]*\z", RegexOptions.CultureInvariant)]
     private static partial Regex IdentifierRegex();
+
+    [GeneratedRegex(@":\s*Identifier\s*\}", RegexOptions.CultureInvariant | RegexOptions.IgnoreCase)]
+    private static partial Regex IdentifierParameterRegex();
+
+    // Table functions that read another table, another server or external data by name.
+    [GeneratedRegex(
+        @"\b(?<fn>merge|cluster|clusterAllReplicas|remote|remoteSecure|view|loop|dictionary|url|file|s3|s3Cluster|input|" +
+        @"mysql|postgresql|jdbc|odbc|hdfs|azureBlobStorage|gcs|executable|mergeTreeIndex|mergeTreeProjection)\s*\(",
+        RegexOptions.CultureInvariant | RegexOptions.IgnoreCase)]
+    private static partial Regex ForbiddenTableFunctionRegex();
+
+    [GeneratedRegex(@"'[^']*nexus_analytics", RegexOptions.CultureInvariant | RegexOptions.IgnoreCase)]
+    private static partial Regex QuotedDatabaseRegex();
 
     // nexus_analytics.x, `nexus_analytics`.x, "nexus_analytics" . x
     [GeneratedRegex(@"[`""]?nexus_analytics[`""]?\s*\.", RegexOptions.CultureInvariant | RegexOptions.IgnoreCase)]

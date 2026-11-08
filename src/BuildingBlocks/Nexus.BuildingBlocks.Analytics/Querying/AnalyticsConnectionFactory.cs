@@ -25,6 +25,11 @@ internal interface IAnalyticsConnectionFactory
 /// the client's own default handler (it requests compressed responses).
 /// </para>
 /// <para>
+/// The connection's database is always <see cref="ForcedDatabase"/> (<c>default</c>), overriding
+/// any <c>Database=</c> in the configured connection string, so projections must be named
+/// <c>nexus_analytics.&lt;table&gt;</c> and an unqualified name fails.
+/// </para>
+/// <para>
 /// Bounded and cancellable queries. Every connection carries, as per-query ClickHouse settings:
 /// <list type="bullet">
 ///   <item><c>max_execution_time</c> = <see cref="NexusAnalyticsOptions.QueryTimeout"/> (whole
@@ -46,6 +51,9 @@ internal sealed class AnalyticsConnectionFactory : IAnalyticsConnectionFactory, 
 {
     /// <summary>How much later than the server-side limit the HTTP client gives up.</summary>
     internal static readonly TimeSpan HttpTimeoutMargin = TimeSpan.FromSeconds(5);
+
+    /// <summary>The database every analytic connection uses, regardless of configuration.</summary>
+    internal const string ForcedDatabase = "default";
 
     private readonly IOptions<NexusAnalyticsOptions> _options;
     private readonly Lazy<State> _state;
@@ -92,7 +100,10 @@ internal sealed class AnalyticsConnectionFactory : IAnalyticsConnectionFactory, 
                 $"'{NexusAnalyticsOptions.SectionName}:{nameof(NexusAnalyticsOptions.QueryTimeout)}' must be positive (was {options.QueryTimeout}).");
         }
 
-        var builder = new ClickHouseConnectionStringBuilder(options.ConnectionString);
+        // Always the `default` database, whatever the configuration says: an unqualified
+        // projection name (FROM event_log) then fails with UNKNOWN_TABLE instead of silently
+        // reading nexus_analytics past the placeholder count of AnalyticsStatement.
+        var builder = new ClickHouseConnectionStringBuilder(options.ConnectionString) { Database = ForcedDatabase };
         if (!string.IsNullOrEmpty(options.Password))
         {
             builder.Password = options.Password;

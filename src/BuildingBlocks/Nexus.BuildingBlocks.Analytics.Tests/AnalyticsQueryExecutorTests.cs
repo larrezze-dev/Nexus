@@ -52,6 +52,63 @@ public sealed class AnalyticsQueryExecutorTests(ClickHouseFixture clickHouse) : 
         Should.Throw<ArgumentException>(() => new AnalyticsStatement(sql)).Message.ShouldContain("nexus_analytics");
     }
 
+    [Theory(DisplayName = "§7.3: Identifier parameters are rejected (a bound table name would hide the reference)")]
+    [InlineData("SELECT count() FROM {db:Identifier}.event_log WHERE {__scope_predicate}")]
+    [InlineData("SELECT count() FROM nexus_analytics.event_log WHERE {__scope_predicate} UNION ALL SELECT count() FROM {t: identifier}")]
+    public void Statement_IdentifierParameter_Throws(string sql)
+    {
+        Should.Throw<ArgumentException>(() => new AnalyticsStatement(sql)).Message.ShouldContain("Identifier");
+    }
+
+    [Theory(DisplayName = "§7.3: table functions that read tables by name are rejected (case-insensitive, space before '(')")]
+    [InlineData("merge('nexus_analytics', '^event_log$')")]
+    [InlineData("MERGE ('nexus_analytics', '^event_log$')")]
+    [InlineData("cluster('default', 'nexus_analytics', 'event_log')")]
+    [InlineData("clusterAllReplicas('default', 'nexus_analytics.event_log')")]
+    [InlineData("remote('localhost', 'nexus_analytics', 'event_log')")]
+    [InlineData("remoteSecure('localhost', 'nexus_analytics.event_log')")]
+    [InlineData("view (SELECT 1)")]
+    [InlineData("loop('nexus_analytics', 'event_log')")]
+    [InlineData("url('http://x', CSV)")]
+    [InlineData("file('x.csv')")]
+    [InlineData("s3('http://x')")]
+    [InlineData("input('x String')")]
+    public void Statement_TableFunction_Throws(string tableFunction)
+    {
+        Should.Throw<ArgumentException>(() => new AnalyticsStatement(
+                "SELECT count() FROM nexus_analytics.event_log WHERE {__scope_predicate} UNION ALL SELECT count() FROM " + tableFunction))
+            .Message.ShouldContain("Table function");
+    }
+
+    [Fact(DisplayName = "§7.3: nexus_analytics inside a string literal is rejected; -Merge aggregate combinators are not table functions")]
+    public void Statement_QuotedDatabase_Throws_CombinatorsAccepted()
+    {
+        Should.Throw<ArgumentException>(() => new AnalyticsStatement(
+            "SELECT count() FROM nexus_analytics.event_log WHERE {__scope_predicate} AND someFunction('nexus_analytics', 'event_log') = 0"));
+
+        _ = new AnalyticsStatement("SELECT argMaxMerge(x), uniqMerge(y), sumMerge(z) FROM nexus_analytics.agg WHERE {__scope_predicate}");
+    }
+
+    [Fact(DisplayName = "§7.3: the connection always uses database 'default': an unqualified projection fails with UNKNOWN_TABLE even if the config says Database=nexus_analytics")]
+    public async Task UnqualifiedProjection_FailsEvenWithConfiguredDatabase()
+    {
+        var configured = new ClickHouseConnectionStringBuilder(clickHouse.ConnectionString) { Database = "nexus_analytics" }.ConnectionString;
+        using var factory = new AnalyticsConnectionFactory(Microsoft.Extensions.Options.Options.Create(new NexusAnalyticsOptions { ConnectionString = configured }));
+
+        // Passes AnalyticsStatement's count (one qualified reference, one placeholder), so only the
+        // forced database stops the unfiltered branch.
+        var escaping = new RawQuery(
+            "SELECT legal_entity_id FROM nexus_analytics.event_log WHERE {__scope_predicate} " +
+            "UNION ALL SELECT legal_entity_id FROM event_log");
+
+        var error = await Should.ThrowAsync<Exception>(
+            () => new AnalyticsQueryExecutor(factory).ExecuteAsync(escaping, new ScopeFilter([LeA], true), Ct));
+        error.Message.ShouldContain("UNKNOWN_TABLE");
+
+        // The qualified, filtered form still works on the same connection settings.
+        (await new AnalyticsQueryExecutor(factory).ExecuteAsync(new CountQuery("never"), new ScopeFilter([LeA], false), Ct)).ShouldBe(0);
+    }
+
     [Fact(DisplayName = "§7.3: one placeholder per projection reference is accepted")]
     public void Statement_PlaceholderPerProjection_IsAccepted()
     {
