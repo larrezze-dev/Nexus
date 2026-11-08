@@ -11,6 +11,8 @@ namespace Nexus.Projections.Tests.Runtime.Infrastructure;
 /// a per-test <c>ReplacingMergeTree(_aggregate_version)</c> table keyed by (legal_entity_id, aggregate_id).
 /// <list type="bullet">
 ///   <item>payload <c>name = "explode"</c> → <see cref="Map"/> throws (a deterministic, per-record failure);</item>
+///   <item>payload <c>name = "bad-type"</c> → a row whose UInt64 column holds a string: ClickHouse (the client's
+///   RowBinary serializer) REJECTS the batch (decision D1);</item>
 ///   <item>a topic not starting with <see cref="OwnTopicPrefix"/> (when set) → no rows (pattern tests share the broker).</item>
 /// </list>
 /// </summary>
@@ -68,7 +70,8 @@ internal sealed class TestProjection : IProjection
         }
 
         var e = record.Envelope;
-        return [[e.LegalEntityId ?? Guid.Empty, e.AggregateId, name, e.EventId, checked((ulong)e.AggregateVersion), record.IngestedAt]];
+        object version = name == "bad-type" ? "not-a-number" : checked((ulong)e.AggregateVersion);
+        return [[e.LegalEntityId ?? Guid.Empty, e.AggregateId, name, e.EventId, version, record.IngestedAt]];
     }
 
     /// <summary>A unique, valid projection name (also the table name).</summary>

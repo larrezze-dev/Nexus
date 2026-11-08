@@ -54,9 +54,11 @@ internal sealed class RuntimeHarness : IAsyncDisposable
     private RuntimeHarness(ServiceProvider provider)
     {
         _provider = provider;
+        // Only THIS harness's meters (several harnesses may run at once, e.g. two members of one group).
+        var meterFactory = provider.GetRequiredService<IMeterFactory>();
         _listener.InstrumentPublished = (instrument, listener) =>
         {
-            if (instrument.Meter.Name == ProjectionMetrics.MeterName)
+            if (instrument.Meter.Name == ProjectionMetrics.MeterName && ReferenceEquals(instrument.Meter.Scope, meterFactory))
             {
                 listener.EnableMeasurementEvents(instrument);
             }
@@ -100,7 +102,8 @@ internal sealed class RuntimeHarness : IAsyncDisposable
         RuntimeEnvironment env,
         IEnumerable<IProjection> projections,
         Action<Dictionary<string, string?>>? configure = null,
-        bool realDefinitions = false)
+        bool realDefinitions = false,
+        Action<IServiceCollection>? overrides = null)
     {
         var settings = BaseConfiguration(env);
         configure?.Invoke(settings);
@@ -122,6 +125,7 @@ internal sealed class RuntimeHarness : IAsyncDisposable
             DlqPublishInitialBackoff = TimeSpan.FromMilliseconds(200),
             DlqPublishMaxBackoff = TimeSpan.FromSeconds(1),
         });
+        overrides?.Invoke(services); // before the runtime: its TryAdd registrations keep these
         services.AddNexusProjectionsRuntime(configuration);
         foreach (var projection in projections)
         {
@@ -135,6 +139,10 @@ internal sealed class RuntimeHarness : IAsyncDisposable
 
         return new RuntimeHarness(services.BuildServiceProvider());
     }
+
+    /// <summary>The loop's last reported error text (what /health's registry holds).</summary>
+    public string? Error(string groupId) =>
+        Health.Snapshot().Single(s => s.GroupId == groupId).Error;
 
     /// <summary>Starts the worker loop of <paramref name="projection"/> (as <see cref="ProjectionWorker"/> does).</summary>
     public RunningConsumer Start(IProjection projection)
@@ -156,12 +164,18 @@ internal sealed class RuntimeHarness : IAsyncDisposable
     public double Sum(string instrument, string projection, string? kind = null) =>
         Measurements.Where(m => m.Instrument == instrument && m.Projection == projection && (kind is null || m.Kind == kind)).Sum(m => m.Value);
 
-    public async ValueTask DisposeAsync()
+    /// <summary>Stops every loop started by this harness (cancellation: nothing is committed).</summary>
+    public async Task StopAllAsync()
     {
         foreach (var running in _running)
         {
             await running.StopAsync();
         }
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        await StopAllAsync();
 
         _listener.Dispose();
         await _provider.DisposeAsync();
@@ -193,13 +207,17 @@ internal sealed class RunningConsumer(ProjectionConsumer consumer, Task task, Ca
 
     public Task Task { get; } = task;
 
+    private bool _stopped;
+
     public async Task StopAsync()
     {
-        if (!cts.IsCancellationRequested)
+        if (_stopped)
         {
-            await cts.CancelAsync();
+            return;
         }
 
+        _stopped = true;
+        await cts.CancelAsync();
         try
         {
             await Task.WaitAsync(TimeSpan.FromSeconds(30));

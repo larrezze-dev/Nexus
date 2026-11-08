@@ -21,8 +21,15 @@ public sealed class ProjectionMetrics
     /// <summary><c>kind</c> of <see cref="ErrorsTotalName"/>: one failed attempt to map a record (envelope, Avro bytes, <c>Map</c>).</summary>
     public const string ErrorKindRecord = "record";
 
-    /// <summary><c>kind</c> of <see cref="ErrorsTotalName"/>: a ClickHouse batch insert failed (transient: retried, never dead-lettered).</summary>
-    public const string ErrorKindInsert = "insert";
+    /// <summary><c>kind</c> of <see cref="ErrorsTotalName"/>: a ClickHouse batch insert failed because ClickHouse is unreachable, timing out, 5xx or the table is missing (retried, never dead-lettered).</summary>
+    public const string ErrorKindInsertUnavailable = "insert_unavailable";
+
+    /// <summary>
+    /// <c>kind</c> of <see cref="ErrorsTotalName"/>: ClickHouse (or the client's RowBinary serialization) REJECTED
+    /// the batch — type, parse or value errors: a projection bug (decision D1). The projection stays blocked
+    /// (never committed, never dead-lettered) until it is fixed; alert on any increase.
+    /// </summary>
+    public const string ErrorKindInsertRejected = "insert_rejected";
 
     /// <summary><c>kind</c> of <see cref="ErrorsTotalName"/>: the Schema Registry could not be reached (transient).</summary>
     public const string ErrorKindSchemaRegistry = "schema_registry";
@@ -73,7 +80,7 @@ public sealed class ProjectionMetrics
         _errors = meter.CreateCounter<long>(
             ErrorsTotalName,
             unit: "{error}",
-            description: "Failures by kind: record (one mapping attempt), insert (ClickHouse), schema_registry, dlq (DLQ publish), poll, commit.");
+            description: "Failures by kind: record (one mapping attempt), insert_unavailable (ClickHouse unreachable), insert_rejected (ClickHouse refused the batch: projection bug, blocked), schema_registry, dlq (DLQ publish), poll, commit.");
         _batchSize = meter.CreateHistogram(
             BatchSizeName,
             unit: "{row}",

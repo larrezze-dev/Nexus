@@ -301,8 +301,10 @@ services:
       NEXUS__CLICKHOUSE__CONNECTIONSTRING: "Host=clickhouse;Port=8123;Username=${CLICKHOUSE_USER:-nexus};Password=${CLICKHOUSE_PASSWORD:-nexus_dev_password};Database=default"
       NEXUS__KAFKA__BOOTSTRAPSERVERS: kafka:29092
       NEXUS__KAFKA__SCHEMAREGISTRYURL: http://schema-registry:8081
-      # The health endpoint (/health) listens on all interfaces inside the container; not published to the
-      # host, same as nexus-relay (it has no host port either).
+      # The health endpoint (/health) listens on all interfaces inside the container (port 5301); not
+      # published to the host, same as nexus-relay (it has no host port either). ASPNETCORE_URLS wins over the
+      # built-in default (http://localhost:5301, used only when no urls / http_ports setting exists:
+      # ProjectionsCli.DefaultUrlsFor), so the container is reachable from the compose network.
       ASPNETCORE_URLS: http://+:5301
       # Inside the compose network the Aspire Dashboard listens on 18889 (host 4317).
       NEXUS__TELEMETRY__OTLPENDPOINT: http://otel:18889

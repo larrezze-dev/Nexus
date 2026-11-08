@@ -1,6 +1,7 @@
 using System.Net;
 using System.Net.Sockets;
 using Confluent.SchemaRegistry;
+using Microsoft.Extensions.Configuration;
 using Nexus.Projections.Abstractions;
 using Nexus.Projections.Migrations;
 using Nexus.Projections.Runtime;
@@ -86,6 +87,59 @@ public sealed class RuntimeUnitTests
         FailureClassifier.IsTransientSchemaRegistryFailure(new SchemaRegistryException("Schema not found", HttpStatusCode.NotFound, 40403)).ShouldBeFalse();
         FailureClassifier.IsTransientSchemaRegistryFailure(new InvalidDataException("Expecting data framing of length 5 bytes or more")).ShouldBeFalse();
         FailureClassifier.IsTransientSchemaRegistryFailure(new Avro.AvroException("bad")).ShouldBeFalse();
+    }
+
+    [Theory(DisplayName = "Failure classes (D3): Schema Registry 401/403/407 are infrastructure, never the record's fault")]
+    [InlineData(HttpStatusCode.Unauthorized)]
+    [InlineData(HttpStatusCode.Forbidden)]
+    [InlineData(HttpStatusCode.ProxyAuthenticationRequired)]
+    [InlineData(HttpStatusCode.RequestTimeout)]
+    [InlineData(HttpStatusCode.TooManyRequests)]
+    [InlineData(HttpStatusCode.InternalServerError)]
+    public void Schema_registry_auth_and_server_statuses_are_transient(HttpStatusCode status)
+    {
+        FailureClassifier.IsTransientSchemaRegistryFailure(new SchemaRegistryException("x", status, 1)).ShouldBeTrue();
+        FailureClassifier.IsTransientSchemaRegistryFailure(new HttpRequestException("x", null, status)).ShouldBeTrue();
+    }
+
+    [Fact(DisplayName = "Failure classes (D1): type/parse/value errors and client serialization errors are insert REJECTIONS; network, timeout and missing table are not")]
+    public void Insert_rejection_classes()
+    {
+        FailureClassifier.IsInsertRejection(new ClickHouse.Client.ClickHouseServerException("Code: 53. DB::Exception: Type mismatch", "q", 53), out var code).ShouldBeTrue();
+        code.ShouldBe(53);
+        FailureClassifier.IsInsertRejection(new ClickHouse.Client.Copy.ClickHouseBulkCopySerializationException([1], new FormatException()), out _).ShouldBeTrue();
+        FailureClassifier.IsInsertRejection(new InvalidOperationException("wrap", new InvalidCastException()), out _).ShouldBeTrue();
+
+        FailureClassifier.IsInsertRejection(new ClickHouse.Client.ClickHouseServerException("Code: 60. Unknown table", "q", 60), out code).ShouldBeFalse();
+        code.ShouldBe(60);
+        FailureClassifier.IsInsertRejection(new HttpRequestException("connection refused"), out _).ShouldBeFalse();
+        FailureClassifier.IsInsertRejection(new TaskCanceledException("timeout"), out _).ShouldBeFalse();
+        FailureClassifier.IsInsertRejection(new ClickHouse.Client.ClickHouseServerException("Code: 241. Memory limit", "q", 241), out _).ShouldBeFalse();
+    }
+
+    [Fact(DisplayName = "rebuild (N1): coordinator loading/moving and timeouts are retried; other admin errors are not")]
+    public void Transient_admin_errors()
+    {
+        ProjectionRebuilder.IsTransientAdminError(new Confluent.Kafka.KafkaException(new Confluent.Kafka.Error(Confluent.Kafka.ErrorCode.GroupLoadInProgress))).ShouldBeTrue();
+        ProjectionRebuilder.IsTransientAdminError(new Confluent.Kafka.KafkaException(new Confluent.Kafka.Error(Confluent.Kafka.ErrorCode.GroupCoordinatorNotAvailable))).ShouldBeTrue();
+        ProjectionRebuilder.IsTransientAdminError(new Confluent.Kafka.KafkaException(new Confluent.Kafka.Error(Confluent.Kafka.ErrorCode.Local_TimedOut))).ShouldBeTrue();
+        ProjectionRebuilder.IsTransientAdminError(new Confluent.Kafka.KafkaException(new Confluent.Kafka.Error(Confluent.Kafka.ErrorCode.GroupAuthorizationFailed))).ShouldBeFalse();
+        ProjectionRebuilder.IsTransientAdminError(new Confluent.Kafka.KafkaException(new Confluent.Kafka.Error(Confluent.Kafka.ErrorCode.NoError))).ShouldBeFalse();
+    }
+
+    [Fact(DisplayName = "Health port: http://localhost:5301 only when nothing sets the addresses; urls / http_ports / https_ports always win")]
+    public void Default_urls_only_when_unset()
+    {
+        static Microsoft.Extensions.Configuration.IConfiguration Config(params (string Key, string Value)[] values) =>
+            new Microsoft.Extensions.Configuration.ConfigurationBuilder()
+                .AddInMemoryCollection(values.Select(v => new KeyValuePair<string, string?>(v.Key, v.Value)))
+                .Build();
+
+        ProjectionsCli.DefaultUrlsFor(Config()).ShouldBe("http://localhost:5301");
+        ProjectionsCli.DefaultUrlsFor(Config(("urls", "http://+:5301"))).ShouldBeNull();
+        ProjectionsCli.DefaultUrlsFor(Config(("URLS", "http://+:9999"))).ShouldBeNull();
+        ProjectionsCli.DefaultUrlsFor(Config(("http_ports", "8080"))).ShouldBeNull();
+        ProjectionsCli.DefaultUrlsFor(Config(("https_ports", "8443"))).ShouldBeNull();
     }
 
     [Fact(DisplayName = "Catalog: two projections with the same name (same consumer group) are refused")]

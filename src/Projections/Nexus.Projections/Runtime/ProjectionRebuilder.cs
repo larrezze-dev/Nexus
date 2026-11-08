@@ -10,11 +10,16 @@ using Nexus.Projections.Migrations;
 namespace Nexus.Projections.Runtime;
 
 /// <summary>What a successful rebuild did.</summary>
+/// <param name="PoisonRecordsSkipped">
+/// Records that exhausted their attempts during the replay. Not re-published to the DLQ (decision D2: the
+/// worker already dead-lettered them); logged by topic/partition/offset.
+/// </param>
 public sealed record ProjectionRebuildSummary(
     string Projection,
     IReadOnlyDictionary<string, long> RowsPerTopic,
     int Topics,
-    int Partitions)
+    int Partitions,
+    long PoisonRecordsSkipped)
 {
     public long TotalRows => RowsPerTopic.Values.Sum();
 }
@@ -52,15 +57,50 @@ public sealed class ProjectionRebuildException : Exception
 ///   (a regex is expanded in .NET over the cluster metadata, <see cref="ProjectionTopicMatcher"/>; topics
 ///   or partitions with no message count as done).</item>
 ///   <item>Consume them from the beginning by manual assignment (no group membership) through the SAME
-///   <see cref="ProjectionPipeline"/> as the worker (batching, retries, DLQ, transient back-off), pausing each
-///   partition as it reaches its snapshot watermark.</item>
-///   <item>Flush and commit the offsets under the group id, so the worker continues exactly where the
-///   rebuild stopped. A commit failure (e.g. a worker joined meanwhile) fails the rebuild.</item>
+///   <see cref="ProjectionPipeline"/> as the worker (batching, retries, transient back-off) in
+///   <see cref="ProjectionPipelineMode.Rebuild"/>: a poison record is counted and skipped, never re-published
+///   to the DLQ (decision D2). Each partition is paused once its position reaches the snapshot watermark,
+///   or when an end-of-partition event at/after it arrives (transaction control markers can keep the last
+///   offsets unreachable), or when its topic was deleted meanwhile — so the replay always ends.</item>
+///   <item>Every flushed batch commits its offsets under the group id (as the worker does); the last flush
+///   hands over to the worker, which continues exactly where the rebuild stopped. A commit failure (e.g. a
+///   worker joined meanwhile) fails the rebuild.</item>
 /// </list>
-/// Cancellation (Ctrl+C) stops it without committing: run it again.
+/// Transient Kafka admin errors (coordinator loading or moving, timeouts, broker down) are retried a few
+/// times with a short back-off; anything else stops the rebuild with the failed request in the message.
+/// <para>
+/// <b>Cancellation</b> (Ctrl+C) stops it: the batch in flight is neither inserted nor committed, but the
+/// batches already flushed stay inserted AND committed, so table and offsets agree and the worker would
+/// continue from there. Running <c>rebuild</c> again starts over.
+/// </para>
 /// </summary>
 public sealed partial class ProjectionRebuilder
 {
+    private const int AdminAttempts = 5;
+    private static readonly TimeSpan AdminInitialBackoff = TimeSpan.FromMilliseconds(500);
+
+    private static readonly HashSet<ErrorCode> TransientAdminErrors =
+    [
+        ErrorCode.GroupLoadInProgress,
+        ErrorCode.GroupCoordinatorNotAvailable,
+        ErrorCode.NotCoordinatorForGroup,
+        ErrorCode.RequestTimedOut,
+        ErrorCode.LeaderNotAvailable,
+        ErrorCode.NotLeaderForPartition,
+        ErrorCode.NetworkException,
+        ErrorCode.BrokerNotAvailable,
+        ErrorCode.Local_TimedOut,
+        ErrorCode.Local_Transport,
+        ErrorCode.Local_AllBrokersDown,
+    ];
+
+    private static readonly HashSet<ErrorCode> MissingPartitionErrors =
+    [
+        ErrorCode.UnknownTopicOrPart,
+        ErrorCode.Local_UnknownTopic,
+        ErrorCode.Local_UnknownPartition,
+    ];
+
     private readonly ProjectionCatalog _catalog;
     private readonly ProjectionRuntime _runtime;
     private readonly ClickHouseMigrator _migrator;
@@ -98,28 +138,36 @@ public sealed partial class ProjectionRebuilder
         await _migrator.ApplyAsync(ct).ConfigureAwait(false);
 
         using var admin = new AdminClientBuilder(new AdminClientConfig { BootstrapServers = _runtime.Kafka.BootstrapServers }).Build();
-        await EnsureGroupIsIdleAsync(admin, projection, groupId, timeout).ConfigureAwait(false);
-        await DeleteGroupOffsetsAsync(admin, projection, groupId, timeout).ConfigureAwait(false);
+        await AdminAsync("describe consumer group", projection, () => EnsureGroupIsIdleAsync(admin, projection, groupId, timeout), ct).ConfigureAwait(false);
+        await AdminAsync("delete consumer group offsets", projection, () => DeleteGroupOffsetsAsync(admin, projection, groupId, timeout), ct).ConfigureAwait(false);
 
         await TruncateAsync(projection, ct).ConfigureAwait(false);
         LogTruncated(_logger, projection.Name, projection.TableName);
 
-        var (targets, topics) = await SnapshotWatermarksAsync(admin, projection, timeout).ConfigureAwait(false);
+        var (targets, topics) = await AdminAsync("snapshot high watermarks", projection, () => SnapshotWatermarksAsync(admin, projection, timeout), ct).ConfigureAwait(false);
         LogSnapshot(_logger, projection.Name, topics, targets.Count);
 
-        var rowsPerTopic = await ReplayAsync(projection, groupId, targets, ct).ConfigureAwait(false);
-        var summary = new ProjectionRebuildSummary(projection.Name, rowsPerTopic, topics, targets.Count);
+        var (rowsPerTopic, poison) = await ReplayAsync(admin, projection, groupId, targets, ct).ConfigureAwait(false);
+        var summary = new ProjectionRebuildSummary(projection.Name, rowsPerTopic, topics, targets.Count, poison);
         foreach (var (topic, rows) in rowsPerTopic.OrderBy(kv => kv.Key, StringComparer.Ordinal))
         {
             LogTopicSummary(_logger, projection.Name, topic, rows);
         }
 
         var totalRows = summary.TotalRows;
-        LogDone(_logger, projection.Name, totalRows, topics);
+        if (targets.Count == 0)
+        {
+            LogNothingToReplay(_logger, projection.Name, topics);
+        }
+        else
+        {
+            LogDone(_logger, projection.Name, totalRows, topics, poison);
+        }
+
         return summary;
     }
 
-    private static async Task EnsureGroupIsIdleAsync(IAdminClient admin, IProjection projection, string groupId, TimeSpan timeout)
+    private static async Task<bool> EnsureGroupIsIdleAsync(IAdminClient admin, IProjection projection, string groupId, TimeSpan timeout)
     {
         var described = await admin.DescribeConsumerGroupsAsync(
             [groupId], new DescribeConsumerGroupsOptions { RequestTimeout = timeout }).ConfigureAwait(false);
@@ -131,9 +179,11 @@ public sealed partial class ProjectionRebuilder
             throw new ProjectionRebuildException(
                 $"Consumer group {groupId} has {members} active member(s): stop nexus-projections before rebuilding {projection.Name}.");
         }
+
+        return true;
     }
 
-    private static async Task DeleteGroupOffsetsAsync(IAdminClient admin, IProjection projection, string groupId, TimeSpan timeout)
+    private static async Task<bool> DeleteGroupOffsetsAsync(IAdminClient admin, IProjection projection, string groupId, TimeSpan timeout)
     {
         try
         {
@@ -148,6 +198,8 @@ public sealed partial class ProjectionRebuilder
             throw new ProjectionRebuildException(
                 $"Consumer group {groupId} became active: stop nexus-projections before rebuilding {projection.Name}.", ex);
         }
+
+        return true;
     }
 
     private async Task TruncateAsync(IProjection projection, CancellationToken ct)
@@ -185,12 +237,12 @@ public sealed partial class ProjectionRebuilder
         return (targets, matching.Count);
     }
 
-    private async Task<IReadOnlyDictionary<string, long>> ReplayAsync(
-        IProjection projection, string groupId, Dictionary<TopicPartition, long> targets, CancellationToken ct)
+    private async Task<(IReadOnlyDictionary<string, long> Rows, long Poison)> ReplayAsync(
+        IAdminClient admin, IProjection projection, string groupId, Dictionary<TopicPartition, long> targets, CancellationToken ct)
     {
         if (targets.Count == 0)
         {
-            return new Dictionary<string, long>(StringComparer.Ordinal);
+            return (new Dictionary<string, long>(StringComparer.Ordinal), 0);
         }
 
         _runtime.Health.Register(groupId, ProjectionCatalog.SubscriptionLabel(projection));
@@ -198,7 +250,7 @@ public sealed partial class ProjectionRebuilder
         using var consumer = new ConsumerBuilder<string?, byte[]?>(_runtime.CreateConsumerConfig(projection, enablePartitionEof: true)).Build();
         try
         {
-            var pipeline = new ProjectionPipeline(projection, _runtime, consumer, deserializer, commitFailureIsFatal: true);
+            var pipeline = new ProjectionPipeline(projection, _runtime, consumer, deserializer, ProjectionPipelineMode.Rebuild);
             consumer.Assign(targets.Keys.Select(tp => new TopicPartitionOffset(tp, Offset.Beginning)));
             var remaining = targets.Keys.ToHashSet();
             var pollBackoff = TimeSpan.FromSeconds(1);
@@ -215,6 +267,11 @@ public sealed partial class ProjectionRebuilder
                 catch (ConsumeException e) when (!e.Error.IsFatal)
                 {
                     LogPollError(_logger, projection.Name, e.Error.Code, e.Error.Reason);
+                    if (MissingPartitionErrors.Contains(e.Error.Code))
+                    {
+                        CompleteDeletedPartitions(admin, consumer, pipeline, remaining, projection.Name);
+                    }
+
                     await Task.Delay(pollBackoff, _runtime.TimeProvider, ct).ConfigureAwait(false);
                     pollBackoff = ProjectionRuntime.NextBackoff(pollBackoff, TimeSpan.FromSeconds(5));
                     continue;
@@ -227,7 +284,7 @@ public sealed partial class ProjectionRebuilder
 
                 if (result is not null)
                 {
-                    MarkDoneIfReached(consumer, pipeline, targets, remaining, result.TopicPartition);
+                    MarkDoneIfReached(consumer, pipeline, targets, remaining, result);
                 }
 
                 if (pipeline.FlushDue)
@@ -237,12 +294,12 @@ public sealed partial class ProjectionRebuilder
             }
 
             await pipeline.FlushAsync(ct).ConfigureAwait(false);
-            return new Dictionary<string, long>(pipeline.RowsInsertedPerTopic, StringComparer.Ordinal);
+            return (new Dictionary<string, long>(pipeline.RowsInsertedPerTopic, StringComparer.Ordinal), pipeline.PoisonRecordsSkipped);
         }
         catch (KafkaException ex) when (!ct.IsCancellationRequested)
         {
             throw new ProjectionRebuildException(
-                $"Rebuild of {projection.Name} failed on Kafka ({ex.Error.Code}: {ex.Error.Reason}); nothing more was committed. Run it again.", ex);
+                $"Rebuild of {projection.Name} failed on Kafka ({ex.Error.Code}: {ex.Error.Reason}). Batches flushed before the failure stay committed; run rebuild again.", ex);
         }
         finally
         {
@@ -250,27 +307,123 @@ public sealed partial class ProjectionRebuilder
         }
     }
 
-    /// <summary>A partition is done once the consumer's position reached its snapshot watermark; it is then paused for good.</summary>
+    /// <summary>
+    /// A partition is done once the consumer's position reached its snapshot watermark, or an
+    /// end-of-partition event at/after the watermark arrived (control markers of transactional producers
+    /// occupy offsets no record is ever returned for). It is then paused for good.
+    /// </summary>
     private static void MarkDoneIfReached(
         IConsumer<string?, byte[]?> consumer,
         ProjectionPipeline pipeline,
         Dictionary<TopicPartition, long> targets,
         HashSet<TopicPartition> remaining,
-        TopicPartition tp)
+        ConsumeResult<string?, byte[]?> result)
     {
+        var tp = result.TopicPartition;
         if (!remaining.Contains(tp))
         {
             return;
         }
 
         var position = consumer.Position(tp);
-        if (position.Value >= 0 && position.Value >= targets[tp])
+        var reached = (position.Value >= 0 && position.Value >= targets[tp])
+            || (result.IsPartitionEOF && result.Offset.Value >= targets[tp]);
+        if (reached)
         {
-            remaining.Remove(tp);
-            pipeline.HeldPartitions.Add(tp);
-            consumer.Pause([tp]);
+            Complete(consumer, pipeline, remaining, tp);
         }
     }
+
+    /// <summary>A topic (or partition) deleted since the snapshot can never reach its watermark: mark it done.</summary>
+    private void CompleteDeletedPartitions(
+        IAdminClient admin,
+        IConsumer<string?, byte[]?> consumer,
+        ProjectionPipeline pipeline,
+        HashSet<TopicPartition> remaining,
+        string projection)
+    {
+        Metadata metadata;
+        try
+        {
+            metadata = admin.GetMetadata(_runtime.Options.AdminRequestTimeout);
+        }
+        catch (KafkaException)
+        {
+            return; // broker unreachable: the poll error path backs off and tries again
+        }
+
+        var existing = metadata.Topics
+            .Where(t => !t.Error.IsError)
+            .SelectMany(t => t.Partitions.Select(p => new TopicPartition(t.Topic, p.PartitionId)))
+            .ToHashSet();
+        foreach (var tp in remaining.Where(tp => !existing.Contains(tp)).ToList())
+        {
+            LogPartitionGone(_logger, projection, tp.Topic, tp.Partition.Value);
+            Complete(consumer, pipeline, remaining, tp);
+        }
+    }
+
+    private static void Complete(IConsumer<string?, byte[]?> consumer, ProjectionPipeline pipeline, HashSet<TopicPartition> remaining, TopicPartition tp)
+    {
+        remaining.Remove(tp);
+        pipeline.HeldPartitions.Add(tp);
+        consumer.Pause([tp]);
+    }
+
+    /// <summary>
+    /// Runs one admin step, retrying transient Kafka errors (coordinator loading/moving, timeouts, broker
+    /// down) up to <see cref="AdminAttempts"/> times with a doubling back-off from 500 ms. Any other Kafka
+    /// error, or the last transient one, becomes a <see cref="ProjectionRebuildException"/> naming the step.
+    /// </summary>
+    private async Task<T> AdminAsync<T>(string operation, IProjection projection, Func<Task<T>> step, CancellationToken ct)
+    {
+        var backoff = AdminInitialBackoff;
+        for (var attempt = 1; ; attempt++)
+        {
+            try
+            {
+                return await step().ConfigureAwait(false);
+            }
+            catch (KafkaException ex) when (attempt < AdminAttempts && IsTransientAdminError(ex))
+            {
+                LogAdminRetry(_logger, projection.Name, operation, attempt, ErrorSummary(ex), backoff);
+                await Task.Delay(backoff, _runtime.TimeProvider, ct).ConfigureAwait(false);
+                backoff *= 2;
+            }
+            catch (KafkaException ex)
+            {
+                throw new ProjectionRebuildException(
+                    $"Rebuild of {projection.Name}: Kafka admin request '{operation}' failed ({ErrorSummary(ex)}).", ex);
+            }
+        }
+    }
+
+    internal static bool IsTransientAdminError(KafkaException exception)
+    {
+        var codes = ErrorCodes(exception).Where(c => c != ErrorCode.NoError).ToList();
+        return codes.Count > 0 && codes.All(TransientAdminErrors.Contains);
+    }
+
+    private static IEnumerable<ErrorCode> ErrorCodes(KafkaException exception)
+    {
+        yield return exception.Error.Code;
+        var perResult = exception switch
+        {
+            DescribeConsumerGroupsException d => d.Results.ConsumerGroupDescriptions.Select(r => r.Error.Code),
+            DeleteGroupsException d => d.Results.Select(r => r.Error.Code),
+            ListOffsetsException l => l.Result.ResultInfos.Select(r => r.TopicPartitionOffsetError.Error.Code),
+            _ => [],
+        };
+        foreach (var code in perResult)
+        {
+            yield return code;
+        }
+    }
+
+    private static string ErrorSummary(KafkaException exception) =>
+        string.Join(", ", ErrorCodes(exception).Where(c => c != ErrorCode.NoError).Distinct()) is { Length: > 0 } codes
+            ? $"{codes}: {exception.Error.Reason}"
+            : exception.Error.Reason;
 
     private static async Task<Dictionary<TopicPartition, long>> ListOffsetsAsync(
         IAdminClient admin, List<TopicPartition> partitions, OffsetSpec spec, TimeSpan timeout)
@@ -283,7 +436,7 @@ public sealed partial class ProjectionRebuilder
             r => r.TopicPartitionOffsetError.Offset.Value);
     }
 
-    [LoggerMessage(Level = LogLevel.Information, Message = "Rebuild {Projection}: truncated {Table}, consumer group offsets deleted")]
+    [LoggerMessage(Level = LogLevel.Information, Message = "Rebuild {Projection}: consumer group offsets deleted, {Table} truncated")]
     private static partial void LogTruncated(ILogger logger, string projection, string table);
 
     [LoggerMessage(Level = LogLevel.Information, Message = "Rebuild {Projection}: {Topics} matching topic(s), {Partitions} non-empty partition(s) to replay")]
@@ -292,9 +445,21 @@ public sealed partial class ProjectionRebuilder
     [LoggerMessage(Level = LogLevel.Information, Message = "Rebuild {Projection}: {Topic} → {Rows} row(s)")]
     private static partial void LogTopicSummary(ILogger logger, string projection, string topic, long rows);
 
-    [LoggerMessage(Level = LogLevel.Information, Message = "Rebuild {Projection} done: {Rows} row(s) from {Topics} topic(s); offsets committed")]
-    private static partial void LogDone(ILogger logger, string projection, long rows, int topics);
+    [LoggerMessage(Level = LogLevel.Information,
+        Message = "Rebuild {Projection} done: {Rows} row(s) from {Topics} topic(s), {Poison} poison record(s) skipped (not re-published to the DLQ); offsets committed up to the snapshot")]
+    private static partial void LogDone(ILogger logger, string projection, long rows, int topics, long poison);
+
+    [LoggerMessage(Level = LogLevel.Information,
+        Message = "Rebuild {Projection} done: {Topics} matching topic(s) but no message to replay; table empty, no offset committed (the worker starts from the earliest offsets)")]
+    private static partial void LogNothingToReplay(ILogger logger, string projection, int topics);
 
     [LoggerMessage(Level = LogLevel.Warning, Message = "Rebuild {Projection}: poll failed with {ErrorCode} ({Reason}); retrying")]
     private static partial void LogPollError(ILogger logger, string projection, ErrorCode errorCode, string reason);
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "Rebuild {Projection}: {Topic}[{Partition}] no longer exists; counted as done")]
+    private static partial void LogPartitionGone(ILogger logger, string projection, string topic, int partition);
+
+    [LoggerMessage(Level = LogLevel.Warning,
+        Message = "Rebuild {Projection}: Kafka admin request '{Operation}' failed (attempt {Attempt}: {Error}); retrying in {Backoff}")]
+    private static partial void LogAdminRetry(ILogger logger, string projection, string operation, int attempt, string error, TimeSpan backoff);
 }

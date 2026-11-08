@@ -62,11 +62,11 @@ public sealed partial class ProjectionConsumer
                 .SetPartitionsRevokedHandler((_, partitions) => pipeline?.OnPartitionsRevoked(partitions.Select(p => p.TopicPartition)))
                 .SetPartitionsLostHandler((_, partitions) => pipeline?.OnPartitionsRevoked(partitions.Select(p => p.TopicPartition)))
                 .Build();
-            pipeline = new ProjectionPipeline(_projection, _runtime, consumer, deserializer, commitFailureIsFatal: false);
+            pipeline = new ProjectionPipeline(_projection, _runtime, consumer, deserializer, ProjectionPipelineMode.Worker);
             try
             {
                 Subscribe(consumer);
-                _runtime.Health.Report(GroupId, ConsumerLoopState.Running);
+                pipeline.SetLoopState(ConsumerLoopState.Running);
                 await LoopAsync(consumer, pipeline, stoppingToken).ConfigureAwait(false);
             }
             finally
@@ -124,7 +124,7 @@ public sealed partial class ProjectionConsumer
                 lastPollError = time.GetTimestamp();
                 if (!degraded)
                 {
-                    _runtime.Health.Report(GroupId, ConsumerLoopState.Degraded);
+                    pipeline.SetLoopState(ConsumerLoopState.Degraded);
                     degraded = true;
                 }
 
@@ -143,7 +143,7 @@ public sealed partial class ProjectionConsumer
                 && (result is { IsPartitionEOF: false, Message: not null }
                     || (consumer.Assignment.Count > 0 && time.GetElapsedTime(lastPollError) >= DegradedQuietPeriod)))
             {
-                _runtime.Health.Report(GroupId, ConsumerLoopState.Running);
+                pipeline.SetLoopState(ConsumerLoopState.Running);
                 degraded = false;
                 pollBackoff = PollErrorInitialBackoff;
             }

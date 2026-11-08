@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -98,6 +99,11 @@ public static partial class ProjectionsCli
             ContentRootPath = AppContext.BaseDirectory,
         });
         configure?.Invoke(builder.Configuration);
+        if (DefaultUrlsFor(builder.Configuration) is { } urls)
+        {
+            builder.WebHost.UseUrls(urls);
+        }
+
         builder.Services.AddNexusProjectionsRuntime(builder.Configuration);
         registerProjections(builder.Services);
         AddTelemetry(builder.Services, builder.Configuration);
@@ -182,6 +188,24 @@ public static partial class ProjectionsCli
             Console.CancelKeyPress -= OnCancel;
         }
     }
+
+    /// <summary>
+    /// The listening address used when nothing configures one: <see cref="DefaultUrls"/> (loopback, local
+    /// dev). Returns null as soon as any standard source sets the addresses — <c>ASPNETCORE_URLS</c> /
+    /// <c>--urls</c> / <c>Urls</c> in configuration (key <c>urls</c>), or <c>ASPNETCORE_HTTP_PORTS</c> /
+    /// <c>ASPNETCORE_HTTPS_PORTS</c> (keys <c>http_ports</c> / <c>https_ports</c>, set by the .NET container
+    /// images) — so those always win. Deliberately NOT in appsettings.json: an <c>Urls</c> key there
+    /// would override <c>ASPNETCORE_URLS</c> (appsettings is read after the ASPNETCORE_ environment variables).
+    /// </summary>
+    internal static string? DefaultUrlsFor(IConfiguration configuration)
+    {
+        ArgumentNullException.ThrowIfNull(configuration);
+        string[] keys = ["urls", "http_ports", "https_ports"];
+        return keys.Any(k => !string.IsNullOrWhiteSpace(configuration[k])) ? null : DefaultUrls;
+    }
+
+    /// <summary>Default <c>/health</c> address of a local run (port 5301; compose sets <c>ASPNETCORE_URLS=http://+:5301</c>).</summary>
+    internal const string DefaultUrls = "http://localhost:5301";
 
     /// <summary>OTLP traces and metrics, same key as every service (<c>Nexus:Telemetry:OtlpEndpoint</c>, port 4317 locally).</summary>
     private static void AddTelemetry(IServiceCollection services, ConfigurationManager configuration)

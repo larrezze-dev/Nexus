@@ -16,26 +16,38 @@ namespace Nexus.Projections.Runtime;
 ///   → Avro decode as <see cref="GenericRecord"/> against the Schema Registry (a null value = tombstone =
 ///   null payload) → <see cref="IProjection.Map"/>. 4 attempts with back-off (<see cref="RetryPolicy"/>,
 ///   conventions-events.md §7); if all fail, the ORIGINAL record goes to <c>{topic}.DLQ</c> with the
-///   <c>nexus-dlq-*</c> headers (consumer = the group id) and counts as done (zero rows).</item>
+///   <c>nexus-dlq-*</c> headers (consumer = the group id) and counts as done (zero rows). In
+///   <see cref="ProjectionPipelineMode.Rebuild"/> nothing is published (decision D2: the worker already
+///   dead-lettered those records): the record is counted (<see cref="PoisonRecordsSkipped"/>), logged by
+///   topic/partition/offset without payload, and counts as done.</item>
 ///   <item><b>Batching.</b> Rows accumulate until <see cref="ProjectionOptions.MaxBatchRows"/> or
 ///   <see cref="ProjectionOptions.FlushInterval"/> after the batch's first record. A flush is ONE
 ///   ClickHouse insert; only after it succeeds are the offsets committed (highest offset + 1 per
 ///   partition of the flushed records). Every record of the batch — with rows, skipped on purpose, or
 ///   dead-lettered — is covered by that commit.</item>
-///   <item><b>Transient failures</b> (ClickHouse insert, Schema Registry unreachable) are never dead-lettered
-///   and never committed (Luciano's 0.7 decision "transient ≠ FAILED"): the batch is kept, every assigned
-///   partition is paused, the health registry reports <see cref="ConsumerLoopState.DependencyUnavailable"/>
-///   (Unhealthy) and the operation is retried with exponential back-off (<see cref="ProjectionOptions.TransientInitialBackoff"/>
+///   <item><b>Infrastructure failures</b> (ClickHouse insert; Schema Registry unreachable, 5xx, 408, 429, or
+///   refusing our credentials 401/403/407, decision D3) are never dead-lettered and never committed
+///   (Luciano's 0.7 decision "transient ≠ FAILED"): the batch is kept, every assigned partition is
+///   paused, the health registry reports <see cref="ConsumerLoopState.DependencyUnavailable"/> (Unhealthy)
+///   and the operation is retried with exponential back-off (<see cref="ProjectionOptions.TransientInitialBackoff"/>
 ///   up to <see cref="ProjectionOptions.TransientMaxBackoff"/>) while the paused consumer keeps being
-///   polled (group membership, rebalances). When it works again, the partitions resume.</item>
+///   polled (group membership, rebalances). When it works again, the partitions resume and the loop's
+///   own state (Running, or Degraded if its polls still fail) is restored.</item>
+///   <item><b>Insert rejected</b> (decision D1): ClickHouse refusing the batch itself (type, parse or value
+///   errors, server-side or in the client's RowBinary serialization) is a bug of the projection, not of a
+///   record. It is handled exactly like an outage — blocked, never committed, never dead-lettered, no data
+///   lost, back-off capped — but counted as <c>nexus_projection_errors_total{kind=insert_rejected}</c>
+///   (vs <c>insert_unavailable</c>) and logged as "projection &lt;name&gt; blocked: ClickHouse rejected the
+///   batch, fix the projection and rebuild", without row values.</item>
 ///   <item><b>DLQ unavailable</b>: same pause/back-off/keep-alive, reported as <see cref="ConsumerLoopState.DlqUnavailable"/>,
 ///   as <see cref="NexusConsumer{TEvent}"/> does; the record is never skipped.</item>
 ///   <item><b>Rebalance.</b> When partitions are revoked or lost, the buffered records of those partitions
 ///   are DROPPED without commit (<see cref="OnPartitionsRevoked"/>): their position goes back to the last
 ///   committed offset, so whoever owns them next re-reads them (at-least-once; re-inserted rows collapse
 ///   in the <c>ReplacingMergeTree</c>). A record whose partition was revoked while the pipeline waited on
-///   a transient failure or on the DLQ is abandoned for the same reason. No offset whose row is not
-///   inserted is ever committed.</item>
+///   a transient failure or on the DLQ is abandoned for the same reason (its partitions resume, but the
+///   outage state stays reported until a later operation on that dependency succeeds). No offset whose row
+///   is not inserted is ever committed.</item>
 ///   <item><b>Cancellation</b> never flushes, commits nor dead-letters: the buffer is lost and redelivered.</item>
 /// </list>
 /// Not thread-safe: it lives on its consumer's loop, and the rebalance callbacks run inside
@@ -51,7 +63,7 @@ internal sealed partial class ProjectionPipeline
     private readonly Confluent.Kafka.IAsyncDeserializer<GenericRecord> _deserializer;
     private readonly RetryPolicy _retry;
     private readonly ILogger _logger;
-    private readonly bool _commitFailureIsFatal;
+    private readonly ProjectionPipelineMode _mode;
     private readonly List<BufferedRecord> _buffer = [];
     private readonly Dictionary<TopicPartition, long> _generations = [];
     private readonly Dictionary<string, long> _rowsPerTopic = new(StringComparer.Ordinal);
@@ -60,17 +72,22 @@ internal sealed partial class ProjectionPipeline
     private long _batchStartedAt;
     private DateTime _batchIngestedAt;
     private bool _paused;
+    private ConsumerLoopState _loopState = ConsumerLoopState.Running;
+    private Outage? _outage;
+    private long _poisonSkipped;
 
-    /// <param name="commitFailureIsFatal">
-    /// Worker: false (a failed commit after a successful insert only means a redelivery, as in
-    /// <see cref="NexusConsumer{TEvent}"/>). Rebuild: true (its commit is the hand-over to the worker).
+    /// <param name="mode">
+    /// <see cref="ProjectionPipelineMode.Worker"/>: poison records go to the DLQ; a failed commit after a
+    /// successful insert only means a redelivery (as in <see cref="NexusConsumer{TEvent}"/>).
+    /// <see cref="ProjectionPipelineMode.Rebuild"/>: poison records are counted, never published; a failed
+    /// commit is fatal (its commit is the hand-over to the worker).
     /// </param>
     public ProjectionPipeline(
         IProjection projection,
         ProjectionRuntime runtime,
         IConsumer<string?, byte[]?> consumer,
         Confluent.Kafka.IAsyncDeserializer<GenericRecord> deserializer,
-        bool commitFailureIsFatal)
+        ProjectionPipelineMode mode)
     {
         ArgumentNullException.ThrowIfNull(projection);
         ArgumentNullException.ThrowIfNull(runtime);
@@ -80,7 +97,7 @@ internal sealed partial class ProjectionPipeline
         _runtime = runtime;
         _consumer = consumer;
         _deserializer = deserializer;
-        _commitFailureIsFatal = commitFailureIsFatal;
+        _mode = mode;
         _retry = new RetryPolicy(runtime.RetryOptions, runtime.TimeProvider);
         _logger = runtime.LoggerFactory.CreateLogger<ProjectionPipeline>();
         GroupId = ProjectionCatalog.GroupId(projection);
@@ -91,6 +108,23 @@ internal sealed partial class ProjectionPipeline
     public int BufferedRecords => _buffer.Count;
 
     public int BufferedRows => _bufferedRows;
+
+    /// <summary>Records that exhausted their attempts in <see cref="ProjectionPipelineMode.Rebuild"/> (not re-published to the DLQ).</summary>
+    public long PoisonRecordsSkipped => _poisonSkipped;
+
+    /// <summary>
+    /// The consumer loop's own state (<see cref="ConsumerLoopState.Running"/> or <see cref="ConsumerLoopState.Degraded"/>
+    /// for poll errors). Reported at once unless a dependency outage is being reported, which takes
+    /// precedence; restored when the outage ends.
+    /// </summary>
+    public void SetLoopState(ConsumerLoopState state)
+    {
+        _loopState = state;
+        if (_outage is null)
+        {
+            _runtime.Health.Report(GroupId, state);
+        }
+    }
 
     /// <summary>Rows inserted so far, per topic (the rebuild summary).</summary>
     public IReadOnlyDictionary<string, long> RowsInsertedPerTopic => _rowsPerTopic;
@@ -179,7 +213,7 @@ internal sealed partial class ProjectionPipeline
             {
                 _runtime.Metrics.Error(_projection.Name, ProjectionMetrics.ErrorKindSchemaRegistry);
                 LogSchemaRegistryUnavailable(_logger, transient, GroupId, result.Topic, result.Partition.Value, result.Offset.Value, backoff);
-                await EnterOutageAndWaitAsync(ConsumerLoopState.DependencyUnavailable, transient, backoff, ct).ConfigureAwait(false);
+                await EnterOutageAndWaitAsync(Outage.SchemaRegistry, transient, backoff, ct).ConfigureAwait(false);
                 backoff = ProjectionRuntime.NextBackoff(backoff, _runtime.Options.TransientMaxBackoff);
                 if (Generation(tp) != generation)
                 {
@@ -192,19 +226,27 @@ internal sealed partial class ProjectionPipeline
 
             if (outcome.Failure is { } failure)
             {
-                if (!await DeadLetterAsync(result, failure, generation, ct).ConfigureAwait(false))
+                if (_mode == ProjectionPipelineMode.Rebuild)
                 {
+                    // D2: the worker already dead-lettered it; a rebuild never publishes a second copy.
+                    _poisonSkipped++;
+                    LogPoisonSkipped(_logger, GroupId, result.Topic, result.Partition.Value, result.Offset.Value, failure.GetType().Name);
+                }
+                else if (!await DeadLetterAsync(result, failure, generation, ct).ConfigureAwait(false))
+                {
+                    // The publish DID succeed (the DLQ is back); only the record's partition moved.
                     Abandon(result);
+                    Recovered(Outage.Dlq);
                     return;
                 }
 
                 Buffer(result, null, []);
-                ExitOutage();
+                Recovered(Outage.Dlq); // the DLQ answered; a poison record proves nothing about the registry
                 return;
             }
 
             Buffer(result, outcome.Envelope, outcome.Rows);
-            ExitOutage();
+            Recovered(Outage.SchemaRegistry);
             return;
         }
     }
@@ -238,16 +280,34 @@ internal sealed partial class ProjectionPipeline
             }
             catch (Exception ex) when (!ct.IsCancellationRequested)
             {
-                _runtime.Metrics.Error(_projection.Name, ProjectionMetrics.ErrorKindInsert);
-                LogInsertFailed(_logger, ex, GroupId, rows.Count, _projection.TableName, backoff);
-                await EnterOutageAndWaitAsync(ConsumerLoopState.DependencyUnavailable, ex, backoff, ct).ConfigureAwait(false);
+                Exception reported;
+                if (FailureClassifier.IsInsertRejection(ex, out var code))
+                {
+                    // D1: the projection produced rows the table refuses. Blocked like an outage (never
+                    // committed, never dead-lettered), but logged as a bug, WITHOUT the exception message:
+                    // ClickHouse parse/type errors quote the offending values.
+                    _runtime.Metrics.Error(_projection.Name, ProjectionMetrics.ErrorKindInsertRejected);
+                    LogInsertRejected(_logger, _projection.Name, rows.Count, _projection.TableName, ex.GetType().Name, code, backoff);
+                    reported = new InvalidOperationException(
+                        $"ClickHouse rejected the batch of projection {_projection.Name} ({ex.GetType().Name}, code {code}); fix the projection and rebuild.");
+                }
+                else
+                {
+                    _runtime.Metrics.Error(_projection.Name, ProjectionMetrics.ErrorKindInsertUnavailable);
+                    LogInsertFailed(_logger, ex, GroupId, rows.Count, _projection.TableName, backoff);
+                    reported = ex;
+                }
+
+                await EnterOutageAndWaitAsync(Outage.Sink, reported, backoff, ct).ConfigureAwait(false);
                 backoff = ProjectionRuntime.NextBackoff(backoff, _runtime.Options.TransientMaxBackoff);
             }
         }
 
         if (_buffer.Count == 0)
         {
-            ExitOutage();
+            // A rebalance dropped the whole batch during the wait: nothing was inserted, so the
+            // dependency is not known to be back. Resume, keep the outage state reported.
+            ResumePartitions();
             return;
         }
 
@@ -284,7 +344,7 @@ internal sealed partial class ProjectionPipeline
         _bufferedRows = 0;
         Commit(offsets);
         LogFlushed(_logger, GroupId, inserted, records, offsets.Count);
-        ExitOutage();
+        Recovered(Outage.Sink);
     }
 
     /// <summary>
@@ -409,7 +469,7 @@ internal sealed partial class ProjectionPipeline
             {
                 _runtime.Metrics.Error(_projection.Name, ProjectionMetrics.ErrorKindDlq);
                 LogDlqPublishFailed(_logger, ex, GroupId, result.Topic, result.Partition.Value, result.Offset.Value, attempt, backoff);
-                await EnterOutageAndWaitAsync(ConsumerLoopState.DlqUnavailable, ex, backoff, ct).ConfigureAwait(false);
+                await EnterOutageAndWaitAsync(Outage.Dlq, ex, backoff, ct).ConfigureAwait(false);
                 backoff = ProjectionRuntime.NextBackoff(backoff, _runtime.RetryOptions.DlqPublishMaxBackoff);
             }
         }
@@ -419,9 +479,10 @@ internal sealed partial class ProjectionPipeline
         return Generation(result.TopicPartition) == generation;
     }
 
-    private async Task EnterOutageAndWaitAsync(ConsumerLoopState state, Exception error, TimeSpan delay, CancellationToken ct)
+    private async Task EnterOutageAndWaitAsync(Outage outage, Exception error, TimeSpan delay, CancellationToken ct)
     {
-        _runtime.Health.Report(GroupId, state, error);
+        _outage = outage;
+        _runtime.Health.Report(GroupId, outage == Outage.Dlq ? ConsumerLoopState.DlqUnavailable : ConsumerLoopState.DependencyUnavailable, error);
         if (!_paused)
         {
             _consumer.Pause(_consumer.Assignment);
@@ -431,7 +492,25 @@ internal sealed partial class ProjectionPipeline
         await WaitKeepingConsumerAliveAsync(delay, ct).ConfigureAwait(false);
     }
 
-    private void ExitOutage()
+    /// <summary>
+    /// An operation just succeeded on <paramref name="proven"/>: resume the partitions and, if the outage
+    /// being reported is one of those dependencies, restore the loop's own state. A success on ANOTHER
+    /// dependency (e.g. a record decoded while ClickHouse is still down) resumes but keeps the outage.
+    /// </summary>
+    private void Recovered(params ReadOnlySpan<Outage> proven)
+    {
+        ResumePartitions();
+        if (_outage is not { } current || !proven.Contains(current))
+        {
+            return;
+        }
+
+        _outage = null;
+        _runtime.Health.Report(GroupId, _loopState);
+        LogResumed(_logger, GroupId);
+    }
+
+    private void ResumePartitions()
     {
         if (!_paused)
         {
@@ -442,14 +521,17 @@ internal sealed partial class ProjectionPipeline
         var resumable = _consumer.Assignment.Where(tp => !_held.Contains(tp)).ToList();
         _consumer.Resume(resumable);
         _paused = false;
-        _runtime.Health.Report(GroupId, ConsumerLoopState.Running);
-        LogResumed(_logger, GroupId);
     }
 
+    /// <summary>
+    /// The record's partition was revoked during the wait. Its partitions resume (the loop must keep
+    /// serving the rest of its assignment), but nothing proved the dependency is back: the outage state
+    /// stays reported until an operation on it succeeds.
+    /// </summary>
     private void Abandon(ConsumeResult<string?, byte[]?> result)
     {
         LogAbandoned(_logger, GroupId, result.Topic, result.Partition.Value, result.Offset.Value);
-        ExitOutage();
+        ResumePartitions();
     }
 
     private void Commit(List<TopicPartitionOffset> offsets)
@@ -461,7 +543,7 @@ internal sealed partial class ProjectionPipeline
         catch (KafkaException ex)
         {
             _runtime.Metrics.Error(_projection.Name, ProjectionMetrics.ErrorKindCommit);
-            if (_commitFailureIsFatal)
+            if (_mode == ProjectionPipelineMode.Rebuild)
             {
                 throw;
             }
@@ -520,6 +602,14 @@ internal sealed partial class ProjectionPipeline
         Message = "Projection {GroupId}: insert of {Rows} row(s) into {Table} failed; nothing committed, consumption paused, retrying in {Backoff}")]
     private static partial void LogInsertFailed(ILogger logger, Exception ex, string groupId, int rows, string table, TimeSpan backoff);
 
+    [LoggerMessage(Level = LogLevel.Error,
+        Message = "Projection {Projection} blocked: ClickHouse rejected the batch of {Rows} row(s) for {Table} ({ExceptionType}, code {Code}); fix the projection and rebuild. Nothing committed; retrying in {Backoff}")]
+    private static partial void LogInsertRejected(ILogger logger, string projection, int rows, string table, string exceptionType, int code, TimeSpan backoff);
+
+    [LoggerMessage(Level = LogLevel.Warning,
+        Message = "Rebuild {GroupId}: {Topic}[{Partition}]@{Offset} exhausted its retries ({ExceptionType}); skipped, not re-published to the DLQ")]
+    private static partial void LogPoisonSkipped(ILogger logger, string groupId, string topic, int partition, long offset, string exceptionType);
+
     [LoggerMessage(Level = LogLevel.Information, Message = "Projection {GroupId}: dependency reachable again, consumption resumed")]
     private static partial void LogResumed(ILogger logger, string groupId);
 
@@ -544,4 +634,27 @@ internal sealed partial class ProjectionPipeline
 
     [LoggerMessage(Level = LogLevel.Warning, Message = "Projection {GroupId}: poll failed with {ErrorCode} ({Reason}); retrying")]
     private static partial void LogPollError(ILogger logger, string groupId, ErrorCode errorCode, string reason);
+}
+
+/// <summary>The dependency whose outage a <see cref="ProjectionPipeline"/> is reporting.</summary>
+internal enum Outage
+{
+    /// <summary>Schema Registry (decode): <see cref="ConsumerLoopState.DependencyUnavailable"/>.</summary>
+    SchemaRegistry,
+
+    /// <summary>ClickHouse insert (unavailable or rejecting): <see cref="ConsumerLoopState.DependencyUnavailable"/>.</summary>
+    Sink,
+
+    /// <summary>DLQ publish: <see cref="ConsumerLoopState.DlqUnavailable"/>.</summary>
+    Dlq,
+}
+
+/// <summary>How a <see cref="ProjectionPipeline"/> treats poison records and commit failures.</summary>
+internal enum ProjectionPipelineMode
+{
+    /// <summary>The long-running worker: poison → DLQ; a failed commit is logged (redelivery is harmless).</summary>
+    Worker,
+
+    /// <summary><c>rebuild</c>: poison → counted and skipped, never re-published (D2); a failed commit is fatal.</summary>
+    Rebuild,
 }

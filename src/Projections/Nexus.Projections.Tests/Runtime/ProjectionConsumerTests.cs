@@ -1,6 +1,8 @@
 using System.Diagnostics;
+using System.Net;
 using System.Text;
 using Confluent.Kafka;
+using Confluent.SchemaRegistry;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Nexus.BuildingBlocks.Messaging;
@@ -135,7 +137,7 @@ public sealed class ProjectionConsumerTests(RuntimeEnvironment env)
         report.Status.ShouldBe(HealthStatus.Unhealthy);
         report.Entries["kafka-consumers"].Data[$"{p.GroupId}.lag"].ShouldBe(3L, "the lag probe expands the subscription");
         await Task.Delay(1500, Ct); // a few more failed attempts
-        h.Sum(ProjectionMetrics.ErrorsTotalName, p.Name, ProjectionMetrics.ErrorKindInsert).ShouldBeGreaterThanOrEqualTo(2);
+        h.Sum(ProjectionMetrics.ErrorsTotalName, p.Name, ProjectionMetrics.ErrorKindInsertUnavailable).ShouldBeGreaterThanOrEqualTo(2);
         (await env.Kafka.CommittedAsync(p.GroupId, topic)).ShouldBeNull();
         env.Kafka.ReadAll(DlqHeaders.TopicFor(topic), 1, TimeSpan.FromSeconds(1)).ShouldBeEmpty();
         h.Sum(ProjectionMetrics.DlqTotalName, p.Name).ShouldBe(0);
@@ -259,6 +261,10 @@ public sealed class ProjectionConsumerTests(RuntimeEnvironment env)
             await using var fast = RuntimeHarness.Create(env, [p]);
             fast.Start(p); // joins the group: rebalance, the slow member's buffer is dropped
             await Task.Delay(3000, Ct);
+            await slow.StopAllAsync(); // the slow member leaves (Close: revocation, nothing committed)
+            // Per-harness metric (not a raw row count, which background merges can shrink): the slow
+            // consumer never inserted anything.
+            slow.Sum(ProjectionMetrics.RowsTotalName, p.Name).ShouldBe(0);
         }
 
         // The slow member left (Close) without committing. Whoever owns the partition re-reads it.
@@ -266,8 +272,158 @@ public sealed class ProjectionConsumerTests(RuntimeEnvironment env)
         last.Start(p);
         (await Eventually.Until(async () => await env.Kafka.CommittedAsync(p.GroupId, topic) == 3, Wait)).ShouldBeTrue();
         (await Count(p)).ShouldBe(3);
-        (await RawCount(p)).ShouldBe(3, "the slow consumer never inserted (nor committed) its dropped buffer");
         p.MapCalls.ShouldBeGreaterThanOrEqualTo(6, "the dropped records were re-read by the partition's next owner");
+    }
+
+    [Fact(DisplayName = "Projection critical path: ClickHouse down while a second member joins → partitions revoked during the wait; after recovery N rows, N committed, no gap, no duplicate")]
+    public async Task Outage_with_rebalance_during_wait_loses_nothing()
+    {
+        const int perPartition = 5;
+        var name = TestProjection.UniqueName("outrebal");
+        var topic = $"test.{name}";
+        var p = new TestProjection(name, ProjectionSubscription.ForTopics(topic));
+        await env.Kafka.CreateTopicsAsync(2, topic, DlqHeaders.TopicFor(topic)); // table NOT created: inserts fail
+        var expected = new List<Guid>();
+        for (var partition = 0; partition < 2; partition++)
+        {
+            for (var i = 0; i < perPartition; i++)
+            {
+                var envelope = TestEvents.Envelope(Guid.CreateVersion7());
+                expected.Add(envelope.EventId);
+                var bytes = await env.Kafka.SerializeAsync(topic, TestEvents.Payload($"p{partition}-{i}"));
+                await env.Kafka.ProduceRawAsync(new TopicPartition(topic, partition), envelope.AggregateId.ToString(), bytes, TestEvents.Headers(envelope));
+            }
+        }
+
+        await using var first = RuntimeHarness.Create(env, [p]);
+        first.Start(p);
+        (await Eventually.Until(() => first.State(p.GroupId) == ConsumerLoopState.DependencyUnavailable, Wait)).ShouldBeTrue("first member blocked on the insert");
+        (await Eventually.Until(() => p.MapCalls == 2 * perPartition, Wait)).ShouldBeTrue("first member buffered both partitions");
+
+        // A second member joins WHILE the first one waits (paused, polling to stay in the group): the
+        // rebalance revokes its partitions inside that keep-alive poll and drops its buffer.
+        await using var second = RuntimeHarness.Create(env, [p]);
+        second.Start(p);
+        (await Eventually.Until(() => p.MapCalls > 2 * perPartition, Wait)).ShouldBeTrue("revoked records are re-read by their new owner");
+        (await env.Kafka.CommittedAsync(p.GroupId, topic, 2)).ShouldBe([-1L, -1L], "nothing committed during the outage");
+
+        await env.ClickHouse.ExecuteAsync(p.CreateTableSql); // ClickHouse back
+
+        (await Eventually.Until(async () => (await env.Kafka.CommittedAsync(p.GroupId, topic, 2)).SequenceEqual([perPartition, perPartition]), Wait))
+            .ShouldBeTrue("every partition committed to its end");
+        var ids = await env.ClickHouse.RowsAsync($"SELECT _event_id FROM {p.TableName} FINAL");
+        ids.Count.ShouldBe(2 * perPartition, "no gap and no duplicate beyond the ReplacingMergeTree collapse");
+        ids.Order(StringComparer.Ordinal).ShouldBe(expected.Select(g => g.ToString()).Order(StringComparer.Ordinal));
+        env.Kafka.ReadAll(DlqHeaders.TopicFor(topic), 1, TimeSpan.FromSeconds(1)).ShouldBeEmpty();
+        (await Eventually.Until(() => first.State(p.GroupId) is ConsumerLoopState.Running or ConsumerLoopState.Stopped
+            && second.State(p.GroupId) == ConsumerLoopState.Running, Wait)).ShouldBeTrue("states restored after recovery");
+    }
+
+    [Fact(DisplayName = "Projection DLQ unavailable: DLQ publish failing → paused, Unhealthy, no commit; once the DLQ answers the record is dead-lettered and committed")]
+    public async Task Dlq_unavailable_pauses_then_recovers()
+    {
+        var name = TestProjection.UniqueName("dlqdown");
+        var topic = $"test.{name}";
+        var p = new TestProjection(name, ProjectionSubscription.ForTopics(topic));
+        await env.Kafka.CreateTopicsAsync(topic); // {topic}.DLQ does NOT exist: the publish times out
+        await env.ClickHouse.ExecuteAsync(p.CreateTableSql);
+        await TestEvents.ProduceAsync(env.Kafka, topic, "explode");
+        await TestEvents.ProduceAsync(env.Kafka, topic, "after");
+
+        await using var h = RuntimeHarness.Create(env, [p], c => c[$"{Nexus.BuildingBlocks.Messaging.NexusKafkaOptions.SectionName}:DlqMessageTimeout"] = "00:00:02");
+        h.Start(p);
+
+        (await Eventually.Until(() => h.State(p.GroupId) == ConsumerLoopState.DlqUnavailable, Wait)).ShouldBeTrue();
+        (await h.Services.GetRequiredService<HealthCheckService>().CheckHealthAsync(Ct)).Status.ShouldBe(HealthStatus.Unhealthy);
+        (await env.Kafka.CommittedAsync(p.GroupId, topic)).ShouldBeNull();
+        (await Count(p)).ShouldBe(0, "the next record waits: the poison one is never skipped");
+
+        await env.Kafka.CreateTopicsAsync(DlqHeaders.TopicFor(topic)); // the DLQ comes back
+
+        (await Eventually.Until(async () => await env.Kafka.CommittedAsync(p.GroupId, topic) == 2, Wait)).ShouldBeTrue();
+        env.Kafka.ReadAll(DlqHeaders.TopicFor(topic), 1, Wait).Count.ShouldBe(1);
+        (await env.ClickHouse.RowsAsync($"SELECT name FROM {p.TableName} FINAL")).ShouldBe(["after"]);
+        h.State(p.GroupId).ShouldBe(ConsumerLoopState.Running);
+        h.Sum(ProjectionMetrics.ErrorsTotalName, p.Name, ProjectionMetrics.ErrorKindDlq).ShouldBeGreaterThanOrEqualTo(1);
+    }
+
+    [Fact(DisplayName = "Projection insert rejected (D1): a batch ClickHouse refuses blocks the projection — no commit, no DLQ, kind=insert_rejected, no row values in the reported error")]
+    public async Task Insert_rejected_blocks_without_dlq()
+    {
+        var (p, topic) = await SetupAsync("rejected");
+        await TestEvents.ProduceAsync(env.Kafka, topic, "bad-type");
+
+        await using var h = RuntimeHarness.Create(env, [p]);
+        h.Start(p);
+
+        (await Eventually.Until(() => h.Sum(ProjectionMetrics.ErrorsTotalName, p.Name, ProjectionMetrics.ErrorKindInsertRejected) >= 2, Wait))
+            .ShouldBeTrue("the rejected insert is retried (capped back-off) and counted as insert_rejected");
+        h.Sum(ProjectionMetrics.ErrorsTotalName, p.Name, ProjectionMetrics.ErrorKindInsertUnavailable).ShouldBe(0);
+        h.State(p.GroupId).ShouldBe(ConsumerLoopState.DependencyUnavailable);
+        h.Error(p.GroupId)!.ShouldContain("rejected the batch");
+        h.Error(p.GroupId)!.ShouldNotContain("not-a-number");
+        (await env.Kafka.CommittedAsync(p.GroupId, topic)).ShouldBeNull();
+        (await RawCount(p)).ShouldBe(0);
+        env.Kafka.ReadAll(DlqHeaders.TopicFor(topic), 1, TimeSpan.FromSeconds(1)).ShouldBeEmpty();
+        h.Sum(ProjectionMetrics.DlqTotalName, p.Name).ShouldBe(0);
+    }
+
+    [Theory(DisplayName = "Projection D3: Schema Registry refusing our credentials (401/403/407) is infrastructure — paused, Unhealthy, never DLQ; projected once it accepts")]
+    [InlineData(HttpStatusCode.Unauthorized)]
+    [InlineData(HttpStatusCode.Forbidden)]
+    [InlineData(HttpStatusCode.ProxyAuthenticationRequired)]
+    public async Task Schema_registry_auth_refusal_is_infrastructure(HttpStatusCode status)
+    {
+        var (p, topic) = await SetupAsync("srauth");
+        await TestEvents.ProduceAsync(env.Kafka, topic, "after-auth");
+        SwitchableSchemaRegistry? control = null;
+
+        await using var h = RuntimeHarness.Create(env, [p], overrides: services => services.AddSingleton<ISchemaRegistryClient>(_ =>
+        {
+            var (client, sw) = SwitchableSchemaRegistry.Create(new CachedSchemaRegistryClient(new SchemaRegistryConfig { Url = env.Kafka.SchemaRegistryUrl }));
+            sw.FailWith = status;
+            control = sw;
+            return client;
+        }));
+        h.Start(p);
+
+        (await Eventually.Until(() => h.State(p.GroupId) == ConsumerLoopState.DependencyUnavailable, Wait)).ShouldBeTrue();
+        h.Sum(ProjectionMetrics.ErrorsTotalName, p.Name, ProjectionMetrics.ErrorKindSchemaRegistry).ShouldBeGreaterThanOrEqualTo(1);
+        h.Sum(ProjectionMetrics.ErrorsTotalName, p.Name, ProjectionMetrics.ErrorKindRecord).ShouldBe(0);
+        (await env.Kafka.CommittedAsync(p.GroupId, topic)).ShouldBeNull();
+
+        control!.FailWith = null; // credentials accepted again
+
+        (await Eventually.Until(async () => await env.Kafka.CommittedAsync(p.GroupId, topic) == 1, Wait)).ShouldBeTrue();
+        (await Count(p)).ShouldBe(1);
+        h.Sum(ProjectionMetrics.DlqTotalName, p.Name).ShouldBe(0);
+        env.Kafka.ReadAll(DlqHeaders.TopicFor(topic), 1, TimeSpan.FromSeconds(1)).ShouldBeEmpty();
+        h.State(p.GroupId).ShouldBe(ConsumerLoopState.Running);
+    }
+
+    [Fact(DisplayName = "rebuild (D2): poison records are counted and skipped, never re-published to the DLQ; exit 0 with the same rows")]
+    public async Task Rebuild_skips_poison_without_dlq()
+    {
+        var (p, topic) = await SetupAsync("rbpoison");
+        await TestEvents.ProduceAsync(env.Kafka, topic, "explode");
+        await TestEvents.ProduceAsync(env.Kafka, topic, "kept");
+        await using (var worker = RuntimeHarness.Create(env, [p]))
+        {
+            worker.Start(p);
+            (await Eventually.Until(async () => await env.Kafka.CommittedAsync(p.GroupId, topic) == 2, Wait)).ShouldBeTrue();
+        }
+
+        env.Kafka.ReadAll(DlqHeaders.TopicFor(topic), 2, TimeSpan.FromSeconds(3)).Count.ShouldBe(1, "the worker dead-lettered it once");
+
+        await using var rebuild = RuntimeHarness.Create(env, [p]);
+        var summary = await rebuild.Rebuilder.RunAsync(p.Name, Ct);
+
+        summary.PoisonRecordsSkipped.ShouldBe(1);
+        summary.TotalRows.ShouldBe(1);
+        env.Kafka.ReadAll(DlqHeaders.TopicFor(topic), 2, TimeSpan.FromSeconds(3)).Count.ShouldBe(1, "rebuild never re-publishes to the DLQ");
+        rebuild.Sum(ProjectionMetrics.DlqTotalName, p.Name).ShouldBe(0);
+        (await env.ClickHouse.RowsAsync($"SELECT name FROM {p.TableName} FINAL")).ShouldBe(["kept"]);
+        (await env.Kafka.CommittedAsync(p.GroupId, topic)).ShouldBe(2);
     }
 
     private async Task<(TestProjection Projection, string Topic)> SetupAsync(string prefix, bool createTable = true)

@@ -97,12 +97,15 @@ public sealed class KafkaFixture : IAsyncLifetime
         new AdminClientBuilder(new AdminClientConfig { BootstrapServers = BootstrapServers }).Build();
 
     /// <summary>Creates topics (the broker never auto-creates).</summary>
-    public async Task CreateTopicsAsync(params string[] topics)
+    public Task CreateTopicsAsync(params string[] topics) => CreateTopicsAsync(1, topics);
+
+    /// <summary>Creates topics with <paramref name="partitions"/> partitions each.</summary>
+    public async Task CreateTopicsAsync(int partitions, params string[] topics)
     {
         using var admin = CreateAdmin();
         try
         {
-            await admin.CreateTopicsAsync(topics.Select(t => new TopicSpecification { Name = t, NumPartitions = 1, ReplicationFactor = 1 }));
+            await admin.CreateTopicsAsync(topics.Select(t => new TopicSpecification { Name = t, NumPartitions = partitions, ReplicationFactor = 1 }));
         }
         catch (CreateTopicsException ex) when (ex.Results.All(r => r.Error.Code is ErrorCode.TopicAlreadyExists or ErrorCode.NoError))
         {
@@ -148,6 +151,19 @@ public sealed class KafkaFixture : IAsyncLifetime
         Add(EventHeaderNames.LegalEntityId, envelope.LegalEntityId?.ToString());
         return headers;
     }
+
+    /// <summary>Committed offsets of <paramref name="groupId"/> on partitions 0..<paramref name="partitions"/>-1 (-1 = none).</summary>
+    public async Task<long[]> CommittedAsync(string groupId, string topic, int partitions)
+    {
+        using var admin = CreateAdmin();
+        var result = await admin.ListConsumerGroupOffsetsAsync(
+            [new ConsumerGroupTopicPartitions(groupId, Enumerable.Range(0, partitions).Select(p => new TopicPartition(topic, p)).ToList())]);
+        return result.SelectMany(r => r.Partitions).OrderBy(p => p.Partition.Value).Select(p => p.Offset.Value >= 0 ? p.Offset.Value : -1).ToArray();
+    }
+
+    /// <summary>Produces raw bytes to an explicit partition.</summary>
+    public async Task ProduceRawAsync(TopicPartition partition, string? key, byte[]? value, Headers headers) =>
+        await _producer.ProduceAsync(partition, new Message<string?, byte[]?> { Key = key, Value = value, Headers = headers });
 
     /// <summary>Committed offset of <paramref name="groupId"/> on partition 0 of <paramref name="topic"/>, or null when none.</summary>
     public async Task<long?> CommittedAsync(string groupId, string topic)
