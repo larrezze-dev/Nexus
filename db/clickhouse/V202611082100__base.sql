@@ -17,6 +17,15 @@
 -- so a re-run resumes cleanly. On a fresh database it behaves exactly like
 -- the plain CREATE statements.
 --
+-- Concurrent starts: two replicas of nexus-projections, or the service and a
+-- `rebuild` run, may apply the same pending version at the same time. The
+-- statements are re-runnable, so both succeed and both record the version.
+-- _schema_migrations is therefore ReplacingMergeTree(applied_at) ORDER BY
+-- version: duplicate rows for one version collapse to one, and the history
+-- is always read with FINAL. This table is an exception to the
+-- legal_entity_id / _aggregate_version columns of §8: it is platform
+-- metadata, not a projection.
+--
 -- Statement splitting: the file contains no semicolon other than the
 -- statement terminators (none in comments or literals), so an applier that
 -- splits on the terminator is safe.
@@ -68,7 +77,7 @@ CREATE TABLE IF NOT EXISTS nexus_analytics._schema_migrations (
   description String,
   checksum    String,
   applied_at  DateTime64(3, 'UTC')
-) ENGINE = MergeTree
+) ENGINE = ReplacingMergeTree(applied_at)
 ORDER BY version;
 
 -- ---------------------------------------------------------------------------
