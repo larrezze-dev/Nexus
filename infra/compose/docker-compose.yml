@@ -233,5 +233,47 @@ services:
   # Gate C (`make mock-api S=<servicio>`).
 
   # --- apps profile ---
-  # No services yet. Each `nexus-*` .NET service adds its own entry, tagged
-  # `profiles: ["apps"]`, from the step where it's born.
+  # Each `nexus-*` .NET service adds its own entry, tagged `profiles: ["apps"]`, from the
+  # step where it's born.
+
+  nexus-relay:
+    # Built from the repository root (src/OutboxRelay/Dockerfile); the image carries
+    # contracts/events (ADR-0018: rows are encoded with their own local .avsc).
+    build:
+      context: ../..
+      dockerfile: src/OutboxRelay/Dockerfile
+    image: nexus-relay:local
+    container_name: nexus-relay
+    profiles: ["apps"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+      schema-registry:
+        condition: service_healthy
+    environment:
+      # Role svc_relay (conventions-backend.md §9). The password comes from the same
+      # NEXUS_SVC_RELAY_PASSWORD variable the postgres service reads (infra/compose/.env);
+      # the dev default is the same one .env.example sets.
+      NEXUS__RELAY__CONNECTIONSTRING: "Host=postgres;Port=5432;Database=${POSTGRES_DB:-nexus};Username=svc_relay;Password=${NEXUS_SVC_RELAY_PASSWORD:-nexus_svc_relay_dev_password}"
+      NEXUS__RELAY__KAFKABOOTSTRAPSERVERS: kafka:29092
+      NEXUS__RELAY__SCHEMAREGISTRYURL: http://schema-registry:8081
+      NEXUS__RELAY__BATCHSIZE: "500"
+      NEXUS__RELAY__POLLINTERVALMS: "500"
+      NEXUS__RELAY__LEADERRETRYSECONDS: "5"
+      NEXUS__RELAY__MAXATTEMPTS: "10"
+      NEXUS__RELAY__PURGERETENTIONDAYS: "7"
+      NEXUS__RELAY__PURGEINTERVALHOURS: "24"
+      NEXUS__RELAY__PURGECHUNKSIZE: "5000"
+      NEXUS__RELAY__PRODUCETIMEOUTMS: "30000"
+      NEXUS__RELAY__TOPICPREFLIGHTTIMEOUTMS: "5000"
+      NEXUS__RELAY__MAXHELDAGGREGATES: "50000"
+      NEXUS__RELAY__MAXBACKOFFSECONDS: "60"
+      NEXUS__RELAY__PURGEMAXCHUNKSPERPASS: "10"
+      # Where the image keeps contracts/events (also the image's default; ADR-0018).
+      NEXUS__RELAY__CONTRACTSDIRECTORY: /app/contracts/events
+      # Inside the compose network the Aspire Dashboard listens on 18889 (host 4317).
+      NEXUS__TELEMETRY__OTLPENDPOINT: http://otel:18889
+    networks:
+      - nexus
