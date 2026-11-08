@@ -78,6 +78,11 @@ is_covered() {
     return 0
   fi
 
+  # Gate D integration tests (tests/integration/<step>-*), outside src/.
+  if [[ -d tests/integration ]] && grep -rl --include='*.cs' -- "$id" tests/integration 2>/dev/null | grep -q .; then
+    return 0
+  fi
+
   return 1
 }
 

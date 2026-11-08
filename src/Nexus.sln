@@ -69,6 +69,8 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Tools", "Tools", "{07C2787E
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Nexus.Tools.DlqReplay", "Tools\Nexus.Tools.DlqReplay\Nexus.Tools.DlqReplay.csproj", "{0B90D81A-3240-4175-9364-2A6C3130B420}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Nexus.Integration.Roundtrip07.Tests", "..\tests\integration\0.7-roundtrip\Nexus.Integration.Roundtrip07.Tests.csproj", "{6FC7E894-5222-419C-A0E9-C50252EC3636}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -391,6 +393,18 @@ Global
 		{0B90D81A-3240-4175-9364-2A6C3130B420}.Release|x64.Build.0 = Release|Any CPU
 		{0B90D81A-3240-4175-9364-2A6C3130B420}.Release|x86.ActiveCfg = Release|Any CPU
 		{0B90D81A-3240-4175-9364-2A6C3130B420}.Release|x86.Build.0 = Release|Any CPU
+		{6FC7E894-5222-419C-A0E9-C50252EC3636}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{6FC7E894-5222-419C-A0E9-C50252EC3636}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{6FC7E894-5222-419C-A0E9-C50252EC3636}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{6FC7E894-5222-419C-A0E9-C50252EC3636}.Debug|x64.Build.0 = Debug|Any CPU
+		{6FC7E894-5222-419C-A0E9-C50252EC3636}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{6FC7E894-5222-419C-A0E9-C50252EC3636}.Debug|x86.Build.0 = Debug|Any CPU
+		{6FC7E894-5222-419C-A0E9-C50252EC3636}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{6FC7E894-5222-419C-A0E9-C50252EC3636}.Release|Any CPU.Build.0 = Release|Any CPU
+		{6FC7E894-5222-419C-A0E9-C50252EC3636}.Release|x64.ActiveCfg = Release|Any CPU
+		{6FC7E894-5222-419C-A0E9-C50252EC3636}.Release|x64.Build.0 = Release|Any CPU
+		{6FC7E894-5222-419C-A0E9-C50252EC3636}.Release|x86.ActiveCfg = Release|Any CPU
+		{6FC7E894-5222-419C-A0E9-C50252EC3636}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -422,5 +436,6 @@ Global
 		{B2FA6E2D-A70E-4520-BA19-D2DB58EA2DBF} = {5B8E3E11-4106-2685-AC34-D91ED5534971}
 		{5895F7DB-87FE-4A4C-85AB-77242FAB9920} = {A1B2C3D4-E5F6-7890-AB12-34CD56EF7890}
 		{0B90D81A-3240-4175-9364-2A6C3130B420} = {07C2787E-EAC7-C090-1BA3-A61EC2A24D84}
+		{6FC7E894-5222-419C-A0E9-C50252EC3636} = {0AB3BF05-4346-4AA6-1389-037BE0695223}
 	EndGlobalSection
 EndGlobal

@@ -1,0 +1,36 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <IsPackable>false</IsPackable>
+    <IsTestProject>true</IsTestProject>
+    <OutputType>Exe</OutputType>
+    <TestingPlatformDotnetTestSupport>true</TestingPlatformDotnetTestSupport>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="xunit.v3" />
+    <PackageReference Include="xunit.runner.visualstudio" />
+    <PackageReference Include="Shouldly" />
+    <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" />
+    <PackageReference Include="Testcontainers.Kafka" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\src\Platform\Nexus.Platform.Api\Nexus.Platform.Api.csproj" />
+    <ProjectReference Include="..\..\..\src\OutboxRelay\Nexus.OutboxRelay\Nexus.OutboxRelay.csproj">
+      <!-- Both the relay and the org API have a top-level `Program`: the relay's types come through the `relay` extern alias. -->
+      <Aliases>relay</Aliases>
+    </ProjectReference>
+    <ProjectReference Include="..\..\..\src\BuildingBlocks\Nexus.BuildingBlocks.Messaging\Nexus.BuildingBlocks.Messaging.csproj" />
+    <ProjectReference Include="..\..\..\src\BuildingBlocks\Nexus.BuildingBlocks.Testing\Nexus.BuildingBlocks.Testing.csproj" />
+    <!-- Generated Avro classes (org legal-entity created) the test consumer deserializes into. -->
+    <ProjectReference Include="..\..\..\src\Contracts\Nexus.Contracts.Events\Nexus.Contracts.Events.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Using Include="Xunit" />
+  </ItemGroup>
+
+</Project>
