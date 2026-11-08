@@ -46,6 +46,9 @@ public sealed partial class RelayWorker : BackgroundService
         _processor = new OutboxBatchProcessor(publisher, metrics, timeProvider, _options.MaxAttempts, logger, _options.MaxHeldAggregates);
     }
 
+    /// <summary>The batch processor (tests only: inspect or seed the holds).</summary>
+    internal OutboxBatchProcessor ProcessorForTests => _processor;
+
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
         LogStarted(_logger);
@@ -98,6 +101,10 @@ public sealed partial class RelayWorker : BackgroundService
         var backoff = TimeSpan.Zero;
         var drainNow = true;
 
+        // Holds from a previous lease are stale: another leader may have published their probe rows.
+        _processor.Held.Clear();
+        _metrics.SetHeldAggregates(0);
+
         while (!stoppingToken.IsCancellationRequested)
         {
             if (backoff > TimeSpan.Zero)
@@ -117,6 +124,12 @@ public sealed partial class RelayWorker : BackgroundService
             await using (var batch = await lease.BeginBatchAsync(_options.BatchSize, _processor.Held.Current(), stoppingToken).ConfigureAwait(false))
             {
                 outcome = await _processor.ProcessAsync(batch, stoppingToken).ConfigureAwait(false);
+                if (outcome.Selected < _options.BatchSize)
+                {
+                    // Everything selectable came back: a due probe aggregate that is not in it can
+                    // never probe its topic, so release that topic instead of holding it forever.
+                    _processor.Held.ReleaseUnprobeableTopics(batch.Messages);
+                }
             }
 
             _metrics.SetHeldAggregates(_processor.Held.Count);

@@ -27,8 +27,9 @@ namespace Nexus.OutboxRelay;
 /// beyond it new holds are not recorded and those aggregates are selected and skipped
 /// (<see cref="PublishResult.Deferred"/>) on every pass, so starvation of later rows can return —
 /// visible through <c>nexus_outbox_held_aggregates</c> and <c>nexus_outbox_oldest_pending_age_seconds</c>.
-/// In memory and per instance: a new leader rebuilds it within one walk of the backlog. Used by the
-/// single relay loop only (not thread-safe).
+/// In memory and per relay instance, cleared (<see cref="Clear"/>) whenever the instance acquires
+/// leadership: a new leader rebuilds it within one walk of the backlog. The cap counts holds (an
+/// aggregate held for two topics counts twice). Used by the single relay loop only (not thread-safe).
 /// </para>
 /// </summary>
 public sealed class HeldAggregates
@@ -39,6 +40,7 @@ public sealed class HeldAggregates
     private readonly Dictionary<string, TopicHold> _topics = new(StringComparer.Ordinal);
     private readonly TimeProvider _timeProvider;
     private readonly int _capacity;
+    private readonly List<(string Topic, Guid Probe)> _lastProbes = [];
     private int _count;
 
     public HeldAggregates(TimeProvider timeProvider, int capacity = DefaultCapacity)
@@ -87,6 +89,44 @@ public sealed class HeldAggregates
         return true;
     }
 
+    /// <summary>
+    /// Drops every hold. Called when the instance (re)acquires leadership: another leader may have
+    /// published the probe rows meanwhile, so holds from a previous lease are not trusted.
+    /// </summary>
+    public void Clear()
+    {
+        _topics.Clear();
+        _lastProbes.Clear();
+        _count = 0;
+    }
+
+    /// <summary>
+    /// Defensive release, after a batch that came back with fewer than <c>BatchSize</c> rows (so
+    /// every selectable row was in it): a topic whose probe aggregate was released by the last
+    /// <see cref="Current"/> but has no row of that topic in <paramref name="batchRows"/> cannot be
+    /// probed (its row is gone or blocked), so the topic is released and its aggregates are selected
+    /// again (they are re-held at once if the topic is still unreachable).
+    /// </summary>
+    public void ReleaseUnprobeableTopics(IEnumerable<OutboxMessage> batchRows)
+    {
+        ArgumentNullException.ThrowIfNull(batchRows);
+        if (_lastProbes.Count == 0)
+        {
+            return;
+        }
+
+        var present = batchRows.Select(m => (m.Topic, m.AggregateId)).ToHashSet();
+        foreach (var (topic, probe) in _lastProbes)
+        {
+            if (!present.Contains((topic, probe)) && _topics.TryGetValue(topic, out var hold) && hold.ProbeAggregate == probe)
+            {
+                ReleaseTopic(topic);
+            }
+        }
+
+        _lastProbes.Clear();
+    }
+
     /// <summary>The topic is reachable again: releases every hold of it.</summary>
     public void ReleaseTopic(string topic)
     {
@@ -104,9 +144,15 @@ public sealed class HeldAggregates
     {
         var now = _timeProvider.GetUtcNow();
         var result = new HashSet<Guid>();
-        foreach (var hold in _topics.Values)
+        _lastProbes.Clear();
+        foreach (var (topic, hold) in _topics)
         {
             var probeDue = hold.ProbeAt <= now;
+            if (probeDue)
+            {
+                _lastProbes.Add((topic, hold.ProbeAggregate));
+            }
+
             foreach (var id in hold.Aggregates)
             {
                 if (!(probeDue && id == hold.ProbeAggregate))

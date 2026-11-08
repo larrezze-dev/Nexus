@@ -62,7 +62,7 @@ NOTES = {
  "0.3": "Aprobado 2026-11-06.",
  "0.4": "Aprobado 2026-10-30.",
  "0.6": "Aprobado 2026-11-06 (5 PRs, 2 ADRs, 2 vulnerabilidades reales corregidas).",
- "0.7": "Track C mergeado (PR #25, 2026-11-07). Faltan tracks B y S.",
+ "0.7": "C (PR #25, #27), S (PR #28) y B (relay) entregados; pendiente de verificación y aprobación de Luciano. ADR-0017 y ADR-0018 aceptados.",
  "0.1": "Todos los tracks entregados; pendiente de aprobación de Luciano.",
  "0.2": "Todos los tracks entregados; pendiente de aprobación de Luciano.",
  "0.5": "Todos los tracks entregados; pendiente de aprobación de Luciano.",

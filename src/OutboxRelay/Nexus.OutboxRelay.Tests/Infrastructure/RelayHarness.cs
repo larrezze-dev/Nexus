@@ -42,6 +42,9 @@ internal sealed class CountingPublisher(IEventPublisher inner) : IEventPublisher
         }
     }
 
+    // Forwarded so integration tests run the production path (deferred rows skip the lock round trip).
+    public PublishResult? TryDefer(OutboxMessage message) => inner.TryDefer(message);
+
     public async Task<PublishResult> PublishAsync(OutboxMessage message, CancellationToken cancellationToken)
     {
         var result = await inner.PublishAsync(message, cancellationToken);
