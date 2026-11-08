@@ -143,3 +143,10 @@ PUT /v1/roles/{id}/permissions removed the required property `items/validTo` fro
 # Reproduced locally against the real service document. This endpoint didn't exist yet when
 # the step-0.6 section above was written, so it needs its own line.
 GET /v1/role-assignments/{id} the endpoint no longer allows anonymous access and now only accepts `bearerAuth`
+
+# --- nexus-platform: GET /v1/audit/{aggregateType}/{aggregateId} (step 0.8 track S) --------
+# Same finding and root cause as the 0.4/0.6 endpoints above: the shared listAuditEvents
+# operation (contracts/openapi/_shared/audit.yaml, mounted with MapAuditEndpoint() and guarded by
+# .RequirePermission("AUDIT", Read)) only emits x-permission, not a standard `security` entry.
+# Reproduced locally against the real service document (nx-reviewer, step 0.8 track S).
+GET /v1/audit/{aggregateType}/{aggregateId} the endpoint no longer allows anonymous access and now only accepts `bearerAuth`
