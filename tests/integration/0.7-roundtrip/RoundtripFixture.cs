@@ -95,6 +95,56 @@ public sealed class RoundtripFixture : WebAppFixture<Program>, IAsyncLifetime
     }
 
     /// <summary>
+    /// Stops and disposes the running relay (its leader session ends, so the advisory lock is
+    /// released), then starts a brand-new one from <see cref="BuildRelay"/>: new producer, new
+    /// Schema Registry client, nothing cached. Returns only once the old leader is gone and the new
+    /// instance holds leadership, so neither the 5 s leader retry nor two leaders can leak into
+    /// a measurement. The producer is deliberately NOT warmed up.
+    /// </summary>
+    public async Task RestartRelayAsync()
+    {
+        await _relay.StopAsync();
+        _relay.Dispose();
+
+        await WaitForLeaderCountAsync(0, "the old relay's leader session is gone");
+
+        _relay = BuildRelay();
+        await _relay.StartAsync();
+
+        await WaitForLeaderCountAsync(1, "the new relay holds leadership");
+    }
+
+    /// <summary>
+    /// Waits until exactly <paramref name="expected"/> sessions of <c>svc_relay</c> hold the relay's
+    /// advisory lock (<c>hashtext('nexus-relay')</c>, split into classid/objid as
+    /// <c>PostgresRelayLease.ConfirmLockSql</c> does).
+    /// </summary>
+    private async Task WaitForLeaderCountAsync(int expected, string what)
+    {
+        const string Sql =
+            """
+            SELECT count(*)
+            FROM pg_catalog.pg_locks l
+            JOIN pg_catalog.pg_stat_activity a ON a.pid = l.pid,
+                 (SELECT pg_catalog.hashtext('nexus-relay')::bigint AS k) key
+            WHERE l.locktype = 'advisory' AND l.granted AND l.objsubid = 1
+              AND l.classid = ((key.k >> 32) & 4294967295)::oid
+              AND l.objid = (key.k & 4294967295)::oid
+              AND a.usename = 'svc_relay'
+            """;
+        var deadline = DateTime.UtcNow + TimeSpan.FromSeconds(60);
+        while (await Database.ScalarAsync<long>(Sql) != expected)
+        {
+            if (DateTime.UtcNow > deadline)
+            {
+                throw new TimeoutException("Timed out waiting for: " + what);
+            }
+
+            await Task.Delay(25);
+        }
+    }
+
+    /// <summary>
     /// The DI wiring of a consuming service host (AddNexusApplication + AddNexusPersistence +
     /// AddNexusInbox) on the real Postgres as <c>svc_operations</c>.
     /// </summary>
