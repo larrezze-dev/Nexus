@@ -12,7 +12,7 @@
 // resolve, so the components are copied under their original names instead, which keeps
 // the generated model names stable.
 //
-// Only `#/components/<type>/<name>` pointers are supported; anything else fails loudly.
+// Only `#/components/<type>/<name>` and `#/components/pathItems/<name>` (inlined) pointers are supported; anything else fails loudly.
 // The YAML parser is the one ng-openapi-gen depends on, resolved from web/node_modules.
 const path = require('node:path');
 const fs = require('node:fs');
@@ -56,6 +56,13 @@ async function walk(node, base, out) {
     if (target === rootFile) return { ...siblings, $ref: `#${pointer}` };
 
     const parts = pointer.split('/').filter((p) => p !== '').map(unescapePointer);
+    // Path items shared between services (e.g. _shared/audit.yaml) are inlined: a path item
+    // is not a component, and ng-openapi-gen needs it under the root `paths`.
+    if (parts.length === 3 && parts[0] === 'components' && parts[1] === 'pathItems') {
+      const item = (await load(target)).components?.pathItems?.[parts[2]];
+      if (item === undefined) throw new Error(`${node.$ref} (referenced from ${base}) does not exist`);
+      return { ...(await walk(structuredClone(item), target, out)), ...siblings };
+    }
     if (parts.length !== 3 || parts[0] !== 'components') {
       throw new Error(`unsupported external $ref "${node.$ref}" in ${base} (only #/components/<type>/<name>)`);
     }

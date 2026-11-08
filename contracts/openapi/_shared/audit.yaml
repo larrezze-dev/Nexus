@@ -1,0 +1,127 @@
+# Operación de auditoría reutilizable (paso 0.8, `[+]`).
+#
+# No es un documento OpenAPI completo: es un fragmento con un path item y sus
+# esquemas, que cada servicio incluye con $ref bajo `paths`, p. ej.:
+#
+#   paths:
+#     /v1/audit/{aggregateType}/{aggregateId}:
+#       $ref: '_shared/audit.yaml#/components/pathItems/AuditTrail'
+#
+# Es la única puerta de entrada a `nexus_analytics.event_log` (conventions-api.md §7).
+# El alcance NO se comprueba por entidad con has_permission: lo aplica el filtro
+# de la consulta analítica (`legal_entity_id IN (access.visible_legal_entities())`;
+# `legal_entity_id` NULL solo con el permiso en alcance GLOBAL). Por eso `x-scope: none`.
+
+components:
+  pathItems:
+    AuditTrail:
+      get:
+        operationId: listAuditEvents
+        summary: Historial de eventos de un agregado.
+        description: >
+          Devuelve los eventos de dominio publicados para un agregado, ordenados por
+          `aggregateVersion` ascendente. Para topics marcados `pii: true` en
+          `contracts/events/topics.yaml`, `payload` es `null` (EV-R5): solo se
+          conservan las cabeceras del evento.
+        tags: [Audit]
+        x-permission: "AUDIT:READ"
+        x-scope: none
+        parameters:
+          - name: aggregateType
+            in: path
+            required: true
+            description: Tipo de agregado en kebab-case (p. ej. `legal-entity`, `warehouse`).
+            schema:
+              type: string
+              pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
+            example: "legal-entity"
+          - name: aggregateId
+            in: path
+            required: true
+            description: Identificador del agregado.
+            schema:
+              type: string
+              format: uuid
+            example: "018f1a3c-7e3b-7c5a-9c2e-6a2f8e9b0c30"
+          - $ref: 'components.yaml#/components/parameters/Page'
+          - $ref: 'components.yaml#/components/parameters/PageSize'
+        responses:
+          '200':
+            description: Página de eventos del agregado, por `aggregateVersion` ascendente.
+            content:
+              application/json:
+                schema:
+                  allOf:
+                    - $ref: 'components.yaml#/components/schemas/Page'
+                    - type: object
+                      properties:
+                        items:
+                          type: array
+                          items:
+                            $ref: 'audit.yaml#/components/schemas/AuditEvent'
+                example:
+                  items:
+                    - eventId: "018f1a3c-7e3b-7c5a-9c2e-6a2f8e9b0c31"
+                      occurredAt: "2026-10-18T16:20:00.123456Z"
+                      eventType: "created"
+                      aggregateVersion: 1
+                      actorUserId: "018f1a3c-7e3b-7c5a-9c2e-6a2f8e9b0c01"
+                      actorDisplayName: "Anna Keller"
+                      correlationId: "018f1a3c-7e3b-7c5a-9c2e-6a2f8e9b0c40"
+                      payload:
+                        id: "018f1a3c-7e3b-7c5a-9c2e-6a2f8e9b0c30"
+                        code: "NUS-CH"
+                        isActive: true
+                    - eventId: "018f1a3c-7e3b-7c5a-9c2e-6a2f8e9b0c32"
+                      occurredAt: "2026-10-19T08:05:41.000000Z"
+                      eventType: "updated"
+                      aggregateVersion: 2
+                      actorUserId: "018f1a3c-7e3b-7c5a-9c2e-6a2f8e9b0c01"
+                      actorDisplayName: "Anna Keller"
+                      correlationId: "018f1a3c-7e3b-7c5a-9c2e-6a2f8e9b0c41"
+                      payload:
+                        id: "018f1a3c-7e3b-7c5a-9c2e-6a2f8e9b0c30"
+                        code: "NUS-CH"
+                        isActive: false
+                  page: 1
+                  pageSize: 50
+                  total: 2
+          '401':
+            $ref: 'components.yaml#/components/responses/Unauthorized'
+          '403':
+            $ref: 'components.yaml#/components/responses/Forbidden'
+          '404':
+            $ref: 'components.yaml#/components/responses/NotFound'
+
+  schemas:
+    AuditEvent:
+      type: object
+      description: Evento de dominio de un agregado, tal como se guardó en `event_log`.
+      properties:
+        eventId:
+          type: string
+          format: uuid
+        occurredAt:
+          type: string
+          format: date-time
+        eventType:
+          type: string
+          description: Verbo del evento (p. ej. `created`, `updated`, `deactivated`).
+          example: "created"
+        aggregateVersion:
+          type: integer
+          format: int64
+        actorUserId:
+          type: string
+          format: uuid
+        actorDisplayName:
+          type: [string, "null"]
+          description: Nombre visible del actor; null si el usuario ya no se puede resolver.
+        correlationId:
+          type: string
+          format: uuid
+        payload:
+          type: [object, "null"]
+          description: "Payload del evento convertido a JSON. Null en topics `pii: true` (EV-R5)."
+          additionalProperties: true
+      required: [eventId, occurredAt, eventType, aggregateVersion, actorUserId, correlationId]

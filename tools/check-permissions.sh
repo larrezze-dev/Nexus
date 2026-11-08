@@ -38,6 +38,12 @@ while IFS= read -r f; do
   [[ -n "$f" ]] && service_files+=("$f")
 done < <(find "$OPENAPI_DIR" -maxdepth 1 -type f -name '*.yaml' ! -name '.*' 2>/dev/null | sort)
 
+# Shared path items (e.g. _shared/audit.yaml) also carry x-permission; validate
+# them like service contracts.
+while IFS= read -r f; do
+  [[ -n "$f" ]] && service_files+=("$f")
+done < <(find "$OPENAPI_DIR/_shared" -maxdepth 1 -type f -name '*.yaml' 2>/dev/null | sort)
+
 if [[ "${#service_files[@]}" -eq 0 ]]; then
   echo "INFO: no service OpenAPI files under $OPENAPI_DIR yet — nothing to check."
   exit 0
