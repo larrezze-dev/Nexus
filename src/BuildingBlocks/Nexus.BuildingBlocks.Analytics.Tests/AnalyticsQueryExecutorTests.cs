@@ -102,6 +102,17 @@ public sealed class AnalyticsQueryExecutorTests(ClickHouseFixture clickHouse) : 
         (await WaitForAsync(async () => await RunningCountAsync(marker) == 0, TimeSpan.FromSeconds(5))).ShouldBeTrue("ClickHouse kept running the cancelled query");
     }
 
+    [Fact(DisplayName = "§7.3: the analytic path is read-only (readonly = 2): DDL or writes are rejected by ClickHouse")]
+    public async Task AnalyticPath_IsReadOnly()
+    {
+        var table = "default.probe_" + Guid.NewGuid().ToString("N");
+        var error = await Should.ThrowAsync<Exception>(() => clickHouse.CreateExecutor().ExecuteAsync(
+            new RawQuery($"CREATE TABLE {table} ENGINE = Memory AS SELECT legal_entity_id FROM nexus_analytics.dim_warehouse WHERE {{__scope_predicate}}"),
+            new ScopeFilter([LeA], false),
+            Ct));
+        error.Message.ShouldContain("readonly", Case.Insensitive);
+    }
+
     [Fact(DisplayName = "§7.3: QueryTimeout is read from Nexus:ClickHouse:QueryTimeout (seconds or hh:mm:ss) and must be positive")]
     public async Task QueryTimeout_Configuration()
     {
@@ -228,6 +239,7 @@ public sealed class AnalyticsQueryExecutorTests(ClickHouseFixture clickHouse) : 
     public async Task Di_IsLazy()
     {
         var services = new ServiceCollection();
+        services.AddLogging();
         services.AddNexusAnalytics(new ConfigurationBuilder().Build());
         services.AddScoped<IUnitOfWork>(_ => throw new InvalidOperationException("not needed here"));
         await using var provider = services.BuildServiceProvider(new ServiceProviderOptions { ValidateOnBuild = true, ValidateScopes = true });
@@ -297,6 +309,15 @@ public sealed class AnalyticsQueryExecutorTests(ClickHouseFixture clickHouse) : 
             var result = await session.QueryAsync(statement, (IDataRecord r) => checked((long)(ulong)r.GetValue(0)), cancellationToken);
             return result.Single();
         }
+    }
+
+    /// <summary>Runs one statement and ignores its rows.</summary>
+    private sealed class RawQuery(string sql) : IAnalyticsQuery<int>
+    {
+        public int EmptyResult => -1;
+
+        public async Task<int> ExecuteAsync(IAnalyticsSession session, CancellationToken cancellationToken) =>
+            (await session.QueryAsync(new AnalyticsStatement(sql), (IDataRecord _) => 0, cancellationToken)).Count;
     }
 
     /// <summary>Counts event_log rows of one aggregate type in scope; -1 as the empty result.</summary>

@@ -32,6 +32,11 @@ internal interface IAnalyticsConnectionFactory
 ///   <item><c>cancel_http_readonly_queries_on_client_close = 1</c>: when the HTTP request is
 ///   aborted (the caller's <see cref="CancellationToken"/>, e.g. the browser went away, or the
 ///   client-side timeout) ClickHouse stops the query instead of finishing it for nobody.</item>
+///   <item><c>readonly = 2</c>: required by the previous setting, which ClickHouse only honours
+///   for read-only queries (a GET is read-only implicitly; this client POSTs). Level 2 still
+///   allows per-query settings such as the two above, and doubles as defence in depth: the
+///   analytic path cannot write or run DDL. The ClickHouse user must not be pinned to
+///   <c>readonly = 1</c> in its profile (that level forbids changing settings).</item>
 /// </list>
 /// The <see cref="HttpClient.Timeout"/> is the query timeout plus <see cref="HttpTimeoutMargin"/>:
 /// a backstop that should normally never fire, so the server's own, more precise error wins.
@@ -59,6 +64,7 @@ internal sealed class AnalyticsConnectionFactory : IAnalyticsConnectionFactory, 
         var connection = new ClickHouseConnection(state.ConnectionString, state.HttpClient);
         connection.CustomSettings["max_execution_time"] = state.MaxExecutionSeconds;
         connection.CustomSettings["cancel_http_readonly_queries_on_client_close"] = 1;
+        connection.CustomSettings["readonly"] = 2;
         return connection;
     }
 
