@@ -1,0 +1,5 @@
+<Project>
+  <!-- Integration test projects live outside src/ but follow the same build conventions
+       (TargetFramework, warnings as errors, analyzers) and the same central package versions. -->
+  <Import Project="$(MSBuildThisFileDirectory)..\..\src\Directory.Build.props" />
+</Project>
