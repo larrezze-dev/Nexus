@@ -14,7 +14,7 @@ public sealed class RelayMetrics
 
     public const string PendingName = "nexus_outbox_pending";
     public const string OldestPendingAgeName = "nexus_outbox_oldest_pending_age_seconds";
-    public const string HeldAggregatesName = "nexus_outbox_held_aggregates";
+    public const string HeldTopicsName = "nexus_outbox_held_topics";
     public const string PublishLatencyName = "nexus_outbox_publish_latency_seconds";
     public const string BatchSizeName = "nexus_outbox_batch_size";
     public const string ErrorsTotalName = "nexus_outbox_errors_total";
@@ -90,10 +90,10 @@ public sealed class RelayMetrics
             unit: "s",
             description: "Age of the oldest PENDING outbox row (0 when none), refreshed with nexus_outbox_pending and reported only by the leader. Grows during an outage or while a topic is missing.");
         meter.CreateObservableGauge(
-            HeldAggregatesName,
+            HeldTopicsName,
             () => Volatile.Read(ref _heldKnown) == 1 ? [new Measurement<long>(Volatile.Read(ref _held))] : Array.Empty<Measurement<long>>(),
-            unit: "{aggregate}",
-            description: "Aggregates held back because their topic is unreachable (excluded from batches until it answers). Reported only by the leader; near MaxHeldAggregates, later rows can be starved.");
+            unit: "{topic}",
+            description: "Kafka topics held back because they are unreachable (missing or not authorised): their rows, and the later rows of those aggregates, are excluded from batches until the topic answers. Reported only by the leader.");
     }
 
     /// <summary>
@@ -118,8 +118,8 @@ public sealed class RelayMetrics
         Volatile.Write(ref _heldKnown, 0);
     }
 
-    /// <summary>Current number of held aggregates (written by the leader after each batch).</summary>
-    public void SetHeldAggregates(long count)
+    /// <summary>Current number of held topics (written by the leader after each batch).</summary>
+    public void SetHeldTopics(long count)
     {
         Volatile.Write(ref _held, count);
         Volatile.Write(ref _heldKnown, 1);

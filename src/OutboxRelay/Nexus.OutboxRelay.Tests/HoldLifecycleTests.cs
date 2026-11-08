@@ -10,7 +10,7 @@ namespace Nexus.OutboxRelay.Tests;
 [Collection(RelayDatabaseTests.Name)]
 public sealed class HoldLifecycleTests(PostgresFixture db)
 {
-    [Fact(DisplayName = "N1: holds do not survive a lease loss: if another leader drained the probe aggregate meanwhile, regaining leadership publishes the topic's other held aggregates at once")]
+    [Fact(DisplayName = "N1: topic holds do not survive a lease loss: if another leader published the probe row meanwhile (the topic was created), regaining leadership publishes the topic's other rows at once")]
     public async Task StaleHolds_AfterLeaseFlip_AreCleared()
     {
         await OutboxRows.ClearAsync(db);
@@ -28,7 +28,7 @@ public sealed class HoldLifecycleTests(PostgresFixture db)
         using var worker = new RelayWorker(new NoLeadership(), publisher, new RelayMetrics(meters),
             Options.Create(new RelayOptions { PollIntervalMs = 200 }), TimeProvider.System, NullLogger<RelayWorker>.Instance);
 
-        // Leadership 1: both aggregates get held (p is the probe of T1).
+        // Leadership 1: T1 gets held (p1 is its probe row).
         await using (var lease1 = await OutboxRows.AcquireAsync(db))
         {
             using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(1.5));

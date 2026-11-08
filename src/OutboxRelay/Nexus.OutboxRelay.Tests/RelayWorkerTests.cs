@@ -146,14 +146,14 @@ public sealed class RelayWorkerLoopTests
         lease.Batches.ShouldBeLessThanOrEqualTo(10, "about one batch per 200 ms poll interval, not a busy loop");
     }
 
-    [Fact(DisplayName = "H1(a): a full batch that only held back NEW aggregates drains on at once (progress through the backlog) instead of waiting for the poll interval")]
+    [Fact(DisplayName = "H1(a): a full batch that held back a NEW topic drains on at once (progress through the backlog) instead of waiting for the poll interval")]
     public async Task FullBatchOfNewHolds_DrainsWithoutWaiting()
     {
-        // Batches 1-5: 3 rows of 3 new aggregates each on an unreachable topic; then empty.
+        // Batches 1-5: 3 rows of 3 new aggregates each on a new unreachable topic; then empty.
         var lease = new FakeLease
         {
             WaitDelay = TimeSpan.FromMilliseconds(1),
-            Next = n => n <= 5 ? Enumerable.Range(0, 3).Select(_ => FakeBatch.Message(Guid.CreateVersion7(), 1)).ToArray() : [],
+            Next = n => n <= 5 ? Enumerable.Range(0, 3).Select(_ => FakeBatch.Message(Guid.CreateVersion7(), 1) with { Topic = $"nexus.test.down-{n}.created" }).ToArray() : [],
         };
         var publisher = new ScriptedPublisher(_ => PublishResult.Deferred("topic missing (cached)", DateTimeOffset.UtcNow.AddMinutes(5)));
         using var meters = new TestMeterFactory();
@@ -175,6 +175,207 @@ public sealed class RelayWorkerLoopTests
         }
 
         lease.Batches.ShouldBeGreaterThanOrEqualTo(6, "the 5 backlog batches and the first empty one run back to back, not one per 2 s poll");
+    }
+
+    [Fact(DisplayName = "H1(b): probing several held topics with full backlogs drains back to back (a probe that finds the topic still unreachable is progress), so the rows behind them are not starved by the probes")]
+    public async Task ProbesOfSeveralTopics_DoNotStarveRowsBehind()
+    {
+        string[] down = ["nexus.test.down-1.created", "nexus.test.down-2.created", "nexus.test.down-3.created"];
+        var lease = new TopicAwareLease(down);
+        var publisher = NegativeCachingPublisher(down, ttl: TimeSpan.FromMilliseconds(300));
+        using var meters = new TestMeterFactory();
+        using var worker = new RelayWorker(
+            new NeverLeadership(),
+            publisher,
+            new RelayMetrics(meters),
+            Options.Create(new RelayOptions { BatchSize = 3, PollIntervalMs = 1_000 }),
+            TimeProvider.System,
+            NullLogger<RelayWorker>.Instance);
+
+        // Every poll (1 s) finds the three topics' probes due (TTL 300 ms) and their backlogs at the
+        // head. Waiting a poll after each probe would starve the healthy rows for good.
+        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(3.5));
+        try
+        {
+            await worker.RunAsLeaderAsync(lease, cts.Token);
+        }
+        catch (OperationCanceledException)
+        {
+        }
+
+        lease.HealthyServed.ShouldBeGreaterThanOrEqualTo(3, "a healthy batch after the probes of every poll (t = 0, 1, 2, 3 s), not only the first");
+        publisher.Attempted.Count(m => !down.Contains(m.Topic)).ShouldBe(lease.HealthyServed);
+    }
+
+    [Theory(DisplayName = "H1(b) fairness + LRU probes: with many unreachable topics whose probes take a full batch each and 5 ms batches, probe batches never follow each other, every held topic is re-probed (not only the oldest), a topic created late is released and published, the rows behind keep getting batches, and every batch beyond the poll is tied to a counted attempt (no spin)")]
+    [InlineData(12, 4, -1)]
+    [InlineData(20, 4, -1)]
+    [InlineData(40, 6, -1)]
+    [InlineData(100, 8, -1)]
+    [InlineData(100, 8, 1)] // saturated (100 × 2 × 5 ms ≥ 300 ms) + topic 001's 2nd probe cut by InfraGlobal
+    public async Task ManyProbingTopics_AllReprobed_RowsBehindServed(int topics, int windowSeconds, int infraGlobalOnSecondProbeOf)
+    {
+        // TTL 300 ms, poll 200 ms, 5 ms per batch, 4 s: the same ratios as TTL 5 s / poll 500 ms with
+        // slower batches. Topic i's backlog is older than topic i+1's (it fills the batch first).
+        var down = Enumerable.Range(0, topics).Select(i => $"nexus.test.down-{i:000}.created").ToArray();
+        var last = down[^1];
+        var cut = infraGlobalOnSecondProbeOf >= 0 ? down[infraGlobalOnSecondProbeOf] : null;
+        TimeSpan? cutAt = null;
+        var lastCreated = 0;
+        var clock = Stopwatch.StartNew();
+        var probes = down.ToDictionary(t => t, _ => new List<TimeSpan>());
+        var drained = new HashSet<string>();
+        var cache = new Dictionary<string, DateTimeOffset>();
+        var publisher = new ScriptedPublisher(m =>
+        {
+            if (!probes.TryGetValue(m.Topic, out var log))
+            {
+                return PublishResult.Success;
+            }
+
+            log.Add(clock.Elapsed);
+            if (m.Topic == cut && log.Count == 2)
+            {
+                // The probe batch stops here (the topic is tried, not answered) and the loop backs off.
+                cutAt = clock.Elapsed;
+                return PublishResult.Failure("Kafka metadata unavailable (test)", PublishFailureKind.InfraGlobal);
+            }
+
+            if (m.Topic == last && Volatile.Read(ref lastCreated) == 1)
+            {
+                drained.Add(m.Topic); // the topic's backlog is published from here on
+                return PublishResult.Success;
+            }
+
+            var until = DateTimeOffset.UtcNow.AddMilliseconds(300);
+            cache[m.Topic] = until;
+            return PublishResult.TopicUnreachable($"topic '{m.Topic}' missing", until);
+        })
+        {
+            Defer = m => cache.TryGetValue(m.Topic, out var until) && DateTimeOffset.UtcNow < until ? PublishResult.Deferred("topic missing (cached)", until) : null,
+        };
+        var lease = new TopicAwareLease(down) { Latency = TimeSpan.FromMilliseconds(5), IsDrained = drained.Contains };
+        using var meters = new TestMeterFactory();
+        using var worker = new RelayWorker(
+            new NeverLeadership(),
+            publisher,
+            new RelayMetrics(meters),
+            Options.Create(new RelayOptions { BatchSize = 3, PollIntervalMs = 200 }),
+            TimeProvider.System,
+            NullLogger<RelayWorker>.Instance);
+
+        // Wide windows (4–8 s) so a loaded CI runner (slower Task.Delay) still completes several rounds.
+        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(windowSeconds));
+        var create = Task.Delay(TimeSpan.FromSeconds(1.5), TestContext.Current.CancellationToken).ContinueWith(_ => Volatile.Write(ref lastCreated, 1), TaskScheduler.Default);
+        try
+        {
+            await worker.RunAsLeaderAsync(lease, cts.Token);
+        }
+        catch (OperationCanceledException)
+        {
+        }
+
+        await create;
+        var attempts = probes.Values.Sum(l => l.Count);
+        var neverReprobed = down.Where(t => t != last && probes[t].Count < 2).ToList();
+        TestContext.Current.TestOutputHelper?.WriteLine(
+            $"{topics} topics: {lease.Batches} batches, {attempts} counted attempts, {lease.HealthyServed} healthy, {lease.Waits} poll waits, " +
+            $"{lease.MaxConsecutiveProbeBatches} max consecutive probe batches, never re-probed {neverReprobed.Count}, " +
+            $"probes per topic min {probes.Where(p => p.Key != last).Min(p => p.Value.Count)} max {probes.Values.Max(l => l.Count)}, last topic published: {drained.Contains(last)}" +
+            (cut is null ? "." : $", {cut}: cut at {cutAt?.TotalSeconds:0.00} s, probes at {string.Join(" / ", probes[cut].Select(t => t.TotalSeconds.ToString("0.00", System.Globalization.CultureInfo.InvariantCulture)))} s."));
+        if (cut is not null)
+        {
+            cutAt.ShouldNotBeNull("the InfraGlobal cut happened");
+            probes[cut].Count.ShouldBeGreaterThanOrEqualTo(3, $"{cut}, tried without an answer (InfraGlobal), is re-probed even while untried topics keep becoming due (saturation)");
+        }
+
+
+        neverReprobed.ShouldBeEmpty("every held topic is re-probed, not only the oldest ones");
+        drained.ShouldContain(last, "the topic created at 1.5 s is probed, answers and its rows are published");
+        worker.ProcessorForTests.Held.IsHeld(last).ShouldBeFalse("and it is released");
+        lease.HealthyServed.ShouldBeGreaterThanOrEqualTo(2, "the rows behind the unreachable topics keep getting batches");
+        lease.MaxConsecutiveProbeBatches.ShouldBe(1, "a probe batch is always followed by a batch without probes");
+        probes.Values.Max(l => l.Count).ShouldBeLessThanOrEqualTo((windowSeconds * 1_000 / 300) + 2, "at most one counted attempt per topic per negative TTL");
+        lease.Batches.ShouldBeLessThanOrEqualTo((2 * attempts) + lease.Waits + 10, "every batch is a poll or tied to a counted attempt (discovery or probe) and its fairness batch: no spin");
+    }
+
+    /// <summary>A publisher that, like <c>KafkaEventPublisher</c>, caches an unreachable topic for <paramref name="ttl"/>.</summary>
+    private static ScriptedPublisher NegativeCachingPublisher(IReadOnlyCollection<string> down, TimeSpan ttl)
+    {
+        var cache = new Dictionary<string, DateTimeOffset>();
+        return new ScriptedPublisher(m =>
+        {
+            if (!down.Contains(m.Topic))
+            {
+                return PublishResult.Success;
+            }
+
+            var until = DateTimeOffset.UtcNow + ttl;
+            cache[m.Topic] = until;
+            return PublishResult.TopicUnreachable($"topic '{m.Topic}' missing", until);
+        })
+        {
+            Defer = m => cache.TryGetValue(m.Topic, out var until) && DateTimeOffset.UtcNow < until ? PublishResult.Deferred("topic missing (cached)", until) : null,
+        };
+    }
+
+    /// <summary>
+    /// Models the batch query's topic exclusion: the rows of the first topic of <c>down</c> that is
+    /// not excluded fill the batch (their backlog is at the head); when every one is excluded, one
+    /// healthy row comes back.
+    /// </summary>
+    private sealed class TopicAwareLease(string[] down) : IRelayLease
+    {
+        private readonly HashSet<string> _seen = [];
+        private int _consecutiveProbes;
+
+        public int HealthyServed { get; private set; }
+
+        public int Batches { get; private set; }
+
+        public int Waits { get; private set; }
+
+        /// <summary>Longest run of consecutive batches that reached a topic already seen (a probe).</summary>
+        public int MaxConsecutiveProbeBatches { get; private set; }
+
+        /// <summary>Simulated duration of each batch query.</summary>
+        public TimeSpan Latency { get; init; } = TimeSpan.Zero;
+
+        /// <summary>Topics whose backlog has been published (no rows left).</summary>
+        public Func<string, bool> IsDrained { get; init; } = _ => false;
+
+        public async Task<bool> WaitForWakeUpAsync(TimeSpan timeout, CancellationToken cancellationToken)
+        {
+            Waits++;
+            await Task.Delay(timeout, cancellationToken);
+            return false;
+        }
+
+        public async Task<IOutboxBatch> BeginBatchAsync(int batchSize, IReadOnlyCollection<string> excludedTopics, CancellationToken cancellationToken)
+        {
+            if (Latency > TimeSpan.Zero)
+            {
+                await Task.Delay(Latency, cancellationToken);
+            }
+
+            Batches++;
+            if (down.FirstOrDefault(t => !excludedTopics.Contains(t) && !IsDrained(t)) is { } topic)
+            {
+                _consecutiveProbes = _seen.Add(topic) ? 0 : _consecutiveProbes + 1;
+                MaxConsecutiveProbeBatches = Math.Max(MaxConsecutiveProbeBatches, _consecutiveProbes);
+                return new FakeBatch([.. Enumerable.Range(0, batchSize).Select(_ => FakeBatch.Message(Guid.CreateVersion7(), 1) with { Topic = topic })]);
+            }
+
+            _consecutiveProbes = 0;
+            HealthyServed++;
+            return new FakeBatch(FakeBatch.Message(Guid.CreateVersion7(), 1) with { Topic = "nexus.test.healthy.created" });
+        }
+
+        public Task<int> PurgePublishedAsync(DateTimeOffset cutoff, int maxRows, CancellationToken cancellationToken) => Task.FromResult(0);
+
+        public Task<PendingStats> GetPendingStatsAsync(CancellationToken cancellationToken) => Task.FromResult(new PendingStats(0, null));
+
+        public ValueTask DisposeAsync() => ValueTask.CompletedTask;
     }
 
     private sealed class NeverLeadership : IRelayLeadership
@@ -203,7 +404,7 @@ public sealed class RelayWorkerLoopTests
         /// <summary>When set, builds each batch (argument: 1-based batch number) instead of repeating the fixed messages.</summary>
         public Func<int, OutboxMessage[]>? Next { get; init; }
 
-        public Task<IOutboxBatch> BeginBatchAsync(int batchSize, IReadOnlyCollection<Guid> excludedAggregates, CancellationToken cancellationToken)
+        public Task<IOutboxBatch> BeginBatchAsync(int batchSize, IReadOnlyCollection<string> excludedTopics, CancellationToken cancellationToken)
         {
             Batches++;
             return Task.FromResult<IOutboxBatch>(new FakeBatch(Next?.Invoke(Batches) ?? messages));
