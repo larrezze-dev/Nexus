@@ -1,3 +1,5 @@
 <Project>
+  <!-- Do NOT add <PackageVersion> entries here: versions live only in src/Directory.Packages.props,
+       which tools/check-packages.sh validates against the approved list. -->
   <Import Project="$(MSBuildThisFileDirectory)..\..\src\Directory.Packages.props" />
 </Project>

@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Net;
 using System.Net.Http.Json;
@@ -17,6 +18,7 @@ using Nexus.BuildingBlocks.Messaging.Health;
 using Nexus.BuildingBlocks.Messaging.Inbox;
 using Nexus.BuildingBlocks.Messaging.Retry;
 using Nexus.BuildingBlocks.Persistence;
+using Nexus.BuildingBlocks.Web.Correlation;
 using Npgsql;
 using Shouldly;
 
@@ -29,35 +31,37 @@ namespace Nexus.Integration.Roundtrip07.Tests;
 /// </summary>
 public sealed class RoundtripTests(RoundtripFixture fixture) : IClassFixture<RoundtripFixture>
 {
-    private const string CorrelationHeader = "X-Correlation-Id";
-
     private static readonly Uri LegalEntities = new("/v1/legal-entities", UriKind.Relative);
 
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
 
     private static void Log(string line) => TestContext.Current.TestOutputHelper?.WriteLine(line);
 
-    [Fact(DisplayName = "EV-R3: creating a LegalEntity via the API puts its Avro event on nexus.org.legal-entity.created in < 2 s, keyed by the LE id, with the HTTP correlation id in nexus-correlation-id")]
+    [Fact(DisplayName = "Gate D 0.7 (conventions-events §2 envelope / §4 relay): creating a LegalEntity via the API puts its Avro event on nexus.org.legal-entity.created in < 2 s, keyed by the LE id, with the HTTP correlation id in nexus-correlation-id")]
     public async Task CreateLegalEntity_PublishesAvroEventToKafkaUnderTwoSeconds()
     {
         using var admin = fixture.CreateClientFor(fixture.Org.Admin.Oid);
         using var topicReader = TopicReader.Subscribe(fixture.Kafka.BootstrapServers, RoundtripFixture.Topic);
 
-        // Warm-up: the first event after the relay starts pays one-off costs (leadership, producer
-        // and Schema Registry connections). It is measured and reported, not asserted.
-        var warmup = await CreateLegalEntityAsync(admin, Guid.NewGuid());
-        var warmupLatency = Stopwatch.StartNew();
-        topicReader.WaitFor(warmup.Id, TimeSpan.FromSeconds(30));
-        Log($"Warm-up event (first one after the relay started), HTTP 201 -> readable: {warmupLatency.Elapsed.TotalMilliseconds:0} ms.");
+        // The first event after the relay starts (leadership, producer and Schema Registry
+        // connections) and a later one are both held to the same bound, measured from just before
+        // the request is sent.
+        var firstLatency = new Stopwatch();
+        var firstCorrelationId = Guid.CreateVersion7();
+        var first = await CreateLegalEntityAsync(admin, firstCorrelationId, firstLatency);
+        topicReader.WaitFor(first.Id, TimeSpan.FromSeconds(10));
+        firstLatency.Stop();
+        Log($"First event after relay start, request sent -> readable: {firstLatency.Elapsed.TotalMilliseconds:0} ms.");
+        firstLatency.Elapsed.ShouldBeLessThan(TimeSpan.FromSeconds(2), "the first event after the relay starts must also be published within 2 s");
 
         var correlationId = Guid.CreateVersion7();
-        var created = await CreateLegalEntityAsync(admin, correlationId);
-        var latency = Stopwatch.StartNew();
-
+        var latency = new Stopwatch();
+        var created = await CreateLegalEntityAsync(admin, correlationId, latency);
         var record = topicReader.WaitFor(created.Id, TimeSpan.FromSeconds(10));
         latency.Stop();
-        Log($"Publish latency, HTTP 201 -> message readable on {RoundtripFixture.Topic}: {latency.Elapsed.TotalMilliseconds:0} ms.");
-        latency.Elapsed.ShouldBeLessThan(TimeSpan.FromSeconds(2), "the relay must publish within 2 s of the commit");
+        Log($"Publish latency, request sent -> message readable on {RoundtripFixture.Topic}: {latency.Elapsed.TotalMilliseconds:0} ms.");
+        latency.Elapsed.ShouldBeLessThan(TimeSpan.FromSeconds(2), "the relay must publish within 2 s of the request");
+        created.EchoedCorrelationId.ShouldBe(correlationId.ToString("D"), "the API echoes the correlation id it was given");
 
         // Key = aggregate id = the LE id.
         record.Message.Key.ShouldBe(created.Id.ToString("D"));
@@ -72,10 +76,12 @@ public sealed class RoundtripTests(RoundtripFixture fixture) : IClassFixture<Rou
         Guid.TryParse(Header(record, EventHeaderNames.EventId), out _).ShouldBeTrue();
         Header(record, EventHeaderNames.ActorUserId).ShouldBe(fixture.Org.Admin.Id.ToString("D"));
 
-        // The outbox row it came from is PUBLISHED.
-        (await fixture.Database.ScalarAsync<string>(
-            "SELECT status FROM outbox.message WHERE aggregate_id = $1 AND event_type = 'org.legal-entity.created'", created.Id))
-            .ShouldBe("PUBLISHED");
+        // The outbox row it came from is PUBLISHED (the relay marks rows at the end of its batch,
+        // so it may land just after the record is readable).
+        await WaitUntilAsync(
+            async () => await fixture.Database.ScalarAsync<string>(
+                "SELECT status FROM outbox.message WHERE aggregate_id = $1 AND event_type = 'org.legal-entity.created'", created.Id) == "PUBLISHED",
+            "the outbox row is marked PUBLISHED");
 
         // Valid Avro: Confluent wire format (magic byte + the id the registry gave the contract's
         // .avsc), and the bytes decode with the contract's schema to the created aggregate.
@@ -117,14 +123,21 @@ public sealed class RoundtripTests(RoundtripFixture fixture) : IClassFixture<Rou
         await WaitUntilAsync(async () => await PublishedCountAsync(created) == 3, "the relay publishes the three events");
 
         // First run: "crashes" right after the first LE's effect is committed, before its offset is.
-        var firstRun = new RoundtripConsumer(Runtime(host, dlq), useCase) { HangAfter = first.Id };
+        using var firstRun = new RoundtripConsumer(Runtime(host, dlq), useCase) { HangAfter = first.Id };
         await firstRun.StartAsync(Ct);
-        await firstRun.Hanging.Task.WaitAsync(TimeSpan.FromSeconds(60), Ct);
-        await firstRun.StopAsync(CancellationToken.None);
+        try
+        {
+            await firstRun.Hanging.Task.WaitAsync(TimeSpan.FromSeconds(60), Ct);
+        }
+        finally
+        {
+            await firstRun.StopAsync(CancellationToken.None);
+        }
+
         (await EffectCountAsync(group, first.Id)).ShouldBe(1, "the effect was committed before the crash");
 
         // Second run, same group: the offset was never committed, so the first LE is redelivered.
-        var secondRun = new RoundtripConsumer(Runtime(host, dlq), useCase);
+        using var secondRun = new RoundtripConsumer(Runtime(host, dlq), useCase);
         await secondRun.StartAsync(Ct);
         try
         {
@@ -146,7 +159,10 @@ public sealed class RoundtripTests(RoundtripFixture fixture) : IClassFixture<Rou
         }
 
         // The redelivered record was skipped by the inbox without running the handler again.
-        secondRun.HandledLegalEntities.ShouldNotContain(first.Id);
+        firstRun.Received.ShouldNotContain(second.Id.ToString("D"), "the first run stopped at the first LE");
+        firstRun.Received.ShouldNotContain(third.Id.ToString("D"), "the first run stopped at the first LE");
+        secondRun.Received.ShouldContain(first.Id.ToString("D"), "its offset was never committed, so the record is redelivered");
+        secondRun.HandledLegalEntities.ShouldNotContain(first.Id, "the inbox skipped the redelivered record");
     }
 
     private static string Header(ConsumeResult<string, byte[]> record, string name) =>
@@ -169,7 +185,7 @@ public sealed class RoundtripTests(RoundtripFixture fixture) : IClassFixture<Rou
             }),
             new ConsumerHealthRegistry(TimeProvider.System));
 
-    private async Task<CreatedLegalEntity> CreateLegalEntityAsync(HttpClient client, Guid correlationId)
+    private async Task<CreatedLegalEntity> CreateLegalEntityAsync(HttpClient client, Guid correlationId, Stopwatch? sendTimer = null)
     {
         var tag = Guid.NewGuid().ToString("N")[..12].ToUpperInvariant();
         var id = Guid.CreateVersion7();
@@ -187,12 +203,14 @@ public sealed class RoundtripTests(RoundtripFixture fixture) : IClassFixture<Rou
                 CountryCode = "CH",
             }),
         };
-        request.Headers.Add(CorrelationHeader, correlationId.ToString("D"));
+        request.Headers.Add(CorrelationMiddleware.HeaderName, correlationId.ToString("D"));
+        sendTimer?.Restart();
         var response = await client.SendAsync(request, Ct);
         response.StatusCode.ShouldBe(HttpStatusCode.Created);
         var body = (await response.Content.ReadFromJsonAsync<JsonDocument>(Ct))!.RootElement;
         body.GetProperty("id").GetGuid().ShouldBe(id);
-        return new CreatedLegalEntity(id, code);
+        response.Headers.TryGetValues(CorrelationMiddleware.HeaderName, out var echoed).ShouldBeTrue();
+        return new CreatedLegalEntity(id, code, echoed!.Single());
     }
 
     private async Task<long> PublishedCountAsync(IEnumerable<CreatedLegalEntity> entities) =>
@@ -202,7 +220,7 @@ public sealed class RoundtripTests(RoundtripFixture fixture) : IClassFixture<Rou
 
     private Task<long> EffectCountAsync(string group, Guid legalEntityId) =>
         fixture.Database.ScalarAsync<long>(
-            $"SELECT count(*) FROM {RoundtripFixture.EffectSchema}.effect_row WHERE consumer = $1 AND legal_entity_id = $2", group, legalEntityId);
+            $"SELECT count(*) FROM {RoundtripFixture.EffectSchema}.effect_row WHERE consumer = $1 AND entity_id = $2", group, legalEntityId);
 
     private static async Task WaitUntilAsync(Func<Task<bool>> condition, string what)
     {
@@ -218,7 +236,7 @@ public sealed class RoundtripTests(RoundtripFixture fixture) : IClassFixture<Rou
         }
     }
 
-    private sealed record CreatedLegalEntity(Guid Id, string Code);
+    private sealed record CreatedLegalEntity(Guid Id, string Code, string EchoedCorrelationId);
 
     /// <summary>
     /// A <see cref="NexusConsumer{TEvent}"/> of the real <c>nexus.org.legal-entity.created</c> topic
@@ -227,6 +245,7 @@ public sealed class RoundtripTests(RoundtripFixture fixture) : IClassFixture<Rou
     private sealed class RoundtripConsumer : NexusConsumer<LegalEntityCreated>
     {
         private readonly List<Guid> _handled = [];
+        private readonly ConcurrentQueue<string?> _received = new();
 
         public RoundtripConsumer(NexusConsumerRuntime runtime, string useCase)
             : base(runtime.CreateOptions("operations", useCase, RoundtripFixture.Topic), runtime)
@@ -235,6 +254,9 @@ public sealed class RoundtripTests(RoundtripFixture fixture) : IClassFixture<Rou
 
         /// <summary>When set, the consumer blocks after fully processing (effect + inbox committed) this legal entity's record, before its offset is committed.</summary>
         public Guid? HangAfter { get; init; }
+
+        /// <summary>Keys of every record handed to the pipeline (delivered by Kafka), before it is processed.</summary>
+        public IReadOnlyCollection<string?> Received => _received;
 
         public TaskCompletionSource Hanging { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
 
@@ -258,7 +280,7 @@ public sealed class RoundtripTests(RoundtripFixture fixture) : IClassFixture<Rou
 
             var uow = services.GetRequiredService<IUnitOfWork>();
             await using var command = new NpgsqlCommand(
-                $"INSERT INTO {RoundtripFixture.EffectSchema}.effect_row (id, consumer, event_id, legal_entity_id) VALUES ($1, $2, $3, $4)",
+                $"INSERT INTO {RoundtripFixture.EffectSchema}.effect_row (id, consumer, event_id, entity_id) VALUES ($1, $2, $3, $4)",
                 uow.Connection,
                 uow.Transaction);
             command.Parameters.Add(new NpgsqlParameter<Guid> { TypedValue = Guid.CreateVersion7() });
@@ -270,6 +292,7 @@ public sealed class RoundtripTests(RoundtripFixture fixture) : IClassFixture<Rou
 
         protected override async Task ProcessAsync(ConsumeResult<string?, byte[]?> result, CancellationToken ct)
         {
+            _received.Enqueue(result.Message.Key);
             await base.ProcessAsync(result, ct);
             if (HangAfter is { } target && result.Message.Key == target.ToString("D"))
             {

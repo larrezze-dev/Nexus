@@ -169,7 +169,7 @@ public sealed class RoundtripFixture : WebAppFixture<Program>, IAsyncLifetime
               id          uuid PRIMARY KEY,
               consumer    text NOT NULL,
               event_id    uuid NOT NULL,
-              legal_entity_id uuid NOT NULL
+              entity_id   uuid NOT NULL
             );
             REVOKE ALL ON SCHEMA {EffectSchema} FROM PUBLIC;
             GRANT USAGE ON SCHEMA {EffectSchema} TO {ConsumerRole};
