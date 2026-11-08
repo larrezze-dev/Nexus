@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Routing;
+using Microsoft.Extensions.DependencyInjection;
 using Nexus.BuildingBlocks.Analytics.Audit;
 using Nexus.BuildingBlocks.Application.Paging;
 using Nexus.BuildingBlocks.Persistence;
@@ -23,6 +24,13 @@ public static class AuditEndpointExtensions
     public static RouteHandlerBuilder MapAuditEndpoint(this IEndpointRouteBuilder app)
     {
         ArgumentNullException.ThrowIfNull(app);
+
+        if (app.ServiceProvider.GetService<AuditEndpointMarker>() is null)
+        {
+            throw new InvalidOperationException(
+                "MapAuditEndpoint() requires services.AddNexusAudit(configuration) (after AddNexusPersistence) " +
+                "in the host's service registration.");
+        }
 
         return app.MapGet("/v1/audit/{aggregateType}/{aggregateId:guid}", ListAuditEvents)
             .WithName("listAuditEvents")

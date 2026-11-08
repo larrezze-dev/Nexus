@@ -1,4 +1,3 @@
-using Nexus.BuildingBlocks.Analytics;
 using Nexus.BuildingBlocks.Application;
 using Nexus.BuildingBlocks.Domain;
 using Nexus.BuildingBlocks.Persistence;
@@ -27,9 +26,8 @@ using Nexus.Platform.Infrastructure.RoleAssignments;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Handlers and validators live in Nexus.Platform.Application; the API assembly is scanned too, and
-// BuildingBlocks.Web (validator of the generic audit endpoint).
-builder.Services.AddNexusApplication(typeof(Program).Assembly, typeof(CreateUserCommand).Assembly, typeof(AuditEndpointExtensions).Assembly);
+// Handlers and validators live in Nexus.Platform.Application; the API assembly is scanned too.
+builder.Services.AddNexusApplication(typeof(Program).Assembly, typeof(CreateUserCommand).Assembly);
 builder.Services.AddNexusWeb(builder.Configuration);
 builder.Services.AddNexusProblemDetails();
 // AddNexusWeb only registers authentication (AddNexusAuthentication); ASP.NET Core's
@@ -45,7 +43,7 @@ builder.Services.AddNexusOpenApi();
 builder.Services.Configure<NexusPersistenceOptions>(builder.Configuration.GetSection(NexusPersistenceOptions.SectionName));
 builder.Services.AddNexusPersistence();
 // ClickHouse gateway of the audit endpoint (conventions-api.md §7); lazy: the host starts without ClickHouse.
-builder.Services.AddNexusAnalytics(builder.Configuration);
+builder.Services.AddNexusAudit(builder.Configuration);
 builder.Services.AddNexusIdentityResolution();
 builder.Services.AddPlatformInfrastructure();
 builder.Services.AddRoleAssignmentInfrastructure();

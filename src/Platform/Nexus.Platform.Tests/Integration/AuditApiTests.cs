@@ -190,6 +190,7 @@ public sealed class AuditApiTests : IClassFixture<AuditApiFixture>
     [Theory(DisplayName = "audit.yaml aggregateType pattern / conventions-api §4: a bad aggregateType, page or pageSize is a 400 VALIDATION problem naming the field")]
     [InlineData("Warehouse", null, "aggregateType")]
     [InlineData("ware--house", null, "aggregateType")]
+    [InlineData("warehouse%0A", null, "aggregateType")]
     [InlineData("warehouse", "page=0", "page")]
     [InlineData("warehouse", "pageSize=0", "pageSize")]
     [InlineData("warehouse", "pageSize=201", "pageSize")]
@@ -204,6 +205,17 @@ public sealed class AuditApiTests : IClassFixture<AuditApiFixture>
         var problem = await ReadAsync(response);
         problem.GetProperty("code").GetString().ShouldBe("VALIDATION");
         problem.GetProperty("errors").EnumerateArray().Select(e => e.GetProperty("field").GetString()).ShouldContain(field);
+    }
+
+    [Fact(DisplayName = "audit.yaml aggregateType: the contract has no maxLength, so a long contract-valid value is a 200 with an empty page")]
+    public async Task Long_valid_aggregate_type_is_accepted()
+    {
+        using var admin = _fixture.CreateClientFor(Org.Admin.Oid);
+
+        var response = await admin.GetAsync(Trail(new string('a', 200), Guid.CreateVersion7()), Ct);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
+        (await ReadAsync(response)).GetProperty("total").GetInt64().ShouldBe(0);
     }
 
     private static async Task<JsonElement> ReadAsync(HttpResponseMessage response) =>

@@ -15,6 +15,7 @@
     <PackageReference Include="Shouldly" />
     <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" />
     <PackageReference Include="Testcontainers.ClickHouse" />
+    <PackageReference Include="ClickHouse.Client" />
   </ItemGroup>
 
   <ItemGroup>
