@@ -21,6 +21,10 @@ namespace Nexus.BuildingBlocks.Analytics.Querying;
 /// ClickHouse is never called):
 /// <list type="bullet">
 ///   <item>the SQL contains <see cref="ScopePlaceholder"/> at least once;</item>
+///   <item>the SQL contains no comment (<c>--</c>, <c>/*</c>, <c>#</c>): a placeholder inside a
+///   comment (e.g. a line commented out while debugging) would pass the check above and leave
+///   the query unfiltered. A placeholder inside a string literal is not detected; statements are
+///   in-house constants and must keep the placeholder in the <c>WHERE</c> clause.</item>
 ///   <item>it contains no other <c>__scope</c> token (the scope parameter is reserved for the
 ///   executor; a statement cannot bind or reference it by hand);</item>
 ///   <item>every parameter name is an identifier, is not reserved, has a non-null value, and is
@@ -51,6 +55,15 @@ public sealed partial class AnalyticsStatement
             throw new ArgumentException(
                 $"An analytic statement must contain the scope placeholder '{ScopePlaceholder}' (conventions-api.md §7): " +
                 "every ClickHouse query is filtered by the caller's legal entities.",
+                nameof(sql));
+        }
+
+        if (sql.Contains("--", StringComparison.Ordinal)
+            || sql.Contains("/*", StringComparison.Ordinal)
+            || sql.Contains('#', StringComparison.Ordinal))
+        {
+            throw new ArgumentException(
+                "Analytic SQL must not contain comments ('--', '/*', '#'): a scope placeholder inside a comment would not filter anything.",
                 nameof(sql));
         }
 

@@ -4,6 +4,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Nexus.BuildingBlocks.Analytics.Querying;
 using Nexus.BuildingBlocks.Analytics.Scope;
+using Nexus.BuildingBlocks.Persistence;
 using Shouldly;
 
 namespace Nexus.BuildingBlocks.Analytics.Tests;
@@ -29,6 +30,15 @@ public sealed class AnalyticsQueryExecutorTests(ClickHouseFixture clickHouse) : 
     {
         Should.Throw<ArgumentException>(() => new AnalyticsStatement("SELECT count() FROM nexus_analytics.event_log"))
             .Message.ShouldContain(AnalyticsStatement.ScopePlaceholder);
+    }
+
+    [Theory(DisplayName = "§7.3: comments are rejected (a commented-out placeholder must not pass validation)")]
+    [InlineData("SELECT count() FROM nexus_analytics.event_log -- WHERE {__scope_predicate}")]
+    [InlineData("SELECT count() FROM nexus_analytics.event_log /* WHERE {__scope_predicate} */")]
+    [InlineData("SELECT count() FROM nexus_analytics.event_log # WHERE {__scope_predicate}")]
+    public void Statement_WithComment_Throws(string sql)
+    {
+        Should.Throw<ArgumentException>(() => new AnalyticsStatement(sql)).Message.ShouldContain("comments");
     }
 
     [Fact(DisplayName = "§7.3: the scope parameter is reserved (no hand-bound or hand-written __scope)")]
@@ -109,11 +119,36 @@ public sealed class AnalyticsQueryExecutorTests(ClickHouseFixture clickHouse) : 
         (await executor.ExecuteAsync(new CountQuery(Malicious), everything, Ct)).ShouldBe(1);
     }
 
+    [Fact(DisplayName = "§7.3: binding is server-side: the SQL on the wire carries the placeholders, the values travel as param_*")]
+    public async Task Binding_IsServerSide()
+    {
+        var marker = "marker-" + Guid.NewGuid().ToString("N");
+        var le = Guid.CreateVersion7();
+        using var factory = new RecordingFactory(clickHouse.ConnectionString);
+
+        (await new AnalyticsQueryExecutor(factory).ExecuteAsync(new CountQuery(marker), new ScopeFilter([le], false), Ct)).ShouldBe(0);
+
+        // The request that ran the statement (the connection's own version probe is another one).
+        var request = factory.Requests.Where(r => r.Contains("nexus_analytics.event_log", StringComparison.Ordinal)).ShouldHaveSingleItem();
+        var unescaped = Uri.UnescapeDataString(request);
+
+        // Client-side substitution would have replaced these with the values.
+        unescaped.ShouldContain("aggregate_type = {aggregate_type:String}");
+        unescaped.ShouldContain("(legal_entity_id IN {__scope_le:Array(UUID)})");
+
+        // The values are sent as separate server-side parameters.
+        unescaped.ShouldContain("param_aggregate_type");
+        unescaped.ShouldContain("param___scope_le");
+        unescaped.ShouldContain(marker);
+        unescaped.ShouldContain(le.ToString());
+    }
+
     [Fact(DisplayName = "§7.3: AddNexusAnalytics is lazy: resolves without ClickHouse config, fails only on the first scoped query")]
     public async Task Di_IsLazy()
     {
         var services = new ServiceCollection();
         services.AddNexusAnalytics(new ConfigurationBuilder().Build());
+        services.AddScoped<IUnitOfWork>(_ => throw new InvalidOperationException("not needed here"));
         await using var provider = services.BuildServiceProvider(new ServiceProviderOptions { ValidateOnBuild = true, ValidateScopes = true });
 
         var executor = provider.GetRequiredService<IAnalyticsQueryExecutor>();
@@ -154,6 +189,36 @@ public sealed class AnalyticsQueryExecutorTests(ClickHouseFixture clickHouse) : 
             var statement = new AnalyticsStatement(CountByTypeSql, new Dictionary<string, object> { ["aggregate_type"] = aggregateType });
             var rows = await session.QueryAsync(statement, (IDataRecord r) => checked((long)(ulong)r.GetValue(0)), cancellationToken);
             return rows.Single();
+        }
+    }
+
+    /// <summary>Real connections whose HTTP requests (URI + body) are recorded.</summary>
+    private sealed class RecordingFactory(string connectionString) : IAnalyticsConnectionFactory, IDisposable
+    {
+        private readonly RecordingHandler _handler = new();
+
+        public IReadOnlyList<string> Requests => _handler.Requests;
+
+        // Request compression off so the recorded body is readable text.
+        public ClickHouseConnection Create() =>
+            new(new ClickHouseConnectionStringBuilder(connectionString) { Compression = false }.ConnectionString, new HttpClient(_handler, disposeHandler: false));
+
+        public void Dispose() => _handler.Dispose();
+
+        private sealed class RecordingHandler() : DelegatingHandler(new SocketsHttpHandler { AutomaticDecompression = System.Net.DecompressionMethods.All })
+        {
+            public List<string> Requests { get; } = [];
+
+            protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+            {
+                var body = request.Content is null ? string.Empty : await request.Content.ReadAsStringAsync(cancellationToken);
+                lock (Requests)
+                {
+                    Requests.Add(request.RequestUri + "\n" + body);
+                }
+
+                return await base.SendAsync(request, cancellationToken);
+            }
         }
     }
 
