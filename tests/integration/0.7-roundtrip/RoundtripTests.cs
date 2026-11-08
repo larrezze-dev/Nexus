@@ -45,6 +45,12 @@ public sealed class RoundtripTests(RoundtripFixture fixture) : IClassFixture<Rou
         // holds leadership: what is measured is the first event it publishes, cold producer
         // connection / InitProducerId / schema lookup included, but not its leader election (the
         // 5 s leader retry is not the contract). Test order does not matter: this resets the relay.
+        // Excluded: first-request JIT/auth/middleware cost of the in-memory API host. Included: the relay's cold start.
+        var throwaway = await CreateLegalEntityAsync(admin, Guid.NewGuid());
+        await WaitUntilAsync(
+            async () => await fixture.Database.ScalarAsync<string>(
+                "SELECT status FROM outbox.message WHERE aggregate_id = $1 AND event_type = 'org.legal-entity.created'", throwaway.Id) == "PUBLISHED",
+            "the old relay publishes the throwaway legal entity");
         await fixture.RestartRelayAsync();
         using var topicReader = TopicReader.Subscribe(fixture.Kafka.BootstrapServers, RoundtripFixture.Topic);
 

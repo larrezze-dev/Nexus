@@ -105,6 +105,7 @@ public sealed class RoundtripFixture : WebAppFixture<Program>, IAsyncLifetime
     {
         await _relay.StopAsync();
         _relay.Dispose();
+        _relay = null!; // a failure below must not make DisposeAsync touch a disposed host and mask the original error
 
         await WaitForLeaderCountAsync(0, "the old relay's leader session is gone");
 
@@ -128,6 +129,7 @@ public sealed class RoundtripFixture : WebAppFixture<Program>, IAsyncLifetime
             JOIN pg_catalog.pg_stat_activity a ON a.pid = l.pid,
                  (SELECT pg_catalog.hashtext('nexus-relay')::bigint AS k) key
             WHERE l.locktype = 'advisory' AND l.granted AND l.objsubid = 1
+              AND l.database = (SELECT oid FROM pg_catalog.pg_database WHERE datname = pg_catalog.current_database())
               AND l.classid = ((key.k >> 32) & 4294967295)::oid
               AND l.objid = (key.k & 4294967295)::oid
               AND a.usename = 'svc_relay'
@@ -140,7 +142,7 @@ public sealed class RoundtripFixture : WebAppFixture<Program>, IAsyncLifetime
                 throw new TimeoutException("Timed out waiting for: " + what);
             }
 
-            await Task.Delay(25);
+            await Task.Delay(25, TestContext.Current.CancellationToken);
         }
     }
 
