@@ -64,7 +64,7 @@ async function walk(node, base, out) {
       return { ...(await walk(structuredClone(item), target, out)), ...siblings };
     }
     if (parts.length !== 3 || parts[0] !== 'components') {
-      throw new Error(`unsupported external $ref "${node.$ref}" in ${base} (only #/components/<type>/<name>)`);
+      throw new Error(`unsupported external $ref "${node.$ref}" in ${base} (only #/components/<type>/<name>, or #/components/pathItems/<name> which is inlined)`);
     }
     const [, type, name] = parts;
     const key = `${type}/${name}`;
