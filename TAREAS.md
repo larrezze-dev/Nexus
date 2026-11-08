@@ -4,7 +4,7 @@
 
 **Status:** `[ ]` no iniciada · `[o]` en marcha (incluye Gate C / En revisión: entregada pero sin aprobar) · `[x]` finalizada (`Aprobado` por Luciano).
 
-**Resumen:** 4/45 tareas aprobadas (8.9%) · esfuerzo de codificación 16/141 tracks (11.3%) · 3 en marcha.
+**Resumen:** 4/45 tareas aprobadas (8.9%) · esfuerzo de codificación 17/141 tracks (12.1%) · 4 en marcha.
 
 ## Fase 0 · Fundación
 
@@ -17,7 +17,7 @@
 | [x] | **0.4** Núcleo organizativo (S10) (tracks C B F; estado: Aprobado) | Núcleo organizativo: empresas, almacenes y estructura sobre la que cuelga todo lo demás. | 0.3, 0.5 | Aprobado 2026-10-30. Bloqueado por: ADR-0003, ORG-Q1, ADR-0014. |
 | [x] | **0.6** RBAC + RLS (A6) (tracks C B F; estado: Aprobado) | Roles y permisos (RBAC) y aislamiento de datos por empresa (RLS). | 0.4 | Aprobado 2026-11-06 (5 PRs, 2 ADRs, 2 vulnerabilidades reales corregidas). Bloqueado por: ADR-0004. |
 | [x] | **0.7** Relay, Schema Registry, consumidores, DLQ (A7) (tracks C B S; estado: Aprobado) | Relay que publica eventos a Kafka, registro de esquemas, consumidores y cola de errores. | 0.3 | Aprobado 2026-11-08 (C: PR #25, #27, #30 · S: PR #28 · B: PR #29, #31 · Gate D: PR #32; ADR-0017 y ADR-0018 aceptados). Bloqueado por: ADR-0008, ADR-0018. |
-| [ ] | **0.8** Proyecciones ClickHouse y auditoría (tracks C S F; estado: Pendiente) | Proyecciones analíticas en ClickHouse y auditoría de cambios. | 0.7 |  |
+| [o] | **0.8** Proyecciones ClickHouse y auditoría (tracks C S F; estado: Gate C) | Proyecciones analíticas en ClickHouse y auditoría de cambios. | 0.7 | C entregado (contrato ClickHouse + auditoría, AUDIT:READ); siguen S y F. |
 | [ ] | **0.9** Workflow de aprobaciones (A8) (tracks C B S F; estado: Pendiente) | Flujo de aprobaciones reutilizable por el resto de módulos. | 0.6, 0.7 | Bloqueado por: WF-Q1, WF-Q2. |
 | [ ] | **0.10** Gestión documental (A9) (tracks C B F; estado: Pendiente) | Gestión documental: adjuntos y documentos asociados a entidades. | 0.6, 0.7, 0.9 |  |
 | [ ] | **0.11** Terraform Azure + Arc (tracks I; estado: Pendiente) | Infraestructura en Azure como código (Terraform) y conexión Arc. | 0.8, 0.9, 0.10 | Bloqueado por: ADR-0011. |

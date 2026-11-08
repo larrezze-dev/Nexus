@@ -10,9 +10,9 @@ Esquema del lado analítico (`conventions-events.md §8`). No usan Flyway: las a
 
 1. `nexus-projections` se conecta a la base `default` (la de `nexus_analytics` puede no existir aún).
 2. Si `nexus_analytics._schema_migrations` no existe, el historial se considera vacío. La primera migración (`V202611082100__base.sql`) crea la base y esa tabla de control, y es la única fuente de su DDL.
-3. El historial se lee **siempre con `FINAL`** (`SELECT … FROM nexus_analytics._schema_migrations FINAL`): la tabla es `ReplacingMergeTree(applied_at) ORDER BY version` y puede tener varias filas sin fusionar para una misma versión.
+3. Para saber **qué versiones están aplicadas**, el historial se lee con `FINAL` (`SELECT version FROM nexus_analytics._schema_migrations FINAL`): la tabla es `ReplacingMergeTree(applied_at) ORDER BY version` y puede tener varias filas sin fusionar para una misma versión.
 4. Ejecuta cada fichero pendiente sentencia a sentencia: separa por `;` y **descarta los fragmentos vacíos o que solo contienen comentarios** (ClickHouse responde 400 "Empty query" si se le envían). Al terminar, inserta una fila en `_schema_migrations` con `version`, `description`, `checksum` (SHA-256 del fichero) y `applied_at`.
-5. Si el checksum de alguna fila de una versión ya aplicada no coincide con el del fichero, no arranca.
+5. La comprobación de checksum lee **sin `FINAL`** (`SELECT DISTINCT checksum … WHERE version = ?`), para ver todas las filas de la versión: si alguna no coincide con el SHA-256 del fichero, no arranca. Con `FINAL` solo se vería una fila y una discrepancia podría pasar desapercibida.
 
 ### Arranques concurrentes (obligación del track S)
 
