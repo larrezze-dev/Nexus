@@ -213,6 +213,31 @@ public sealed class OutboxBatchProcessorTests
         held.Hold("t1", time.GetUtcNow().AddSeconds(5)).ShouldBeTrue("released, then unreachable again: a new hold");
     }
 
+    [Fact(DisplayName = "H1(b) fairness: right after a batch with probing topics, Current excludes every held topic (due or not) and nothing is probing; the batch after that probes again")]
+    public void HeldTopics_ProbeBatchesNeverFollowEachOther()
+    {
+        var time = new ManualTime(new DateTimeOffset(2026, 11, 7, 10, 0, 0, TimeSpan.Zero));
+        var held = new HeldTopics(time);
+        held.Hold("t1", time.GetUtcNow().AddSeconds(5));
+        held.Hold("t2", time.GetUtcNow().AddSeconds(5));
+        held.Hold("t3", time.GetUtcNow().AddSeconds(60));
+        time.Advance(TimeSpan.FromSeconds(5));
+
+        held.Current().ShouldBe(["t3"], "probe batch: t1 and t2 are due");
+        held.Hold("t1", time.GetUtcNow().AddSeconds(5)).ShouldBeTrue("t1 probed, still unreachable");
+
+        held.Current().ShouldBe(["t1", "t2", "t3"], ignoreOrder: true, "fairness: t2 is due but waits one batch");
+        held.ReleaseUnprobeableTopics([]);
+        held.Count.ShouldBe(3, "nothing is probing in a fairness batch: the defensive release cannot misfire");
+
+        held.Current().ShouldBe(["t1", "t3"], ignoreOrder: true, "the next batch probes t2");
+        held.Current().ShouldBe(["t1", "t2", "t3"], ignoreOrder: true, "and the one after is free of probes again");
+
+        held.Clear();
+        held.Hold("t4", time.GetUtcNow());
+        held.Current().ShouldBeEmpty("Clear also resets the alternation: a new lease may probe at once");
+    }
+
     [Fact(DisplayName = "H1(b): HeldTopics.Current never returns null nor null elements, and only the topics whose probe time is in the future")]
     public void HeldTopics_Current_IsNeverNull()
     {

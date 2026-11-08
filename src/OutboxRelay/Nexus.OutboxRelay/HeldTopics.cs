@@ -25,6 +25,18 @@ namespace Nexus.OutboxRelay;
 /// </para>
 ///
 /// <para>
+/// <b>Fairness between probes and the rest of the backlog.</b> A probing topic makes all its rows
+/// selectable, so with a backlog of <c>BatchSize</c> rows or more at the head a probe takes a whole
+/// batch, and a probe that finds the topic still unreachable is progress (the loop drains on at once).
+/// With many unreachable topics, if <i>topics × batch duration</i> reached the negative TTL some topic
+/// would always be due and only probe batches would ever run, starving the healthy rows behind them.
+/// So probe batches never follow each other: after a batch for which <see cref="Current"/> left any
+/// topic out to be probed, the next <see cref="Current"/> excludes every held topic, due or not. At
+/// least every other batch is free of probes; a due topic waits at most one more batch, still one
+/// counted attempt per topic per negative TTL at most.
+/// </para>
+///
+/// <para>
 /// In memory and per relay instance, cleared (<see cref="Clear"/>) whenever the instance acquires
 /// leadership: another leader may have published the topic's rows meanwhile, and a new leader
 /// rebuilds the holds within one batch per unreachable topic. Used by the single relay loop only
@@ -36,6 +48,7 @@ public sealed class HeldTopics
     private readonly Dictionary<string, DateTimeOffset> _probeAt = new(StringComparer.Ordinal);
     private readonly HashSet<string> _probing = new(StringComparer.Ordinal);
     private readonly TimeProvider _timeProvider;
+    private bool _lastWasProbeBatch;
 
     public HeldTopics(TimeProvider timeProvider)
     {
@@ -91,22 +104,25 @@ public sealed class HeldTopics
     {
         _probeAt.Clear();
         _probing.Clear();
+        _lastWasProbeBatch = false;
     }
 
     /// <summary>
-    /// The topics to exclude from the next batch: the held topics whose probe time has not passed.
-    /// The others are left out (probing) so the batch reaches their oldest rows and the publisher
-    /// probes them. Never null and never contains null (the query needs a non-null <c>text[]</c>
-    /// without NULL elements).
+    /// The topics to exclude from the next batch (call once per batch): the held topics whose probe
+    /// time has not passed. The others are left out (probing) so the batch reaches their oldest rows
+    /// and the publisher probes them — except right after a probe batch (fairness, see the class
+    /// remarks): then every held topic is excluded and none is probing. Never null and never
+    /// contains null (the query needs a non-null <c>text[]</c> without NULL elements).
     /// </summary>
     public IReadOnlyCollection<string> Current()
     {
         var now = _timeProvider.GetUtcNow();
+        var probesAllowed = !_lastWasProbeBatch;
         var excluded = new List<string>(_probeAt.Count);
         _probing.Clear();
         foreach (var (topic, probeAt) in _probeAt)
         {
-            if (probeAt > now)
+            if (probeAt > now || !probesAllowed)
             {
                 excluded.Add(topic);
             }
@@ -116,6 +132,7 @@ public sealed class HeldTopics
             }
         }
 
+        _lastWasProbeBatch = _probing.Count > 0;
         return excluded;
     }
 

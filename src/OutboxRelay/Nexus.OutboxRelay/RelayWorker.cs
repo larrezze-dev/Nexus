@@ -146,7 +146,9 @@ public sealed partial class RelayWorker : BackgroundService
                 // progress: it attempted a full batch, or it was full and put topics on the exclusion
                 // list (new holds, or probes still unreachable: the next batch skips their rows and
                 // advances through the backlog). A full batch of deferred or EV-R3-skipped rows that
-                // changed nothing waits for the next wake-up instead (no busy loop).
+                // changed nothing waits for the next wake-up instead (no busy loop). Probe batches
+                // never follow each other (HeldTopics.Current), so draining on re-holds cannot starve
+                // the rows behind many unreachable topics.
                 drainNow = outcome.Attempted >= _options.BatchSize
                     || (outcome.Selected >= _options.BatchSize && outcome.NewHolds > 0);
             }

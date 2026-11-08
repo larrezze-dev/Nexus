@@ -207,6 +207,41 @@ public sealed class RelayWorkerLoopTests
         publisher.Attempted.Count(m => !down.Contains(m.Topic)).ShouldBe(lease.HealthyServed);
     }
 
+    [Theory(DisplayName = "H1(b) fairness: with many unreachable topics whose probes take a full batch each, and batches that take time (20 ms), probe batches never follow each other: the rows behind them keep getting batches and the loop still waits for the poll")]
+    [InlineData(20)]
+    [InlineData(40)]
+    public async Task ManyProbingTopics_WithBatchLatency_RowsBehindAreServed(int topics)
+    {
+        // 20 ms per batch × 20–40 topics = 0.4–0.8 s ≥ the 300 ms negative TTL: without the fairness
+        // rule some topic is always due, every batch is a probe that re-holds its topic (progress ⇒
+        // drain on), the loop never waits and the healthy rows get no batch at all.
+        var down = Enumerable.Range(1, topics).Select(i => $"nexus.test.down-{i}.created").ToArray();
+        var lease = new TopicAwareLease(down) { Latency = TimeSpan.FromMilliseconds(20) };
+        var publisher = NegativeCachingPublisher(down, ttl: TimeSpan.FromMilliseconds(300));
+        using var meters = new TestMeterFactory();
+        using var worker = new RelayWorker(
+            new NeverLeadership(),
+            publisher,
+            new RelayMetrics(meters),
+            Options.Create(new RelayOptions { BatchSize = 3, PollIntervalMs = 500 }),
+            TimeProvider.System,
+            NullLogger<RelayWorker>.Instance);
+
+        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(4));
+        try
+        {
+            await worker.RunAsLeaderAsync(lease, cts.Token);
+        }
+        catch (OperationCanceledException)
+        {
+        }
+
+        TestContext.Current.TestOutputHelper?.WriteLine($"{topics} topics: {lease.Batches} batches, {lease.HealthyServed} healthy, {lease.Waits} poll waits, {lease.MaxConsecutiveProbeBatches} max consecutive probe batches.");
+        lease.HealthyServed.ShouldBeGreaterThanOrEqualTo(2, "the healthy rows behind the unreachable topics keep getting batches");
+        lease.Waits.ShouldBeGreaterThanOrEqualTo(2, "the loop is not a perpetual drain");
+        lease.MaxConsecutiveProbeBatches.ShouldBe(1, "a probe batch is always followed by a batch without probes");
+    }
+
     /// <summary>A publisher that, like <c>KafkaEventPublisher</c>, caches an unreachable topic for <paramref name="ttl"/>.</summary>
     private static ScriptedPublisher NegativeCachingPublisher(IReadOnlyCollection<string> down, TimeSpan ttl)
     {
@@ -234,23 +269,46 @@ public sealed class RelayWorkerLoopTests
     /// </summary>
     private sealed class TopicAwareLease(string[] down) : IRelayLease
     {
+        private readonly HashSet<string> _seen = [];
+        private int _consecutiveProbes;
+
         public int HealthyServed { get; private set; }
+
+        public int Batches { get; private set; }
+
+        public int Waits { get; private set; }
+
+        /// <summary>Longest run of consecutive batches that reached a topic already seen (a probe).</summary>
+        public int MaxConsecutiveProbeBatches { get; private set; }
+
+        /// <summary>Simulated duration of each batch query.</summary>
+        public TimeSpan Latency { get; init; } = TimeSpan.Zero;
 
         public async Task<bool> WaitForWakeUpAsync(TimeSpan timeout, CancellationToken cancellationToken)
         {
+            Waits++;
             await Task.Delay(timeout, cancellationToken);
             return false;
         }
 
-        public Task<IOutboxBatch> BeginBatchAsync(int batchSize, IReadOnlyCollection<string> excludedTopics, CancellationToken cancellationToken)
+        public async Task<IOutboxBatch> BeginBatchAsync(int batchSize, IReadOnlyCollection<string> excludedTopics, CancellationToken cancellationToken)
         {
-            if (down.FirstOrDefault(t => !excludedTopics.Contains(t)) is { } topic)
+            if (Latency > TimeSpan.Zero)
             {
-                return Task.FromResult<IOutboxBatch>(new FakeBatch([.. Enumerable.Range(0, batchSize).Select(_ => FakeBatch.Message(Guid.CreateVersion7(), 1) with { Topic = topic })]));
+                await Task.Delay(Latency, cancellationToken);
             }
 
+            Batches++;
+            if (down.FirstOrDefault(t => !excludedTopics.Contains(t)) is { } topic)
+            {
+                _consecutiveProbes = _seen.Add(topic) ? 0 : _consecutiveProbes + 1;
+                MaxConsecutiveProbeBatches = Math.Max(MaxConsecutiveProbeBatches, _consecutiveProbes);
+                return new FakeBatch([.. Enumerable.Range(0, batchSize).Select(_ => FakeBatch.Message(Guid.CreateVersion7(), 1) with { Topic = topic })]);
+            }
+
+            _consecutiveProbes = 0;
             HealthyServed++;
-            return Task.FromResult<IOutboxBatch>(new FakeBatch(FakeBatch.Message(Guid.CreateVersion7(), 1) with { Topic = "nexus.test.healthy.created" }));
+            return new FakeBatch(FakeBatch.Message(Guid.CreateVersion7(), 1) with { Topic = "nexus.test.healthy.created" });
         }
 
         public Task<int> PurgePublishedAsync(DateTimeOffset cutoff, int maxRows, CancellationToken cancellationToken) => Task.FromResult(0);

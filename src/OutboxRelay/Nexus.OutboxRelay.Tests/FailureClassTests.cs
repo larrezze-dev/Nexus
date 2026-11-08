@@ -425,7 +425,8 @@ public sealed class FailureClassTests(PostgresFixture db, KafkaFixture kafka)
             var walkBatches = counting.Batches;
             var walkDurations = counting.BeginDurationsMs();
             Log($"H1-60k: 30 healthy rows + {MultiTopic} earlier multi-topic rows published {healthyAfter.TotalMilliseconds:0} ms after start, in {walkBatches} batches (BeginBatchAsync: {string.Join(" / ", walkDurations.Select(d => d.ToString("0.0", System.Globalization.CultureInfo.InvariantCulture)))} ms).");
-            healthyAfter.ShouldBeLessThan(TimeSpan.FromSeconds(5), "no starvation beyond 50 000: one batch holds the topic, the next one reaches the healthy rows");
+            walkBatches.ShouldBeLessThanOrEqualTo(3, "no starvation beyond 50 000: one batch holds the topic, the next one reaches the healthy rows");
+            healthyAfter.ShouldBeLessThan(TimeSpan.FromSeconds(15));
 
             // Phase A, quiet (12 s, spans two negative-TTL expiries): about one pass per 500 ms poll
             // plus one probe drain per TTL; one counted attempt per TTL; the topic stays held.
@@ -449,6 +450,8 @@ public sealed class FailureClassTests(PostgresFixture db, KafkaFixture kafka)
             (minHeld, maxHeld).ShouldBe((1d, 1d), "exactly one held topic throughout");
             passesA.ShouldBeLessThanOrEqualTo(36, "≈ 24 polls + 2–3 probe drains in 12 s; a busy loop would run hundreds");
             probesA.ShouldBeInRange(2, 3, "one counted attempt (preflight) per 5 s negative TTL for the whole topic");
+            Percentile(queryA, 0.5).ShouldBeLessThan(250, "lock confirmation + batch query with 60 000 held rows at the head (a plan regression, e.g. no ix_outbox_pending_aggregate, fails here)");
+            queryA.LastOrDefault().ShouldBeLessThan(1_000);
 
             // Phase B: a steady stream of inserts on the held topic only (one every 100 ms for 6 s):
             // each NOTIFY wakes the loop for one pass that finds nothing attemptable; wake-ups that
