@@ -213,25 +213,44 @@ public sealed class OutboxBatchProcessorTests
         held.Hold("t1", time.GetUtcNow().AddSeconds(5)).ShouldBeTrue("released, then unreachable again: a new hold");
     }
 
-    [Fact(DisplayName = "H1(b) fairness: right after a batch with probing topics, Current excludes every held topic (due or not) and nothing is probing; the batch after that probes again")]
-    public void HeldTopics_ProbeBatchesNeverFollowEachOther()
+    [Fact(DisplayName = "H1(b) fairness + LRU: a probe batch leaves out ONE due topic (untried first, by probe time, then name); the next batch excludes every held topic; a re-held topic goes to the back; a topic tried without an answer goes behind the untried ones")]
+    public void HeldTopics_OneTopicPerProbeBatch_LeastRecentlyProbedFirst()
     {
         var time = new ManualTime(new DateTimeOffset(2026, 11, 7, 10, 0, 0, TimeSpan.Zero));
         var held = new HeldTopics(time);
-        held.Hold("t1", time.GetUtcNow().AddSeconds(5));
-        held.Hold("t2", time.GetUtcNow().AddSeconds(5));
-        held.Hold("t3", time.GetUtcNow().AddSeconds(60));
+        var t0 = time.GetUtcNow();
+        held.Hold("t2", t0.AddSeconds(4));
+        held.Hold("t1", t0.AddSeconds(5));
+        held.Hold("t0", t0.AddSeconds(5));
+        held.Hold("t9", t0.AddSeconds(60));
+        held.HasUntriedDueTopic().ShouldBeFalse("nothing due yet");
         time.Advance(TimeSpan.FromSeconds(5));
+        held.HasUntriedDueTopic().ShouldBeTrue();
 
-        held.Current().ShouldBe(["t3"], "probe batch: t1 and t2 are due");
-        held.Hold("t1", time.GetUtcNow().AddSeconds(5)).ShouldBeTrue("t1 probed, still unreachable");
+        held.Current().ShouldBe(["t0", "t1", "t9"], ignoreOrder: true, "probe batch: only t2 (oldest probe time) is left out");
+        held.Hold("t2", time.GetUtcNow().AddSeconds(5)).ShouldBeTrue("t2 probed, still unreachable: back of the queue");
+        held.HasUntriedDueTopic().ShouldBeTrue("t0 and t1 are still due and untried: drain on");
 
-        held.Current().ShouldBe(["t1", "t2", "t3"], ignoreOrder: true, "fairness: t2 is due but waits one batch");
+        held.Current().ShouldBe(["t0", "t1", "t2", "t9"], ignoreOrder: true, "fairness: no probe right after a probe batch");
         held.ReleaseUnprobeableTopics([]);
-        held.Count.ShouldBe(3, "nothing is probing in a fairness batch: the defensive release cannot misfire");
+        held.Count.ShouldBe(4, "nothing is probing in a fairness batch: the defensive release cannot misfire");
 
-        held.Current().ShouldBe(["t1", "t3"], ignoreOrder: true, "the next batch probes t2");
-        held.Current().ShouldBe(["t1", "t2", "t3"], ignoreOrder: true, "and the one after is free of probes again");
+        held.Current().ShouldBe(["t1", "t2", "t9"], ignoreOrder: true, "same probe time: t0 before t1 (ordinal)");
+        // t0's row is not reached (e.g. the batch stopped): no Hold, no release.
+        held.Current().ShouldBe(["t0", "t1", "t2", "t9"], ignoreOrder: true);
+        held.Current().ShouldBe(["t0", "t2", "t9"], ignoreOrder: true, "t1 (untried) before t0 (tried without an answer)");
+        held.Hold("t1", time.GetUtcNow().AddSeconds(5));
+        held.HasUntriedDueTopic().ShouldBeFalse("t0 is due but already tried: no more drains for it");
+        held.Current().ShouldBe(["t0", "t1", "t2", "t9"], ignoreOrder: true);
+        held.Current().ShouldBe(["t1", "t2", "t9"], ignoreOrder: true, "t0 is retried (it is the only due topic)");
+
+        time.Advance(TimeSpan.FromSeconds(5)); // t1, t2 due again, t0 tried at t+5 s
+        held.Current().ShouldBe(["t0", "t1", "t2", "t9"], ignoreOrder: true, "fairness after the last probe batch");
+        held.Current().ShouldBe(["t0", "t2", "t9"], ignoreOrder: true, "untried t1 and t2 tie on probe time: t1 by name; the tried t0 comes last");
+        held.Current();
+        held.Current().ShouldBe(["t0", "t1", "t9"], ignoreOrder: true, "then t2");
+        held.Current();
+        held.Current().ShouldBe(["t1", "t2", "t9"], ignoreOrder: true, "then t0");
 
         held.Clear();
         held.Hold("t4", time.GetUtcNow());
@@ -297,7 +316,7 @@ public sealed class OutboxBatchProcessorTests
         processor.Held.Current().ShouldBeEmpty();
     }
 
-    [Fact(DisplayName = "N1: defensive release — a probing topic with no row in a partial batch is released; one with a row in it (or a topic not yet due) is not")]
+    [Fact(DisplayName = "N1: defensive release — the topic that a partial batch left out to be probed is released if none of its rows is in it; kept if one is; a batch with no probing topic releases nothing")]
     public void UnprobeableTopic_IsReleased()
     {
         var time = new ManualTime(new DateTimeOffset(2026, 11, 7, 10, 0, 0, TimeSpan.Zero));
@@ -311,14 +330,21 @@ public sealed class OutboxBatchProcessorTests
         held.Count.ShouldBe(3, "no probe is due yet");
 
         time.Advance(TimeSpan.FromSeconds(5));
-        held.Current().ShouldBe(["t3"]);
+        held.Current().ShouldBe(["t2", "t3"], ignoreOrder: true, "t1 is probing");
         held.ReleaseUnprobeableTopics([FakeBatch.Message(Guid.CreateVersion7(), 1) with { Topic = "t2" }]);
+        held.IsHeld("t1").ShouldBeFalse("t1 was left out and has nothing selectable: released");
+        held.IsHeld("t2").ShouldBeTrue("t2 was not left out by this batch: absent by design, even though due");
+        held.IsHeld("t3").ShouldBeTrue();
 
-        held.IsHeld("t1").ShouldBeFalse("t1 has nothing selectable to probe: released");
+        held.Current().ShouldBe(["t2", "t3"], ignoreOrder: true, "fairness batch");
+        held.ReleaseUnprobeableTopics([]);
+        held.IsHeld("t2").ShouldBeTrue("a batch with no probing topic releases nothing");
+
+        held.Current().ShouldBe(["t3"], "t2 is probing");
+        held.ReleaseUnprobeableTopics([FakeBatch.Message(Guid.CreateVersion7(), 1) with { Topic = "t2" }]);
         held.IsHeld("t2").ShouldBeTrue("t2's row is in the batch: the preflight decides");
-        held.IsHeld("t3").ShouldBeTrue("t3 was excluded (not probing): absent from the batch by design");
 
-        // The probing set is consumed: a second call without a new Current() releases nothing.
+        // The probing topic is consumed: a second call without a new Current() releases nothing.
         held.ReleaseUnprobeableTopics([]);
         held.IsHeld("t2").ShouldBeTrue();
     }

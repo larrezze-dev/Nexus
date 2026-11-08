@@ -147,10 +147,14 @@ public sealed partial class RelayWorker : BackgroundService
                 // list (new holds, or probes still unreachable: the next batch skips their rows and
                 // advances through the backlog). A full batch of deferred or EV-R3-skipped rows that
                 // changed nothing waits for the next wake-up instead (no busy loop). Probe batches
-                // never follow each other (HeldTopics.Current), so draining on re-holds cannot starve
-                // the rows behind many unreachable topics.
+                // never follow each other and probe one topic each (HeldTopics.Current), so draining
+                // on re-holds cannot starve the rows behind many unreachable topics. While a due topic
+                // has not been tried yet, go on too (within two batches one is tried: bounded by two
+                // batches per held topic per negative TTL), so every due topic is probed within N
+                // probe/fairness cycles, not one per poll.
                 drainNow = outcome.Attempted >= _options.BatchSize
-                    || (outcome.Selected >= _options.BatchSize && outcome.NewHolds > 0);
+                    || (outcome.Selected >= _options.BatchSize && outcome.NewHolds > 0)
+                    || _processor.Held.HasUntriedDueTopic();
             }
         }
     }

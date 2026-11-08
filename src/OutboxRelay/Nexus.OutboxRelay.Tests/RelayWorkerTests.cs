@@ -207,27 +207,55 @@ public sealed class RelayWorkerLoopTests
         publisher.Attempted.Count(m => !down.Contains(m.Topic)).ShouldBe(lease.HealthyServed);
     }
 
-    [Theory(DisplayName = "H1(b) fairness: with many unreachable topics whose probes take a full batch each, and batches that take time (20 ms), probe batches never follow each other: the rows behind them keep getting batches and the loop still waits for the poll")]
+    [Theory(DisplayName = "H1(b) fairness + LRU probes: with many unreachable topics whose probes take a full batch each and 5 ms batches, probe batches never follow each other, every held topic is re-probed (not only the oldest), a topic created late is released and published, the rows behind keep getting batches, and every batch beyond the poll is tied to a counted attempt (no spin)")]
+    [InlineData(12)]
     [InlineData(20)]
     [InlineData(40)]
-    public async Task ManyProbingTopics_WithBatchLatency_RowsBehindAreServed(int topics)
+    [InlineData(100)]
+    public async Task ManyProbingTopics_AllReprobed_RowsBehindServed(int topics)
     {
-        // 20 ms per batch × 20–40 topics = 0.4–0.8 s ≥ the 300 ms negative TTL: without the fairness
-        // rule some topic is always due, every batch is a probe that re-holds its topic (progress ⇒
-        // drain on), the loop never waits and the healthy rows get no batch at all.
-        var down = Enumerable.Range(1, topics).Select(i => $"nexus.test.down-{i}.created").ToArray();
-        var lease = new TopicAwareLease(down) { Latency = TimeSpan.FromMilliseconds(20) };
-        var publisher = NegativeCachingPublisher(down, ttl: TimeSpan.FromMilliseconds(300));
+        // TTL 300 ms, poll 200 ms, 5 ms per batch, 4 s: the same ratios as TTL 5 s / poll 500 ms with
+        // slower batches. Topic i's backlog is older than topic i+1's (it fills the batch first).
+        var down = Enumerable.Range(0, topics).Select(i => $"nexus.test.down-{i:000}.created").ToArray();
+        var last = down[^1];
+        var lastCreated = 0;
+        var clock = Stopwatch.StartNew();
+        var probes = down.ToDictionary(t => t, _ => new List<TimeSpan>());
+        var drained = new HashSet<string>();
+        var cache = new Dictionary<string, DateTimeOffset>();
+        var publisher = new ScriptedPublisher(m =>
+        {
+            if (!probes.TryGetValue(m.Topic, out var log))
+            {
+                return PublishResult.Success;
+            }
+
+            log.Add(clock.Elapsed);
+            if (m.Topic == last && Volatile.Read(ref lastCreated) == 1)
+            {
+                drained.Add(m.Topic); // the topic's backlog is published from here on
+                return PublishResult.Success;
+            }
+
+            var until = DateTimeOffset.UtcNow.AddMilliseconds(300);
+            cache[m.Topic] = until;
+            return PublishResult.TopicUnreachable($"topic '{m.Topic}' missing", until);
+        })
+        {
+            Defer = m => cache.TryGetValue(m.Topic, out var until) && DateTimeOffset.UtcNow < until ? PublishResult.Deferred("topic missing (cached)", until) : null,
+        };
+        var lease = new TopicAwareLease(down) { Latency = TimeSpan.FromMilliseconds(5), IsDrained = drained.Contains };
         using var meters = new TestMeterFactory();
         using var worker = new RelayWorker(
             new NeverLeadership(),
             publisher,
             new RelayMetrics(meters),
-            Options.Create(new RelayOptions { BatchSize = 3, PollIntervalMs = 500 }),
+            Options.Create(new RelayOptions { BatchSize = 3, PollIntervalMs = 200 }),
             TimeProvider.System,
             NullLogger<RelayWorker>.Instance);
 
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(4));
+        var create = Task.Delay(TimeSpan.FromSeconds(1.5), TestContext.Current.CancellationToken).ContinueWith(_ => Volatile.Write(ref lastCreated, 1), TaskScheduler.Default);
         try
         {
             await worker.RunAsLeaderAsync(lease, cts.Token);
@@ -236,10 +264,21 @@ public sealed class RelayWorkerLoopTests
         {
         }
 
-        TestContext.Current.TestOutputHelper?.WriteLine($"{topics} topics: {lease.Batches} batches, {lease.HealthyServed} healthy, {lease.Waits} poll waits, {lease.MaxConsecutiveProbeBatches} max consecutive probe batches.");
-        lease.HealthyServed.ShouldBeGreaterThanOrEqualTo(2, "the healthy rows behind the unreachable topics keep getting batches");
-        lease.Waits.ShouldBeGreaterThanOrEqualTo(2, "the loop is not a perpetual drain");
+        await create;
+        var attempts = probes.Values.Sum(l => l.Count);
+        var neverReprobed = down.Where(t => t != last && probes[t].Count < 2).ToList();
+        TestContext.Current.TestOutputHelper?.WriteLine(
+            $"{topics} topics: {lease.Batches} batches, {attempts} counted attempts, {lease.HealthyServed} healthy, {lease.Waits} poll waits, " +
+            $"{lease.MaxConsecutiveProbeBatches} max consecutive probe batches, never re-probed {neverReprobed.Count}, " +
+            $"probes per topic min {probes.Where(p => p.Key != last).Min(p => p.Value.Count)} max {probes.Values.Max(l => l.Count)}, last topic published: {drained.Contains(last)}.");
+
+        neverReprobed.ShouldBeEmpty("every held topic is re-probed, not only the oldest ones");
+        drained.ShouldContain(last, "the topic created at 1.5 s is probed, answers and its rows are published");
+        worker.ProcessorForTests.Held.IsHeld(last).ShouldBeFalse("and it is released");
+        lease.HealthyServed.ShouldBeGreaterThanOrEqualTo(2, "the rows behind the unreachable topics keep getting batches");
         lease.MaxConsecutiveProbeBatches.ShouldBe(1, "a probe batch is always followed by a batch without probes");
+        probes.Values.Max(l => l.Count).ShouldBeLessThanOrEqualTo((int)(4_000 / 300) + 2, "at most one counted attempt per topic per negative TTL");
+        lease.Batches.ShouldBeLessThanOrEqualTo((2 * attempts) + lease.Waits + 10, "every batch is a poll or tied to a counted attempt (discovery or probe) and its fairness batch: no spin");
     }
 
     /// <summary>A publisher that, like <c>KafkaEventPublisher</c>, caches an unreachable topic for <paramref name="ttl"/>.</summary>
@@ -284,6 +323,9 @@ public sealed class RelayWorkerLoopTests
         /// <summary>Simulated duration of each batch query.</summary>
         public TimeSpan Latency { get; init; } = TimeSpan.Zero;
 
+        /// <summary>Topics whose backlog has been published (no rows left).</summary>
+        public Func<string, bool> IsDrained { get; init; } = _ => false;
+
         public async Task<bool> WaitForWakeUpAsync(TimeSpan timeout, CancellationToken cancellationToken)
         {
             Waits++;
@@ -299,7 +341,7 @@ public sealed class RelayWorkerLoopTests
             }
 
             Batches++;
-            if (down.FirstOrDefault(t => !excludedTopics.Contains(t)) is { } topic)
+            if (down.FirstOrDefault(t => !excludedTopics.Contains(t) && !IsDrained(t)) is { } topic)
             {
                 _consecutiveProbes = _seen.Add(topic) ? 0 : _consecutiveProbes + 1;
                 MaxConsecutiveProbeBatches = Math.Max(MaxConsecutiveProbeBatches, _consecutiveProbes);
