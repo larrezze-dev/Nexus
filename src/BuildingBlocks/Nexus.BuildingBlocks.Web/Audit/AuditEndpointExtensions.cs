@@ -1,6 +1,4 @@
-using System.Text.RegularExpressions;
 using FluentValidation;
-using FluentValidation.Results;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.HttpResults;
@@ -9,6 +7,7 @@ using Nexus.BuildingBlocks.Analytics.Audit;
 using Nexus.BuildingBlocks.Application.Paging;
 using Nexus.BuildingBlocks.Persistence;
 using Nexus.BuildingBlocks.Web.Authorization;
+using Nexus.BuildingBlocks.Web.OpenApi;
 
 namespace Nexus.BuildingBlocks.Web.Audit;
 
@@ -18,10 +17,8 @@ namespace Nexus.BuildingBlocks.Web.Audit;
 /// Scope is enforced by the analytics query (<see cref="IAuditTrailReader"/>), hence
 /// <c>x-scope: none</c> here; an unknown or invisible aggregate is a 200 with an empty page.
 /// </summary>
-public static partial class AuditEndpointExtensions
+public static class AuditEndpointExtensions
 {
-    internal const int MaxAggregateTypeLength = 64;
-
     public static RouteHandlerBuilder MapAuditEndpoint(this IEndpointRouteBuilder app)
     {
         ArgumentNullException.ThrowIfNull(app);
@@ -29,6 +26,7 @@ public static partial class AuditEndpointExtensions
         return app.MapGet("/v1/audit/{aggregateType}/{aggregateId:guid}", ListAuditEvents)
             .WithName("listAuditEvents")
             .WithTags("Audit")
+            .ValidatedBy<AuditTrailQuery>()
             .RequirePermission("AUDIT", PermissionAction.Read)
             .WithScope("none");
     }
@@ -37,12 +35,13 @@ public static partial class AuditEndpointExtensions
         string aggregateType,
         Guid aggregateId,
         IAuditTrailReader reader,
+        IValidator<AuditTrailQuery> validator,
         IUnitOfWork unitOfWork,
         CancellationToken cancellationToken,
         int page = PageLimits.DefaultPage,
         int pageSize = PageLimits.DefaultPageSize)
     {
-        Validate(aggregateType, page, pageSize);
+        await validator.ValidateAndThrowAsync(new AuditTrailQuery(aggregateType, page, pageSize), cancellationToken);
 
         // Already active (the permission filter began it); a no-op then.
         await unitOfWork.BeginAsync(cancellationToken);
@@ -65,33 +64,4 @@ public static partial class AuditEndpointExtensions
 
         return TypedResults.Ok(new AuditEventPage(items, result.Page, result.PageSize, result.Total));
     }
-
-    private static void Validate(string aggregateType, int page, int pageSize)
-    {
-        var failures = new List<ValidationFailure>();
-
-        if (aggregateType.Length > MaxAggregateTypeLength || !AggregateTypeRegex().IsMatch(aggregateType))
-        {
-            failures.Add(new ValidationFailure("aggregateType", $"aggregateType must match ^[a-z][a-z0-9]*([-_][a-z0-9]+)*$ (max {MaxAggregateTypeLength} characters)."));
-        }
-
-        if (page < 1)
-        {
-            failures.Add(new ValidationFailure("page", "page must be greater than or equal to 1."));
-        }
-
-        if (pageSize is < 1 or > PageLimits.MaxPageSize)
-        {
-            failures.Add(new ValidationFailure("pageSize", $"pageSize must be between 1 and {PageLimits.MaxPageSize}."));
-        }
-
-        if (failures.Count > 0)
-        {
-            throw new ValidationException(failures);
-        }
-    }
-
-    // Copied from the aggregateType path parameter of contracts/openapi/_shared/audit.yaml.
-    [GeneratedRegex("^[a-z][a-z0-9]*([-_][a-z0-9]+)*$", RegexOptions.CultureInvariant)]
-    private static partial Regex AggregateTypeRegex();
 }

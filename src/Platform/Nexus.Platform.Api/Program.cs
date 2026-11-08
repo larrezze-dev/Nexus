@@ -27,8 +27,9 @@ using Nexus.Platform.Infrastructure.RoleAssignments;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Handlers and validators live in Nexus.Platform.Application; the API assembly is scanned too.
-builder.Services.AddNexusApplication(typeof(Program).Assembly, typeof(CreateUserCommand).Assembly);
+// Handlers and validators live in Nexus.Platform.Application; the API assembly is scanned too, and
+// BuildingBlocks.Web (validator of the generic audit endpoint).
+builder.Services.AddNexusApplication(typeof(Program).Assembly, typeof(CreateUserCommand).Assembly, typeof(AuditEndpointExtensions).Assembly);
 builder.Services.AddNexusWeb(builder.Configuration);
 builder.Services.AddNexusProblemDetails();
 // AddNexusWeb only registers authentication (AddNexusAuthentication); ASP.NET Core's
