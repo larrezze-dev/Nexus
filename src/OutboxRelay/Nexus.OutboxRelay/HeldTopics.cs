@@ -30,10 +30,11 @@ namespace Nexus.OutboxRelay;
 /// <b>One topic per probe batch, least recently probed first.</b> A probing topic makes all its rows
 /// selectable and the batch is ordered by <c>created_at, id</c>: with several topics left out at
 /// once, the oldest backlog would fill the batch and the same oldest topics would take every probe
-/// while the others were never probed again. So <see cref="Current"/> leaves out only one due topic:
-/// first the due topics not yet tried since they became due, by probe time (then topic name,
-/// ordinal); then those already tried without an answer, by the time of that try. A re-held topic
-/// gets a new probe time (now + negative TTL) and goes to the back.
+/// while the others were never probed again. So <see cref="Current"/> leaves out only one due topic,
+/// by a single LRU key: the time of its last try in this due period (left out without an answer:
+/// its row was not reached) or, if not tried yet, its probe time; then topic name (ordinal). A
+/// re-held topic gets a new probe time (now + negative TTL) and goes to the back; a topic tried
+/// without an answer goes behind every topic that became due before that try.
 /// </para>
 ///
 /// <para>
@@ -42,13 +43,17 @@ namespace Nexus.OutboxRelay;
 /// after a batch for which <see cref="Current"/> left a topic out, the next <see cref="Current"/>
 /// excludes every held topic, due or not, so at least every other batch is free of probes and the
 /// healthy rows behind many unreachable topics always get batches. The loop drains on at once while
-/// a due topic has not been tried yet (<see cref="HasUntriedDueTopic"/>): within two batches (a
-/// fairness batch, then a probe batch) one such topic is tried, so these drains are bounded by two
-/// batches per topic per negative TTL, and never spin on a topic whose rows cannot be reached
-/// (once tried it waits for the poll like the rest). Every due topic is thus
-/// probed within N probe/fairness cycles (N = held topics), and still at most one counted attempt
-/// per topic per negative TTL. The trade-off: with many unreachable topics, a topic that becomes
-/// reachable is noticed up to N cycles after its probe time instead of at once.
+/// a due topic has not been tried yet (<see cref="HasUntriedDueTopic"/>): every other batch is a
+/// probe batch, and each probe moves the chosen topic behind every topic due at that moment, so all
+/// of them are tried within N probe batches; these drains are bounded by about 2N batches per
+/// negative TTL, and never spin on a topic whose rows cannot be reached (once every due topic has
+/// been tried, the loop waits for the poll like the rest). Every topic ahead of a due topic in the LRU
+/// order has an older key and every topic re-held or tried after it goes behind it, so every due
+/// topic is probed within N probe/fairness cycles (N = held topics), and still at most one counted
+/// attempt per topic per negative TTL. With <i>N × 2 × batch duration</i> ≥ the negative TTL the loop
+/// chains batches without pausing for the poll (half probes, half healthy rows), bounded to about
+/// 2N batches per TTL. The trade-off: with many unreachable topics, a topic that becomes reachable
+/// is noticed up to N cycles after its probe time instead of at once.
 /// </para>
 ///
 /// <para>
@@ -181,9 +186,9 @@ public sealed class HeldTopics
 
     /// <summary>
     /// Whether a due topic has not been tried since it became due: the loop then drains on at once
-    /// instead of waiting for the poll. Within two batches (the fairness batch, if the last one was a
-    /// probe batch, then a probe batch) <see cref="Current"/> tries one such topic, so these drains are
-    /// bounded by two batches per topic per negative TTL.
+    /// instead of waiting for the poll. Every other batch is a probe batch and each probe moves its
+    /// topic behind every topic due at that moment, so all such topics are tried within N probe
+    /// batches (N = held topics): these drains are bounded by about 2N batches per negative TTL.
     /// </summary>
     public bool HasUntriedDueTopic()
     {
@@ -224,14 +229,14 @@ public sealed class HeldTopics
         _probing = null;
     }
 
-    /// <summary>Probe order: untried before tried; untried by probe time, tried by the time of the try; then topic name.</summary>
+    /// <summary>
+    /// Probe order, a single least-recently-probed key for every due topic: the time of its last
+    /// try in this due period or, if not tried yet, its probe time; then topic name (ordinal). No
+    /// priority for untried topics: under saturation some topic is always untried, and a topic tried
+    /// without an answer would never be chosen again.
+    /// </summary>
     private static bool ProbesBefore(string topic, TopicHold hold, string other, TopicHold otherHold)
     {
-        if (hold.TriedAt.HasValue != otherHold.TriedAt.HasValue)
-        {
-            return !hold.TriedAt.HasValue;
-        }
-
         var key = hold.TriedAt ?? hold.ProbeAt;
         var otherKey = otherHold.TriedAt ?? otherHold.ProbeAt;
         return key != otherKey ? key < otherKey : string.CompareOrdinal(topic, other) < 0;

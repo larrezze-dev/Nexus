@@ -213,44 +213,51 @@ public sealed class OutboxBatchProcessorTests
         held.Hold("t1", time.GetUtcNow().AddSeconds(5)).ShouldBeTrue("released, then unreachable again: a new hold");
     }
 
-    [Fact(DisplayName = "H1(b) fairness + LRU: a probe batch leaves out ONE due topic (untried first, by probe time, then name); the next batch excludes every held topic; a re-held topic goes to the back; a topic tried without an answer goes behind the untried ones")]
+    [Fact(DisplayName = "H1(b) fairness + LRU: a probe batch leaves out ONE due topic, by a single LRU key (time of the last try, else probe time; then name); the next batch excludes every held topic; a re-held topic goes to the back; a topic tried without an answer is retried before topics that became due after that try")]
     public void HeldTopics_OneTopicPerProbeBatch_LeastRecentlyProbedFirst()
     {
         var time = new ManualTime(new DateTimeOffset(2026, 11, 7, 10, 0, 0, TimeSpan.Zero));
         var held = new HeldTopics(time);
         var t0 = time.GetUtcNow();
+        IReadOnlyCollection<string> Next()
+        {
+            time.Advance(TimeSpan.FromMilliseconds(10)); // each batch takes a little time
+            return held.Current();
+        }
+
         held.Hold("t2", t0.AddSeconds(4));
         held.Hold("t1", t0.AddSeconds(5));
         held.Hold("t0", t0.AddSeconds(5));
         held.Hold("t9", t0.AddSeconds(60));
         held.HasUntriedDueTopic().ShouldBeFalse("nothing due yet");
-        time.Advance(TimeSpan.FromSeconds(5));
-        held.HasUntriedDueTopic().ShouldBeTrue();
+        time.Advance(TimeSpan.FromSeconds(5) - TimeSpan.FromMilliseconds(10));
 
-        held.Current().ShouldBe(["t0", "t1", "t9"], ignoreOrder: true, "probe batch: only t2 (oldest probe time) is left out");
+        Next().ShouldBe(["t0", "t1", "t9"], ignoreOrder: true, "probe batch: only t2 (oldest probe time) is left out");
         held.Hold("t2", time.GetUtcNow().AddSeconds(5)).ShouldBeTrue("t2 probed, still unreachable: back of the queue");
         held.HasUntriedDueTopic().ShouldBeTrue("t0 and t1 are still due and untried: drain on");
 
-        held.Current().ShouldBe(["t0", "t1", "t2", "t9"], ignoreOrder: true, "fairness: no probe right after a probe batch");
+        Next().ShouldBe(["t0", "t1", "t2", "t9"], ignoreOrder: true, "fairness: no probe right after a probe batch");
         held.ReleaseUnprobeableTopics([]);
         held.Count.ShouldBe(4, "nothing is probing in a fairness batch: the defensive release cannot misfire");
 
-        held.Current().ShouldBe(["t1", "t2", "t9"], ignoreOrder: true, "same probe time: t0 before t1 (ordinal)");
-        // t0's row is not reached (e.g. the batch stopped): no Hold, no release.
-        held.Current().ShouldBe(["t0", "t1", "t2", "t9"], ignoreOrder: true);
-        held.Current().ShouldBe(["t0", "t2", "t9"], ignoreOrder: true, "t1 (untried) before t0 (tried without an answer)");
+        Next().ShouldBe(["t1", "t2", "t9"], ignoreOrder: true, "same probe time: t0 before t1 (ordinal)");
+        // t0's row is not reached (e.g. the batch stopped on an InfraGlobal failure): no Hold, no release.
+        Next();
+        Next().ShouldBe(["t0", "t2", "t9"], ignoreOrder: true, "t1 (probe time 5.00 s) before t0 (tried at 5.02 s)");
         held.Hold("t1", time.GetUtcNow().AddSeconds(5));
         held.HasUntriedDueTopic().ShouldBeFalse("t0 is due but already tried: no more drains for it");
-        held.Current().ShouldBe(["t0", "t1", "t2", "t9"], ignoreOrder: true);
-        held.Current().ShouldBe(["t1", "t2", "t9"], ignoreOrder: true, "t0 is retried (it is the only due topic)");
+        Next();
+        Next().ShouldBe(["t1", "t2", "t9"], ignoreOrder: true, "t0 is retried (the only due topic), tried again at 5.06 s");
 
-        time.Advance(TimeSpan.FromSeconds(5)); // t1, t2 due again, t0 tried at t+5 s
-        held.Current().ShouldBe(["t0", "t1", "t2", "t9"], ignoreOrder: true, "fairness after the last probe batch");
-        held.Current().ShouldBe(["t0", "t2", "t9"], ignoreOrder: true, "untried t1 and t2 tie on probe time: t1 by name; the tried t0 comes last");
-        held.Current();
-        held.Current().ShouldBe(["t0", "t1", "t9"], ignoreOrder: true, "then t2");
-        held.Current();
-        held.Current().ShouldBe(["t1", "t2", "t9"], ignoreOrder: true, "then t0");
+        // t2 and t1 are due again (probe times 10.00 s and 10.04 s); t0 was last tried at 5.06 s.
+        time.Advance(TimeSpan.FromSeconds(5));
+        held.HasUntriedDueTopic().ShouldBeTrue();
+        Next().ShouldBe(["t0", "t1", "t2", "t9"], ignoreOrder: true, "fairness after the last probe batch");
+        Next().ShouldBe(["t1", "t2", "t9"], ignoreOrder: true, "single LRU key: t0 (tried at 5.06 s) before the untried t2 and t1 — under saturation untried topics never run out, so a priority for them would starve t0");
+        Next();
+        Next().ShouldBe(["t0", "t1", "t9"], ignoreOrder: true, "then t2 (10.00 s)");
+        Next();
+        Next().ShouldBe(["t0", "t2", "t9"], ignoreOrder: true, "then t1 (10.04 s)");
 
         held.Clear();
         held.Hold("t4", time.GetUtcNow());

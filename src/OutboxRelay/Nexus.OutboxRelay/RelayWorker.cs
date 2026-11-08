@@ -149,9 +149,9 @@ public sealed partial class RelayWorker : BackgroundService
                 // changed nothing waits for the next wake-up instead (no busy loop). Probe batches
                 // never follow each other and probe one topic each (HeldTopics.Current), so draining
                 // on re-holds cannot starve the rows behind many unreachable topics. While a due topic
-                // has not been tried yet, go on too (within two batches one is tried: bounded by two
-                // batches per held topic per negative TTL), so every due topic is probed within N
-                // probe/fairness cycles, not one per poll.
+                // has not been tried yet, go on too (every other batch probes the least recently
+                // probed due topic: bounded by about 2N batches per negative TTL), so every due topic
+                // is probed within N probe/fairness cycles, not one per poll.
                 drainNow = outcome.Attempted >= _options.BatchSize
                     || (outcome.Selected >= _options.BatchSize && outcome.NewHolds > 0)
                     || _processor.Held.HasUntriedDueTopic();
