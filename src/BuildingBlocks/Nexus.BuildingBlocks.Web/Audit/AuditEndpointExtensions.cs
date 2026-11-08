@@ -1,4 +1,5 @@
 using FluentValidation;
+using FluentValidation.Results;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.HttpResults;
@@ -41,7 +42,14 @@ public static class AuditEndpointExtensions
         int page = PageLimits.DefaultPage,
         int pageSize = PageLimits.DefaultPageSize)
     {
-        await validator.ValidateAndThrowAsync(new AuditTrailQuery(aggregateType, page, pageSize), cancellationToken);
+        var validation = await validator.ValidateAsync(new AuditTrailQuery(aggregateType, page, pageSize), cancellationToken);
+        if (!validation.IsValid)
+        {
+            // errors[].field carries the API's camelCase parameter names, not the record's members.
+            throw new ValidationException(validation.Errors.Select(failure => new ValidationFailure(
+                char.ToLowerInvariant(failure.PropertyName[0]) + failure.PropertyName[1..],
+                failure.ErrorMessage)));
+        }
 
         // Already active (the permission filter began it); a no-op then.
         await unitOfWork.BeginAsync(cancellationToken);
