@@ -131,41 +131,100 @@ public sealed class OutboxBatchProcessorTests
         outcome.ShouldSatisfyAllConditions(o => o.Deferred.ShouldBe(1), o => o.Failed.ShouldBe(0), o => o.StoppedOnTransientFailure.ShouldBeFalse());
     }
 
-    [Fact(DisplayName = "H1(b): holds are grouped by topic and do not expire while the topic is unreachable: at the probe time only the probe aggregate is released; still unreachable ⇒ all extended; the topic answers ⇒ all released")]
+    [Fact(DisplayName = "H1(b): holds are per topic and do not expire while the topic is unreachable: at the probe time the topic leaves the exclusion list; still unreachable ⇒ held again (new probe time); the topic answers ⇒ released")]
     public async Task Holds_SurviveWhileTopicUnreachable_ReleasedWhenItAnswers()
     {
         const string Down = "nexus.test.down.created";
         var time = new ManualTime(new DateTimeOffset(2026, 11, 7, 10, 0, 0, TimeSpan.Zero));
         var (a, b, c) = (Guid.CreateVersion7(), Guid.CreateVersion7(), Guid.CreateVersion7());
         var topicUp = false;
+        var probes = 0;
         var publisher = new ScriptedPublisher(m =>
-            m.Topic != Down || topicUp ? PublishResult.Success
-            : m.AggregateId == a ? PublishResult.TopicUnreachable("topic missing", time.GetUtcNow().AddSeconds(5))
-            : PublishResult.Deferred("topic missing (cached)", time.GetUtcNow().AddSeconds(5)));
+        {
+            if (m.Topic != Down || topicUp)
+            {
+                return PublishResult.Success;
+            }
+
+            if (m.AggregateId == a)
+            {
+                probes++;
+                return PublishResult.TopicUnreachable("topic missing", time.GetUtcNow().AddSeconds(5));
+            }
+
+            return PublishResult.Deferred("topic missing (cached)", time.GetUtcNow().AddSeconds(5));
+        });
         using var meters = new TestMeterFactory();
         var processor = new OutboxBatchProcessor(publisher, new RelayMetrics(meters), time, 10, NullLogger.Instance);
         OutboxMessage Row(Guid aggregate) => FakeBatch.Message(aggregate, 1) with { Topic = Down };
 
         var first = await processor.ProcessAsync(new FakeBatch(Row(a), Row(b), FakeBatch.Message(c, 1)), CancellationToken.None);
-        first.NewHolds.ShouldBe(2);
-        processor.Held.Current().ShouldBe([a, b], ignoreOrder: true);
+        first.NewHolds.ShouldBe(1, "one topic, however many of its aggregates the batch skipped");
+        processor.Held.Current().ShouldBe([Down]);
+        processor.Held.Count.ShouldBe(1);
 
         time.Advance(TimeSpan.FromSeconds(5));
-        processor.Held.Current().ShouldBe([b], "probe due: only the topic's probe aggregate (the first held) is released; b stays held");
+        processor.Held.Current().ShouldBeEmpty("probe due: the topic leaves the exclusion list so the batch reaches its oldest rows");
+        processor.Held.IsHeld(Down).ShouldBeTrue("probing, still held");
 
-        // The probe finds the topic still missing: every hold is extended, nothing new is held.
-        var probe = await processor.ProcessAsync(new FakeBatch(Row(a)), CancellationToken.None);
-        probe.NewHolds.ShouldBe(0);
-        processor.Held.Current().ShouldBe([a, b], ignoreOrder: true);
+        // The probe finds the topic still missing: held again with the new probe time, which is
+        // progress (the next batch excludes it again) — once per topic per batch.
+        var probe = await processor.ProcessAsync(new FakeBatch(Row(a), Row(b)), CancellationToken.None);
+        probe.NewHolds.ShouldBe(1, "the probing topic re-enters the exclusion list");
+        probes.ShouldBe(2);
+        processor.Held.Current().ShouldBe([Down]);
         time.Advance(TimeSpan.FromSeconds(4));
-        processor.Held.Current().ShouldBe([a, b], ignoreOrder: true, "extended to the new probe time, not expired");
+        processor.Held.Current().ShouldBe([Down], "extended to the new probe time, not expired");
 
-        // Next probe: the topic answers ⇒ every hold of it is released.
+        // Next probe: the topic answers ⇒ released.
         time.Advance(TimeSpan.FromSeconds(1));
+        processor.Held.Current().ShouldBeEmpty();
         topicUp = true;
-        await processor.ProcessAsync(new FakeBatch(Row(a)), CancellationToken.None);
+        var answered = await processor.ProcessAsync(new FakeBatch(Row(a), Row(b)), CancellationToken.None);
+        answered.ShouldSatisfyAllConditions(o => o.Published.ShouldBe(2), o => o.NewHolds.ShouldBe(0));
         processor.Held.Current().ShouldBeEmpty();
         processor.Held.Count.ShouldBe(0);
+        processor.Held.IsHeld(Down).ShouldBeFalse();
+    }
+
+    [Fact(DisplayName = "H1(b): HeldTopics.Hold — true for a new topic, false while already excluded, true once when a probing topic is still unreachable; an earlier probe time never shortens a hold")]
+    public void HeldTopics_HoldSemantics()
+    {
+        var time = new ManualTime(new DateTimeOffset(2026, 11, 7, 10, 0, 0, TimeSpan.Zero));
+        var held = new HeldTopics(time);
+        var t5 = time.GetUtcNow().AddSeconds(5);
+
+        held.Hold("t1", t5).ShouldBeTrue("new topic");
+        held.Hold("t1", t5).ShouldBeFalse("already excluded");
+        held.Hold("t1", t5.AddSeconds(-3)).ShouldBeFalse();
+        time.Advance(TimeSpan.FromSeconds(2));
+        held.Current().ShouldBe(["t1"], "an earlier probe time did not shorten the hold");
+
+        time.Advance(TimeSpan.FromSeconds(3));
+        held.Current().ShouldBeEmpty("probe due");
+        held.Hold("t1", time.GetUtcNow().AddSeconds(5)).ShouldBeTrue("probing and still unreachable: excluded again");
+        held.Hold("t1", time.GetUtcNow().AddSeconds(5)).ShouldBeFalse("once per batch");
+        held.Current().ShouldBe(["t1"]);
+        held.Count.ShouldBe(1);
+
+        held.ReleaseTopic("t1");
+        held.Count.ShouldBe(0);
+        held.Current().ShouldBeEmpty();
+        held.Hold("t1", time.GetUtcNow().AddSeconds(5)).ShouldBeTrue("released, then unreachable again: a new hold");
+    }
+
+    [Fact(DisplayName = "H1(b): HeldTopics.Current never returns null nor null elements, and only the topics whose probe time is in the future")]
+    public void HeldTopics_Current_IsNeverNull()
+    {
+        var time = new ManualTime(new DateTimeOffset(2026, 11, 7, 10, 0, 0, TimeSpan.Zero));
+        var held = new HeldTopics(time);
+        held.Current().ShouldNotBeNull().ShouldBeEmpty();
+        held.Hold("t1", time.GetUtcNow().AddSeconds(5));
+        held.Hold("t2", time.GetUtcNow().AddSeconds(10));
+        held.Hold("t3", time.GetUtcNow());
+        held.Current().ShouldBe(["t1", "t2"], ignoreOrder: true, "t3's probe time is now: it is probing");
+        held.Current().ShouldAllBe(t => t != null);
+        Should.Throw<ArgumentNullException>(() => held.Hold(null!, time.GetUtcNow()));
     }
 
     [Fact(DisplayName = "H1: rows the publisher defers without I/O (topic negative-cached) skip the leader-lock round trip and are not published; other rows still confirm the lock")]
@@ -185,10 +244,10 @@ public sealed class OutboxBatchProcessorTests
 
         batch.Confirmations.ShouldBe(1, "only the produced row confirms the lock");
         publisher.Attempted.ShouldBe([ok]);
-        outcome.ShouldSatisfyAllConditions(o => o.Deferred.ShouldBe(4), o => o.NewHolds.ShouldBe(4), o => o.Published.ShouldBe(1));
+        outcome.ShouldSatisfyAllConditions(o => o.Deferred.ShouldBe(4), o => o.NewHolds.ShouldBe(1, "one topic"), o => o.Published.ShouldBe(1));
     }
 
-    [Fact(DisplayName = "N2: the probe row failing as Row (topic reachable, bad payload) releases the topic's other holds")]
+    [Fact(DisplayName = "N2: the probe row failing as Row (topic reachable, bad payload) releases the topic")]
     public async Task ProbeRowFailure_ReleasesTopic()
     {
         const string T = "nexus.test.review.row";
@@ -203,34 +262,40 @@ public sealed class OutboxBatchProcessorTests
         OutboxMessage Row(Guid g) => FakeBatch.Message(g, 1) with { Topic = T };
 
         await processor.ProcessAsync(new FakeBatch(Row(a), Row(b)), CancellationToken.None);
+        processor.Held.IsHeld(T).ShouldBeTrue();
         time.Advance(TimeSpan.FromSeconds(5));
+        processor.Held.Current().ShouldBeEmpty();
         up = true;
         await processor.ProcessAsync(new FakeBatch(Row(a)), CancellationToken.None);
 
-        processor.Held.Current().ShouldBeEmpty("a Row failure proves the topic answered: b must be released");
+        processor.Held.IsHeld(T).ShouldBeFalse("a Row failure proves the topic answered: it must be released");
+        processor.Held.Current().ShouldBeEmpty();
     }
 
-    [Fact(DisplayName = "N1: defensive release — a due probe aggregate absent from a partial batch releases its topic; a present one (or a probe not yet due) does not")]
+    [Fact(DisplayName = "N1: defensive release — a probing topic with no row in a partial batch is released; one with a row in it (or a topic not yet due) is not")]
     public void UnprobeableTopic_IsReleased()
     {
         var time = new ManualTime(new DateTimeOffset(2026, 11, 7, 10, 0, 0, TimeSpan.Zero));
-        var held = new HeldAggregates(time);
-        var (p1, x1, p2, x2) = (Guid.CreateVersion7(), Guid.CreateVersion7(), Guid.CreateVersion7(), Guid.CreateVersion7());
-        held.Hold("t1", p1, time.GetUtcNow().AddSeconds(5));
-        held.Hold("t1", x1, time.GetUtcNow().AddSeconds(5));
-        held.Hold("t2", p2, time.GetUtcNow().AddSeconds(5));
-        held.Hold("t2", x2, time.GetUtcNow().AddSeconds(5));
+        var held = new HeldTopics(time);
+        held.Hold("t1", time.GetUtcNow().AddSeconds(5));
+        held.Hold("t2", time.GetUtcNow().AddSeconds(5));
+        held.Hold("t3", time.GetUtcNow().AddSeconds(60));
 
         held.Current();
         held.ReleaseUnprobeableTopics([]);
-        held.Count.ShouldBe(4, "no probe is due yet");
+        held.Count.ShouldBe(3, "no probe is due yet");
 
         time.Advance(TimeSpan.FromSeconds(5));
-        held.Current().ShouldBe([x1, x2], ignoreOrder: true);
-        held.ReleaseUnprobeableTopics([FakeBatch.Message(p2, 1) with { Topic = "t2" }]);
+        held.Current().ShouldBe(["t3"]);
+        held.ReleaseUnprobeableTopics([FakeBatch.Message(Guid.CreateVersion7(), 1) with { Topic = "t2" }]);
 
-        held.IsHeld("t1").ShouldBeFalse("t1's probe row is gone: the topic cannot be probed, so it is released");
-        held.IsHeld("t2").ShouldBeTrue("t2's probe row is in the batch: the preflight decides");
+        held.IsHeld("t1").ShouldBeFalse("t1 has nothing selectable to probe: released");
+        held.IsHeld("t2").ShouldBeTrue("t2's row is in the batch: the preflight decides");
+        held.IsHeld("t3").ShouldBeTrue("t3 was excluded (not probing): absent from the batch by design");
+
+        // The probing set is consumed: a second call without a new Current() releases nothing.
+        held.ReleaseUnprobeableTopics([]);
+        held.IsHeld("t2").ShouldBeTrue();
     }
 
     [Fact(DisplayName = "N1: RunAsLeaderAsync starts by clearing the holds of a previous lease")]
@@ -242,22 +307,24 @@ public sealed class OutboxBatchProcessorTests
             Microsoft.Extensions.Options.Options.Create(new RelayOptions { PollIntervalMs = 50 }), TimeProvider.System, NullLogger<RelayWorker>.Instance);
         // Hold far in the future: neither the probe nor the defensive release can drop it.
         var processor = worker.ProcessorForTests;
-        processor.Held.Hold("t1", Guid.CreateVersion7(), DateTimeOffset.UtcNow.AddHours(1));
-        processor.Held.Hold("t1", Guid.CreateVersion7(), DateTimeOffset.UtcNow.AddHours(1));
+        processor.Held.Hold("t1", DateTimeOffset.UtcNow.AddHours(1));
+        processor.Held.Hold("t2", DateTimeOffset.UtcNow.AddHours(1));
+        var lease = new EmptyLease();
 
         using var cts = new CancellationTokenSource(TimeSpan.FromMilliseconds(300));
         try
         {
-            await worker.RunAsLeaderAsync(new EmptyLease(), cts.Token);
+            await worker.RunAsLeaderAsync(lease, cts.Token);
         }
         catch (OperationCanceledException)
         {
         }
 
         processor.Held.Count.ShouldBe(0);
+        lease.FirstExclusion.ShouldNotBeNull().ShouldBeEmpty("the very first batch of the lease excludes nothing");
     }
 
-    [Fact(DisplayName = "N1: the leader loop applies the defensive release: when a held topic's probe row disappears, a partial batch releases the topic instead of holding it forever")]
+    [Fact(DisplayName = "N1: the leader loop applies the defensive release: when a held topic's rows disappear, a partial batch releases the topic instead of holding it forever")]
     public async Task LeaderLoop_ReleasesUnprobeableTopic()
     {
         const string T = "nexus.test.gone.created";
@@ -268,8 +335,8 @@ public sealed class OutboxBatchProcessorTests
         using var meters = new TestMeterFactory();
         using var worker = new RelayWorker(new EmptyLeadership(), publisher, new RelayMetrics(meters),
             Microsoft.Extensions.Options.Options.Create(new RelayOptions { PollIntervalMs = 50 }), TimeProvider.System, NullLogger<RelayWorker>.Instance);
-        // Batch 1: a (probe) and b on T get held. Then a's row is gone (e.g. reset by an operator)
-        // and b is excluded: every later batch comes back empty.
+        // Batch 1: a and b on T, T gets held. Then T's rows are gone (e.g. purged by an operator):
+        // every later batch comes back empty.
         var lease = new EmptyLease { First = [FakeBatch.Message(a, 1) with { Topic = T }, FakeBatch.Message(b, 1) with { Topic = T }] };
 
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(1));
@@ -281,7 +348,7 @@ public sealed class OutboxBatchProcessorTests
         {
         }
 
-        worker.ProcessorForTests.Held.IsHeld(T).ShouldBeFalse("b must not stay excluded forever once the probe row is gone");
+        worker.ProcessorForTests.Held.IsHeld(T).ShouldBeFalse("T must not stay held forever once it has nothing to probe");
     }
 
     private sealed class EmptyLeadership : IRelayLeadership
@@ -300,33 +367,29 @@ public sealed class OutboxBatchProcessorTests
         /// <summary>When set, the first batch; every later batch is empty.</summary>
         public OutboxMessage[]? First { get; init; }
 
+        /// <summary>The exclusion list of the first batch.</summary>
+        public IReadOnlyCollection<string>? FirstExclusion { get; private set; }
+
         private int _batches;
 
-        public Task<IOutboxBatch> BeginBatchAsync(int batchSize, IReadOnlyCollection<Guid> excludedAggregates, CancellationToken cancellationToken) =>
-            Task.FromResult<IOutboxBatch>(First is null
+        public Task<IOutboxBatch> BeginBatchAsync(int batchSize, IReadOnlyCollection<string> excludedTopics, CancellationToken cancellationToken)
+        {
+            var n = _batches++;
+            if (n == 0)
+            {
+                FirstExclusion = [.. excludedTopics];
+            }
+
+            return Task.FromResult<IOutboxBatch>(First is null
                 ? new FakeBatch(FakeBatch.Message(Guid.CreateVersion7(), 1))
-                : new FakeBatch(_batches++ == 0 ? First : []));
+                : new FakeBatch(n == 0 ? First : []));
+        }
 
         public Task<int> PurgePublishedAsync(DateTimeOffset cutoff, int maxRows, CancellationToken cancellationToken) => Task.FromResult(0);
 
         public Task<PendingStats> GetPendingStatsAsync(CancellationToken cancellationToken) => Task.FromResult(new PendingStats(0, null));
 
         public ValueTask DisposeAsync() => ValueTask.CompletedTask;
-    }
-
-    [Fact(DisplayName = "H1: HeldAggregates is bounded (MaxHeldAggregates, default 50 000)")]
-    public void HeldAggregates_Bounded()
-    {
-        new RelayOptions().MaxHeldAggregates.ShouldBe(50_000);
-        var time = new ManualTime(DateTimeOffset.UtcNow);
-        var held = new HeldAggregates(time, capacity: 100);
-        for (var i = 0; i < 150; i++)
-        {
-            held.Hold(i % 2 == 0 ? "t1" : "t2", Guid.CreateVersion7(), time.GetUtcNow().AddSeconds(5));
-        }
-
-        held.Count.ShouldBe(100);
-        held.Current().Count.ShouldBe(100);
     }
 
     [Fact(DisplayName = "InfraGlobal: the batch stops at once and the outcome carries the cause (for the back-off log)")]

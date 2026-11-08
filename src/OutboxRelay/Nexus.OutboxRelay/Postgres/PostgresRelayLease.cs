@@ -35,26 +35,54 @@ public sealed partial class PostgresRelayLease : IRelayLease
         """;
 
     /// <summary>
-    /// The batch query (conventions-events.md §4.3) plus the per-aggregate ordering guard (EV-R3):
-    /// a PENDING row is not publishable while an earlier row (by <c>created_at, id</c>) of the
-    /// same aggregate is <c>FAILED</c>. Without the guard, once a message exhausts its attempts the
-    /// next versions of that aggregate would be published over the gap and consumers would apply
-    /// version n+1 without n (a replica that discards older versions could never recover n). The
-    /// aggregate is held back instead: it stays blocked, visible through
+    /// The batch query (conventions-events.md §4.3) plus two per-aggregate ordering guards (EV-R3).
+    ///
+    /// <para>
+    /// <b>FAILED guard.</b> A PENDING row is not publishable while an earlier row (by
+    /// <c>created_at, id</c>) of the same aggregate is <c>FAILED</c>. Without it, once a message
+    /// exhausts its attempts the next versions of that aggregate would be published over the gap and
+    /// consumers would apply version n+1 without n (a replica that discards older versions could never
+    /// recover n). The aggregate is held back instead: it stays blocked, visible through
     /// <c>nexus_outbox_failed_total</c>, until an operator fixes the cause and resets the FAILED row
     /// to PENDING (or decides otherwise); then publication resumes in order.
+    /// </para>
     ///
+    /// <para>
+    /// <b>Unreachable topics</b> (<c>$2</c>, <c>text[]</c>: the topics held in memory because they are
+    /// missing or not authorised, <see cref="HeldTopics.Current"/>). Excluded are (a) the PENDING rows
+    /// on those topics and (b) the PENDING rows of an aggregate that has an <i>earlier</i> PENDING row
+    /// on one of them. So an aggregate spread over several topics waits entirely behind its first row
+    /// on an unreachable topic, while its earlier rows on healthy topics still publish. Without the
+    /// exclusion, the rows of an unreachable topic at the head of the backlog would fill every batch
+    /// and starve the other topics; it is per topic, so it needs no per-aggregate list and has no cap,
+    /// however many aggregates the unreachable topic spans.
+    /// </para>
+    ///
+    /// <para>
+    /// <c>$2</c> must be a non-null <c>text[]</c> without NULL elements (<c>'{}'</c> when nothing is
+    /// held): <c>NOT (topic = ANY(NULL))</c> is NULL, the batch would come back empty and the relay
+    /// would stall in silence. <see cref="BeginBatchAsync(int, IReadOnlyCollection{string}, CancellationToken)"/>
+    /// enforces it.
+    /// </para>
+    ///
+    /// <para>
     /// The aggregate is identified by <c>aggregate_id</c> alone: it is the Kafka key (§2) and a
     /// UUIDv7, unique across aggregate types.
+    /// </para>
     ///
-    /// <c>$2</c> (uuid[]): aggregates held back in memory because their topic is unreachable
-    /// (<c>HeldAggregates</c>). Excluded by aggregate, never by topic: an aggregate may publish to
-    /// several topics, and its later rows must wait too (EV-R3). Without it, held head rows could
-    /// fill every batch and starve the other topics.
-    ///
-    /// Cost: the anti-join is served by the partial index <c>ix_outbox_failed_aggregate</c>
+    /// <para>
+    /// Cost: the FAILED anti-join is served by the partial index <c>ix_outbox_failed_aggregate</c>
     /// (<c>(aggregate_id, created_at, id) WHERE status = 'FAILED'</c>, migration
     /// <c>V202611071600__infra__outbox_failed_index.sql</c>), so it never scans the PUBLISHED rows.
+    /// The PENDING anti-join is served by <c>ix_outbox_pending_aggregate</c>
+    /// (<c>(aggregate_id, topic, created_at, id) WHERE status = 'PENDING'</c>, migration
+    /// <c>V202611081000__infra__outbox_pending_aggregate_index.sql</c>): one index probe per candidate
+    /// on <c>(aggregate_id, topic = ANY($2))</c>, with the row comparison resolved inside the index.
+    /// With nothing held (<c>'{}'</c>) it costs the same as the query without it. While a topic is
+    /// held, the scan of <c>ix_outbox_pending</c> walks past that topic's rows at the head of the
+    /// backlog on every pass (measured in track C: ≈ 11 ms with 60 000 held rows, ≈ 89 ms with
+    /// 600 000); the loop only runs it on a wake-up, a poll or after a batch that made progress.
+    /// </para>
     /// </summary>
     internal const string SelectBatchSql =
         """
@@ -68,7 +96,14 @@ public sealed partial class PostgresRelayLease : IRelayLease
                 WHERE f.status = 'FAILED'
                   AND f.aggregate_id = m.aggregate_id
                   AND (f.created_at, f.id) < (m.created_at, m.id))
-          AND NOT (m.aggregate_id = ANY($2))
+          AND NOT (m.topic = ANY($2))
+          AND NOT EXISTS (
+                SELECT 1
+                FROM outbox.message p
+                WHERE p.status = 'PENDING'
+                  AND p.aggregate_id = m.aggregate_id
+                  AND p.topic = ANY($2)
+                  AND (p.created_at, p.id) < (m.created_at, m.id))
         ORDER BY m.created_at, m.id
         LIMIT $1
         FOR UPDATE OF m SKIP LOCKED
@@ -124,11 +159,11 @@ public sealed partial class PostgresRelayLease : IRelayLease
     public Task<IOutboxBatch> BeginBatchAsync(int batchSize, CancellationToken cancellationToken) =>
         BeginBatchAsync(batchSize, [], cancellationToken);
 
-    public async Task<IOutboxBatch> BeginBatchAsync(int batchSize, IReadOnlyCollection<Guid> excludedAggregates, CancellationToken cancellationToken)
+    public async Task<IOutboxBatch> BeginBatchAsync(int batchSize, IReadOnlyCollection<string> excludedTopics, CancellationToken cancellationToken)
     {
-        ArgumentNullException.ThrowIfNull(excludedAggregates);
         ObjectDisposedException.ThrowIf(_disposed, this);
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(batchSize);
+        var topics = ExcludedTopicsArray(excludedTopics);
 
         NpgsqlTransaction transaction;
         try
@@ -148,7 +183,7 @@ public sealed partial class PostgresRelayLease : IRelayLease
             await using (var command = new NpgsqlCommand(SelectBatchSql, _connection, transaction))
             {
                 command.Parameters.Add(new NpgsqlParameter<int> { TypedValue = batchSize, NpgsqlDbType = NpgsqlDbType.Integer });
-                command.Parameters.Add(new NpgsqlParameter<Guid[]> { TypedValue = [.. excludedAggregates], NpgsqlDbType = NpgsqlDbType.Array | NpgsqlDbType.Uuid });
+                command.Parameters.Add(new NpgsqlParameter<string[]> { TypedValue = topics, NpgsqlDbType = NpgsqlDbType.Array | NpgsqlDbType.Text });
                 await using var reader = await command.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
                 while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
                 {
@@ -184,6 +219,23 @@ public sealed partial class PostgresRelayLease : IRelayLease
 
             throw;
         }
+    }
+
+    /// <summary>
+    /// <c>$2</c> of <see cref="SelectBatchSql"/>: always a non-null array without null elements
+    /// (empty when nothing is held), because a NULL array or element would make every
+    /// <c>NOT (m.topic = ANY($2))</c> NULL and silently empty every batch.
+    /// </summary>
+    internal static string[] ExcludedTopicsArray(IReadOnlyCollection<string> excludedTopics)
+    {
+        ArgumentNullException.ThrowIfNull(excludedTopics);
+        var topics = excludedTopics.ToArray();
+        if (Array.Exists(topics, t => t is null))
+        {
+            throw new ArgumentException("Excluded topics must not contain null: NOT (topic = ANY(...)) would be NULL and every batch empty.", nameof(excludedTopics));
+        }
+
+        return topics;
     }
 
     internal const string PurgeSql =

@@ -18,6 +18,7 @@ public sealed class RelayOptionsTests
         options.PurgeRetentionDays.ShouldBe(7);
         options.PurgeMaxChunksPerPass.ShouldBe(10);
         options.ContractsDirectory.ShouldBeEmpty();
+        typeof(RelayOptions).GetProperty("MaxHeldAggregates").ShouldBeNull("holds are per topic, with no cap (decision of Luciano, 2026-11-08)");
         options.ResolveContractsDirectory().ShouldBe(Path.Combine(AppContext.BaseDirectory, "contracts", "events"));
     }
 }
