@@ -43,3 +43,4 @@ make reset               # para y borra volúmenes: pierde los datos locales (in
 
 - El contenido real de PostgreSQL (roles y esquemas) llega en el paso 0.3.
 - Los contratos de servicio (`contracts/openapi/<servicio>.yaml`) empiezan a mockearse con Prism (perfil `mock`) desde el paso en que nace cada servicio.
+- `nexus-projections` (perfil `apps`) proyecta Kafka a ClickHouse. Para reconstruir una proyección (`make projections-rebuild P=event_log`) hay que parar antes el worker con `docker compose stop nexus-projections`: el rebuild se niega mientras el consumer group `projections.<proyección>` tenga miembros activos.

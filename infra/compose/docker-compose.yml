@@ -276,3 +276,35 @@ services:
       NEXUS__TELEMETRY__OTLPENDPOINT: http://otel:18889
     networks:
       - nexus
+
+  nexus-projections:
+    # Built from the repository root (src/Projections/Dockerfile); the image carries db/clickhouse
+    # (V*.sql, applied at startup) and contracts/events/topics.yaml (pii flags, EV-R5).
+    # Runs as the worker by default; `docker compose run --rm nexus-projections rebuild <projection>`
+    # runs a rebuild instead (stop the worker first: rebuild refuses while the group has members).
+    build:
+      context: ../..
+      dockerfile: src/Projections/Dockerfile
+    image: nexus-projections:local
+    container_name: nexus-projections
+    profiles: ["apps"]
+    depends_on:
+      kafka:
+        condition: service_healthy
+      schema-registry:
+        condition: service_healthy
+      clickhouse:
+        condition: service_healthy
+    environment:
+      # Local ClickHouse dev user (CLICKHOUSE_USER / CLICKHOUSE_PASSWORD, the same ones the clickhouse service
+      # reads). Database 'default' is what the migrator connects to (ProjectionOptions.ClickHouseOptions).
+      NEXUS__CLICKHOUSE__CONNECTIONSTRING: "Host=clickhouse;Port=8123;Username=${CLICKHOUSE_USER:-nexus};Password=${CLICKHOUSE_PASSWORD:-nexus_dev_password};Database=default"
+      NEXUS__KAFKA__BOOTSTRAPSERVERS: kafka:29092
+      NEXUS__KAFKA__SCHEMAREGISTRYURL: http://schema-registry:8081
+      # The health endpoint (/health) listens on all interfaces inside the container; not published to the
+      # host, same as nexus-relay (it has no host port either).
+      ASPNETCORE_URLS: http://+:5301
+      # Inside the compose network the Aspire Dashboard listens on 18889 (host 4317).
+      NEXUS__TELEMETRY__OTLPENDPOINT: http://otel:18889
+    networks:
+      - nexus
