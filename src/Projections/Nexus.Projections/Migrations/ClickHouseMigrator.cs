@@ -139,7 +139,7 @@ public sealed partial class ClickHouseMigrator
 
     private async Task ApplyScriptAsync(ClickHouseConnection connection, ClickHouseMigrationScript script, CancellationToken ct)
     {
-        LogApplying(_logger, script.ToString(), script.Statements.Count);
+        LogApplying(_logger, script.Name, script.Statements.Count);
         for (var i = 0; i < script.Statements.Count; i++)
         {
             try
@@ -163,7 +163,7 @@ public sealed partial class ClickHouseMigrator
         insert.AddParameter("checksum", script.Checksum);
         insert.AddParameter("applied_at", TruncateToMilliseconds(_time.GetUtcNow()));
         await insert.ExecuteNonQueryAsync(ct).ConfigureAwait(false);
-        LogApplied(_logger, script.ToString());
+        LogApplied(_logger, script.Name);
     }
 
     internal static DateTime TruncateToMilliseconds(DateTimeOffset instant)

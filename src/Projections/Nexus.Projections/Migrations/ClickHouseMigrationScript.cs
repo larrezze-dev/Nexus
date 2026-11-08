@@ -18,7 +18,11 @@ internal sealed partial class ClickHouseMigrationScript
         Description = description;
         Checksum = checksum;
         Statements = statements;
+        Name = string.Create(CultureInfo.InvariantCulture, $"V{version}__{description}");
     }
+
+    /// <summary>Display name, e.g. <c>V202611082100__base</c>.</summary>
+    public string Name { get; }
 
     public string Path { get; }
 
@@ -112,7 +116,7 @@ internal sealed partial class ClickHouseMigrationScript
         return true;
     }
 
-    public override string ToString() => string.Create(CultureInfo.InvariantCulture, $"V{Version}__{Description}");
+    public override string ToString() => Name;
 
     [GeneratedRegex(@"^V(?<version>[0-9]+)__(?<description>[A-Za-z0-9_]+)\.sql$", RegexOptions.CultureInvariant)]
     private static partial Regex FileNamePattern();

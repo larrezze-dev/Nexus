@@ -63,6 +63,13 @@ public static partial class ProjectionsCli
         ArgumentNullException.ThrowIfNull(args);
         ArgumentNullException.ThrowIfNull(registerProjections);
 
+        // --help / -h anywhere: usage only, never a host (a container started with --help must not consume).
+        if (args.Any(a => a is "--help" or "-h" or "-?"))
+        {
+            await Console.Out.WriteLineAsync(Usage).ConfigureAwait(false);
+            return ExitOk;
+        }
+
         // A first argument starting with '-' is configuration (--Key=Value): the default command applies.
         var command = args.Length > 0 && !args[0].StartsWith('-') ? args[0] : "run";
         var rest = args.Length > 0 && !args[0].StartsWith('-') ? args[1..] : args;
@@ -73,7 +80,7 @@ public static partial class ProjectionsCli
                 return await RunWorkerAsync(rest, registerProjections, configure, ct).ConfigureAwait(false);
             case "rebuild" when rest.Length > 0 && !rest[0].StartsWith('-'):
                 return await RunRebuildAsync(rest[0], rest[1..], registerProjections, configure, ct).ConfigureAwait(false);
-            case "help" or "--help" or "-h":
+            case "help":
                 await Console.Out.WriteLineAsync(Usage).ConfigureAwait(false);
                 return ExitOk;
             default:
@@ -104,7 +111,7 @@ public static partial class ProjectionsCli
                 // Eager: instantiates every projection now (e.g. the topic registry behind event_log), so
                 // a broken definition fails before any consumer or migration runs.
                 var catalog = app.Services.GetRequiredService<ProjectionCatalog>();
-                LogProjections(logger, string.Join(", ", catalog.Names));
+                LogProjections(logger, catalog.Names);
 
                 app.MapHealthChecks("/health");
                 await app.RunAsync(ct).ConfigureAwait(false);
@@ -187,7 +194,7 @@ public static partial class ProjectionsCli
     }
 
     [LoggerMessage(Level = LogLevel.Information, Message = "nexus-projections: registered projections {Projections}")]
-    private static partial void LogProjections(ILogger logger, string projections);
+    private static partial void LogProjections(ILogger logger, IReadOnlyList<string> projections);
 
     [LoggerMessage(Level = LogLevel.Critical, Message = "nexus-projections could not start")]
     private static partial void LogStartupFailed(ILogger logger, Exception ex);

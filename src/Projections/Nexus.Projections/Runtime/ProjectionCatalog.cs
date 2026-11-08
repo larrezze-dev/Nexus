@@ -28,11 +28,14 @@ public sealed partial class ProjectionCatalog
                 throw new InvalidOperationException($"Two projections are named '{projection.Name}' (they would share consumer group {GroupId(projection)}).");
             }
         }
+
+        Names = _byName.Keys.Order(StringComparer.Ordinal).ToList();
     }
 
     public IReadOnlyList<IProjection> All { get; }
 
-    public IEnumerable<string> Names => _byName.Keys.Order(StringComparer.Ordinal);
+    /// <summary>Projection names, sorted.</summary>
+    public IReadOnlyList<string> Names { get; }
 
     public IProjection? Find(string name) => _byName.GetValueOrDefault(name);
 

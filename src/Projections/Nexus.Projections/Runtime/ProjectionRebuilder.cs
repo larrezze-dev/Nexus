@@ -114,7 +114,8 @@ public sealed partial class ProjectionRebuilder
             LogTopicSummary(_logger, projection.Name, topic, rows);
         }
 
-        LogDone(_logger, projection.Name, summary.TotalRows, topics);
+        var totalRows = summary.TotalRows;
+        LogDone(_logger, projection.Name, totalRows, topics);
         return summary;
     }
 

@@ -35,6 +35,7 @@ public sealed partial class ProjectionConsumer
     private readonly IProjection _projection;
     private readonly ProjectionRuntime _runtime;
     private readonly ILogger _logger;
+    private readonly string _subscriptionLabel;
 
     public ProjectionConsumer(IProjection projection, ProjectionRuntime runtime)
     {
@@ -44,7 +45,8 @@ public sealed partial class ProjectionConsumer
         _runtime = runtime;
         _logger = runtime.LoggerFactory.CreateLogger<ProjectionConsumer>();
         GroupId = ProjectionCatalog.GroupId(projection);
-        runtime.Health.Register(GroupId, ProjectionCatalog.SubscriptionLabel(projection));
+        _subscriptionLabel = ProjectionCatalog.SubscriptionLabel(projection);
+        runtime.Health.Register(GroupId, _subscriptionLabel);
     }
 
     public string GroupId { get; }
@@ -99,7 +101,7 @@ public sealed partial class ProjectionConsumer
             consumer.Subscribe(subscription.Topics!);
         }
 
-        LogSubscribed(_logger, GroupId, ProjectionCatalog.SubscriptionLabel(_projection));
+        LogSubscribed(_logger, GroupId, _subscriptionLabel);
     }
 
     private async Task LoopAsync(IConsumer<string?, byte[]?> consumer, ProjectionPipeline pipeline, CancellationToken stoppingToken)
