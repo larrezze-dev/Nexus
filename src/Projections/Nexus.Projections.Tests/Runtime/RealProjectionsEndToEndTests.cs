@@ -39,13 +39,15 @@ public sealed class RealProjectionsEndToEndTests(RuntimeEnvironment env)
         h.Start(h.Catalog.Find("event_log")!);
         h.Start(h.Catalog.Find("dim_legal_entity")!);
 
-        (await Eventually.Until(async () => await env.ClickHouse.CountAsync(
-            $"SELECT count() FROM nexus_analytics.event_log WHERE event_id = '{envelope.EventId}'") == 2, Wait)).ShouldBeTrue("both deliveries inserted");
+        // Both deliveries processed (committed past them). Raw rows may be 1 or 2: with optimize_on_insert
+        // (ClickHouse default) duplicates inside ONE inserted block already collapse at insert time.
+        var high = env.Kafka.HighWatermark(LegalEntityCreated);
+        (await Eventually.Until(async () => await env.Kafka.CommittedAsync("projections.event_log", LegalEntityCreated) == high, Wait)).ShouldBeTrue("both deliveries processed");
         (await env.ClickHouse.CountAsync($"SELECT count() FROM nexus_analytics.event_log FINAL WHERE event_id = '{envelope.EventId}'")).ShouldBe(1);
         var row = (await env.ClickHouse.RowsAsync(
             $"SELECT legal_entity_id, event_type, aggregate_type, payload_json != '' FROM nexus_analytics.event_log FINAL WHERE event_id = '{envelope.EventId}'")).Single();
         // legal_entity_id derived from the aggregate (header empty for org events), payload kept (pii: false).
-        row.ShouldBe($"{legalEntity} | org.legal-entity.created | legal-entity | True");
+        row.ShouldBe($"{legalEntity} | org.legal-entity.created | legal-entity | 1");
 
         (await Eventually.Until(async () => await env.ClickHouse.CountAsync(
             $"SELECT count() FROM nexus_analytics.dim_legal_entity FINAL WHERE legal_entity_id = '{legalEntity}'") == 1, Wait)).ShouldBeTrue();
