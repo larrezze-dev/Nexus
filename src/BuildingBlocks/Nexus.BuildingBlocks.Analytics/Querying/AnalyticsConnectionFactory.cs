@@ -8,6 +8,9 @@ namespace Nexus.BuildingBlocks.Analytics.Querying;
 /// empty scope never reaches ClickHouse.</summary>
 internal interface IAnalyticsConnectionFactory
 {
+    /// <summary>The bound of one statement (<see cref="NexusAnalyticsOptions.QueryTimeout"/>).</summary>
+    TimeSpan QueryTimeout { get; }
+
     ClickHouseConnection Create();
 }
 
@@ -21,22 +24,42 @@ internal interface IAnalyticsConnectionFactory
 /// <c>PooledConnectionLifetime</c> keeps DNS changes visible; automatic decompression matches
 /// the client's own default handler (it requests compressed responses).
 /// </para>
+/// <para>
+/// Bounded and cancellable queries. Every connection carries, as per-query ClickHouse settings:
+/// <list type="bullet">
+///   <item><c>max_execution_time</c> = <see cref="NexusAnalyticsOptions.QueryTimeout"/> (whole
+///   seconds, rounded up): ClickHouse aborts the statement itself.</item>
+///   <item><c>cancel_http_readonly_queries_on_client_close = 1</c>: when the HTTP request is
+///   aborted (the caller's <see cref="CancellationToken"/>, e.g. the browser went away, or the
+///   client-side timeout) ClickHouse stops the query instead of finishing it for nobody.</item>
+/// </list>
+/// The <see cref="HttpClient.Timeout"/> is the query timeout plus <see cref="HttpTimeoutMargin"/>:
+/// a backstop that should normally never fire, so the server's own, more precise error wins.
+/// </para>
 /// </summary>
 internal sealed class AnalyticsConnectionFactory : IAnalyticsConnectionFactory, IDisposable
 {
+    /// <summary>How much later than the server-side limit the HTTP client gives up.</summary>
+    internal static readonly TimeSpan HttpTimeoutMargin = TimeSpan.FromSeconds(5);
+
     private readonly IOptions<NexusAnalyticsOptions> _options;
-    private readonly Lazy<(string ConnectionString, HttpClient HttpClient)> _state;
+    private readonly Lazy<State> _state;
 
     public AnalyticsConnectionFactory(IOptions<NexusAnalyticsOptions> options)
     {
         _options = options;
-        _state = new Lazy<(string, HttpClient)>(Build, LazyThreadSafetyMode.ExecutionAndPublication);
+        _state = new Lazy<State>(Build, LazyThreadSafetyMode.ExecutionAndPublication);
     }
+
+    public TimeSpan QueryTimeout => _state.Value.QueryTimeout;
 
     public ClickHouseConnection Create()
     {
-        var (connectionString, httpClient) = _state.Value;
-        return new ClickHouseConnection(connectionString, httpClient);
+        var state = _state.Value;
+        var connection = new ClickHouseConnection(state.ConnectionString, state.HttpClient);
+        connection.CustomSettings["max_execution_time"] = state.MaxExecutionSeconds;
+        connection.CustomSettings["cancel_http_readonly_queries_on_client_close"] = 1;
+        return connection;
     }
 
     public void Dispose()
@@ -47,7 +70,7 @@ internal sealed class AnalyticsConnectionFactory : IAnalyticsConnectionFactory, 
         }
     }
 
-    private (string, HttpClient) Build()
+    private State Build()
     {
         var options = _options.Value;
         if (string.IsNullOrWhiteSpace(options.ConnectionString))
@@ -55,6 +78,12 @@ internal sealed class AnalyticsConnectionFactory : IAnalyticsConnectionFactory, 
             throw new InvalidOperationException(
                 $"Missing configuration '{NexusAnalyticsOptions.SectionName}:ConnectionString' " +
                 "(ClickHouse connection string for analytic queries, conventions-api.md §7).");
+        }
+
+        if (options.QueryTimeout <= TimeSpan.Zero)
+        {
+            throw new InvalidOperationException(
+                $"'{NexusAnalyticsOptions.SectionName}:{nameof(NexusAnalyticsOptions.QueryTimeout)}' must be positive (was {options.QueryTimeout}).");
         }
 
         var builder = new ClickHouseConnectionStringBuilder(options.ConnectionString);
@@ -69,6 +98,17 @@ internal sealed class AnalyticsConnectionFactory : IAnalyticsConnectionFactory, 
             PooledConnectionLifetime = TimeSpan.FromMinutes(5),
         };
 
-        return (builder.ConnectionString, new HttpClient(handler, disposeHandler: true));
+        var httpClient = new HttpClient(handler, disposeHandler: true)
+        {
+            Timeout = options.QueryTimeout + HttpTimeoutMargin,
+        };
+
+        return new State(
+            builder.ConnectionString,
+            httpClient,
+            options.QueryTimeout,
+            (int)Math.Ceiling(options.QueryTimeout.TotalSeconds));
     }
+
+    private sealed record State(string ConnectionString, HttpClient HttpClient, TimeSpan QueryTimeout, int MaxExecutionSeconds);
 }

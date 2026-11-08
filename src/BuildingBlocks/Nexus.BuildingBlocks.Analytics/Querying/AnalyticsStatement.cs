@@ -25,6 +25,12 @@ namespace Nexus.BuildingBlocks.Analytics.Querying;
 ///   comment (e.g. a line commented out while debugging) would pass the check above and leave
 ///   the query unfiltered. A placeholder inside a string literal is not detected; statements are
 ///   in-house constants and must keep the placeholder in the <c>WHERE</c> clause.</item>
+///   <item>the placeholder appears at least as many times as the SQL names a
+///   <c>nexus_analytics.</c> table (case-insensitive, quoted or not), so a <c>UNION</c> branch or
+///   a subquery over another projection cannot escape the filter. One placeholder per
+///   <c>FROM</c>/<c>JOIN</c> of a projection. Projections must therefore always be named
+///   database-qualified (<c>nexus_analytics.event_log</c>), never relying on the connection's
+///   default database.</item>
 ///   <item>it contains no other <c>__scope</c> token (the scope parameter is reserved for the
 ///   executor; a statement cannot bind or reference it by hand);</item>
 ///   <item>every parameter name is an identifier, is not reserved, has a non-null value, and is
@@ -64,6 +70,16 @@ public sealed partial class AnalyticsStatement
         {
             throw new ArgumentException(
                 "Analytic SQL must not contain comments ('--', '/*', '#'): a scope placeholder inside a comment would not filter anything.",
+                nameof(sql));
+        }
+
+        var placeholders = CountOccurrences(sql, ScopePlaceholder);
+        var projectionReferences = ProjectionReferenceRegex().Count(sql);
+        if (placeholders < projectionReferences)
+        {
+            throw new ArgumentException(
+                $"The statement references {projectionReferences} nexus_analytics table(s) but has only {placeholders} " +
+                $"scope placeholder(s): every FROM/JOIN of a projection needs its own '{ScopePlaceholder}'.",
                 nameof(sql));
         }
 
@@ -110,6 +126,22 @@ public sealed partial class AnalyticsStatement
     /// <summary>The statement's own parameters (never the scope parameter).</summary>
     public IReadOnlyDictionary<string, object> Parameters { get; }
 
-    [GeneratedRegex("^[A-Za-z_][A-Za-z0-9_]*$", RegexOptions.CultureInvariant)]
+    private static int CountOccurrences(string text, string value)
+    {
+        var count = 0;
+        for (var index = text.IndexOf(value, StringComparison.Ordinal); index >= 0; index = text.IndexOf(value, index + value.Length, StringComparison.Ordinal))
+        {
+            count++;
+        }
+
+        return count;
+    }
+
+    // \z, not $: $ also matches before a trailing newline.
+    [GeneratedRegex(@"^[A-Za-z_][A-Za-z0-9_]*\z", RegexOptions.CultureInvariant)]
     private static partial Regex IdentifierRegex();
+
+    // nexus_analytics.x, `nexus_analytics`.x, "nexus_analytics" . x
+    [GeneratedRegex(@"[`""]?nexus_analytics[`""]?\s*\.", RegexOptions.CultureInvariant | RegexOptions.IgnoreCase)]
+    private static partial Regex ProjectionReferenceRegex();
 }

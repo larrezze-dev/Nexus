@@ -1,4 +1,5 @@
 using System.Data;
+using ClickHouse.Client;
 using ClickHouse.Client.ADO;
 using ClickHouse.Client.Utility;
 using Nexus.BuildingBlocks.Analytics.Scope;
@@ -39,6 +40,9 @@ internal sealed class AnalyticsQueryExecutor : IAnalyticsQueryExecutor
     {
         private const string InScope = "legal_entity_id IN {" + AnalyticsStatement.ScopeLegalEntitiesParameter + ":Array(UUID)}";
 
+        /// <summary>ClickHouse <c>TIMEOUT_EXCEEDED</c>.</summary>
+        private const int TimeoutExceededErrorCode = 159;
+
         private readonly IAnalyticsConnectionFactory _connectionFactory;
         private readonly ScopeFilter _scope;
         private readonly string _predicate;
@@ -65,25 +69,43 @@ internal sealed class AnalyticsQueryExecutor : IAnalyticsQueryExecutor
             ArgumentNullException.ThrowIfNull(map);
             ObjectDisposedException.ThrowIf(_disposed, this);
 
-            var connection = await GetConnectionAsync(cancellationToken).ConfigureAwait(false);
-
-            await using var command = connection.CreateCommand();
-            command.CommandText = statement.Sql.Replace(AnalyticsStatement.ScopePlaceholder, _predicate, StringComparison.Ordinal);
-            command.AddParameter(AnalyticsStatement.ScopeLegalEntitiesParameter, _scope.LegalEntityIds.ToArray());
-            foreach (var (name, value) in statement.Parameters)
+            try
             {
-                command.AddParameter(name, value);
-            }
+                var connection = await GetConnectionAsync(cancellationToken).ConfigureAwait(false);
 
-            var rows = new List<T>();
-            await using var reader = await command.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
-            while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
+                await using var command = connection.CreateCommand();
+                command.CommandText = statement.Sql.Replace(AnalyticsStatement.ScopePlaceholder, _predicate, StringComparison.Ordinal);
+                command.AddParameter(AnalyticsStatement.ScopeLegalEntitiesParameter, _scope.LegalEntityIds.ToArray());
+                foreach (var (name, value) in statement.Parameters)
+                {
+                    command.AddParameter(name, value);
+                }
+
+                var rows = new List<T>();
+                await using var reader = await command.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
+                while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
+                {
+                    rows.Add(map(reader));
+                }
+
+                return rows;
+            }
+            catch (ClickHouseServerException ex) when (ex.ErrorCode == TimeoutExceededErrorCode)
             {
-                rows.Add(map(reader));
+                // ClickHouse enforced max_execution_time (the normal path).
+                throw Timeout(ex);
             }
-
-            return rows;
+            catch (OperationCanceledException ex) when (!cancellationToken.IsCancellationRequested)
+            {
+                // Not the caller's token: the HttpClient backstop timeout fired.
+                throw Timeout(ex);
+            }
         }
+
+        private TimeoutException Timeout(Exception inner) => new(
+            $"The analytic query exceeded its time limit of {_connectionFactory.QueryTimeout} " +
+            $"('{NexusAnalyticsOptions.SectionName}:{nameof(NexusAnalyticsOptions.QueryTimeout)}').",
+            inner);
 
         public async ValueTask DisposeAsync()
         {

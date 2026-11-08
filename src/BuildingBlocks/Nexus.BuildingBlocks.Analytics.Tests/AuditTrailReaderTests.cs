@@ -1,6 +1,7 @@
 using System.Text.Json;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using Nexus.BuildingBlocks.Analytics.Audit;
 using Nexus.BuildingBlocks.Persistence;
 using Shouldly;
@@ -231,9 +232,40 @@ public sealed class AuditTrailReaderTests(AnalyticsFixture fixture) : IClassFixt
 
         await Should.ThrowAsync<ArgumentException>(() => reader.ListAsync("x') OR 1=1 --", id, 1, 50, Ct));
         await Should.ThrowAsync<ArgumentException>(() => reader.ListAsync("Warehouse", id, 1, 50, Ct));
+
+        // .NET's $ would accept a trailing newline; the contract's ECMA pattern does not.
+        await Should.ThrowAsync<ArgumentException>(() => reader.ListAsync("warehouse\n", id, 1, 50, Ct));
         await Should.ThrowAsync<ArgumentOutOfRangeException>(() => reader.ListAsync("warehouse", id, 0, 50, Ct));
         await Should.ThrowAsync<ArgumentOutOfRangeException>(() => reader.ListAsync("warehouse", id, 1, 0, Ct));
         await Should.ThrowAsync<ArgumentOutOfRangeException>(() => reader.ListAsync("warehouse", id, 1, 201, Ct));
+    }
+
+    [Fact(DisplayName = "A non-JSON payload_json does not fail the page: payload null, newer item's previousPayload null, warning with the event id only")]
+    public async Task InvalidJsonPayload_IsNullAndLoggedWithoutContent()
+    {
+        const string Garbage = "not json {secret-ish content";
+        var id = Guid.CreateVersion7();
+        var v1 = EventLogRow.Create(LeCh, "warehouse", id, 1, Payload(1), "created");
+        var v2 = EventLogRow.Create(LeCh, "warehouse", id, 2, Garbage);
+        var v3 = EventLogRow.Create(LeCh, "warehouse", id, 3, Payload(3));
+        await fixture.ClickHouse.InsertAsync(v1, v2, v3);
+        var logger = new CapturingLogger<AuditTrailReader>();
+
+        var page = await fixture.ListAsAsync(fixture.Org.UserA.Id, "warehouse", id, logger: logger);
+
+        page.Total.ShouldBe(3);
+        var byVersion = page.Items.ToDictionary(i => i.AggregateVersion);
+        V(byVersion[3].Payload).ShouldBe(3);
+        byVersion[3].PreviousPayload.ShouldBeNull();
+        byVersion[2].Payload.ShouldBeNull();
+        byVersion[2].PreviousPayload.ShouldBeNull();
+        V(byVersion[1].Payload).ShouldBe(1);
+
+        var warning = logger.Entries.ShouldHaveSingleItem();
+        warning.Level.ShouldBe(LogLevel.Warning);
+        warning.Message.ShouldContain(v2.EventId.ToString());
+        warning.Message.ShouldNotContain("secret-ish");
+        warning.Exception.ShouldBeNull();
     }
 
     [Fact(DisplayName = "DI: AddNexusAnalytics wires IAuditTrailReader on the request's IUnitOfWork")]
@@ -243,6 +275,7 @@ public sealed class AuditTrailReaderTests(AnalyticsFixture fixture) : IClassFixt
         await fixture.ClickHouse.InsertAsync(EventLogRow.Create(LeDe, "warehouse", id, 1, Payload(1), "created"));
 
         var services = new ServiceCollection();
+        services.AddLogging();
         services.AddNexusAnalytics(new ConfigurationBuilder()
             .AddInMemoryCollection(new Dictionary<string, string?> { ["Nexus:ClickHouse:ConnectionString"] = fixture.ClickHouse.ConnectionString })
             .Build());
@@ -253,6 +286,24 @@ public sealed class AuditTrailReaderTests(AnalyticsFixture fixture) : IClassFixt
 
         var page = await scope.ServiceProvider.GetRequiredService<IAuditTrailReader>().ListAsync("warehouse", id, 1, 50, Ct);
         page.Total.ShouldBe(1);
+    }
+
+    private sealed class CapturingLogger<T> : ILogger<T>
+    {
+        public List<(LogLevel Level, string Message, Exception? Exception)> Entries { get; } = [];
+
+        public IDisposable? BeginScope<TState>(TState state)
+            where TState : notnull => null;
+
+        public bool IsEnabled(LogLevel logLevel) => true;
+
+        public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception? exception, Func<TState, Exception?, string> formatter)
+        {
+            lock (Entries)
+            {
+                Entries.Add((logLevel, formatter(state, exception), exception));
+            }
+        }
     }
 
     private static string Payload(int v) => JsonSerializer.Serialize(new { v, code = $"CODE-{v}", isActive = true });

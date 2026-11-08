@@ -1,4 +1,5 @@
 using System.Text.RegularExpressions;
+using Microsoft.Extensions.Logging;
 using Nexus.BuildingBlocks.Analytics.Querying;
 using Nexus.BuildingBlocks.Analytics.Scope;
 using Nexus.BuildingBlocks.Application.Paging;
@@ -10,11 +11,13 @@ internal sealed partial class AuditTrailReader : IAuditTrailReader
 {
     private readonly IScopeFilterProvider _scopeFilterProvider;
     private readonly IAnalyticsQueryExecutor _executor;
+    private readonly ILogger<AuditTrailReader> _logger;
 
-    public AuditTrailReader(IScopeFilterProvider scopeFilterProvider, IAnalyticsQueryExecutor executor)
+    public AuditTrailReader(IScopeFilterProvider scopeFilterProvider, IAnalyticsQueryExecutor executor, ILogger<AuditTrailReader> logger)
     {
         _scopeFilterProvider = scopeFilterProvider;
         _executor = executor;
+        _logger = logger;
     }
 
     public async Task<PagedResult<AuditEventRecord>> ListAsync(
@@ -38,11 +41,12 @@ internal sealed partial class AuditTrailReader : IAuditTrailReader
         ArgumentOutOfRangeException.ThrowIfGreaterThan(pageSize, PageLimits.MaxPageSize);
 
         var scope = await _scopeFilterProvider.ForPermissionAsync(AuditPermissions.Read, cancellationToken).ConfigureAwait(false);
-        var query = new AuditEventQuery(aggregateType, aggregateId, page, pageSize);
+        var query = new AuditEventQuery(aggregateType, aggregateId, page, pageSize, _logger);
         return await _executor.ExecuteAsync(query, scope, cancellationToken).ConfigureAwait(false);
     }
 
-    // Copied from the aggregateType path parameter of contracts/openapi/_shared/audit.yaml.
-    [GeneratedRegex("^[a-z][a-z0-9]*([-_][a-z0-9]+)*$", RegexOptions.CultureInvariant)]
+    // The aggregateType path parameter pattern of contracts/openapi/_shared/audit.yaml, with \z
+    // instead of $: in .NET $ also matches before a trailing "\n" (ECMA's $ does not).
+    [GeneratedRegex(@"^[a-z][a-z0-9]*([-_][a-z0-9]+)*\z", RegexOptions.CultureInvariant)]
     private static partial Regex AggregateTypeRegex();
 }

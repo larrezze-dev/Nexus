@@ -1,5 +1,6 @@
 using System.Data;
 using System.Text.Json;
+using Microsoft.Extensions.Logging;
 using Nexus.BuildingBlocks.Analytics.Querying;
 using Nexus.BuildingBlocks.Application.Paging;
 
@@ -23,11 +24,14 @@ namespace Nexus.BuildingBlocks.Analytics.Audit;
 ///   <item>PII (EV-R5): <c>payload_json = ''</c> means a <c>pii: true</c> topic. Such an item gets
 ///   <c>payload</c> and <c>previousPayload</c> null, and the item after it (newer) gets
 ///   <c>previousPayload</c> null as well, because what it would point to is a PII payload.</item>
+///   <item>A <c>payload_json</c> that is not valid JSON (a projection bug) does not fail the page:
+///   that item is treated like a PII one (null payloads, and the newer item's
+///   <c>previousPayload</c> null) and a warning names the event id only, never the content.</item>
 /// </list>
 /// The page and the count are two reads, so an event ingested between them can make
 /// <c>total</c> differ by one from the rows seen; acceptable for an audit listing.
 /// </summary>
-internal sealed class AuditEventQuery : IAnalyticsQuery<PagedResult<AuditEventRecord>>
+internal sealed partial class AuditEventQuery : IAnalyticsQuery<PagedResult<AuditEventRecord>>
 {
     private const string Where =
         """
@@ -49,13 +53,15 @@ internal sealed class AuditEventQuery : IAnalyticsQuery<PagedResult<AuditEventRe
     private const string CountSql =
         "SELECT count() FROM nexus_analytics.event_log FINAL\n" + Where;
 
+    private readonly ILogger _logger;
     private readonly int _page;
     private readonly int _pageSize;
     private readonly AnalyticsStatement _pageStatement;
     private readonly AnalyticsStatement _countStatement;
 
-    public AuditEventQuery(string aggregateType, Guid aggregateId, int page, int pageSize)
+    public AuditEventQuery(string aggregateType, Guid aggregateId, int page, int pageSize, ILogger logger)
     {
+        _logger = logger;
         _page = page;
         _pageSize = pageSize;
 
@@ -105,14 +111,18 @@ internal sealed class AuditEventQuery : IAnalyticsQuery<PagedResult<AuditEventRe
         return new PagedResult<AuditEventRecord>(items, _page, _pageSize, total);
     }
 
-    private static Row ReadRow(IDataRecord record) => new(
-        (Guid)record.GetValue(0),
-        ToUtc(record.GetValue(1)),
-        (string)record.GetValue(2),
-        checked((long)(ulong)record.GetValue(3)),
-        (Guid)record.GetValue(4),
-        (Guid)record.GetValue(5),
-        ParsePayload((string)record.GetValue(6)));
+    private Row ReadRow(IDataRecord record)
+    {
+        var eventId = (Guid)record.GetValue(0);
+        return new Row(
+            eventId,
+            ToUtc(record.GetValue(1)),
+            (string)record.GetValue(2),
+            checked((long)(ulong)record.GetValue(3)),
+            (Guid)record.GetValue(4),
+            (Guid)record.GetValue(5),
+            ParsePayload(eventId, (string)record.GetValue(6)));
+    }
 
     private static DateTimeOffset ToUtc(object value) => value switch
     {
@@ -124,16 +134,29 @@ internal sealed class AuditEventQuery : IAnalyticsQuery<PagedResult<AuditEventRe
         _ => throw new InvalidCastException($"Unexpected occurred_at value of type {value.GetType()}."),
     };
 
-    private static JsonElement? ParsePayload(string payloadJson)
+    private JsonElement? ParsePayload(Guid eventId, string payloadJson)
     {
         if (payloadJson.Length == 0)
         {
             return null;
         }
 
-        using var document = JsonDocument.Parse(payloadJson);
-        return document.RootElement.Clone();
+        try
+        {
+            using var document = JsonDocument.Parse(payloadJson);
+            return document.RootElement.Clone();
+        }
+        catch (JsonException)
+        {
+            // The content may hold personal data: log the id only, never the payload or the
+            // parser message (which can quote it).
+            LogInvalidPayload(_logger, eventId);
+            return null;
+        }
     }
+
+    [LoggerMessage(EventId = 1, Level = LogLevel.Warning, Message = "event_log payload_json of event {EventId} is not valid JSON; returned as null.")]
+    private static partial void LogInvalidPayload(ILogger logger, Guid eventId);
 
     private sealed record Row(
         Guid EventId,

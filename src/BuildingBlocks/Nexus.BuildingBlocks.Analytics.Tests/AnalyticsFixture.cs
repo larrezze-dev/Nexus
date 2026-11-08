@@ -1,3 +1,5 @@
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 using Nexus.BuildingBlocks.Analytics.Audit;
 using Nexus.BuildingBlocks.Analytics.Scope;
 using Nexus.BuildingBlocks.Persistence;
@@ -55,15 +57,15 @@ public sealed class AnalyticsFixture : IAsyncLifetime
     }
 
     /// <summary>The audit reader exactly as DI builds it, on <paramref name="unitOfWork"/>.</summary>
-    internal AuditTrailReader Reader(IUnitOfWork unitOfWork) =>
-        new(new ScopeFilterProvider(unitOfWork), ClickHouse.CreateExecutor());
+    internal AuditTrailReader Reader(IUnitOfWork unitOfWork, ILogger<AuditTrailReader>? logger = null) =>
+        new(new ScopeFilterProvider(unitOfWork), ClickHouse.CreateExecutor(), logger ?? NullLogger<AuditTrailReader>.Instance);
 
     /// <summary>Lists the audit page as <paramref name="userId"/>, in its own request transaction.</summary>
-    public async Task<Nexus.BuildingBlocks.Application.Paging.PagedResult<AuditEventRecord>> ListAsAsync(
-        Guid userId, string aggregateType, Guid aggregateId, int page = 1, int pageSize = 50)
+    internal async Task<Nexus.BuildingBlocks.Application.Paging.PagedResult<AuditEventRecord>> ListAsAsync(
+        Guid userId, string aggregateType, Guid aggregateId, int page = 1, int pageSize = 50, ILogger<AuditTrailReader>? logger = null)
     {
         await using var unitOfWork = await BeginAsync(userId);
-        return await Reader(unitOfWork).ListAsync(aggregateType, aggregateId, page, pageSize, TestContext.Current.CancellationToken);
+        return await Reader(unitOfWork, logger).ListAsync(aggregateType, aggregateId, page, pageSize, TestContext.Current.CancellationToken);
     }
 
     private async Task SeedUserAsync(Guid userId, string name, string roleCode, string scopeType, Guid scopeEntityId)

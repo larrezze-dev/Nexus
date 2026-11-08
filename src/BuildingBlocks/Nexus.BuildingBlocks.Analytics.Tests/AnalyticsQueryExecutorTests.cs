@@ -1,5 +1,6 @@
 using System.Data;
 using ClickHouse.Client.ADO;
+using ClickHouse.Client.Utility;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Nexus.BuildingBlocks.Analytics.Querying;
@@ -39,6 +40,86 @@ public sealed class AnalyticsQueryExecutorTests(ClickHouseFixture clickHouse) : 
     public void Statement_WithComment_Throws(string sql)
     {
         Should.Throw<ArgumentException>(() => new AnalyticsStatement(sql)).Message.ShouldContain("comments");
+    }
+
+    [Theory(DisplayName = "§7.3: every nexus_analytics table reference needs its own placeholder (UNION/subquery cannot escape)")]
+    [InlineData("SELECT legal_entity_id FROM nexus_analytics.dim_warehouse WHERE {__scope_predicate} UNION ALL SELECT legal_entity_id FROM nexus_analytics.dim_legal_entity")]
+    [InlineData("SELECT count() FROM nexus_analytics.event_log WHERE {__scope_predicate} AND aggregate_id IN (SELECT warehouse_id FROM NEXUS_ANALYTICS.dim_warehouse)")]
+    [InlineData("SELECT count() FROM nexus_analytics.event_log WHERE {__scope_predicate} AND aggregate_id IN (SELECT warehouse_id FROM `nexus_analytics`.`dim_warehouse`)")]
+    [InlineData("SELECT count() FROM nexus_analytics.event_log WHERE {__scope_predicate} AND aggregate_id IN (SELECT warehouse_id FROM \"nexus_analytics\" . dim_warehouse)")]
+    public void Statement_FewerPlaceholdersThanProjections_Throws(string sql)
+    {
+        Should.Throw<ArgumentException>(() => new AnalyticsStatement(sql)).Message.ShouldContain("nexus_analytics");
+    }
+
+    [Fact(DisplayName = "§7.3: one placeholder per projection reference is accepted")]
+    public void Statement_PlaceholderPerProjection_IsAccepted()
+    {
+        _ = new AnalyticsStatement(
+            "SELECT legal_entity_id FROM nexus_analytics.dim_warehouse WHERE {__scope_predicate} " +
+            "UNION ALL SELECT legal_entity_id FROM Nexus_Analytics.dim_legal_entity WHERE {__scope_predicate}");
+        _ = new AnalyticsStatement("SELECT 1 FROM (SELECT toUUID('00000000-0000-0000-0000-000000000000') AS legal_entity_id) WHERE {__scope_predicate}");
+    }
+
+    [Fact(DisplayName = "§7.3: parameter names reject a trailing newline (\\z, not $)")]
+    public void Statement_ParameterNameWithTrailingNewline_Throws()
+    {
+        Should.Throw<ArgumentException>(() => new AnalyticsStatement(
+            "SELECT 1 FROM t WHERE {__scope_predicate} AND a = {a\n:String}", new Dictionary<string, object> { ["a\n"] = "x" }));
+    }
+
+    [Fact(DisplayName = "§7.3: a statement over QueryTimeout is stopped by ClickHouse (max_execution_time) → TimeoutException")]
+    public async Task SlowQuery_TimesOut()
+    {
+        var executor = clickHouse.CreateExecutor(TimeSpan.FromSeconds(1));
+        var started = System.Diagnostics.Stopwatch.StartNew();
+
+        var error = await Should.ThrowAsync<TimeoutException>(
+            () => executor.ExecuteAsync(new SlowQuery(LeA, rows: 10, marker: "t" + Guid.NewGuid().ToString("N")), new ScopeFilter([LeA], false), Ct));
+
+        started.Elapsed.ShouldBeLessThan(TimeSpan.FromSeconds(4)); // the query alone would take 5 s
+        error.Message.ShouldContain("Nexus:ClickHouse:QueryTimeout");
+        error.InnerException.ShouldNotBeNull();
+    }
+
+    [Fact(DisplayName = "§7.3: cancelling the CancellationToken aborts the call and ClickHouse stops the query")]
+    public async Task Cancellation_PropagatesToClickHouse()
+    {
+        var marker = "c" + Guid.NewGuid().ToString("N");
+        var executor = clickHouse.CreateExecutor();
+        using var cts = CancellationTokenSource.CreateLinkedTokenSource(Ct);
+
+        var running = executor.ExecuteAsync(new SlowQuery(LeA, rows: 40, marker), new ScopeFilter([LeA], false), cts.Token); // ~20 s
+        (await WaitForAsync(async () => await RunningCountAsync(marker) == 1, TimeSpan.FromSeconds(10))).ShouldBeTrue("the query never started");
+
+        var started = System.Diagnostics.Stopwatch.StartNew();
+        await cts.CancelAsync();
+        var error = await Should.ThrowAsync<Exception>(() => running);
+        error.ShouldBeAssignableTo<OperationCanceledException>();
+        started.Elapsed.ShouldBeLessThan(TimeSpan.FromSeconds(2));
+
+        // cancel_http_readonly_queries_on_client_close: the server drops it too.
+        (await WaitForAsync(async () => await RunningCountAsync(marker) == 0, TimeSpan.FromSeconds(5))).ShouldBeTrue("ClickHouse kept running the cancelled query");
+    }
+
+    [Fact(DisplayName = "§7.3: QueryTimeout is read from Nexus:ClickHouse:QueryTimeout (seconds or hh:mm:ss) and must be positive")]
+    public async Task QueryTimeout_Configuration()
+    {
+        foreach (var (value, expected) in new[] { ("2", TimeSpan.FromSeconds(2)), ("00:01:00", TimeSpan.FromMinutes(1)) })
+        {
+            var services = new ServiceCollection();
+            services.AddNexusAnalytics(new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["Nexus:ClickHouse:ConnectionString"] = clickHouse.ConnectionString,
+                ["Nexus:ClickHouse:QueryTimeout"] = value,
+            }).Build());
+            await using var provider = services.BuildServiceProvider();
+            provider.GetRequiredService<IAnalyticsConnectionFactory>().QueryTimeout.ShouldBe(expected);
+        }
+
+        using var invalid = new AnalyticsConnectionFactory(Microsoft.Extensions.Options.Options.Create(
+            new NexusAnalyticsOptions { ConnectionString = clickHouse.ConnectionString, QueryTimeout = TimeSpan.Zero }));
+        Should.Throw<InvalidOperationException>(() => invalid.Create()).Message.ShouldContain("QueryTimeout");
     }
 
     [Fact(DisplayName = "§7.3: the scope parameter is reserved (no hand-bound or hand-written __scope)")]
@@ -176,6 +257,48 @@ public sealed class AnalyticsQueryExecutorTests(ClickHouseFixture clickHouse) : 
         result.ShouldBe(0);
     }
 
+    private async Task<ulong> RunningCountAsync(string marker)
+    {
+        await using var connection = await clickHouse.OpenAsync();
+        await using var command = connection.CreateCommand();
+        command.CommandText = "SELECT count() FROM system.processes WHERE query LIKE {pattern:String} AND query NOT LIKE '%system.processes%'";
+        command.AddParameter("pattern", "%" + marker + "%");
+        return (ulong)(await command.ExecuteScalarAsync(Ct))!;
+    }
+
+    private static async Task<bool> WaitForAsync(Func<Task<bool>> condition, TimeSpan timeout)
+    {
+        var deadline = DateTime.UtcNow + timeout;
+        while (DateTime.UtcNow < deadline)
+        {
+            if (await condition())
+            {
+                return true;
+            }
+
+            await Task.Delay(100, Ct);
+        }
+
+        return false;
+    }
+
+    /// <summary>~0.5 s per row, one row per block (ClickHouse checks limits between blocks and
+    /// caps sleep at 3 s per block). The marker is an alias, to find it in system.processes.</summary>
+    private sealed class SlowQuery(Guid legalEntityId, int rows, string marker) : IAnalyticsQuery<long>
+    {
+        public long EmptyResult => -1;
+
+        public async Task<long> ExecuteAsync(IAnalyticsSession session, CancellationToken cancellationToken)
+        {
+            var statement = new AnalyticsStatement(
+                $"SELECT count() AS {marker} FROM (SELECT toUUID({{le:String}}) AS legal_entity_id, sleepEachRow(0.5) AS s FROM numbers({rows})) " +
+                "WHERE {__scope_predicate} AND s = 0 SETTINGS max_block_size = 1",
+                new Dictionary<string, object> { ["le"] = legalEntityId.ToString() });
+            var result = await session.QueryAsync(statement, (IDataRecord r) => checked((long)(ulong)r.GetValue(0)), cancellationToken);
+            return result.Single();
+        }
+    }
+
     /// <summary>Counts event_log rows of one aggregate type in scope; -1 as the empty result.</summary>
     private sealed class CountQuery(string aggregateType) : IAnalyticsQuery<long>
     {
@@ -198,6 +321,8 @@ public sealed class AnalyticsQueryExecutorTests(ClickHouseFixture clickHouse) : 
         private readonly RecordingHandler _handler = new();
 
         public IReadOnlyList<string> Requests => _handler.Requests;
+
+        public TimeSpan QueryTimeout => NexusAnalyticsOptions.DefaultQueryTimeout;
 
         // Request compression off so the recorded body is readable text.
         public ClickHouseConnection Create() =>
@@ -225,6 +350,8 @@ public sealed class AnalyticsQueryExecutorTests(ClickHouseFixture clickHouse) : 
     private sealed class CountingFactory : IAnalyticsConnectionFactory
     {
         public int Created { get; private set; }
+
+        public TimeSpan QueryTimeout => NexusAnalyticsOptions.DefaultQueryTimeout;
 
         public ClickHouseConnection Create()
         {

@@ -56,8 +56,12 @@ public sealed class ClickHouseFixture : IAsyncLifetime
     }
 
     /// <summary>A real executor (real connection factory) pointed at this container.</summary>
-    internal AnalyticsQueryExecutor CreateExecutor() =>
-        new(new AnalyticsConnectionFactory(Options.Create(new NexusAnalyticsOptions { ConnectionString = ConnectionString })));
+    internal AnalyticsQueryExecutor CreateExecutor(TimeSpan? queryTimeout = null) =>
+        new(new AnalyticsConnectionFactory(Options.Create(new NexusAnalyticsOptions
+        {
+            ConnectionString = ConnectionString,
+            QueryTimeout = queryTimeout ?? NexusAnalyticsOptions.DefaultQueryTimeout,
+        })));
 
     /// <summary>Inserts the rows in ONE insert (one part). Call it twice to get two parts.</summary>
     public async Task InsertAsync(params EventLogRow[] rows)

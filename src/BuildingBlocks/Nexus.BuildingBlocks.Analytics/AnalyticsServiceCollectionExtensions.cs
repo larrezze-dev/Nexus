@@ -1,3 +1,4 @@
+using System.Globalization;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
@@ -35,6 +36,10 @@ public static class AnalyticsServiceCollectionExtensions
         {
             options.ConnectionString = section[nameof(NexusAnalyticsOptions.ConnectionString)];
             options.Password = section[nameof(NexusAnalyticsOptions.Password)];
+            if (section[nameof(NexusAnalyticsOptions.QueryTimeout)] is { Length: > 0 } timeout)
+            {
+                options.QueryTimeout = ParseTimeout(timeout);
+            }
         });
 
         services.TryAddSingleton<IAnalyticsConnectionFactory>(
@@ -45,4 +50,13 @@ public static class AnalyticsServiceCollectionExtensions
 
         return services;
     }
+
+    /// <summary>"30" / "1.5" (seconds) or a TimeSpan ("00:00:30"), invariant culture.</summary>
+    private static TimeSpan ParseTimeout(string value) =>
+        double.TryParse(value, NumberStyles.Float, CultureInfo.InvariantCulture, out var seconds)
+            ? TimeSpan.FromSeconds(seconds)
+            : TimeSpan.TryParse(value, CultureInfo.InvariantCulture, out var timeSpan)
+                ? timeSpan
+                : throw new InvalidOperationException(
+                    $"Invalid '{NexusAnalyticsOptions.SectionName}:{nameof(NexusAnalyticsOptions.QueryTimeout)}' value '{value}': use seconds or hh:mm:ss.");
 }
