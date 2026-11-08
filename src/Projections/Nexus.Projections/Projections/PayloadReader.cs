@@ -42,9 +42,10 @@ internal static class PayloadReader
         if (!record.TryGetValue(field, out var value) || value is not System.Collections.IDictionary dict)
             throw new InvalidOperationException($"Payload field '{field}' is missing or not a map.");
         var result = new Dictionary<string, string>(dict.Count, StringComparer.Ordinal);
-        foreach (System.Collections.DictionaryEntry e in dict)
-            result[(string)e.Key] = Convert.ToString(e.Value, CultureInfo.InvariantCulture)
-                ?? throw new InvalidOperationException($"Payload map '{field}' has a null value for key '{e.Key}'.");
+        var it = dict.GetEnumerator();
+        while (it.MoveNext())
+            result[(string)it.Key] = Convert.ToString(it.Value, CultureInfo.InvariantCulture)
+                ?? throw new InvalidOperationException($"Payload map '{field}' has a null value for key '{it.Key}'.");
         return result;
     }
 

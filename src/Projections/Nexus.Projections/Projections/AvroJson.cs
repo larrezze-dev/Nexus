@@ -32,7 +32,7 @@ public static class AvroJson
     {
         ArgumentNullException.ThrowIfNull(record);
         using var stream = new MemoryStream();
-        using (var writer = new Utf8JsonWriter(stream, new JsonWriterOptions { Indented = false, SkipValidation = false }))
+        using (var writer = new Utf8JsonWriter(stream, new JsonWriterOptions { Indented = false, Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping }))
             WriteValue(writer, record.Schema, record);
         return Encoding.UTF8.GetString(stream.ToArray());
     }
@@ -47,7 +47,20 @@ public static class AvroJson
         }
         if (value is null) { w.WriteNullValue(); return; }
 
-        var logical = schema.GetProperty("logicalType");
+        // Apache.Avro wraps logical types (uuid, decimal, timestamp-*, date...) in a LogicalSchema around the base type.
+        string? logical;
+        int scale;
+        if (schema is LogicalSchema ls)
+        {
+            logical = ls.LogicalTypeName;
+            scale = ScaleOf(ls) ?? ScaleOf(ls.BaseSchema) ?? 0;
+            schema = ls.BaseSchema;
+        }
+        else
+        {
+            logical = schema.GetProperty("logicalType");
+            scale = ScaleOf(schema) ?? 0;
+        }
 
         switch (schema.Tag)
         {
@@ -84,7 +97,7 @@ public static class AvroJson
                 break;
             case Schema.Type.Bytes:
             case Schema.Type.Fixed:
-                WriteBinary(w, schema, logical, value);
+                WriteBinary(w, schema, logical, scale, value);
                 break;
             case Schema.Type.Enumeration:
                 w.WriteStringValue(value is GenericEnum e ? e.Value : value.ToString());
@@ -122,12 +135,11 @@ public static class AvroJson
 
     private static void WriteMap(Utf8JsonWriter w, Schema valueSchema, object value)
     {
-        IEnumerable<KeyValuePair<string, object?>> entries = value switch
-        {
-            System.Collections.IDictionary d => d.Cast<System.Collections.DictionaryEntry>()
-                .Select(x => new KeyValuePair<string, object?>((string)x.Key, x.Value)),
-            _ => throw Unsupported(valueSchema, value),
-        };
+        if (value is not System.Collections.IDictionary dict) throw Unsupported(valueSchema, value);
+        var entries = new List<KeyValuePair<string, object?>>(dict.Count);
+        var it = dict.GetEnumerator();
+        while (it.MoveNext())
+            entries.Add(new((string)it.Key, it.Value));
         w.WriteStartObject();
         foreach (var (key, entryValue) in entries.OrderBy(x => x.Key, StringComparer.Ordinal))
         {
@@ -137,7 +149,7 @@ public static class AvroJson
         w.WriteEndObject();
     }
 
-    private static void WriteBinary(Utf8JsonWriter w, Schema schema, string? logical, object value)
+    private static void WriteBinary(Utf8JsonWriter w, Schema schema, string? logical, int scale, object value)
     {
         var bytes = value switch
         {
@@ -151,17 +163,24 @@ public static class AvroJson
             switch (value)
             {
                 case AvroDecimal ad:
-                    w.WriteStringValue(FormatUnscaled(ad.UnscaledValue, ad.Scale));
+                {
+                    // Rescale to the schema scale (never lose digits: a finer value keeps its own scale).
+                    var target = scale;
+                    var unscaledValue = ad.Scale <= target
+                        ? ad.UnscaledValue * BigInteger.Pow(10, target - ad.Scale)
+                        : ad.UnscaledValue;
+                    w.WriteStringValue(FormatUnscaled(unscaledValue, Math.Max(ad.Scale, target)));
                     return;
+                }
                 case decimal d:
                     // Re-render at the schema scale so "1.5" and "1.50" cannot differ between representations.
-                    w.WriteStringValue(d.ToString("F" + SchemaScale(schema).ToString(CultureInfo.InvariantCulture), CultureInfo.InvariantCulture));
+                    w.WriteStringValue(d.ToString("F" + scale.ToString(CultureInfo.InvariantCulture), CultureInfo.InvariantCulture));
                     return;
             }
             if (bytes is null) throw Unsupported(schema, value);
             // Avro decimal: big-endian two's complement unscaled value; BigInteger wants little-endian.
             var unscaled = new BigInteger(bytes, isUnsigned: false, isBigEndian: true);
-            w.WriteStringValue(FormatUnscaled(unscaled, SchemaScale(schema)));
+            w.WriteStringValue(FormatUnscaled(unscaled, scale));
             return;
         }
 
@@ -169,10 +188,10 @@ public static class AvroJson
         w.WriteStringValue(Convert.ToBase64String(bytes));
     }
 
-    private static int SchemaScale(Schema schema)
+    private static int? ScaleOf(Schema schema)
     {
         var scale = schema.GetProperty("scale");
-        return scale is null ? 0 : int.Parse(scale, CultureInfo.InvariantCulture);
+        return scale is null ? null : int.Parse(scale, CultureInfo.InvariantCulture);
     }
 
     /// <summary>Renders <paramref name="unscaled"/> / 10^<paramref name="scale"/> exactly, always with <paramref name="scale"/> decimals.</summary>
