@@ -81,6 +81,8 @@ ClickHouse no conoce al usuario. Toda consulta analítica:
 
 Un test de arquitectura impide usar el cliente de ClickHouse fuera de `BuildingBlocks.Analytics`.
 
+- `[+]` El endpoint de auditoría `GET /v1/audit/{aggregateType}/{aggregateId}` (`contracts/openapi/_shared/audit.yaml`, `x-permission: AUDIT:READ`, `x-scope: none`) es la única entrada a `event_log`. El alcance lo aplica el filtro de la consulta: solo filas de las legal entities donde `access.has_permission('AUDIT:READ', le)` se cumple (misma semántica que los listados de 0.6, no `access.visible_legal_entities()`); las filas con `legal_entity_id` NULL solo con `AUDIT:READ` en una asignación `GLOBAL`. Orden: `aggregateVersion` descendente; cada evento incluye `previousPayload`.
+
 ## §8 Mock para el frontend
 
 `make mock-api S=<servicio>` arranca Prism sobre `contracts/openapi/<servicio>.yaml` en `4010 + n`. Cada operación del contrato lleva al menos un `example` realista en la respuesta 200/201: es lo que verá el frontend mientras el backend no existe.

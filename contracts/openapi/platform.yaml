@@ -31,6 +31,8 @@ servers:
     description: Interno (dentro del clúster, directo al servicio)
 
 tags:
+  - name: Audit
+    description: Historial de eventos de un agregado (event_log).
   - name: Parties
     description: Directorio universal de entidades internas y externas.
   - name: Groups
@@ -2955,6 +2957,12 @@ paths:
                 status: 403
                 detail: "No existe un app_user activo para este token."
                 code: "user_not_provisioned"
+
+  # ---------------------------------------------------------------------
+  # Auditoría (paso 0.8): operación compartida, única entrada a event_log
+  # ---------------------------------------------------------------------
+  /v1/audit/{aggregateType}/{aggregateId}:
+    $ref: '_shared/audit.yaml#/components/pathItems/AuditTrail'
 
 components:
   securitySchemes:

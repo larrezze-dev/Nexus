@@ -87,3 +87,18 @@ rules:
     given: "$.paths[*][get,put,post,delete,options,head,patch,trace].responses"
     then:
       function: nexusResponseExample
+
+# --- Path items compartidos (paso 0.8) ---------------------------------------
+# Spectral (oas3-schema, OpenAPI 3.1) rechaza cualquier `$ref` a nivel de path
+# item aunque el destino sea válido. Los path items de `_shared/*.yaml` se
+# incluyen igualmente por `$ref`; `oas3-schema` se desactiva solo para esa ruta
+# del fichero fuente. La validación estructural de esa ruta se hace sobre el
+# bundle (tools/bundle-openapi.cjs inlinea el path item), que `make contracts`
+# también pasa por Spectral. Cada servicio que incluya `_shared/audit.yaml`
+# añade su propia entrada aquí. Las llaves van codificadas (%7B/%7D) porque son
+# sintaxis de glob.
+overrides:
+  - files:
+      - "**/platform.yaml#/paths/~1v1~1audit~1%7BaggregateType%7D~1%7BaggregateId%7D"
+    rules:
+      oas3-schema: off

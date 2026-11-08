@@ -164,6 +164,8 @@ CREATE TABLE inbox.processed_message (
 - Toda tabla lleva `legal_entity_id` (para el filtro de alcance), `_event_id`, `_aggregate_version`, `_ingested_at`.
 - Motor por defecto: `ReplacingMergeTree(_aggregate_version)`, con `ORDER BY` que empieza por `legal_entity_id`. Las consultas usan `FINAL` o agregan con `argMax`.
 - Idempotencia por `ReplacingMergeTree`: reprocesar un evento no duplica.
+- `[+]` **Excepción `event_log`** (paso 0.8): sus columnas se llaman `event_id` y `aggregate_version` (sin `_`), el motor es `ReplacingMergeTree(_ingested_at)` y el `ORDER BY` empieza por el agregado (`aggregate_type, aggregate_id, aggregate_version, event_id`), porque su acceso es siempre por agregado y no por Mandant. El filtro de alcance se sigue aplicando en la consulta: `legal_entity_id IN (...)` con las legal entities donde el actor tiene `AUDIT:READ` (`access.has_permission`, no `visible_legal_entities()`); las filas con `legal_entity_id` NULL solo son visibles con `AUDIT:READ` en una asignación `GLOBAL`.
+- `[+]` Los topics con `pii: true` en `topics.yaml` guardan en `event_log` solo las cabeceras (`payload_json = ''`), según EV-R5; el endpoint de auditoría devuelve `payload` y `previousPayload` a `null` para ellos.
 - Reconstrucción: `nexus-projections rebuild <proyeccion>` borra la tabla, resetea el offset del grupo y relee el topic desde el inicio.
 - Migraciones de ClickHouse: `db/clickhouse/V<ts>__<desc>.sql`, aplicadas por `nexus-projections` al arrancar (tabla de control `_schema_migrations`).
 

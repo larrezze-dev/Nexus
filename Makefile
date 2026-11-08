@@ -155,6 +155,7 @@ contracts:
 			svc=$$(basename "$$f" .yaml); \
 			echo "Generating Angular client for $$svc -> web/src/app/api/$$svc"; \
 			node tools/bundle-openapi.cjs "$$f" "$$tmp/$$svc.json" && \
+			npx -y @stoplight/spectral-cli lint "$$tmp/$$svc.json" --ruleset contracts/openapi/.spectral.yaml && \
 			"$$gen" -i "$$tmp/$$svc.json" -o "web/src/app/api/$$svc" || { rm -rf "$$tmp"; exit 1; }; \
 		done; \
 		rm -rf "$$tmp"; \

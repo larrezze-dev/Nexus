@@ -108,3 +108,8 @@ permissions:
     action: UPDATE
     defaultRoles: ["SYSTEM_ADMIN", "SECURITY_ADMIN", "ORG_ADMIN"]
     step: "0.6"
+  - code: AUDIT:READ
+    resource: AUDIT
+    action: READ
+    defaultRoles: ["SYSTEM_ADMIN", "ORG_ADMIN", "SECURITY_ADMIN", "CATALOG_ADMIN", "WAREHOUSE_OPERATOR", "PROJECT_MANAGER", "SALES", "CONTROLLER", "HR_ADMIN", "VIEWER"]
+    step: "0.8"

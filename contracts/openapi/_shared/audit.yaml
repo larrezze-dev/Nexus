@@ -1,0 +1,162 @@
+# Operación de auditoría reutilizable (paso 0.8, `[+]`).
+#
+# No es un documento OpenAPI completo: es un fragmento con un path item y sus
+# esquemas, que cada servicio incluye con $ref bajo `paths`, p. ej.:
+#
+#   paths:
+#     /v1/audit/{aggregateType}/{aggregateId}:
+#       $ref: '_shared/audit.yaml#/components/pathItems/AuditTrail'
+#
+# Es la única puerta de entrada a `nexus_analytics.event_log` (conventions-api.md §7).
+# El alcance NO se comprueba por entidad con has_permission en el handler: lo aplica el
+# filtro de la consulta analítica, que solo devuelve filas cuyo `legal_entity_id` está entre
+# las legal entities donde `access.has_permission('AUDIT:READ', le)` se cumple (misma
+# semántica que los listados de 0.6; NO `access.visible_legal_entities()`, que ignora
+# permisos). Las filas con `legal_entity_id` NULL solo se devuelven si el actor tiene
+# AUDIT:READ en una asignación GLOBAL. Por eso `x-scope: none`.
+
+components:
+  pathItems:
+    AuditTrail:
+      get:
+        operationId: listAuditEvents
+        summary: Historial de eventos de un agregado.
+        description: >
+          Devuelve los eventos de dominio publicados para un agregado, del más reciente al más
+          antiguo (`aggregateVersion` descendente). Solo incluye filas de las legal entities donde
+          el actor tiene `AUDIT:READ` (más las filas sin legal entity si lo tiene en alcance
+          GLOBAL). Un agregado desconocido o no visible para el actor devuelve 200 con lista vacía,
+          no 404. Cada evento trae `previousPayload` (payload de la versión anterior del mismo
+          agregado, calculado en el servidor) para poder mostrar el diff en cualquier página. Para
+          topics marcados `pii: true` en `contracts/events/topics.yaml`, `payload` y
+          `previousPayload` son `null` (EV-R5): solo se conservan las cabeceras del evento.
+        tags: [Audit]
+        x-permission: "AUDIT:READ"
+        x-scope: none
+        parameters:
+          - name: aggregateType
+            in: path
+            required: true
+            description: >
+              Valor exacto de la cabecera `nexus-aggregate-type` con la que el productor publicó
+              el agregado. Puede ser kebab-case (`legal-entity`, `warehouse`) o snake_case
+              (`business_unit`, `role_assignment`).
+            schema:
+              type: string
+              pattern: '^[a-z][a-z0-9]*([-_][a-z0-9]+)*$'
+            example: "legal-entity"
+          - name: aggregateId
+            in: path
+            required: true
+            description: Identificador del agregado.
+            schema:
+              type: string
+              format: uuid
+            example: "018f1a3c-7e3b-7c5a-9c2e-6a2f8e9b0c30"
+          - $ref: 'components.yaml#/components/parameters/Page'
+          - $ref: 'components.yaml#/components/parameters/PageSize'
+        responses:
+          '200':
+            description: Página de eventos del agregado, por `aggregateVersion` descendente.
+            content:
+              application/json:
+                schema:
+                  allOf:
+                    - $ref: 'components.yaml#/components/schemas/Page'
+                    - type: object
+                      properties:
+                        items:
+                          type: array
+                          items:
+                            $ref: 'audit.yaml#/components/schemas/AuditEvent'
+                example:
+                  items:
+                    - eventId: "018f1a3c-7e3b-7c5a-9c2e-6a2f8e9b0c32"
+                      occurredAt: "2026-10-19T08:05:41.000000Z"
+                      eventType: "org.legal-entity.updated"
+                      aggregateVersion: 2
+                      actorUserId: "018f1a3c-7e3b-7c5a-9c2e-6a2f8e9b0c01"
+                      actorDisplayName: "Anna Keller"
+                      correlationId: "018f1a3c-7e3b-7c5a-9c2e-6a2f8e9b0c41"
+                      payload:
+                        id: "018f1a3c-7e3b-7c5a-9c2e-6a2f8e9b0c30"
+                        partyId: "018f1a3c-7e3b-7c5a-9c2e-6a2f8e9b0c20"
+                        groupId: "018f1a3c-7e3b-7c5a-9c2e-6a2f8e9b0c10"
+                        code: "NUS-CH"
+                        currencyCode: "CHF"
+                        countryCode: "CH"
+                        isActive: false
+                      previousPayload:
+                        id: "018f1a3c-7e3b-7c5a-9c2e-6a2f8e9b0c30"
+                        partyId: "018f1a3c-7e3b-7c5a-9c2e-6a2f8e9b0c20"
+                        groupId: "018f1a3c-7e3b-7c5a-9c2e-6a2f8e9b0c10"
+                        code: "NUS-CH"
+                        currencyCode: "CHF"
+                        countryCode: "CH"
+                        isActive: true
+                    - eventId: "018f1a3c-7e3b-7c5a-9c2e-6a2f8e9b0c31"
+                      occurredAt: "2026-10-18T16:20:00.123456Z"
+                      eventType: "org.legal-entity.created"
+                      aggregateVersion: 1
+                      actorUserId: "018f1a3c-7e3b-7c5a-9c2e-6a2f8e9b0c01"
+                      actorDisplayName: "Anna Keller"
+                      correlationId: "018f1a3c-7e3b-7c5a-9c2e-6a2f8e9b0c40"
+                      payload:
+                        id: "018f1a3c-7e3b-7c5a-9c2e-6a2f8e9b0c30"
+                        partyId: "018f1a3c-7e3b-7c5a-9c2e-6a2f8e9b0c20"
+                        groupId: "018f1a3c-7e3b-7c5a-9c2e-6a2f8e9b0c10"
+                        code: "NUS-CH"
+                        currencyCode: "CHF"
+                        countryCode: "CH"
+                        isActive: true
+                      previousPayload: null
+                  page: 1
+                  pageSize: 50
+                  total: 2
+          '400':
+            $ref: 'components.yaml#/components/responses/BadRequest'
+          '401':
+            $ref: 'components.yaml#/components/responses/Unauthorized'
+          '403':
+            $ref: 'components.yaml#/components/responses/Forbidden'
+
+  schemas:
+    AuditEvent:
+      type: object
+      description: Evento de dominio de un agregado, tal como se guardó en `event_log`.
+      properties:
+        eventId:
+          type: string
+          format: uuid
+        occurredAt:
+          type: string
+          format: date-time
+        eventType:
+          type: string
+          description: >
+            Valor completo de la cabecera `nexus-event-type` (p. ej. `org.legal-entity.updated`).
+            El frontend lo traduce con la clave i18n `events.<eventType>`.
+          example: "org.legal-entity.updated"
+        aggregateVersion:
+          type: integer
+          format: int64
+        actorUserId:
+          type: string
+          format: uuid
+        actorDisplayName:
+          type: [string, "null"]
+          description: Nombre visible del actor; null si el usuario ya no se puede resolver.
+        correlationId:
+          type: string
+          format: uuid
+        payload:
+          type: [object, "null"]
+          description: "Payload del evento convertido a JSON. Null en topics `pii: true` (EV-R5)."
+          additionalProperties: true
+        previousPayload:
+          type: [object, "null"]
+          description: >
+            Payload de la versión anterior del mismo agregado, calculado en el servidor. Null en
+            el primer evento del agregado y en topics `pii: true` (EV-R5).
+          additionalProperties: true
+      required: [eventId, occurredAt, eventType, aggregateVersion, actorUserId, actorDisplayName, correlationId, payload, previousPayload]

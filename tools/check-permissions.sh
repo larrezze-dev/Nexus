@@ -27,9 +27,8 @@ if [[ ! -d "$OPENAPI_DIR" ]]; then
   exit 0
 fi
 
-# Service contract files: directly under contracts/openapi/, excluding the
-# shared components directory (_shared), any other leading-underscore dir, and
-# dotfiles such as .spectral.yaml (find's -name matches leading dots, unlike
+# Service contract files: directly under contracts/openapi/ (the _shared/*.yaml
+# path items are added below), excluding dotfiles such as .spectral.yaml (find's -name matches leading dots, unlike
 # shell globbing, so ".spectral.yaml" would otherwise be treated as a service
 # contract and scanned for x-permission -- same fix already applied to the
 # Makefile's own `contracts` target).
@@ -37,6 +36,12 @@ service_files=()
 while IFS= read -r f; do
   [[ -n "$f" ]] && service_files+=("$f")
 done < <(find "$OPENAPI_DIR" -maxdepth 1 -type f -name '*.yaml' ! -name '.*' 2>/dev/null | sort)
+
+# Shared path items (e.g. _shared/audit.yaml) also carry x-permission; validate
+# them like service contracts.
+while IFS= read -r f; do
+  [[ -n "$f" ]] && service_files+=("$f")
+done < <(find "$OPENAPI_DIR/_shared" -maxdepth 1 -type f -name '*.yaml' 2>/dev/null | sort)
 
 if [[ "${#service_files[@]}" -eq 0 ]]; then
   echo "INFO: no service OpenAPI files under $OPENAPI_DIR yet — nothing to check."
@@ -78,5 +83,5 @@ if [[ "$failed" -ne 0 ]]; then
   exit 1
 fi
 
-echo "OK: all x-permission values used in $OPENAPI_DIR/*.yaml are declared in $PERMISSIONS_FILE."
+echo "OK: all x-permission values used in $OPENAPI_DIR/*.yaml and $OPENAPI_DIR/_shared/*.yaml are declared in $PERMISSIONS_FILE."
 exit 0
