@@ -109,6 +109,60 @@ public sealed class AnalyticsQueryExecutorTests(ClickHouseFixture clickHouse) : 
         (await new AnalyticsQueryExecutor(factory).ExecuteAsync(new CountQuery("never"), new ScopeFilter([LeA], false), Ct)).ShouldBe(0);
     }
 
+    [Theory(DisplayName = "§7.3: string literals are tokenized: legitimate SQL with literals next to projection references is accepted")]
+    [InlineData("SELECT jsonMergePatch(payload_json, '{}') FROM nexus_analytics.event_log WHERE {__scope_predicate}")]
+    [InlineData("SELECT toDateTime(occurred_at, 'UTC') FROM nexus_analytics.event_log WHERE {__scope_predicate} UNION ALL SELECT toDateTime(_ingested_at, 'UTC') FROM nexus_analytics.dim_warehouse WHERE {__scope_predicate}")]
+    [InlineData("SELECT count() FROM nexus_analytics.event_log WHERE {__scope_predicate} AND event_type <> 'x' AND aggregate_id IN (SELECT warehouse_id FROM nexus_analytics.dim_warehouse WHERE {__scope_predicate})")]
+    [InlineData("SELECT count() FROM nexus_analytics.event_log WHERE {__scope_predicate} AND event_type IN ('a--b#c', 'file(x)', 'settings.updated', 'it''s', '/*')")]
+    public void Statement_Literals_DoNotCauseFalsePositives(string sql)
+    {
+        _ = new AnalyticsStatement(sql);
+    }
+
+    [Fact(DisplayName = "§7.3: a placeholder inside a string literal does not count")]
+    public void Statement_PlaceholderInLiteral_DoesNotCount()
+    {
+        Should.Throw<ArgumentException>(() => new AnalyticsStatement(
+            "SELECT count() FROM nexus_analytics.event_log WHERE event_type <> '{__scope_predicate}'")).Message.ShouldContain("outside string literals");
+        Should.Throw<ArgumentException>(() => new AnalyticsStatement(
+            "SELECT count() FROM nexus_analytics.event_log WHERE {__scope_predicate} UNION ALL " +
+            "SELECT count() FROM nexus_analytics.dim_warehouse WHERE x = '{__scope_predicate}'")).Message.ShouldContain("placeholder(s)");
+    }
+
+    [Theory(DisplayName = "§7.3: table-function names quoted as identifiers are rejected too")]
+    [InlineData("`merge`(currentDatabase(), '^event_log$')")]
+    [InlineData("\"merge\" (currentDatabase(), '^event_log$')")]
+    [InlineData("`remote`('localhost', currentDatabase(), 'event_log')")]
+    public void Statement_QuotedTableFunction_Throws(string tableFunction)
+    {
+        Should.Throw<ArgumentException>(() => new AnalyticsStatement(
+                "SELECT count() FROM nexus_analytics.event_log WHERE {__scope_predicate} UNION ALL SELECT count() FROM " + tableFunction))
+            .Message.ShouldContain("Table function");
+    }
+
+    [Theory(DisplayName = "§7.3: backslashes (escape sequences) are rejected in identifiers and literals")]
+    [InlineData("SELECT count() FROM nexus_analytics.event_log WHERE {__scope_predicate} UNION ALL SELECT count() FROM `\\x6Eexus_analytics`.event_log")]
+    [InlineData("SELECT count() FROM nexus_analytics.event_log WHERE {__scope_predicate} AND event_type <> 'a\\'b'")]
+    public void Statement_Backslash_Throws(string sql)
+    {
+        Should.Throw<ArgumentException>(() => new AnalyticsStatement(sql)).Message.ShouldContain("backslash");
+    }
+
+    [Theory(DisplayName = "§7.3: SETTINGS clauses are rejected (settings belong to the executor)")]
+    [InlineData("SELECT count() FROM nexus_analytics.event_log WHERE {__scope_predicate} SETTINGS max_threads = 1")]
+    [InlineData("SELECT count() FROM event_log WHERE {__scope_predicate} settings database = 'x'")]
+    public void Statement_Settings_Throws(string sql)
+    {
+        Should.Throw<ArgumentException>(() => new AnalyticsStatement(sql)).Message.ShouldContain("SETTINGS");
+    }
+
+    [Fact(DisplayName = "§7.3: the real audit statements pass validation")]
+    public void AuditStatements_PassValidation()
+    {
+        _ = new Nexus.BuildingBlocks.Analytics.Audit.AuditEventQuery(
+            "legal-entity", Guid.CreateVersion7(), 3, 50, Microsoft.Extensions.Logging.Abstractions.NullLogger.Instance);
+    }
+
     [Fact(DisplayName = "§7.3: one placeholder per projection reference is accepted")]
     public void Statement_PlaceholderPerProjection_IsAccepted()
     {
@@ -128,7 +182,7 @@ public sealed class AnalyticsQueryExecutorTests(ClickHouseFixture clickHouse) : 
     [Fact(DisplayName = "§7.3: a statement over QueryTimeout is stopped by ClickHouse (max_execution_time) → TimeoutException")]
     public async Task SlowQuery_TimesOut()
     {
-        var executor = clickHouse.CreateExecutor(TimeSpan.FromSeconds(1));
+        var executor = clickHouse.CreateSlowQueryExecutor(TimeSpan.FromSeconds(1));
         var started = System.Diagnostics.Stopwatch.StartNew();
 
         var error = await Should.ThrowAsync<TimeoutException>(
@@ -143,7 +197,7 @@ public sealed class AnalyticsQueryExecutorTests(ClickHouseFixture clickHouse) : 
     public async Task Cancellation_PropagatesToClickHouse()
     {
         var marker = "c" + Guid.NewGuid().ToString("N");
-        var executor = clickHouse.CreateExecutor();
+        var executor = clickHouse.CreateSlowQueryExecutor();
         using var cts = CancellationTokenSource.CreateLinkedTokenSource(Ct);
 
         var running = executor.ExecuteAsync(new SlowQuery(LeA, rows: 40, marker), new ScopeFilter([LeA], false), cts.Token); // ~20 s
@@ -351,8 +405,7 @@ public sealed class AnalyticsQueryExecutorTests(ClickHouseFixture clickHouse) : 
         return false;
     }
 
-    /// <summary>~0.5 s per row, one row per block (ClickHouse checks limits between blocks and
-    /// caps sleep at 3 s per block). The marker is an alias, to find it in system.processes.</summary>
+    /// <summary>~0.5 s per row; run it with CreateSlowQueryExecutor (one row per block). The marker is an alias, to find it in system.processes.</summary>
     private sealed class SlowQuery(Guid legalEntityId, int rows, string marker) : IAnalyticsQuery<long>
     {
         public long EmptyResult => -1;
@@ -361,7 +414,7 @@ public sealed class AnalyticsQueryExecutorTests(ClickHouseFixture clickHouse) : 
         {
             var statement = new AnalyticsStatement(
                 $"SELECT count() AS {marker} FROM (SELECT toUUID({{le:String}}) AS legal_entity_id, sleepEachRow(0.5) AS s FROM numbers({rows})) " +
-                "WHERE {__scope_predicate} AND s = 0 SETTINGS max_block_size = 1",
+                "WHERE {__scope_predicate} AND s = 0",
                 new Dictionary<string, object> { ["le"] = legalEntityId.ToString() });
             var result = await session.QueryAsync(statement, (IDataRecord r) => checked((long)(ulong)r.GetValue(0)), cancellationToken);
             return result.Single();

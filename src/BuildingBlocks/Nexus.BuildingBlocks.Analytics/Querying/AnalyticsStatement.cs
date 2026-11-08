@@ -35,8 +35,13 @@ namespace Nexus.BuildingBlocks.Analytics.Querying;
 /// </para>
 /// Rejected on construction (so a malformed query fails even when the filter is empty and
 /// ClickHouse is never called):
+/// String literals are tokenized first: <c>nexus_analytics</c> is looked for only inside them,
+/// and every other check runs on the SQL with literals blanked (so a literal neither triggers a
+/// false positive nor hides or fakes a placeholder).
 /// <list type="bullet">
-///   <item>no <see cref="ScopePlaceholder"/>;</item>
+///   <item>any backslash (escape sequences could disguise a name or a literal);</item>
+///   <item><c>nexus_analytics</c> inside a string literal (how table functions name a database);</item>
+///   <item>no <see cref="ScopePlaceholder"/> outside string literals;</item>
 ///   <item>comments (<c>--</c>, <c>/*</c>, <c>#</c>): a placeholder in a commented-out line would
 ///   count without filtering anything;</item>
 ///   <item>fewer placeholders than <c>nexus_analytics.</c> table references (case-insensitive,
@@ -45,8 +50,11 @@ namespace Nexus.BuildingBlocks.Analytics.Querying;
 ///   reference from the count above);</item>
 ///   <item>table functions that read other tables or external data by name (<c>merge</c>,
 ///   <c>cluster</c>, <c>clusterAllReplicas</c>, <c>remote</c>, <c>remoteSecure</c>, <c>view</c>,
-///   <c>loop</c>, <c>dictionary</c>, <c>url</c>, <c>file</c>, <c>s3</c>, <c>input</c>, ...) and any
-///   <c>nexus_analytics</c> inside a string literal (how such functions name a database);</item>
+///   <c>loop</c>, <c>dictionary</c>, <c>url</c>, <c>file</c>, <c>s3</c>, <c>input</c>, ...), also
+///   with the name quoted as an identifier;</item>
+///   <item>any <c>SETTINGS</c> clause: per-query settings (database, <c>readonly</c>, time limit)
+///   belong to the executor, and no analytic query needs its own. A column named
+///   <c>settings</c> would be rejected too; projections have none;</item>
 ///   <item>any other <c>__scope</c> token (the scope parameter is reserved for the executor);</item>
 ///   <item>a parameter name that is not an identifier, is reserved, has a null value, or is not
 ///   referenced in the SQL as <c>{name:Type}</c>.</item>
@@ -71,46 +79,68 @@ public sealed partial class AnalyticsStatement
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(sql);
 
-        if (!sql.Contains(ScopePlaceholder, StringComparison.Ordinal))
+        // Escapes (\x6E, \', ...) would let a name or a literal hide what it says from every
+        // check below; analytic SQL never needs them.
+        if (sql.Contains('\\', StringComparison.Ordinal))
+        {
+            throw new ArgumentException("Analytic SQL must not contain a backslash (escape sequences).", nameof(sql));
+        }
+
+        // Tokenize string literals: 'nexus_analytics' is only looked for inside them, and every
+        // other check runs on the SQL with literals blanked, so a literal can neither trigger a
+        // false positive ('a--b', 'file(x)', 'settings.updated') nor hide or fake a placeholder.
+        foreach (Match literal in StringLiteralRegex().Matches(sql))
+        {
+            if (literal.Value.Contains("nexus_analytics", StringComparison.OrdinalIgnoreCase))
+            {
+                throw new ArgumentException(
+                    "'nexus_analytics' must not appear inside a string literal in analytic SQL (that is how table functions name a database).",
+                    nameof(sql));
+            }
+        }
+
+        var code = StringLiteralRegex().Replace(sql, "''");
+
+        if (!code.Contains(ScopePlaceholder, StringComparison.Ordinal))
         {
             throw new ArgumentException(
-                $"An analytic statement must contain the scope placeholder '{ScopePlaceholder}' (conventions-api.md §7): " +
+                $"An analytic statement must contain the scope placeholder '{ScopePlaceholder}' outside string literals (conventions-api.md §7): " +
                 "every ClickHouse query is filtered by the caller's legal entities.",
                 nameof(sql));
         }
 
-        if (sql.Contains("--", StringComparison.Ordinal)
-            || sql.Contains("/*", StringComparison.Ordinal)
-            || sql.Contains('#', StringComparison.Ordinal))
+        if (code.Contains("--", StringComparison.Ordinal)
+            || code.Contains("/*", StringComparison.Ordinal)
+            || code.Contains('#', StringComparison.Ordinal))
         {
             throw new ArgumentException(
                 "Analytic SQL must not contain comments ('--', '/*', '#'): a scope placeholder inside a comment would not filter anything.",
                 nameof(sql));
         }
 
-        if (IdentifierParameterRegex().IsMatch(sql))
+        if (IdentifierParameterRegex().IsMatch(code))
         {
             throw new ArgumentException(
                 "Identifier parameters ({name:Identifier}) are not allowed in analytic SQL: name projections literally.",
                 nameof(sql));
         }
 
-        if (ForbiddenTableFunctionRegex().Match(sql) is { Success: true } tableFunction)
+        if (ForbiddenTableFunctionRegex().Match(code) is { Success: true } tableFunction)
         {
             throw new ArgumentException(
                 $"Table function '{tableFunction.Groups["fn"].Value}' is not allowed in analytic SQL: it can read a projection without the scope filter.",
                 nameof(sql));
         }
 
-        if (QuotedDatabaseRegex().IsMatch(sql))
+        if (SettingsClauseRegex().IsMatch(code))
         {
             throw new ArgumentException(
-                "'nexus_analytics' must not appear inside a string literal in analytic SQL (that is how table functions name a database).",
+                "SETTINGS clauses are not allowed in analytic SQL: per-query settings are fixed by the executor (database, readonly, time limit).",
                 nameof(sql));
         }
 
-        var placeholders = CountOccurrences(sql, ScopePlaceholder);
-        var projectionReferences = ProjectionReferenceRegex().Count(sql);
+        var placeholders = CountOccurrences(code, ScopePlaceholder);
+        var projectionReferences = ProjectionReferenceRegex().Count(code);
         if (placeholders < projectionReferences)
         {
             throw new ArgumentException(
@@ -119,7 +149,7 @@ public sealed partial class AnalyticsStatement
                 nameof(sql));
         }
 
-        if (sql.Replace(ScopePlaceholder, string.Empty, StringComparison.Ordinal).Contains(ReservedPrefix, StringComparison.Ordinal))
+        if (code.Replace(ScopePlaceholder, string.Empty, StringComparison.Ordinal).Contains(ReservedPrefix, StringComparison.Ordinal))
         {
             throw new ArgumentException(
                 $"'{ReservedPrefix}' is reserved for the executor's scope filter; use only the placeholder '{ScopePlaceholder}'.",
@@ -180,15 +210,22 @@ public sealed partial class AnalyticsStatement
     [GeneratedRegex(@":\s*Identifier\s*\}", RegexOptions.CultureInvariant | RegexOptions.IgnoreCase)]
     private static partial Regex IdentifierParameterRegex();
 
-    // Table functions that read another table, another server or external data by name.
+    // Table functions that read another table, another server or external data by name; the
+    // name may be quoted as an identifier (`merge`(, "merge"(). The lookbehind keeps aggregate
+    // combinators such as sumMerge( out.
     [GeneratedRegex(
-        @"\b(?<fn>merge|cluster|clusterAllReplicas|remote|remoteSecure|view|loop|dictionary|url|file|s3|s3Cluster|input|" +
-        @"mysql|postgresql|jdbc|odbc|hdfs|azureBlobStorage|gcs|executable|mergeTreeIndex|mergeTreeProjection)\s*\(",
+        @"(?<![A-Za-z0-9_])[`""]?(?<fn>merge|cluster|clusterAllReplicas|remote|remoteSecure|view|loop|dictionary|url|file|s3|s3Cluster|input|" +
+        @"mysql|postgresql|jdbc|odbc|hdfs|azureBlobStorage|gcs|executable|mergeTreeIndex|mergeTreeProjection)[`""]?\s*\(",
         RegexOptions.CultureInvariant | RegexOptions.IgnoreCase)]
     private static partial Regex ForbiddenTableFunctionRegex();
 
-    [GeneratedRegex(@"'[^']*nexus_analytics", RegexOptions.CultureInvariant | RegexOptions.IgnoreCase)]
-    private static partial Regex QuotedDatabaseRegex();
+    // A ClickHouse string literal: '...' with '' or \x escapes (backslashes are rejected before
+    // tokenizing, the alternative is kept so the tokenizer is right on its own).
+    [GeneratedRegex(@"'(?:[^'\\]|\\.|'')*'", RegexOptions.CultureInvariant)]
+    private static partial Regex StringLiteralRegex();
+
+    [GeneratedRegex(@"(?<![A-Za-z0-9_])SETTINGS(?![A-Za-z0-9_])", RegexOptions.CultureInvariant | RegexOptions.IgnoreCase)]
+    private static partial Regex SettingsClauseRegex();
 
     // nexus_analytics.x, `nexus_analytics`.x, "nexus_analytics" . x
     [GeneratedRegex(@"[`""]?nexus_analytics[`""]?\s*\.", RegexOptions.CultureInvariant | RegexOptions.IgnoreCase)]

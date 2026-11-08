@@ -57,11 +57,34 @@ public sealed class ClickHouseFixture : IAsyncLifetime
 
     /// <summary>A real executor (real connection factory) pointed at this container.</summary>
     internal AnalyticsQueryExecutor CreateExecutor(TimeSpan? queryTimeout = null) =>
-        new(new AnalyticsConnectionFactory(Options.Create(new NexusAnalyticsOptions
+        new(CreateConnectionFactory(queryTimeout));
+
+    internal AnalyticsConnectionFactory CreateConnectionFactory(TimeSpan? queryTimeout = null) =>
+        new(Options.Create(new NexusAnalyticsOptions
         {
             ConnectionString = ConnectionString,
             QueryTimeout = queryTimeout ?? NexusAnalyticsOptions.DefaultQueryTimeout,
-        })));
+        }));
+
+    /// <summary>
+    /// The real factory plus <c>max_block_size = 1</c>, for the slow-query tests: analytic SQL may
+    /// not carry a SETTINGS clause, and ClickHouse checks time limits and cancellation between
+    /// blocks (and caps sleep at 3 s per block).
+    /// </summary>
+    internal AnalyticsQueryExecutor CreateSlowQueryExecutor(TimeSpan? queryTimeout = null) =>
+        new(new OneRowBlocks(CreateConnectionFactory(queryTimeout)));
+
+    private sealed class OneRowBlocks(IAnalyticsConnectionFactory inner) : IAnalyticsConnectionFactory
+    {
+        public TimeSpan QueryTimeout => inner.QueryTimeout;
+
+        public ClickHouseConnection Create()
+        {
+            var connection = inner.Create();
+            connection.CustomSettings["max_block_size"] = 1;
+            return connection;
+        }
+    }
 
     /// <summary>Inserts the rows in ONE insert (one part). Call it twice to get two parts.</summary>
     public async Task InsertAsync(params EventLogRow[] rows)
