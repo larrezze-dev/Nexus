@@ -81,6 +81,26 @@ public sealed class AvroJsonTests
         Json(Dec, 1.5m).ShouldBe("""{"f":"1.5000"}""");
     }
 
+    [Fact(DisplayName = "decimal (CLR) is exact: padded to schema scale, trailing zeros tolerated, finer scale throws instead of rounding")]
+    public void Decimal_clr_exact_or_throws()
+    {
+        Json(Dec, 1.5m).ShouldBe("""{"f":"1.5000"}""");
+        Json(Dec, -0.0001m).ShouldBe("""{"f":"-0.0001"}""");
+        Json(Dec, 1.50000m).ShouldBe("""{"f":"1.5000"}""");
+        Should.Throw<NotSupportedException>(() => Json(Dec, 1.00005m));
+    }
+
+    [Fact(DisplayName = "local-timestamp-millis/micros are zone-less (no Z) and not shifted")]
+    public void Local_timestamps()
+    {
+        var millis = """{"type":"long","logicalType":"local-timestamp-millis"}""";
+        var micros = """{"type":"long","logicalType":"local-timestamp-micros"}""";
+        var ms = (long)(new DateTime(2026, 11, 8, 10, 30, 15, 123, DateTimeKind.Utc) - DateTime.UnixEpoch).TotalMilliseconds;
+        Json(millis, ms).ShouldBe("""{"f":"2026-11-08T10:30:15.123000"}""");
+        Json(micros, ms * 1000 + 456).ShouldBe("""{"f":"2026-11-08T10:30:15.123456"}""");
+        Json(millis, new DateTime(2026, 11, 8, 10, 30, 15, 123, DateTimeKind.Local)).ShouldBe("""{"f":"2026-11-08T10:30:15.123000"}""");
+    }
+
     [Fact(DisplayName = "timestamp-millis/micros: raw long and DateTime give ISO-8601 UTC with microseconds")]
     public void Timestamps()
     {

@@ -16,7 +16,7 @@ namespace Nexus.Projections.Projections;
 /// <item>union: the non-null branch value (null becomes JSON null)</item>
 /// <item>string, uuid: string; boolean; int/long/float/double: JSON number</item>
 /// <item>bytes/fixed with logical <c>decimal</c>: JSON STRING with the exact decimal at the schema scale (never a double)</item>
-/// <item>timestamp-millis/micros (and local-timestamp-*): <c>yyyy-MM-ddTHH:mm:ss.ffffffZ</c> (UTC); date: <c>yyyy-MM-dd</c></item>
+/// <item>timestamp-millis/micros <c>yyyy-MM-ddTHH:mm:ss.ffffffZ</c> (UTC); local-timestamp-*: <c>yyyy-MM-ddTHH:mm:ss.ffffff</c> (no zone); date: <c>yyyy-MM-dd</c></item>
 /// <item>enum: symbol; array: array; map: object; plain bytes/fixed: base64</item>
 /// </list>
 /// Both raw Avro representations and the converted ones (<see cref="Guid"/>, <see cref="AvroDecimal"/>,
@@ -25,6 +25,7 @@ namespace Nexus.Projections.Projections;
 /// </summary>
 public static class AvroJson
 {
+    private const string LocalTimestampFormat = "yyyy-MM-ddTHH:mm:ss.ffffff";
     private const string TimestampFormat = "yyyy-MM-ddTHH:mm:ss.ffffffZ";
 
     /// <summary>Serialises <paramref name="record"/> to a compact JSON string.</summary>
@@ -173,9 +174,19 @@ public static class AvroJson
                     return;
                 }
                 case decimal d:
-                    // Re-render at the schema scale so "1.5" and "1.50" cannot differ between representations.
-                    w.WriteStringValue(d.ToString("F" + scale.ToString(CultureInfo.InvariantCulture), CultureInfo.InvariantCulture));
+                {
+                    // Exact, never rounding: pad to the schema scale; a value with more significant decimals
+                    // than the schema scale is a contract violation (money must not be altered silently).
+                    var bits = decimal.GetBits(d);
+                    var dScale = (bits[3] >> 16) & 0xFF;
+                    var unscaledD = new BigInteger(new decimal(bits[0], bits[1], bits[2], false, 0));
+                    if (d < 0) unscaledD = -unscaledD;
+                    while (dScale > scale && !unscaledD.IsZero && unscaledD % 10 == 0) { unscaledD /= 10; dScale--; }
+                    if (dScale > scale)
+                        throw new NotSupportedException($"Decimal value has scale {dScale}, more than the schema scale {scale}.");
+                    w.WriteStringValue(FormatUnscaled(unscaledD * BigInteger.Pow(10, scale - dScale), scale));
                     return;
+                }
             }
             if (bytes is null) throw Unsupported(schema, value);
             // Avro decimal: big-endian two's complement unscaled value; BigInteger wants little-endian.
@@ -209,9 +220,16 @@ public static class AvroJson
 
     private static string FormatTimestamp(string logical, object value)
     {
+        var local = logical.StartsWith("local-", StringComparison.Ordinal);
         DateTime utc;
         switch (value)
         {
+            case DateTime dt when local:
+                utc = dt;
+                break;
+            case DateTimeOffset dto when local:
+                utc = dto.DateTime;
+                break;
             case DateTime dt:
                 utc = dt.Kind == DateTimeKind.Local ? dt.ToUniversalTime() : DateTime.SpecifyKind(dt, DateTimeKind.Utc);
                 break;
@@ -224,7 +242,8 @@ public static class AvroJson
                 utc = DateTime.UnixEpoch.AddTicks(ticks);
                 break;
         }
-        return utc.ToString(TimestampFormat, CultureInfo.InvariantCulture);
+        // local-timestamp-* is a wall-clock time without zone: no 'Z' suffix, no offset.
+        return utc.ToString(local ? LocalTimestampFormat : TimestampFormat, CultureInfo.InvariantCulture);
     }
 
     private static string FormatDate(object value) => value switch
