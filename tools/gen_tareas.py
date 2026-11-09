@@ -63,7 +63,7 @@ NOTES = {
  "0.4": "Aprobado 2026-10-30.",
  "0.6": "Aprobado 2026-11-06 (5 PRs, 2 ADRs, 2 vulnerabilidades reales corregidas).",
  "0.7": "Aprobado 2026-11-08 (C: PR #25, #27, #30 · S: PR #28 · B: PR #29, #31 · Gate D: PR #32; ADR-0017 y ADR-0018 aceptados).",
- "0.8": "C entregado (contrato ClickHouse + auditoría, AUDIT:READ); siguen S y F.",
+ "0.8": "C entregado (contrato ClickHouse + auditoría, AUDIT:READ, PR #34); S entregado (nexus-projections, BuildingBlocks.Analytics, endpoint de auditoría); sigue F y Gate D. Fallo previo detectado: nexus-aggregate-version siempre 1 (fix aparte en spec/aggregate-version, antes de Gate D).",
  "0.1": "Todos los tracks entregados; pendiente de aprobación de Luciano.",
  "0.2": "Todos los tracks entregados; pendiente de aprobación de Luciano.",
  "0.5": "Todos los tracks entregados; pendiente de aprobación de Luciano.",
