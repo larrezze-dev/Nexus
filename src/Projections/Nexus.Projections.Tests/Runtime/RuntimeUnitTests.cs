@@ -108,13 +108,57 @@ public sealed class RuntimeUnitTests
         FailureClassifier.IsInsertRejection(new ClickHouse.Client.ClickHouseServerException("Code: 53. DB::Exception: Type mismatch", "q", 53), out var code).ShouldBeTrue();
         code.ShouldBe(53);
         FailureClassifier.IsInsertRejection(new ClickHouse.Client.Copy.ClickHouseBulkCopySerializationException([1], new FormatException()), out _).ShouldBeTrue();
-        FailureClassifier.IsInsertRejection(new InvalidOperationException("wrap", new InvalidCastException()), out _).ShouldBeTrue();
+        FailureClassifier.IsInsertRejection(ProjectionRowSerializationException.For("nexus_analytics.t", new InvalidCastException()), out _).ShouldBeTrue();
+
+        // A bare conversion exception is NOT enough: only the sink's bulk-copy write wraps it as a rejection.
+        FailureClassifier.IsInsertRejection(new InvalidOperationException("wrap", new InvalidCastException()), out _).ShouldBeFalse();
+        FailureClassifier.IsInsertRejection(new ArgumentException("x"), out _).ShouldBeFalse();
+        // Missing column / table / database: schema not deployed yet → unavailable.
+        FailureClassifier.IsInsertRejection(new ClickHouse.Client.ClickHouseServerException("Code: 16. No such column", "q", 16), out _).ShouldBeFalse();
+        FailureClassifier.IsInsertRejection(new ClickHouse.Client.ClickHouseServerException("Code: 81. Unknown database", "q", 81), out _).ShouldBeFalse();
 
         FailureClassifier.IsInsertRejection(new ClickHouse.Client.ClickHouseServerException("Code: 60. Unknown table", "q", 60), out code).ShouldBeFalse();
         code.ShouldBe(60);
         FailureClassifier.IsInsertRejection(new HttpRequestException("connection refused"), out _).ShouldBeFalse();
         FailureClassifier.IsInsertRejection(new TaskCanceledException("timeout"), out _).ShouldBeFalse();
         FailureClassifier.IsInsertRejection(new ClickHouse.Client.ClickHouseServerException("Code: 241. Memory limit", "q", 241), out _).ShouldBeFalse();
+    }
+
+    [Fact(DisplayName = "Failure classes (D1): the logged description of an insert failure carries exception types and code, never the server message")]
+    public void Insert_failure_description_is_sanitized()
+    {
+        var ex = new InvalidOperationException("outer secret", new ClickHouse.Client.ClickHouseServerException("Code: 60. value 'Secret AG' ...", "q", 60));
+        FailureClassifier.IsInsertRejection(ex, out var code).ShouldBeFalse();
+
+        var safe = FailureClassifier.SafeDescription(ex, code);
+
+        safe.ShouldBe("InvalidOperationException -> ClickHouseServerException, code 60");
+        safe.ShouldNotContain("Secret");
+    }
+
+    [Fact(DisplayName = "rebuild (N1): REAL DescribeConsumerGroupsException / DeleteGroupsException (top-level Local_Partial) are retried when their per-group errors are transient")]
+    public void Typed_admin_exceptions_use_per_result_codes()
+    {
+        static Confluent.Kafka.Admin.DescribeConsumerGroupsException Describe(Confluent.Kafka.ErrorCode code) =>
+            new(new Confluent.Kafka.Admin.DescribeConsumerGroupsReport
+            {
+                ConsumerGroupDescriptions = [new Confluent.Kafka.Admin.ConsumerGroupDescription { GroupId = "projections.x", Error = new Confluent.Kafka.Error(code), Members = [] }],
+            });
+        static Confluent.Kafka.Admin.DeleteGroupsException Delete(Confluent.Kafka.ErrorCode code) =>
+            new([new Confluent.Kafka.Admin.DeleteGroupReport { Group = "projections.x", Error = new Confluent.Kafka.Error(code) }]);
+
+        // The real exceptions carry Local_Partial at the top level (this is what made N1 never retry).
+        Describe(Confluent.Kafka.ErrorCode.Local_TimedOut).Error.Code.ShouldBe(Confluent.Kafka.ErrorCode.Local_Partial);
+        Delete(Confluent.Kafka.ErrorCode.Local_TimedOut).Error.Code.ShouldBe(Confluent.Kafka.ErrorCode.Local_Partial);
+
+        ProjectionRebuilder.IsTransientAdminError(Describe(Confluent.Kafka.ErrorCode.Local_TimedOut)).ShouldBeTrue();
+        ProjectionRebuilder.IsTransientAdminError(Describe(Confluent.Kafka.ErrorCode.GroupCoordinatorNotAvailable)).ShouldBeTrue();
+        ProjectionRebuilder.IsTransientAdminError(Delete(Confluent.Kafka.ErrorCode.GroupLoadInProgress)).ShouldBeTrue();
+        ProjectionRebuilder.IsTransientAdminError(Delete(Confluent.Kafka.ErrorCode.NotCoordinatorForGroup)).ShouldBeTrue();
+
+        ProjectionRebuilder.IsTransientAdminError(Describe(Confluent.Kafka.ErrorCode.GroupAuthorizationFailed)).ShouldBeFalse();
+        ProjectionRebuilder.IsTransientAdminError(Delete(Confluent.Kafka.ErrorCode.NonEmptyGroup)).ShouldBeFalse();
+        ProjectionRebuilder.IsTransientAdminError(new Confluent.Kafka.KafkaException(new Confluent.Kafka.Error(Confluent.Kafka.ErrorCode.Local_Partial))).ShouldBeFalse();
     }
 
     [Fact(DisplayName = "rebuild (N1): coordinator loading/moving and timeouts are retried; other admin errors are not")]

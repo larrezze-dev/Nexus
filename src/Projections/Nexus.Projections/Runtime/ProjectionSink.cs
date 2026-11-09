@@ -42,6 +42,40 @@ public sealed class ClickHouseProjectionSink(ClickHouseConnectionProvider connec
             MaxDegreeOfParallelism = 1,
         };
         await bulk.InitAsync().WaitAsync(ct).ConfigureAwait(false);
-        await bulk.WriteToServerAsync(rows.Select(static r => (object[])r!), ct).ConfigureAwait(false);
+        try
+        {
+            await bulk.WriteToServerAsync(rows.Select(static r => (object[])r!), ct).ConfigureAwait(false);
+        }
+        catch (Exception ex) when (ex is InvalidCastException or FormatException or OverflowException or ArgumentException or NotSupportedException)
+        {
+            // The client's RowBinary writers convert every CLR value to the column type in-process,
+            // before anything is sent: a conversion failure here means the projection produced a value the
+            // column cannot hold (decision D1: rejected batch). Network failures never take this shape.
+            throw ProjectionRowSerializationException.For(projection.TableName, ex);
+        }
     }
+}
+
+/// <summary>
+/// A row of the batch could not be serialized for its table (a value of the wrong CLR type for its column).
+/// Deliberately carries no row value in its message.
+/// </summary>
+public sealed class ProjectionRowSerializationException : Exception
+{
+    public ProjectionRowSerializationException()
+    {
+    }
+
+    public ProjectionRowSerializationException(string message)
+        : base(message)
+    {
+    }
+
+    public ProjectionRowSerializationException(string message, Exception innerException)
+        : base(message, innerException)
+    {
+    }
+
+    internal static ProjectionRowSerializationException For(string tableName, Exception innerException) =>
+        new($"A row could not be serialized for {tableName} ({innerException.GetType().Name}).", innerException);
 }

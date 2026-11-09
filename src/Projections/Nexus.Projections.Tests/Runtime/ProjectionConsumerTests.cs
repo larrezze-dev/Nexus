@@ -319,6 +319,67 @@ public sealed class ProjectionConsumerTests(RuntimeEnvironment env)
             && second.State(p.GroupId) == ConsumerLoopState.Running, Wait)).ShouldBeTrue("states restored after recovery");
     }
 
+    [Fact(DisplayName = "Projection critical path: both members blocked by a ClickHouse outage, one LEAVES during the wait → the survivor gets new partitions while paused (strays rewound); after recovery N rows, N committed, no gap")]
+    public async Task Member_leaving_during_outage_loses_nothing()
+    {
+        const int perPartition = 5;
+        var name = TestProjection.UniqueName("outleave");
+        var topic = $"test.{name}";
+        var p = new TestProjection(name, ProjectionSubscription.ForTopics(topic));
+        await env.Kafka.CreateTopicsAsync(2, topic, DlqHeaders.TopicFor(topic)); // table NOT created: inserts fail
+        var expected = new List<Guid>();
+        for (var partition = 0; partition < 2; partition++)
+        {
+            for (var i = 0; i < perPartition; i++)
+            {
+                var envelope = TestEvents.Envelope(Guid.CreateVersion7());
+                expected.Add(envelope.EventId);
+                var bytes = await env.Kafka.SerializeAsync(topic, TestEvents.Payload($"p{partition}-{i}"));
+                await env.Kafka.ProduceRawAsync(new TopicPartition(topic, partition), envelope.AggregateId.ToString(), bytes, TestEvents.Headers(envelope));
+            }
+        }
+
+        // Long waits: the survivor must spend the rebalance INSIDE its keep-alive wait, where the partition
+        // it inherits arrives un-paused and its records show up as strays.
+        static void SlowBackoff(Dictionary<string, string?> c)
+        {
+            c[$"{ProjectionOptions.SectionName}:TransientInitialBackoff"] = "00:00:04";
+            c[$"{ProjectionOptions.SectionName}:TransientMaxBackoff"] = "00:00:04";
+        }
+
+        // One projection INSTANCE per member (same name, so same group and table): separate Map counters.
+        var survivorP = new TestProjection(name, ProjectionSubscription.ForTopics(topic));
+        var leaverP = new TestProjection(name, ProjectionSubscription.ForTopics(topic));
+        await using var survivor = RuntimeHarness.Create(env, [survivorP], SlowBackoff);
+        var leaver = RuntimeHarness.Create(env, [leaverP], SlowBackoff);
+        await using (leaver)
+        {
+            // The leaver starts alone and takes BOTH partitions; the survivor then joins and gets ONE. So the
+            // partition the survivor inherits later is new to its client: librdkafka keeps a paused partition
+            // paused across a re-assignment only for partitions the client already owned.
+            leaver.Start(leaverP);
+            (await Eventually.Until(() => leaver.State(p.GroupId) == ConsumerLoopState.DependencyUnavailable
+                && leaverP.MapCalls >= 2 * perPartition, Wait)).ShouldBeTrue("the leaver holds both partitions, blocked on the insert");
+            survivor.Start(survivorP);
+            (await Eventually.Until(() => survivor.State(p.GroupId) == ConsumerLoopState.DependencyUnavailable
+                && survivorP.MapCalls >= perPartition, Wait)).ShouldBeTrue("the survivor holds one partition, blocked on the insert");
+            survivorP.MapCalls.ShouldBeLessThan(2 * perPartition, "the survivor must not have owned the leaver's partition yet");
+            await leaver.StopAllAsync(); // leaves the group: its partition goes to the survivor
+        }
+
+        await Task.Delay(TimeSpan.FromSeconds(6), Ct); // the survivor's wait spans the rebalance
+        (await env.Kafka.CommittedAsync(p.GroupId, topic, 2)).ShouldBe([-1L, -1L], "nothing committed during the outage");
+
+        await env.ClickHouse.ExecuteAsync(p.CreateTableSql); // ClickHouse back
+
+        (await Eventually.Until(async () => (await env.Kafka.CommittedAsync(p.GroupId, topic, 2)).SequenceEqual([perPartition, perPartition]), Wait))
+            .ShouldBeTrue("both partitions committed to their end by the survivor");
+        var ids = await env.ClickHouse.RowsAsync($"SELECT _event_id FROM {p.TableName} FINAL");
+        ids.Order(StringComparer.Ordinal).ShouldBe(expected.Select(g => g.ToString()).Order(StringComparer.Ordinal), "no gap, no duplicate");
+        survivor.State(p.GroupId).ShouldBe(ConsumerLoopState.Running);
+        survivorP.MapCalls.ShouldBeGreaterThanOrEqualTo(2 * perPartition, "the survivor projected the inherited partition");
+    }
+
     [Fact(DisplayName = "Projection DLQ unavailable: DLQ publish failing → paused, Unhealthy, no commit; once the DLQ answers the record is dead-lettered and committed")]
     public async Task Dlq_unavailable_pauses_then_recovers()
     {

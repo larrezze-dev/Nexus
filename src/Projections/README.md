@@ -37,8 +37,8 @@ Ctrl+C: el lote en curso no se inserta ni se confirma; los lotes ya volcados que
 |---|---|---|---|
 | Del registro | envoltorio inválido, bytes que no son Avro, schema id desconocido (404), `Map` lanza | 4 intentos (200 ms / 1 s / 5 s) → `{topic}.DLQ` con `nexus-dlq-*` (worker) o contado y saltado (`rebuild`) | `record`; `nexus_projection_dlq_total` |
 | Schema Registry no disponible (D3) | inalcanzable, timeout, 5xx, 408, 429, credenciales rechazadas 401/403/407 | pausa, `/health` Unhealthy (`DependencyUnavailable`), backoff 1 s → 30 s, nunca DLQ ni commit | `schema_registry` |
-| ClickHouse no disponible | red, timeout, 5xx, tabla o base inexistente | igual: lote retenido, pausa, Unhealthy, reintento | `insert_unavailable` |
-| ClickHouse **rechaza** el lote (D1) | tipo, parseo o valor (códigos 6, 16, 26, 27, 32, 33, 38, 41, 43, 53, 69, 70, 72, 117, 349, 376) o error de serialización en el cliente | **bloquea** la proyección igual que una caída (sin commit, sin DLQ, sin pérdida); log ERROR *"projection <name> blocked: ClickHouse rejected the batch, fix the projection and rebuild"* sin valores de fila | `insert_rejected` (alertar ante cualquier incremento) |
+| ClickHouse no disponible | red, timeout, 5xx; tabla, base o columna inexistente (códigos 60, 81, 16: esquema aún no desplegado) | igual: lote retenido, pausa, Unhealthy, reintento; el log lleva solo tipo de excepción y código, nunca el mensaje del servidor | `insert_unavailable` |
+| ClickHouse **rechaza** el lote (D1) | tipo, parseo o valor (códigos 6, 26, 27, 32, 33, 38, 41, 43, 53, 69, 70, 72, 117, 349, 376) o error de conversión al serializar las filas en el cliente (solo en la escritura del bulk copy) | **bloquea** la proyección igual que una caída (sin commit, sin DLQ, sin pérdida); log ERROR *"projection <name> blocked: ClickHouse rejected the batch, fix the projection and rebuild"* sin valores de fila | `insert_rejected` (alertar ante cualquier incremento) |
 | DLQ no disponible | broker caído, topic `.DLQ` inexistente | pausa, Unhealthy (`DlqUnavailable`), reintenta la publicación; nunca salta el registro | `dlq` |
 | Sondeo de Kafka | topic desconocido, broker caído | Degraded, backoff 1 s → 5 s | `poll` |
 | Commit tras insertar | rebalanceo | se registra; los registros se releen y sus filas se colapsan | `commit` |
@@ -49,7 +49,7 @@ Garantías: un offset solo se confirma tras insertar sus filas; en un rebalanceo
 
 `GET /health` (sin autenticación). Estados por grupo (`<grupo>.state`, `<grupo>.lag`): Unhealthy si un bucle murió o está pausado por una dependencia (`DependencyUnavailable`, `DlqUnavailable`); Degraded por errores de sondeo, lag mayor que `Nexus:Consumers:Health:LagDegradedThreshold` o lag desconocido. El lag suma todos los topics de la suscripción (regex incluida, sin `.DLQ`).
 
-Puerto: si nada lo configura, `http://localhost:5301`. `ASPNETCORE_URLS`, `--urls`, `Urls` o `ASPNETCORE_HTTP_PORTS` siempre ganan (compose: `ASPNETCORE_URLS=http://+:5301`). Registrado en `docs/00-foundation/architecture.md` §6 `[+]`.
+Puerto: si nada lo configura, `http://localhost:5301`. `ASPNETCORE_URLS`, `--urls`, `Urls` o `ASPNETCORE_HTTP_PORTS` siempre ganan. La imagen fija `ASPNETCORE_HTTP_PORTS=5301` (un `docker run` sin compose escucha en `[::]:5301`) y compose fija `ASPNETCORE_URLS=http://+:5301`. Registrado en `docs/00-foundation/architecture.md` §6 `[+]`.
 
 ## Métricas (meter `Nexus.Projections`, OTLP en `Nexus:Telemetry:OtlpEndpoint`)
 

@@ -294,8 +294,10 @@ internal sealed partial class ProjectionPipeline
                 else
                 {
                     _runtime.Metrics.Error(_projection.Name, ProjectionMetrics.ErrorKindInsertUnavailable);
-                    LogInsertFailed(_logger, ex, GroupId, rows.Count, _projection.TableName, backoff);
-                    reported = ex;
+                    // Type + code only, as for rejections: a server message may quote values.
+                    var safe = FailureClassifier.SafeDescription(ex, code);
+                    LogInsertFailed(_logger, GroupId, rows.Count, _projection.TableName, safe, backoff);
+                    reported = new InvalidOperationException($"ClickHouse insert of projection {_projection.Name} failed: {safe}.");
                 }
 
                 await EnterOutageAndWaitAsync(Outage.Sink, reported, backoff, ct).ConfigureAwait(false);
@@ -599,8 +601,8 @@ internal sealed partial class ProjectionPipeline
     private static partial void LogSchemaRegistryUnavailable(ILogger logger, Exception ex, string groupId, string topic, int partition, long offset, TimeSpan backoff);
 
     [LoggerMessage(Level = LogLevel.Error,
-        Message = "Projection {GroupId}: insert of {Rows} row(s) into {Table} failed; nothing committed, consumption paused, retrying in {Backoff}")]
-    private static partial void LogInsertFailed(ILogger logger, Exception ex, string groupId, int rows, string table, TimeSpan backoff);
+        Message = "Projection {GroupId}: insert of {Rows} row(s) into {Table} failed ({Failure}); nothing committed, consumption paused, retrying in {Backoff}")]
+    private static partial void LogInsertFailed(ILogger logger, string groupId, int rows, string table, string failure, TimeSpan backoff);
 
     [LoggerMessage(Level = LogLevel.Error,
         Message = "Projection {Projection} blocked: ClickHouse rejected the batch of {Rows} row(s) for {Table} ({ExceptionType}, code {Code}); fix the projection and rebuild. Nothing committed; retrying in {Backoff}")]

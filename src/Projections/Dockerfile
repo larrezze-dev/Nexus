@@ -51,6 +51,12 @@ COPY --from=build /app/publish .
 # <binaries>/db/clickhouse and <binaries>/contracts/events/topics.yaml, where the publish step puts them.
 ENV DOTNET_ENVIRONMENT=Production
 
+# /health on 5301 (the documented port, src/Projections/README.md). The aspnet base image sets
+# ASPNETCORE_HTTP_PORTS=8080; override it so a plain `docker run` listens on 5301 too. ASPNETCORE_URLS
+# (compose: http://+:5301) or --urls still win over it.
+ENV ASPNETCORE_HTTP_PORTS=5301
+EXPOSE 5301
+
 # Non-root user provided by the .NET images.
 USER $APP_UID
 

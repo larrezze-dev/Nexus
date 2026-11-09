@@ -398,30 +398,34 @@ public sealed partial class ProjectionRebuilder
         }
     }
 
+    /// <summary>
+    /// True when every meaningful error code of <paramref name="exception"/> is transient (coordinator
+    /// loading or moving, timeouts, broker down). For the typed admin exceptions only the PER-RESULT codes
+    /// count: their top-level code is always <see cref="ErrorCode.Local_Partial"/> ("some results failed"),
+    /// which says nothing about why. <c>Local_Partial</c> and <c>NoError</c> are never counted.
+    /// </summary>
     internal static bool IsTransientAdminError(KafkaException exception)
     {
-        var codes = ErrorCodes(exception).Where(c => c != ErrorCode.NoError).ToList();
+        ArgumentNullException.ThrowIfNull(exception);
+        var codes = ErrorCodes(exception).ToList();
         return codes.Count > 0 && codes.All(TransientAdminErrors.Contains);
     }
 
+    /// <summary>The meaningful error codes of <paramref name="exception"/> (never <c>NoError</c> nor <c>Local_Partial</c>).</summary>
     private static IEnumerable<ErrorCode> ErrorCodes(KafkaException exception)
     {
-        yield return exception.Error.Code;
-        var perResult = exception switch
+        IEnumerable<ErrorCode> codes = exception switch
         {
             DescribeConsumerGroupsException d => d.Results.ConsumerGroupDescriptions.Select(r => r.Error.Code),
             DeleteGroupsException d => d.Results.Select(r => r.Error.Code),
             ListOffsetsException l => l.Result.ResultInfos.Select(r => r.TopicPartitionOffsetError.Error.Code),
-            _ => [],
+            _ => [exception.Error.Code],
         };
-        foreach (var code in perResult)
-        {
-            yield return code;
-        }
+        return codes.Where(c => c is not ErrorCode.NoError and not ErrorCode.Local_Partial).Distinct();
     }
 
     private static string ErrorSummary(KafkaException exception) =>
-        string.Join(", ", ErrorCodes(exception).Where(c => c != ErrorCode.NoError).Distinct()) is { Length: > 0 } codes
+        string.Join(", ", ErrorCodes(exception)) is { Length: > 0 } codes
             ? $"{codes}: {exception.Error.Reason}"
             : exception.Error.Reason;
 

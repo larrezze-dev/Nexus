@@ -55,13 +55,12 @@ internal static class FailureClassifier
 
     /// <summary>
     /// ClickHouse error codes meaning "these rows do not fit the table": type, parse and value errors.
-    /// UNKNOWN_TABLE (60) / UNKNOWN_DATABASE (81) are NOT here: a missing table is the schema not being
-    /// deployed yet (unavailable), not a bad batch.
+    /// NO_SUCH_COLUMN_IN_TABLE (16), UNKNOWN_TABLE (60) and UNKNOWN_DATABASE (81) are NOT here: they mean
+    /// the schema is not deployed yet (a migration pending), so they count as unavailable, not a bad batch.
     /// </summary>
     internal static readonly IReadOnlySet<int> RejectionCodes = new HashSet<int>
     {
         6,   // CANNOT_PARSE_TEXT
-        16,  // NO_SUCH_COLUMN_IN_TABLE
         26,  // CANNOT_PARSE_QUOTED_STRING
         27,  // CANNOT_PARSE_INPUT_ASSERTION_FAILED
         32,  // ATTEMPT_TO_READ_AFTER_EOF
@@ -81,9 +80,10 @@ internal static class FailureClassifier
     /// <summary>
     /// True when an insert failed because the BATCH is refused (decision D1): a ClickHouse server error with
     /// a type/parse/value code (<see cref="RejectionCodes"/>), or a client-side RowBinary serialization error
-    /// (<see cref="ClickHouseBulkCopySerializationException"/>, or a conversion exception raised while
-    /// serializing). Anything else (network, timeout, 5xx, missing table) is "unavailable".
-    /// <paramref name="code"/> is the ClickHouse error code, or 0 for a client-side error.
+    /// (<see cref="ClickHouseBulkCopySerializationException"/>, or <see cref="ProjectionRowSerializationException"/>
+    /// raised by the sink around the bulk-copy write only). Anything else (network, timeout, 5xx, missing
+    /// table or column) is "unavailable". <paramref name="code"/> is the ClickHouse error code found in the
+    /// chain, or 0.
     /// </summary>
     public static bool IsInsertRejection(Exception exception, out int code)
     {
@@ -96,16 +96,27 @@ internal static class FailureClassifier
                 case ClickHouseServerException server:
                     code = server.ErrorCode;
                     return RejectionCodes.Contains(server.ErrorCode);
-                case ClickHouseBulkCopySerializationException:
-                    return true;
-                case HttpRequestException or TaskCanceledException or TimeoutException or SocketException or IOException:
-                    return false;
-                case InvalidCastException or FormatException or OverflowException or NotSupportedException or ArgumentException:
-                    // Raised by the client's type converters while writing a value of the wrong CLR type.
+                case ClickHouseBulkCopySerializationException or ProjectionRowSerializationException:
                     return true;
             }
         }
 
         return false;
+    }
+
+    /// <summary>
+    /// A log-safe description of an insert failure: the exception types of the chain and the ClickHouse error
+    /// code, never a message (ClickHouse messages quote the offending values).
+    /// </summary>
+    public static string SafeDescription(Exception exception, int code)
+    {
+        ArgumentNullException.ThrowIfNull(exception);
+        var types = new List<string>();
+        for (var current = exception; current is not null && types.Count < 5; current = current.InnerException)
+        {
+            types.Add(current.GetType().Name);
+        }
+
+        return code == 0 ? string.Join(" -> ", types) : $"{string.Join(" -> ", types)}, code {code}";
     }
 }

@@ -28,6 +28,7 @@ public sealed class KafkaFixture : IAsyncLifetime
     private IContainer _schemaRegistry = null!;
     private IProducer<string?, byte[]?> _producer = null!;
     private CachedSchemaRegistryClient _registry = null!;
+    private IAdminClient? _admin;
 
     public string BootstrapServers => _kafka.GetBootstrapAddress();
 
@@ -72,6 +73,7 @@ public sealed class KafkaFixture : IAsyncLifetime
     {
         _producer?.Dispose();
         _registry?.Dispose();
+        _admin?.Dispose();
         if (_schemaRegistry is not null)
         {
             await _schemaRegistry.DisposeAsync();
@@ -93,8 +95,12 @@ public sealed class KafkaFixture : IAsyncLifetime
 
     public Task UnpauseRegistryAsync() => _schemaRegistry.UnpauseAsync();
 
-    public IAdminClient CreateAdmin() =>
-        new AdminClientBuilder(new AdminClientConfig { BootstrapServers = BootstrapServers }).Build();
+    /// <summary>
+    /// ONE admin client for the whole fixture. Creating and destroying one per call (tests poll committed
+    /// offsets every 100 ms) can trip a librdkafka assertion (<c>eonce->refcnt &gt; 0</c>) that aborts the
+    /// test process when a client is destroyed with an admin request still in flight.
+    /// </summary>
+    private IAdminClient Admin => _admin ??= new AdminClientBuilder(new AdminClientConfig { BootstrapServers = BootstrapServers }).Build();
 
     /// <summary>Creates topics (the broker never auto-creates).</summary>
     public Task CreateTopicsAsync(params string[] topics) => CreateTopicsAsync(1, topics);
@@ -102,7 +108,7 @@ public sealed class KafkaFixture : IAsyncLifetime
     /// <summary>Creates topics with <paramref name="partitions"/> partitions each.</summary>
     public async Task CreateTopicsAsync(int partitions, params string[] topics)
     {
-        using var admin = CreateAdmin();
+        var admin = Admin;
         try
         {
             await admin.CreateTopicsAsync(topics.Select(t => new TopicSpecification { Name = t, NumPartitions = partitions, ReplicationFactor = 1 }));
@@ -155,7 +161,7 @@ public sealed class KafkaFixture : IAsyncLifetime
     /// <summary>Committed offsets of <paramref name="groupId"/> on partitions 0..<paramref name="partitions"/>-1 (-1 = none).</summary>
     public async Task<long[]> CommittedAsync(string groupId, string topic, int partitions)
     {
-        using var admin = CreateAdmin();
+        var admin = Admin;
         var result = await admin.ListConsumerGroupOffsetsAsync(
             [new ConsumerGroupTopicPartitions(groupId, Enumerable.Range(0, partitions).Select(p => new TopicPartition(topic, p)).ToList())]);
         return result.SelectMany(r => r.Partitions).OrderBy(p => p.Partition.Value).Select(p => p.Offset.Value >= 0 ? p.Offset.Value : -1).ToArray();
@@ -168,7 +174,7 @@ public sealed class KafkaFixture : IAsyncLifetime
     /// <summary>Committed offset of <paramref name="groupId"/> on partition 0 of <paramref name="topic"/>, or null when none.</summary>
     public async Task<long?> CommittedAsync(string groupId, string topic)
     {
-        using var admin = CreateAdmin();
+        var admin = Admin;
         var result = await admin.ListConsumerGroupOffsetsAsync(
             [new ConsumerGroupTopicPartitions(groupId, [new TopicPartition(topic, 0)])]);
         var offset = result.SelectMany(r => r.Partitions).Single().Offset;
