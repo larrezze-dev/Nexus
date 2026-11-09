@@ -49,7 +49,7 @@ Garantías: un offset solo se confirma tras insertar sus filas; en un rebalanceo
 
 `GET /health` (sin autenticación). Estados por grupo (`<grupo>.state`, `<grupo>.lag`): Unhealthy si un bucle murió o está pausado por una dependencia (`DependencyUnavailable`, `DlqUnavailable`); Degraded por errores de sondeo, lag mayor que `Nexus:Consumers:Health:LagDegradedThreshold` o lag desconocido. El lag suma todos los topics de la suscripción (regex incluida, sin `.DLQ`).
 
-Puerto: si nada lo configura, `http://localhost:5301`. `ASPNETCORE_URLS`, `--urls`, `Urls` o `ASPNETCORE_HTTP_PORTS` siempre ganan (compose: `ASPNETCORE_URLS=http://+:5301`). ⚑ El puerto 5301 aún no figura en `architecture.md`.
+Puerto: si nada lo configura, `http://localhost:5301`. `ASPNETCORE_URLS`, `--urls`, `Urls` o `ASPNETCORE_HTTP_PORTS` siempre ganan (compose: `ASPNETCORE_URLS=http://+:5301`). Registrado en `docs/00-foundation/architecture.md` §6 `[+]`.
 
 ## Métricas (meter `Nexus.Projections`, OTLP en `Nexus:Telemetry:OtlpEndpoint`)
 
