@@ -119,6 +119,37 @@ public sealed class AnalyticsQueryExecutorTests(ClickHouseFixture clickHouse) : 
         _ = new AnalyticsStatement(sql);
     }
 
+    [Theory(DisplayName = "§7.3: quoted identifiers are tokens: a quote inside one cannot open a literal that hides a comment or a table function")]
+    [InlineData("SELECT count() FROM nexus_analytics.event_log AS `e'` -- ' {__scope_predicate}")]
+    [InlineData("SELECT count() FROM nexus_analytics.event_log AS \"e'\" -- ' {__scope_predicate}")]
+    [InlineData("SELECT legal_entity_id FROM nexus_analytics.dim_warehouse WHERE {__scope_predicate} UNION ALL SELECT legal_entity_id AS `c'` FROM merge(REGEXP('^nexus_an'), '^event_log$')")]
+    [InlineData("SELECT count() FROM nexus_analytics.event_log WHERE $${__scope_predicate}$$ <> ''")]
+    [InlineData("SELECT count() FROM nexus_analytics.event_log WHERE $tag${__scope_predicate}$tag$ <> ''")]
+    [InlineData("SELECT count() AS `{__scope_predicate}` FROM nexus_analytics.event_log")]
+    [InlineData("SELECT count() AS \"{__scope_predicate}\" FROM nexus_analytics.event_log WHERE 1 = 1")]
+    public void Statement_TokenObfuscations_Throw(string sql)
+    {
+        Should.Throw<ArgumentException>(() => new AnalyticsStatement(sql));
+    }
+
+    [Theory(DisplayName = "§7.3: tokenizer keeps legitimate SQL legal (regex literals with $, quoted identifiers with quotes or markers, quoted projection names)")]
+    [InlineData("SELECT count() FROM nexus_analytics.event_log WHERE {__scope_predicate} AND match(event_type, '^org.[a-z]+$')")]
+    [InlineData("SELECT count() FROM nexus_analytics.event_log WHERE {__scope_predicate} AND match(event_type, '^a$')")]
+    [InlineData("SELECT count() AS `a--b#c` FROM nexus_analytics.event_log AS \"it's\" WHERE {__scope_predicate}")]
+    [InlineData("SELECT count() FROM `nexus_analytics`.`event_log` WHERE {__scope_predicate}")]
+    public void Statement_Tokenizer_Accepts(string sql)
+    {
+        _ = new AnalyticsStatement(sql);
+    }
+
+    [Fact(DisplayName = "§7.3: quoted projection references still count against placeholders")]
+    public void Statement_QuotedProjectionReference_Counts()
+    {
+        Should.Throw<ArgumentException>(() => new AnalyticsStatement(
+            "SELECT count() FROM nexus_analytics.event_log WHERE {__scope_predicate} UNION ALL SELECT count() FROM \"nexus_analytics\".\"dim_warehouse\""))
+            .Message.ShouldContain("placeholder(s)");
+    }
+
     [Fact(DisplayName = "§7.3: a placeholder inside a string literal does not count")]
     public void Statement_PlaceholderInLiteral_DoesNotCount()
     {

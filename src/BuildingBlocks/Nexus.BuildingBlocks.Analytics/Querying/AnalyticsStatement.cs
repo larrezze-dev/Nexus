@@ -18,43 +18,47 @@ namespace Nexus.BuildingBlocks.Analytics.Querying;
 /// <c>legal_entity_id</c> unqualified, which every projection has (conventions-events.md §8).
 /// </para>
 /// <para>
-/// <b>What the validation is, and is not.</b> The checks below are a heuristic guard against
-/// common mistakes in in-house constant SQL; they are <b>not</b> a parser and <b>not</b> a
-/// guarantee that every row read is filtered. The real guarantees are elsewhere: the scope values
-/// are always bound (never concatenated), statements are compile-time constants written in this
-/// repository (never built from request input), the connection runs <c>readonly = 2</c> against
-/// the <c>default</c> database (so an unqualified projection name fails with
-/// <c>UNKNOWN_TABLE</c>), and an empty scope never reaches ClickHouse.
+/// <b>What this validation is.</b> A heuristic guard against common mistakes in in-house,
+/// compile-time constant SQL; not a parser and not a guarantee that every row read is filtered.
+/// The guarantees are elsewhere: scope values are always bound (never concatenated), statements
+/// are constants written in this repository (never built from request input), every connection
+/// runs <c>readonly = 2</c> against the <c>default</c> database (so an unqualified projection name
+/// fails with <c>UNKNOWN_TABLE</c>), and an empty scope never reaches ClickHouse.
 /// </para>
 /// <para>
-/// <b>Remaining limitation:</b> placement is not checked positionally. The placeholder count is
-/// compared with the number of projection references, but a statement with two placeholders in
-/// one <c>UNION</c> branch and none in the other, or a placeholder in the <c>SELECT</c> list, still
-/// passes. Whoever reviews a new analytic query must check by hand that every <c>FROM</c>/<c>JOIN</c>
+/// <b>How it reads the SQL.</b> One left-to-right tokenizer recognises <c>'...'</c> string
+/// literals and <c>`...`</c> / <c>"..."</c> quoted identifiers (doubled-quote escapes), so a quote
+/// inside one token never opens another. String literals are checked for <c>nexus_analytics</c>
+/// and then blanked; quoted identifiers are kept for counting projection references and spotting
+/// quoted table-function names, and blanked for every other check. A placeholder inside a
+/// literal or a quoted identifier therefore does not count.
+/// </para>
+/// <para>
+/// <b>Residual limitation:</b> placement is not checked positionally. The number of placeholders
+/// is compared with the number of projection references, but two placeholders in one
+/// <c>UNION</c> branch and none in the other, or a placeholder in the <c>SELECT</c> list, still
+/// pass. Whoever reviews a new analytic query must check by hand that every <c>FROM</c>/<c>JOIN</c>
 /// of a projection (every branch, every subquery) has the placeholder in its own <c>WHERE</c>.
 /// </para>
 /// Rejected on construction (so a malformed query fails even when the filter is empty and
 /// ClickHouse is never called):
-/// String literals are tokenized first: <c>nexus_analytics</c> is looked for only inside them,
-/// and every other check runs on the SQL with literals blanked (so a literal neither triggers a
-/// false positive nor hides or fakes a placeholder).
 /// <list type="bullet">
 ///   <item>any backslash (escape sequences could disguise a name or a literal);</item>
-///   <item><c>nexus_analytics</c> inside a string literal (how table functions name a database);</item>
-///   <item>no <see cref="ScopePlaceholder"/> outside string literals;</item>
-///   <item>comments (<c>--</c>, <c>/*</c>, <c>#</c>): a placeholder in a commented-out line would
-///   count without filtering anything;</item>
-///   <item>fewer placeholders than <c>nexus_analytics.</c> table references (case-insensitive,
-///   quoted or not). Projections must always be named database-qualified;</item>
+///   <item><c>nexus_analytics</c> inside a string literal;</item>
+///   <item>no <see cref="ScopePlaceholder"/> outside literals and quoted identifiers;</item>
+///   <item>comments (<c>--</c>, <c>/*</c>, <c>#</c>) outside literals and quoted identifiers;</item>
+///   <item>heredoc literals (<c>$$...$$</c>, <c>$tag$...$tag$</c>), which this tokenizer does not
+///   read; regex literals such as <c>'^a$'</c> are ordinary literals and stay legal;</item>
 ///   <item><c>{name:Identifier}</c> parameters (a bound database or table name would hide the
-///   reference from the count above);</item>
+///   reference from the count);</item>
 ///   <item>table functions that read other tables or external data by name (<c>merge</c>,
 ///   <c>cluster</c>, <c>clusterAllReplicas</c>, <c>remote</c>, <c>remoteSecure</c>, <c>view</c>,
 ///   <c>loop</c>, <c>dictionary</c>, <c>url</c>, <c>file</c>, <c>s3</c>, <c>input</c>, ...), also
 ///   with the name quoted as an identifier;</item>
 ///   <item>any <c>SETTINGS</c> clause: per-query settings (database, <c>readonly</c>, time limit)
-///   belong to the executor, and no analytic query needs its own. A column named
-///   <c>settings</c> would be rejected too; projections have none;</item>
+///   belong to the executor and no analytic query needs its own;</item>
+///   <item>fewer placeholders than <c>nexus_analytics.</c> table references (case-insensitive,
+///   quoted or not). Projections must always be named database-qualified;</item>
 ///   <item>any other <c>__scope</c> token (the scope parameter is reserved for the executor);</item>
 ///   <item>a parameter name that is not an identifier, is reserved, has a null value, or is not
 ///   referenced in the SQL as <c>{name:Type}</c>.</item>
@@ -86,39 +90,72 @@ public sealed partial class AnalyticsStatement
             throw new ArgumentException("Analytic SQL must not contain a backslash (escape sequences).", nameof(sql));
         }
 
-        // Tokenize string literals: 'nexus_analytics' is only looked for inside them, and every
-        // other check runs on the SQL with literals blanked, so a literal can neither trigger a
-        // false positive ('a--b', 'file(x)', 'settings.updated') nor hide or fake a placeholder.
-        foreach (Match literal in StringLiteralRegex().Matches(sql))
+        // One left-to-right tokenizer for '...' literals, `...` and "..." quoted identifiers, so a
+        // quote character inside one token can never open another. Two views:
+        //  - code: literals blanked, quoted identifiers kept (so `nexus_analytics`.x and
+        //    "nexus_analytics".x still count as projection references, and a quoted table
+        //    function name is still seen);
+        //  - bare: literals and quoted identifiers blanked, for everything else (a placeholder,
+        //    comment marker, SETTINGS or heredoc inside a token is neither counted nor flagged).
+        // Literals are also checked for nexus_analytics (how table functions name a database).
+        var codeBuilder = new System.Text.StringBuilder(sql.Length);
+        var bareBuilder = new System.Text.StringBuilder(sql.Length);
+        var position = 0;
+        foreach (Match token in QuotedTokenRegex().Matches(sql))
         {
-            if (literal.Value.Contains("nexus_analytics", StringComparison.OrdinalIgnoreCase))
+            codeBuilder.Append(sql, position, token.Index - position);
+            bareBuilder.Append(sql, position, token.Index - position);
+            position = token.Index + token.Length;
+
+            if (token.Value[0] == '\'')
             {
-                throw new ArgumentException(
-                    "'nexus_analytics' must not appear inside a string literal in analytic SQL (that is how table functions name a database).",
-                    nameof(sql));
+                if (token.Value.Contains("nexus_analytics", StringComparison.OrdinalIgnoreCase))
+                {
+                    throw new ArgumentException(
+                        "'nexus_analytics' must not appear inside a string literal in analytic SQL (that is how table functions name a database).",
+                        nameof(sql));
+                }
+
+                codeBuilder.Append("''");
+                bareBuilder.Append("''");
+            }
+            else
+            {
+                codeBuilder.Append(token.Value);
+                bareBuilder.Append(token.Value[0]).Append(token.Value[0]);
             }
         }
 
-        var code = StringLiteralRegex().Replace(sql, "''");
+        codeBuilder.Append(sql, position, sql.Length - position);
+        bareBuilder.Append(sql, position, sql.Length - position);
+        var code = codeBuilder.ToString();
+        var bare = bareBuilder.ToString();
 
-        if (!code.Contains(ScopePlaceholder, StringComparison.Ordinal))
+        if (!bare.Contains(ScopePlaceholder, StringComparison.Ordinal))
         {
             throw new ArgumentException(
-                $"An analytic statement must contain the scope placeholder '{ScopePlaceholder}' outside string literals (conventions-api.md §7): " +
+                $"An analytic statement must contain the scope placeholder '{ScopePlaceholder}' outside string literals and quoted identifiers (conventions-api.md §7): " +
                 "every ClickHouse query is filtered by the caller's legal entities.",
                 nameof(sql));
         }
 
-        if (code.Contains("--", StringComparison.Ordinal)
-            || code.Contains("/*", StringComparison.Ordinal)
-            || code.Contains('#', StringComparison.Ordinal))
+        if (bare.Contains("--", StringComparison.Ordinal)
+            || bare.Contains("/*", StringComparison.Ordinal)
+            || bare.Contains('#', StringComparison.Ordinal))
         {
             throw new ArgumentException(
                 "Analytic SQL must not contain comments ('--', '/*', '#'): a scope placeholder inside a comment would not filter anything.",
                 nameof(sql));
         }
 
-        if (IdentifierParameterRegex().IsMatch(code))
+        if (HeredocRegex().IsMatch(bare))
+        {
+            throw new ArgumentException(
+                "Heredoc literals ($$...$$, $tag$...$tag$) are not allowed in analytic SQL: use '...' literals.",
+                nameof(sql));
+        }
+
+        if (IdentifierParameterRegex().IsMatch(bare))
         {
             throw new ArgumentException(
                 "Identifier parameters ({name:Identifier}) are not allowed in analytic SQL: name projections literally.",
@@ -132,14 +169,14 @@ public sealed partial class AnalyticsStatement
                 nameof(sql));
         }
 
-        if (SettingsClauseRegex().IsMatch(code))
+        if (SettingsClauseRegex().IsMatch(bare))
         {
             throw new ArgumentException(
                 "SETTINGS clauses are not allowed in analytic SQL: per-query settings are fixed by the executor (database, readonly, time limit).",
                 nameof(sql));
         }
 
-        var placeholders = CountOccurrences(code, ScopePlaceholder);
+        var placeholders = CountOccurrences(bare, ScopePlaceholder);
         var projectionReferences = ProjectionReferenceRegex().Count(code);
         if (placeholders < projectionReferences)
         {
@@ -219,10 +256,14 @@ public sealed partial class AnalyticsStatement
         RegexOptions.CultureInvariant | RegexOptions.IgnoreCase)]
     private static partial Regex ForbiddenTableFunctionRegex();
 
-    // A ClickHouse string literal: '...' with '' or \x escapes (backslashes are rejected before
-    // tokenizing, the alternative is kept so the tokenizer is right on its own).
-    [GeneratedRegex(@"'(?:[^'\\]|\\.|'')*'", RegexOptions.CultureInvariant)]
-    private static partial Regex StringLiteralRegex();
+    // '...' literal | `...` identifier | "..." identifier, each with its doubled-quote escape
+    // (backslash escapes are rejected before tokenizing).
+    [GeneratedRegex(@"'(?:[^']|'')*'|`(?:[^`]|``)*`|""(?:[^""]|"""")*""", RegexOptions.CultureInvariant)]
+    private static partial Regex QuotedTokenRegex();
+
+    // Start (or end) of a heredoc literal: $$ or $tag$.
+    [GeneratedRegex(@"\$[A-Za-z0-9_]*\$", RegexOptions.CultureInvariant)]
+    private static partial Regex HeredocRegex();
 
     [GeneratedRegex(@"(?<![A-Za-z0-9_])SETTINGS(?![A-Za-z0-9_])", RegexOptions.CultureInvariant | RegexOptions.IgnoreCase)]
     private static partial Regex SettingsClauseRegex();
