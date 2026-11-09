@@ -30,6 +30,14 @@ public enum ConsumerLoopState
 
     /// <summary>The loop died with an exception: nothing is being consumed for this group.</summary>
     Faulted,
+
+    /// <summary>
+    /// A dependency the loop writes to or decodes with (e.g. the ClickHouse sink of <c>nexus-projections</c>,
+    /// or the Schema Registry) is unreachable. Consumption is paused (no commit, no DLQ: a transient
+    /// infrastructure failure is never a poison record) and retried with back-off; it resumes when the
+    /// dependency answers. Health: <c>Unhealthy</c>.
+    /// </summary>
+    DependencyUnavailable,
 }
 
 /// <summary>Snapshot of one consumer's loop.</summary>

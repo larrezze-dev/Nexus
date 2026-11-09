@@ -114,6 +114,7 @@ Reglas:
 | `nexus-controlling` | 5106 |
 | `nexus-field` | 5107 |
 | `solver` | 5201 |
+| `nexus-projections` (`/health`) `[+]` (paso 0.8) | 5301 |
 | `web` (ng serve) | 4200 |
 | Prism mock | 4010 + n |
 | PostgreSQL | 5432 |

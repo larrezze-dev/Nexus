@@ -1,0 +1,47 @@
+<Project Sdk="Microsoft.NET.Sdk.Worker">
+
+  <PropertyGroup>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RootNamespace>Nexus.Projections</RootNamespace>
+    <AssemblyName>nexus-projections</AssemblyName>
+  </PropertyGroup>
+
+  <!-- nexus-projections (conventions-events.md §8): Kafka -> ClickHouse projections. Package
+       versions are centrally managed in src/Directory.Packages.props. -->
+  <ItemGroup>
+    <PackageReference Include="ClickHouse.Client" />
+    <PackageReference Include="Confluent.Kafka" />
+    <PackageReference Include="Confluent.SchemaRegistry" />
+    <PackageReference Include="Confluent.SchemaRegistry.Serdes.Avro" />
+    <PackageReference Include="Apache.Avro" />
+    <PackageReference Include="OpenTelemetry.Extensions.Hosting" />
+    <PackageReference Include="OpenTelemetry.Exporter.OpenTelemetryProtocol" />
+  </ItemGroup>
+
+  <!-- Microsoft.Extensions.Hosting comes from the ASP.NET Core shared framework (same choice as
+       Nexus.OutboxRelay): no new package (conventions-backend.md §10). -->
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\BuildingBlocks\Nexus.BuildingBlocks.Messaging\Nexus.BuildingBlocks.Messaging.csproj" />
+  </ItemGroup>
+
+  <!-- ClickHouse migrations (db/clickhouse/README.md) and the topic registry (pii flags, EV-R5)
+       ship next to the binaries. -->
+  <ItemGroup>
+    <None Include="..\..\..\db\clickhouse\V*.sql"
+          Link="db\clickhouse\%(Filename)%(Extension)"
+          CopyToOutputDirectory="PreserveNewest" />
+    <None Include="..\..\..\contracts\events\topics.yaml"
+          Link="contracts\events\topics.yaml"
+          CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="Nexus.Projections.Tests" />
+  </ItemGroup>
+
+</Project>

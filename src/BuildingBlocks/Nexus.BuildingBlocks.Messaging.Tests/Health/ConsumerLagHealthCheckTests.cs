@@ -372,6 +372,20 @@ public sealed class ConsumerLagHealthCheckTests
         result.Data["operations.a.state"].ShouldBe("DlqUnavailable");
     }
 
+    [Fact(DisplayName = "ConsumerHost health: a loop paused because a dependency (sink, Schema Registry) is unreachable is Unhealthy")]
+    public async Task DependencyUnavailable_Unhealthy()
+    {
+        var (check, registry, _, _) = Create();
+        using var _ = check;
+        registry.Register("projections.a", "t.a");
+        registry.Report("projections.a", ConsumerLoopState.DependencyUnavailable, new InvalidOperationException("clickhouse down"));
+
+        var result = await check.CheckHealthAsync(Context(), Ct);
+
+        result.Status.ShouldBe(HealthStatus.Unhealthy);
+        result.Data["projections.a.state"].ShouldBe("DependencyUnavailable");
+    }
+
     [Fact(DisplayName = "ConsumerHost health: a loop with transient poll errors is Degraded")]
     public async Task TransientPollErrors_Degraded()
     {

@@ -26,7 +26,8 @@ public sealed class ConsumerHealthOptions
 /// Health of the host's consumers (step 0.7: <c>/health</c> reports lag per group):
 /// <list type="bullet">
 ///   <item><c>Unhealthy</c> if any consumer loop died (<see cref="ConsumerLoopState.Faulted"/>) or is paused
-///   because its DLQ cannot be written (<see cref="ConsumerLoopState.DlqUnavailable"/>);</item>
+///   because its DLQ cannot be written (<see cref="ConsumerLoopState.DlqUnavailable"/>) or a dependency is
+///   unreachable (<see cref="ConsumerLoopState.DependencyUnavailable"/>);</item>
 ///   <item><c>Degraded</c> if any loop reports transient poll errors (<see cref="ConsumerLoopState.Degraded"/>),
 ///   any group's lag is above <see cref="ConsumerHealthOptions.LagDegradedThreshold"/>, or the lag could not
 ///   be read within <see cref="ConsumerHealthOptions.QueryTimeout"/> (Kafka unreachable: the consumers
@@ -102,7 +103,7 @@ public sealed class ConsumerLagHealthCheck : IHealthCheck, IDisposable
             data[$"{consumer.GroupId}.state"] = consumer.State.ToString();
             switch (consumer.State)
             {
-                case ConsumerLoopState.Faulted or ConsumerLoopState.DlqUnavailable:
+                case ConsumerLoopState.Faulted or ConsumerLoopState.DlqUnavailable or ConsumerLoopState.DependencyUnavailable:
                     // The exception itself goes to the logs only: /health is unauthenticated.
                     unhealthy.Add(consumer.GroupId);
                     break;

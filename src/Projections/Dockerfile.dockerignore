@@ -1,0 +1,16 @@
+# Context of src/Projections/Dockerfile = repository root. Only what the image needs is sent;
+# host build output (bin/obj, with host paths in project.assets.json) must never be copied.
+**
+!global.json
+!.editorconfig
+!src/Directory.Build.props
+!src/Directory.Packages.props
+!src/BuildingBlocks/Nexus.BuildingBlocks.Domain/**
+!src/BuildingBlocks/Nexus.BuildingBlocks.Application/**
+!src/BuildingBlocks/Nexus.BuildingBlocks.Persistence/**
+!src/BuildingBlocks/Nexus.BuildingBlocks.Messaging/**
+!src/Projections/Nexus.Projections/**
+!db/clickhouse/V*.sql
+!contracts/events/topics.yaml
+**/bin/
+**/obj/

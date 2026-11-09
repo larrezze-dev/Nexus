@@ -2,6 +2,7 @@ using Nexus.BuildingBlocks.Application;
 using Nexus.BuildingBlocks.Domain;
 using Nexus.BuildingBlocks.Persistence;
 using Nexus.BuildingBlocks.Web;
+using Nexus.BuildingBlocks.Web.Audit;
 using Nexus.BuildingBlocks.Web.Authorization;
 using Nexus.BuildingBlocks.Web.Correlation;
 using Nexus.BuildingBlocks.Web.ErrorHandling;
@@ -41,6 +42,8 @@ builder.Services.AddNexusOpenApi();
 // gives every authenticated request its ICurrentUser.UserId (step 0.4).
 builder.Services.Configure<NexusPersistenceOptions>(builder.Configuration.GetSection(NexusPersistenceOptions.SectionName));
 builder.Services.AddNexusPersistence();
+// ClickHouse gateway of the audit endpoint (conventions-api.md §7); lazy: the host starts without ClickHouse.
+builder.Services.AddNexusAudit(builder.Configuration);
 builder.Services.AddNexusIdentityResolution();
 builder.Services.AddPlatformInfrastructure();
 builder.Services.AddRoleAssignmentInfrastructure();
@@ -88,6 +91,7 @@ app.MapWarehouseEndpoints();
 app.MapLocationEndpoints();
 app.MapRoleEndpoints();
 app.MapRoleAssignmentEndpoints();
+app.MapAuditEndpoint();
 
 // Test-only diagnostic endpoint (ficha 0.5-B): exercises ResultExtensions.ToMinimalApiResult's
 // 422 application/problem+json mapping end to end against a real running host, instead of only

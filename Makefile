@@ -1,4 +1,4 @@
-.PHONY: up down reset logs ps doctor db-migrate db-info db-validate seed-dev contracts mock-api build test test-rls test-e2e lint rule-coverage dlq-replay
+.PHONY: up down reset logs ps doctor db-migrate db-info db-validate seed-dev contracts mock-api build test test-rls test-e2e lint rule-coverage dlq-replay projections-rebuild
 
 COMPOSE_FILE  := infra/compose/docker-compose.yml
 COMPOSE_ENV   := infra/compose/.env
@@ -203,6 +203,14 @@ lint:
 dlq-replay:
 	@if [ -z "$(TOPIC)" ]; then echo "ERROR: usage: make dlq-replay TOPIC=<topic>.DLQ [YES=1]"; exit 1; fi
 	@bash tools/dlq-replay.sh "$(TOPIC)" $(if $(YES),--yes,)
+
+# Replays one ClickHouse projection from Kafka (nexus-projections rebuild <projection>): truncates its table and
+# replays the topics from the beginning. Stop the worker first (`docker compose stop nexus-projections`): the
+# rebuild refuses while the consumer group projections.<P> has active members. `run` builds
+# nexus-projections:local when the image is missing; after code changes rebuild it with `docker compose build nexus-projections`.
+projections-rebuild:
+	@if [ -z "$(P)" ]; then echo "ERROR: usage: make projections-rebuild P=<projection>  (e.g. P=event_log; stop nexus-projections first)"; exit 1; fi
+	$(COMPOSE) --profile apps run --rm nexus-projections rebuild $(P)
 
 rule-coverage:
 	@if [ -f "tools/rule-coverage.sh" ]; then \

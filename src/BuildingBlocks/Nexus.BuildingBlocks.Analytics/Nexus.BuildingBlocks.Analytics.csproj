@@ -5,4 +5,24 @@
     <Nullable>enable</Nullable>
   </PropertyGroup>
 
+  <!-- The only .NET gateway to ClickHouse queries (conventions-api.md §7). ClickHouse.Client is
+       confined to this project and Nexus.Projections (ClickHouseClientConfinementTests). -->
+  <!-- PrivateAssets="compile": consumers of this library get the client at runtime but cannot
+       compile against it, so the only ClickHouse API they see is IAnalyticsQueryExecutor. -->
+  <ItemGroup>
+    <PackageReference Include="ClickHouse.Client" PrivateAssets="compile" />
+    <PackageReference Include="Dapper" />
+    <PackageReference Include="Npgsql" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Nexus.BuildingBlocks.Application\Nexus.BuildingBlocks.Application.csproj" />
+    <ProjectReference Include="..\Nexus.BuildingBlocks.Persistence\Nexus.BuildingBlocks.Persistence.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="Nexus.BuildingBlocks.Analytics.Tests" />
+  </ItemGroup>
+
 </Project>

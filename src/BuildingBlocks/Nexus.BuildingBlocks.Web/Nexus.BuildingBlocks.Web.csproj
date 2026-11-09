@@ -28,6 +28,9 @@
     <ProjectReference Include="..\Nexus.BuildingBlocks.Application\Nexus.BuildingBlocks.Application.csproj" />
     <ProjectReference Include="..\Nexus.BuildingBlocks.Persistence\Nexus.BuildingBlocks.Persistence.csproj" />
     <ProjectReference Include="..\Nexus.BuildingBlocks.Domain\Nexus.BuildingBlocks.Domain.csproj" />
+    <!-- Query layer of the generic audit endpoint (MapAuditEndpoint). ClickHouse.Client stays
+         confined to Analytics: Web only sees its API (ClickHouseClientConfinementTests). -->
+    <ProjectReference Include="..\Nexus.BuildingBlocks.Analytics\Nexus.BuildingBlocks.Analytics.csproj" />
   </ItemGroup>
 
   <ItemGroup>

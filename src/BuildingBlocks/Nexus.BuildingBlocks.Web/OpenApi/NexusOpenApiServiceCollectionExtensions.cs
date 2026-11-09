@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.OpenApi;
 using Microsoft.Extensions.DependencyInjection;
+using Nexus.BuildingBlocks.Web.Audit;
 
 namespace Nexus.BuildingBlocks.Web.OpenApi;
 
@@ -16,6 +17,8 @@ namespace Nexus.BuildingBlocks.Web.OpenApi;
 ///   (ADR-0014).</item>
 ///   <item><see cref="ResponseNumberOpenApiSchemaTransformer"/>: numbers in response-only types
 ///   described as the JSON numbers the service actually writes (ADR-0014).</item>
+///   <item><see cref="AuditEventOpenApiSchemaTransformer"/>: <c>occurredAt</c> and the free-form
+///   payloads of the generic audit endpoint's <c>AuditEvent</c>.</item>
 /// </list>
 /// </summary>
 public static class NexusOpenApiServiceCollectionExtensions
@@ -32,6 +35,7 @@ public static class NexusOpenApiServiceCollectionExtensions
             options.AddOperationTransformer<PermissionOpenApiOperationTransformer>();
             options.AddOperationTransformer<FluentValidationOpenApiOperationTransformer>();
             options.AddSchemaTransformer<ResponseNumberOpenApiSchemaTransformer>();
+            options.AddSchemaTransformer<AuditEventOpenApiSchemaTransformer>();
         });
 
         return services;
