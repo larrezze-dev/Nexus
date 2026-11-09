@@ -1,6 +1,6 @@
 # ADR-0019 · Versión de agregado persistida (`nexus-aggregate-version`)
 
-- **Estado:** Propuesto
+- **Estado:** Aceptado (Luciano, 2026-11-09)
 - **Fecha:** 2026-11-09
 - **Decide:** Luciano Arrezze
 - **Afecta a:** `conventions-events.md §2, §7, §8`, `conventions-database.md` (columnas de las tablas de agregado), `BuildingBlocks.Domain` (`AggregateRoot`), `BuildingBlocks.Persistence` (`DbContextBase`, `UnitOfWork`, `OutboxWriter`), todas las tablas de agregado de `org` y `access` (pasos 0.4 y 0.6), proyecciones `dim_*` (0.8) y réplicas `*_ref` (`VersionedReplica`, 0.7)
@@ -21,7 +21,7 @@ Consecuencias:
 2. `dim_legal_entity`/`dim_warehouse` no distinguen versiones. Si un evento antiguo se reprocesa después de uno nuevo (redelivery tras un rebalance, at-least-once), puede quedar como estado vigente el antiguo.
 3. `VersionedReplica` descartaría todos los updates posteriores al `created`. Todavía no la usa ningún consumidor.
 
-## Decisión (propuesta)
+## Decisión
 
 1. Cada tabla de agregado lleva una columna `aggregate_version bigint NOT NULL DEFAULT 0`. Es el número de eventos que ha emitido el agregado.
 2. `AggregateRoot.AggregateVersion` se mapea a esa columna (deja de ignorarse en EF) y se carga con el agregado. `RaiseEvent` la sigue incrementando; el `UnitOfWork` la guarda en la misma transacción que el `outbox.message`, y la cabecera sale de ella como hoy.
@@ -45,7 +45,7 @@ Consecuencias:
 | Arreglarlo en los consumidores (ordenar por `occurred_at` o `event_id`) | Contradice `conventions-events §2/§7/§8`. `occurred_at` puede empatar con resolución de microsegundos. Cada consumidor tendría que reimplementarlo. |
 | No hacer nada hasta Fase 1 | `dim_*` (0.8) ya depende de ello, y el primer consumidor `*_ref` también dependerá. Gate D de 0.8 quedaría con un fallo conocido. |
 
-## Implementación (si se acepta)
+## Implementación
 
 - **Track C:** migraciones `V…__<esquema>__aggregate_version.sql` (columna, backfill a 1, `NOT NULL`) para cada tabla de agregado de `org` y `access`, más el ajuste en `conventions-database.md`.
 - **Nivel 3 (nx-architect):** `DbContextBase` mapea la columna como token de concurrencia. `UnitOfWork`/`OutboxWriter` mantienen el cálculo `AggregateVersion - n + i + 1`. Conflicto de concurrencia → 409 por el camino existente.
