@@ -112,12 +112,16 @@ public static partial class ProjectionsCli
         await using (app.ConfigureAwait(false))
         {
             var logger = app.Services.GetRequiredService<ILoggerFactory>().CreateLogger("nexus-projections");
+            ProjectionWorker? worker = null;
             try
             {
                 // Eager: instantiates every projection now (e.g. the topic registry behind event_log), so
                 // a broken definition fails before any consumer or migration runs.
                 var catalog = app.Services.GetRequiredService<ProjectionCatalog>();
                 LogProjections(logger, catalog.Names);
+
+                // Resolved BEFORE running: RunAsync disposes the host's services when it returns.
+                worker = app.Services.GetServices<IHostedService>().OfType<ProjectionWorker>().SingleOrDefault();
 
                 app.MapHealthChecks("/health");
                 await app.RunAsync(ct).ConfigureAwait(false);
@@ -129,7 +133,6 @@ public static partial class ProjectionsCli
             }
 
             // StopHost ends RunAsync normally when a consumer loop died: report it in the exit code.
-            var worker = app.Services.GetServices<IHostedService>().OfType<ProjectionWorker>().SingleOrDefault();
             return worker?.ExecuteTask is { IsFaulted: true } ? ExitFailure : ExitOk;
         }
     }
