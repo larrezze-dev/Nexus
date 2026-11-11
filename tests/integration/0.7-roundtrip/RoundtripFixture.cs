@@ -29,6 +29,8 @@ public sealed class RoundtripFixture : WebAppFixture<Program>, IAsyncLifetime
 {
     public const string Topic = "nexus.org.legal-entity.created";
 
+    public const string UpdatedTopic = "nexus.org.legal-entity.updated";
+
     public const string ConsumerRole = "svc_operations";
 
     public const string EffectSchema = "test_roundtrip";
@@ -226,6 +228,15 @@ public sealed class RoundtripFixture : WebAppFixture<Program>, IAsyncLifetime
             REVOKE ALL ON SCHEMA {EffectSchema} FROM PUBLIC;
             GRANT USAGE ON SCHEMA {EffectSchema} TO {ConsumerRole};
             GRANT SELECT, INSERT ON {EffectSchema}.effect_row TO {ConsumerRole};
+
+            -- *_ref replica of a legal entity, fed through VersionedReplica (ADR-0019 test).
+            CREATE TABLE IF NOT EXISTS {EffectSchema}.legal_entity_ref (
+              legal_entity_id    uuid PRIMARY KEY,
+              aggregate_version  bigint NOT NULL,
+              code               text NOT NULL,
+              country_code       text NOT NULL
+            );
+            GRANT SELECT, INSERT, UPDATE ON {EffectSchema}.legal_entity_ref TO {ConsumerRole};
             """,
             connection);
         await command.ExecuteNonQueryAsync();
