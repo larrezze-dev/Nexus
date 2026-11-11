@@ -4,16 +4,16 @@
 
 **Status:** `[ ]` no iniciada · `[o]` en marcha (incluye Gate C / En revisión: entregada pero sin aprobar) · `[x]` finalizada (`Aprobado` por Luciano).
 
-**Resumen:** 4/45 tareas aprobadas (8.9%) · esfuerzo de codificación 17/141 tracks (12.1%) · 4 en marcha.
+**Resumen:** 7/45 tareas aprobadas (15.6%) · esfuerzo de codificación 17/141 tracks (12.1%) · 1 en marcha.
 
 ## Fase 0 · Fundación
 
 | Status | Nombre de la tarea | Descripción | Dependencias | Comentarios |
 |---|---|---|---|---|
-| [o] | **0.1** Monorepo, CI y esqueletos (tracks I; estado: En revisión) | Repositorio único, integración continua y esqueletos de todos los proyectos. | — | Todos los tracks entregados; pendiente de aprobación de Luciano. |
-| [o] | **0.2** Entorno local (compose + Keycloak) (tracks I; estado: En revisión) | Entorno local reproducible (contenedores, Keycloak) para desarrollar sin depender de nada externo. | 0.1 | Todos los tracks entregados; pendiente de aprobación de Luciano. Bloqueado por: ADR-0006. |
+| [x] | **0.1** Monorepo, CI y esqueletos (tracks I; estado: Aprobado) | Repositorio único, integración continua y esqueletos de todos los proyectos. | — | Aprobado 2026-11-11. |
+| [x] | **0.2** Entorno local (compose + Keycloak) (tracks I; estado: Aprobado) | Entorno local reproducible (contenedores, Keycloak) para desarrollar sin depender de nada externo. | 0.1 | Aprobado 2026-11-11. Bloqueado por: ADR-0006. |
 | [x] | **0.3** BD: roles, Flyway, Outbox, UnitOfWork (tracks C B; estado: Aprobado) | Base de datos base: roles, migraciones Flyway, bandeja de salida de eventos (Outbox) y unidad de trabajo. | 0.2 | Aprobado 2026-11-06. Bloqueado por: ADR-0001/2/8/9. |
-| [o] | **0.5** Autenticación, Gateway y shell Angular (tracks C B F; estado: En revisión) | Login, gateway de entrada y carcasa de la aplicación web Angular. | 0.2 | Todos los tracks entregados; pendiente de aprobación de Luciano. Bloqueado por: ADR-0006, ADR-0010. |
+| [x] | **0.5** Autenticación, Gateway y shell Angular (tracks C B F; estado: Aprobado) | Login, gateway de entrada y carcasa de la aplicación web Angular. | 0.2 | Aprobado 2026-11-11 (C: PR #12 · B: PR #13 · F: PR #14). Deuda: e2e 0.5-login.spec.ts pasa a 1.3; deuda menor del PR #14 anotada en STATUS. Bloqueado por: ADR-0006, ADR-0010. |
 | [x] | **0.4** Núcleo organizativo (S10) (tracks C B F; estado: Aprobado) | Núcleo organizativo: empresas, almacenes y estructura sobre la que cuelga todo lo demás. | 0.3, 0.5 | Aprobado 2026-10-30. Bloqueado por: ADR-0003, ORG-Q1, ADR-0014. |
 | [x] | **0.6** RBAC + RLS (A6) (tracks C B F; estado: Aprobado) | Roles y permisos (RBAC) y aislamiento de datos por empresa (RLS). | 0.4 | Aprobado 2026-11-06 (5 PRs, 2 ADRs, 2 vulnerabilidades reales corregidas). Bloqueado por: ADR-0004. |
 | [x] | **0.7** Relay, Schema Registry, consumidores, DLQ (A7) (tracks C B S; estado: Aprobado) | Relay que publica eventos a Kafka, registro de esquemas, consumidores y cola de errores. | 0.3 | Aprobado 2026-11-08 (C: PR #25, #27, #30 · S: PR #28 · B: PR #29, #31 · Gate D: PR #32; ADR-0017 y ADR-0018 aceptados). Bloqueado por: ADR-0008, ADR-0018. |
