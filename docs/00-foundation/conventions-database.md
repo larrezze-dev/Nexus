@@ -63,6 +63,31 @@ updated_by  uuid        NOT NULL
 
 La concurrencia optimista usa la columna de sistema `xmin`, expuesta en la API como `ETag` (`conventions-api.md §5`).
 
+**Tablas raíz de agregado (ADR-0019)** `[+]`: además del bloque mutable,
+
+```sql
+aggregate_version bigint NOT NULL DEFAULT 0,
+CONSTRAINT ck_<t>_aggregate_version CHECK (aggregate_version >= 0)
+```
+
+- **Qué es:** el número de eventos que ha emitido el agregado. La aplicación la escribe siempre de forma explícita, en la misma transacción que el `outbox.message` que numera (`UnitOfWork`), y la cabecera `nexus-aggregate-version` sale de ella (`conventions-events.md §2`). El `DEFAULT 0` solo cubre inserciones SQL que no emiten evento (semillas, fixtures de test).
+- **Concurrencia:** es token de concurrencia de EF Core (`UPDATE … WHERE aggregate_version = <cargada>`), así dos comandos concurrentes no pueden emitir la misma versión. Convive con `xmin`, que sigue respaldando el `ETag`/`If-Match`.
+- **Tablas que la llevan** (migraciones `V202611091000`, `V202611091001`; filas existentes rellenadas a 1, ADR-0019 §4):
+
+| Esquema | Tablas |
+|---|---|
+| `org` | `currency`, `party`, `"group"`, `legal_entity`, `business_unit`, `location`, `warehouse`, `app_user` |
+| `access` | `role`, `role_assignment` |
+
+- **Excluidas:**
+
+| Tabla | Motivo |
+|---|---|
+| `access.permission` | Catálogo sembrado; no hay clase de agregado ni emite eventos |
+| `access.role_permission` | Historial A10 del agregado `Role`; su evento incrementa `access.role.aggregate_version` |
+
+- **Tablas futuras:** toda tabla raíz de un agregado que emite eventos la lleva desde su migración de creación; el agente la añade junto al bloque `-- + std` aunque la DDL de `docs/domain/` no la repita. Las tablas append-only (§6) y las versionadas VR1 (§8) **nunca**: cada fila es su propia versión.
+
 **Tablas append-only:** `created_at`, `created_by` y nada más de auditoría.
 
 **Usuario SYSTEM:** `org.app_user` con `id = '00000000-0000-7000-8000-000000000001'`, sembrado en 0.4. Lo usan jobs y auto-provisiones (P6: `granted_by = SYSTEM`).
