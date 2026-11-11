@@ -18,9 +18,13 @@
   min-height: 240px;
 }
 
+// El viewport solo tiene min-height (altura de porcentaje = auto), así que
+// height:100% resolvía a 0. Posicionamiento absoluto: la rejilla ocupa siempre
+// todo el viewport. Los overlays (empty/loading) van después en el DOM y quedan encima.
 .nx-data-grid__grid {
-  width: 100%;
-  height: 100%;
+  display: block;
+  position: absolute;
+  inset: 0;
 }
 
 .nx-data-grid__empty,
