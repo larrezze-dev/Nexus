@@ -90,7 +90,7 @@ CONSTRAINT ck_<t>_aggregate_version CHECK (aggregate_version >= 0)
 | `access.role_permission` | Historial A10 del agregado `Role`; su evento incrementa `access.role.aggregate_version` |
 
 - **Tablas futuras:** toda tabla mapeada a una subclase de `AggregateRoot<>` la lleva desde su migración de creación, emita eventos o no (ADR-0019 mapea `AggregateRoot.AggregateVersion` a esta columna en todo agregado, así que una tabla de agregado sin ella no se puede cargar). El agente la añade junto al bloque `-- + std` aunque la DDL de `docs/domain/` no la repita. Las append-only (§6) y VR1 (§8) no la llevan (ADR-0019 §5): cada fila es su propia versión.
-- ⚑ Si una tabla append-only o VR1 se modela como subclase de `AggregateRoot<>` (p. ej. `org.exchange_rate` con `exchange-rate.published` en 1.1, append-only; o los eventos `.versioned` de 1.4, VR1), queda por decidir de dónde sale `nexus-aggregate-version` y cómo la excluye el mapeo de EF. Se decide antes de 1.1 (su track C crea la tabla); hasta entonces no se crea ninguna.
+- **Append-only y VR1 modeladas como agregado `[+]` (ADR-0020, cierra el ⚑ el 2026-11-11):** se modelan como `ImmutableAggregateRoot<>`, sin columna `aggregate_version`. EF no mapea `AggregateVersion` en esos tipos y la versión del evento se deriva de la fila. Append-only: `nexus-aggregate-id` = `id` de la fila, versión 1. VR1: `nexus-aggregate-id` = `id` de la versión 1 del `business_key`, versión = `version_no`.
 - **No confundir** con la columna `aggregate_version` de las réplicas `*_ref` (`docs/domain/*`): allí es la última versión de origen aplicada por `VersionedReplica`, sin `DEFAULT 0`, y esta regla no se le aplica.
 
 **Tablas append-only:** `created_at`, `created_by` y nada más de auditoría.
@@ -106,7 +106,7 @@ caption_i18n jsonb NOT NULL
   CHECK (jsonb_typeof(caption_i18n) = 'object' AND caption_i18n ? 'de')
 ```
 
-- Claves: `de`, `en`, `fr`, `it`, `es`. Obligatoria: `de` (idioma por defecto del grupo) `[+]` ⚑ confirmar.
+- Claves: `de`, `en`, `fr`, `it`, `es`. Obligatoria: `de` (idioma por defecto del grupo) `[+]` (confirmado por Luciano el 2026-11-11).
 - Orden de resolución en la UI: idioma del usuario → `de` → `en` → primera clave.
 
 ## §6 Tablas append-only (H5)
@@ -182,17 +182,19 @@ id               uuid PRIMARY KEY,           -- cambia en cada versión
 business_key     text NOT NULL,              -- identidad lógica estable
 version_no       integer NOT NULL CHECK (version_no >= 1),
 valid_from       timestamptz NOT NULL,
-valid_to         timestamptz NULL,           -- NULL = versión vigente
+valid_to         timestamptz NULL,           -- NULL = última de la cadena (vigente o programada, VER-R7)
 superseded_by_id uuid NULL REFERENCES <misma tabla>(id),
+is_retired       boolean NOT NULL DEFAULT false,  -- [+] ADR-0020: la baja es una versión
 CONSTRAINT uq_<t>_version UNIQUE (business_key, version_no),
-CONSTRAINT ck_<t>_window  CHECK (valid_to IS NULL OR valid_to > valid_from),
+CONSTRAINT ck_<t>_window  CHECK (valid_to IS NULL OR valid_to >= valid_from),  -- [+] = : versión anulada (VER-R8)
 CONSTRAINT ex_<t>_overlap EXCLUDE USING gist (
     business_key WITH =,
     tstzrange(valid_from, coalesce(valid_to, 'infinity')) WITH &&)
+    DEFERRABLE INITIALLY DEFERRED            -- [+] se comprueba en el COMMIT (versioning.md §4)
 ```
 
-- Índice parcial de versión vigente: `CREATE UNIQUE INDEX ... ON <t>(business_key) WHERE valid_to IS NULL`.
-- Consulta "as of": `WHERE business_key = $1 AND valid_from <= $2 AND (valid_to IS NULL OR valid_to > $2)`.
+- Índice parcial de la última versión de la cadena `[+]`: `CREATE INDEX ix_<t>_last ON <t>(business_key) WHERE valid_to IS NULL`, sin `UNIQUE` (redundante con el `EXCLUDE`, y un `UNIQUE` inmediato rompería el orden INSERT → UPDATE de `versioning.md §4`). **No** identifica la vigente: puede estar programada (VER-R7).
+- Consulta "as of" (también para "vigente ahora") `[+]`: `WHERE business_key = $1 AND valid_from <= $2 AND (valid_to IS NULL OR valid_to > $2) AND NOT is_retired`. Sin `NOT is_retired` solo se usa para el historial. Una versión anulada (`valid_to = valid_from`) nunca cumple el filtro.
 - La operación de versionado está en `domain/versioning.md`.
 
 ## §9 Restricciones e índices
@@ -248,4 +250,4 @@ Consultas que hacen fallar el job si devuelven filas:
 | DBC-4 | Tabla append-only declarada en §6 sin el trigger `trg_<tabla>_append_only` |
 | DBC-5 | Columna `timestamp without time zone`, `real`, `double precision` o `money` |
 | DBC-6 | Tabla propiedad de un rol distinto de `nexus_owner` |
-| DBC-7 | Tabla listada en `db/ci/versioned.txt` sin el trigger `trg_<tabla>_versioned` o sin el índice parcial `uq_*_current` |
+| DBC-7 | Tabla listada en `db/ci/versioned.txt` sin el trigger `trg_<tabla>_versioned`, sin el índice parcial `ix_*_last`, sin `EXCLUDE` diferido o sin la columna `is_retired` `[+]` |

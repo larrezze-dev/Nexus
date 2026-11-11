@@ -24,7 +24,7 @@ Antes de lanzar 0.1 deben estar en `Aceptado` los ADR 0001–0010 (`docs/adr/REA
 | [0.6](F0/0.6-rbac-rls.md) | RBAC + RLS (A6) | C → B ∥ F | 0.4 | 0.7 | ADR-0004 | Aprobado | 2026-11-06 |
 | [0.7](F0/0.7-outbox-relay-kafka.md) | Relay, Schema Registry, consumidores, DLQ (A7) | C → B ∥ S | 0.3 | 0.4, 0.6 | ADR-0008, ADR-0018 | Aprobado | 2026-11-08 |
 | [0.8](F0/0.8-proyecciones-clickhouse.md) | Proyecciones ClickHouse y auditoría | C → S ∥ F | 0.7 | 0.9, 0.10 | — | Gate C | |
-| [0.9](F0/0.9-aprobaciones.md) | Workflow de aprobaciones (A8) | C → B ∥ S ∥ F | 0.6, 0.7 | 0.8, 0.10 | WF-Q1, WF-Q2 | Pendiente | |
+| [0.9](F0/0.9-aprobaciones.md) | Workflow de aprobaciones (A8) | C → B ∥ S ∥ F | 0.6, 0.7 | 0.8, 0.10 | — | Pendiente | |
 | [0.10](F0/0.10-gestion-documental.md) | Gestión documental (A9) | C → B ∥ F | 0.6, 0.7 (0.9 para DOC-R5) | 0.8 | — | Pendiente | |
 | [0.11](F0/0.11-terraform-azure.md) | Terraform Azure + Arc | I | 0.8, 0.9, 0.10 | Fase 1 | ADR-0011 | Pendiente | |
 
@@ -32,11 +32,11 @@ Antes de lanzar 0.1 deben estar en `Aceptado` los ADR 0001–0010 (`docs/adr/REA
 
 | Paso | Título | Tracks | Depende de | Paralelo con | Bloqueado por | Estado | Aprobado (fecha) |
 |---|---|---|---|---|---|---|---|
-| [1.1](F1/1.1-capa1-completa.md) | Capa 1 completa | C → B ∥ F | 0.6, 0.7 | 1.2 | — | Pendiente | |
+| [1.1](F1/1.1-capa1-completa.md) | Capa 1 completa | C → B ∥ F | 0.6, 0.7 | 1.2 | ADR-0020 | Pendiente | |
 | [1.2](F1/1.2-unidades-de-medida.md) | Unidades de medida (A11) + `nexus-catalog` | C → B ∥ F | 0.6, 0.7 | 1.1 | — | Pendiente | |
 | [1.3](F1/1.3-taxonomia-asset-type.md) | Taxonomía y AssetType | C → B ∥ S ∥ F | 1.1, 1.2 | — | — | Pendiente | |
-| [1.4](F1/1.4-versionado-precio-bom.md) | Versionado (A10): precios y BOM | C → B ∥ S ∥ F | 1.3 | 1.5 | CAT-Q1, VER-Q1 | Pendiente | |
-| [1.5](F1/1.5-items-lotes-proveedores.md) | AssetItem, lotes y proveedores | C → B ∥ F | 1.3 | 1.4 | CAT-Q4 | Pendiente | |
+| [1.4](F1/1.4-versionado-precio-bom.md) | Versionado (A10): precios y BOM | C → B ∥ S ∥ F | 1.3 | 1.5 | ADR-0020 | Pendiente | |
+| [1.5](F1/1.5-items-lotes-proveedores.md) | AssetItem, lotes y proveedores | C → B ∥ F | 1.3 | 1.4 | — | Pendiente | |
 | [1.6](F1/1.6-mantenimiento.md) | Planes de mantenimiento | C → B ∥ F | 1.5 | 2.1 | — | Pendiente | |
 
 ## Fase 2 · Proyectos y configuración operacional
@@ -63,7 +63,7 @@ Puerta A1 + A2: **abierta** (P1, P2). Puerta S5 (master data completa): se abre 
 | Paso | Título | Tracks | Depende de | Paralelo con | Bloqueado por | Estado | Aprobado (fecha) |
 |---|---|---|---|---|---|---|---|
 | [4.1](F4/4.1-transferencias.md) | StockLocation, Transfer, OperationLog | C → B ∥ S ∥ F | 3.1, 2.4 | — | LOG-Q2 | Pendiente | |
-| [4.2](F4/4.2-reservas.md) | Reservation | C → B ∥ S ∥ F | 4.1 | — | LOG-Q1, CAT-Q1 | Pendiente | |
+| [4.2](F4/4.2-reservas.md) | Reservation | C → B ∥ S ∥ F | 4.1 | — | LOG-Q1 | Pendiente | |
 | [4.3](F4/4.3-atp.md) | AvailabilityProjection (ATP) | C → S ∥ F | 4.2 | 4.4-J | — | Pendiente | |
 | [4.4](F4/4.4-solver.md) | Solver (isla JVM) | C → J | hito S5, 4.3-C | 4.3 | ADR-0012, SLV-Q1 | Pendiente | |
 | [4.5](F4/4.5-propuestas-solver.md) | Propuestas del Solver → Transfers | C → B ∥ S ∥ F | 4.3, 4.4 | Fase 5 | — | Pendiente | |
@@ -98,8 +98,8 @@ Puerta A3: **abierta** (P3).
 |---|---|---|---|---|---|---|---|
 | [7.1](F7/7.1-gdpr.md) | GDPR / PII (A12) | C → B ∥ S ∥ F | 0.9, 5.3 | 7.2 | GDP-Q1…Q4 | Pendiente | |
 | [7.2](F7/7.2-etl-extraccion.md) | ETL: extracción y staging | C → B | contratos F1–F6 | 7.1 | acceso a `NUS-SQL-001\NRP` | Pendiente | |
-| [7.3](F7/7.3-etl-transformacion-carga.md) | ETL: transformación, carga, id_map, reconciliación | C → B | 7.2 | — | tablas de correspondencia, CAT-Q1 | Pendiente | |
-| [7.4](F7/7.4-cutover.md) | Ensayos, piloto opcional, runbook, go/no-go | I ∥ B | 7.1, 7.3, 0.11 | — | MIG-Q1…Q4 | Pendiente | |
+| [7.3](F7/7.3-etl-transformacion-carga.md) | ETL: transformación, carga, id_map, reconciliación | C → B | 7.2 | — | tablas de correspondencia | Pendiente | |
+| [7.4](F7/7.4-cutover.md) | Ensayos, piloto opcional, runbook, go/no-go | I ∥ B | 7.1, 7.3, 0.11 | — | MIG-Q1…Q3 | Pendiente | |
 
 ## Hitos
 
@@ -113,6 +113,16 @@ Puerta A3: **abierta** (P3).
 | Captura edge en producción de prueba | 6.5 `Aprobado` | |
 | Go-live | 7.4 go | |
 
+## Trabajo derivado de decisiones `[+]`
+
+Cambios pequeños que salen de decisiones cerradas fuera de un paso. Cada uno va en su propio PR con los tracks indicados.
+
+| Trabajo | Decisión | Tracks | Antes de |
+|---|---|---|---|
+| `PUT /v1/roles/{id}/permissions` exige `If-Match` (428/409) | 2026-11-11, `domain/access.md §8` | C → B ∥ F | Gate D de 0.9 (siguiente paso que toca `platform.yaml`) |
+| Vinculación del `app_user` sin `oid` en el primer login (solo miembros del tenant, solo en `nexus-platform`) | 2026-11-11, ADR-0006 | B | 7.2 (ETL de usuarios) |
+| Deuda menor del shell (PR #14): listener de 401 sin conectar, posible bucle de redirección con SSO silencioso, accesibilidad (`<html lang>`, `MatPaginatorIntl`, `aria-live`), ruta comodín `**`, estado de error explícito en `nx-data-grid` | 2026-11-11, aprobación de 0.5 | F | 1.3 (primer paso con pantallas de catálogo) |
+
 ## Preguntas abiertas ⚑ por paso
 
 Cerrarlas a tiempo es lo que mantiene el ritmo: cada una bloquea el paso indicado. Las respuestas se escriben en el dominio correspondiente con un PR `spec/`.
@@ -120,11 +130,7 @@ Cerrarlas a tiempo es lo que mantiene el ritmo: cada una bloquea el paso indicad
 | Pregunta | Dónde | Bloquea |
 |---|---|---|
 | ORG-Q1 visibilidad del directorio `Party` | `domain/org.md §8` | 0.4 |
-| WF-Q1 segregación de funciones · WF-Q2 sin plantilla activa | `domain/workflow.md §9` | 0.9 |
 | ADR-0011 hosting de Kafka/ClickHouse, región, edge | `adr/0011` | 0.11 |
-| CAT-Q1 semántica de kits `VIRTUAL`/`ASSEMBLY` | `domain/catalog.md §9` | 1.4, 4.2, 7.3 |
-| VER-Q1 `valid_from` futuro en tarifas | `domain/versioning.md §9` | 1.4 |
-| CAT-Q4 lote como tabla propia | `domain/catalog.md §9` | 1.5 |
 | PRJ-Q3 campos reconstruidos de `JobTransport` | `domain/projects.md §9` | 2.3 |
 | PRJ-Q2 transferencia entre LE sin regla · CAT-Q3 valoración del alquiler interno | `projects.md §9`, `catalog.md §9` | 2.4 |
 | STK-Q1 subalquiler · STK-Q2 compra para otra LE · STK-Q3 tolerancia | `domain/stock.md §9` | 3.2 |

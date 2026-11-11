@@ -27,7 +27,7 @@ El contrato A7 se reparte entre **cabeceras Kafka** (envoltorio) y **valor Avro*
 | `event_type` | cabecera `nexus-event-type` | `<contexto>.<aggregate>.<evento>` |
 | `aggregate_type` | cabecera `nexus-aggregate-type` | texto |
 | `aggregate_id` | cabecera `nexus-aggregate-id` **y clave del mensaje Kafka** | UUID |
-| `aggregate_version` `[+]` | cabecera `nexus-aggregate-version` | entero, crece por agregado: número de eventos emitidos por el agregado, persistido en la columna `aggregate_version` de su tabla (`[+]` ADR-0019, `conventions-database.md §4`). El primer evento es 1; en agregados anteriores a ADR-0019 el siguiente evento tras el backfill es 2 |
+| `aggregate_version` `[+]` | cabecera `nexus-aggregate-version` | entero, crece por agregado: número de eventos emitidos por el agregado, persistido en la columna `aggregate_version` de su tabla (`[+]` ADR-0019, `conventions-database.md §4`). El primer evento es 1; en agregados anteriores a ADR-0019 el siguiente evento tras el backfill es 2. Tablas append-only y VR1 (`ImmutableAggregateRoot<>`, `[+]` ADR-0020): append-only → 1 y `aggregate_id` = `id` de la fila; VR1 → `version_no` y `aggregate_id` = `id` de la versión 1 del `business_key` |
 | `occurred_at` | cabecera `nexus-occurred-at` | ISO-8601 UTC |
 | `actor_user_id` | cabecera `nexus-actor-user-id` | UUID |
 | `schema_version` | cabecera `nexus-schema-version` | entero (`v<n>` del archivo `.avsc`; `[+]` independiente del número de versión del subject en el Schema Registry, ADR-0018) |

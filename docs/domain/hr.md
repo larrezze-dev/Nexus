@@ -122,6 +122,7 @@ CREATE TABLE hr.role_rate (                          -- manual: RoleRate; VR1 [+
   valid_from        timestamptz NOT NULL,
   valid_to          timestamptz NULL,
   superseded_by_id  uuid NULL REFERENCES hr.role_rate(id),
+  is_retired        boolean NOT NULL DEFAULT false,   -- [+] ADR-0020: la baja es una versión
   resource_role_id  uuid NOT NULL REFERENCES hr.resource_role(id),
   legal_entity_id   uuid NOT NULL REFERENCES org.legal_entity(id),
   worker_type       text NOT NULL CHECK (worker_type IN ('INTERNAL','EXTERNAL','FREELANCE')),
@@ -130,11 +131,11 @@ CREATE TABLE hr.role_rate (                          -- manual: RoleRate; VR1 [+
   -- + std-append
   CHECK (business_key = resource_role_id::text || ':' || legal_entity_id::text || ':' || worker_type),
   CONSTRAINT uq_rr_version UNIQUE (business_key, version_no),
-  CONSTRAINT ck_rr_window CHECK (valid_to IS NULL OR valid_to > valid_from),
+  CONSTRAINT ck_rr_window CHECK (valid_to IS NULL OR valid_to >= valid_from),  -- [+] = : anulada (VER-R8)
   CONSTRAINT ex_rr_overlap EXCLUDE USING gist (business_key WITH =,
-      tstzrange(valid_from, coalesce(valid_to,'infinity')) WITH &&)
+      tstzrange(valid_from, coalesce(valid_to,'infinity')) WITH &&) DEFERRABLE INITIALLY DEFERRED   -- [+] versioning.md §4
 );
-CREATE UNIQUE INDEX uq_rr_current ON hr.role_rate(business_key) WHERE valid_to IS NULL;
+CREATE INDEX ix_rr_last ON hr.role_rate(business_key) WHERE valid_to IS NULL;   -- [+] sin UNIQUE (conventions-database §8)
 
 -- ===== Paso 5.4 · réplicas (ARC-R3) =====
 CREATE TABLE hr.project_ref (                        -- [+] desde nexus.project.project.*

@@ -29,7 +29,7 @@
 |---|---|
 | Tabla con RLS | (a) usuario con alcance en LE-A no ve filas de LE-B; (b) no puede insertar con `legal_entity_id` de LE-B (`WITH CHECK`); (c) sin `app.current_user_id` no ve nada |
 | Tabla append-only | `UPDATE` y `DELETE` fallan con el rol del servicio y con el propietario |
-| Tabla versionada | Nueva versión cierra la anterior; no hay solapes; consulta "as of" devuelve la versión correcta en 3 fechas |
+| Tabla versionada | Nueva versión cierra la anterior; no hay solapes; consulta "as of" devuelve la versión correcta en 3 fechas. `[+]` Además: versión programada; corrección del presente que la anula; segunda corrección antes de la fecha de la anulada; baja (no aparece en "as of") y nueva alta; dos versiones concurrentes → una 409; mover `valid_to` al pasado → `versioned row is immutable` (con `FakeTimeProvider` y `nexus.now`) |
 | Comando que emite evento | (a) el evento queda en `outbox.message` en la misma transacción; (b) si el handler falla después de escribir, no hay fila ni evento |
 | Máquina de estados | Cada transición permitida funciona; al menos una transición prohibida devuelve 409 `invalid_state` |
 | Consumidor | Procesar dos veces el mismo `event_id` produce un único efecto |
