@@ -4,7 +4,11 @@
     "reload": "Neu laden",
     "save": "Speichern",
     "yes": "Ja",
-    "no": "Nein"
+    "no": "Nein",
+    "tabs": {
+      "general": "Allgemein",
+      "audit": "Audit"
+    }
   },
   "errors": {
     "generic": "Etwas ist schiefgelaufen. Bitte versuchen Sie es erneut.",
@@ -353,6 +357,91 @@
       "businessUnit": "Business Unit",
       "clear": "Entfernen",
       "current": "Aktuell: {{value}}"
+    }
+  },
+  "audit": {
+    "summary": "{{count}} Ereignisse · neueste zuerst · Zeiten in Europe/Zurich",
+    "refresh": "Aktualisieren",
+    "loadMore": "Mehr laden",
+    "empty": {
+      "title": "Noch keine Ereignisse",
+      "hint": "Sobald dieses Objekt geändert wird, erscheint hier der Verlauf."
+    },
+    "error": "Der Verlauf konnte nicht geladen werden.",
+    "retry": "Erneut versuchen",
+    "pii": "Dieses Ereignis enthält personenbezogene Daten: Es wird nur gespeichert, wer es wann ausgelöst hat, nicht die Details der Änderungen.",
+    "unknownActor": "Unbekannter Benutzer",
+    "technicalDetails": "Technische Details",
+    "field": "Feld",
+    "before": "Vorher",
+    "after": "Nachher",
+    "value": "Wert",
+    "initialValues": "Anfangswerte",
+    "emptyValue": "(leer)",
+    "fields": {
+      "code": "Code",
+      "captionI18n": "Bezeichnung",
+      "name": "Name",
+      "street": "Strasse",
+      "postalCode": "Postleitzahl",
+      "city": "Ort",
+      "region": "Region",
+      "locationId": "Standort",
+      "legalEntityId": "Legal Entity",
+      "businessUnitId": "Business Unit",
+      "partyId": "Partei",
+      "groupId": "Gruppe",
+      "currencyCode": "Währung",
+      "countryCode": "Land",
+      "isActive": "Aktiv",
+      "costCenterCode": "Kostenstelle",
+      "consolidationMethod": "Konsolidierungsmethode",
+      "reportingCurrencyCode": "Berichtswährung",
+      "partyType": "Parteityp",
+      "legalName": "Rechtlicher Name",
+      "displayName": "Anzeigename",
+      "taxId": "Steuernummer",
+      "erpCompanyCode": "ERP-Gesellschaftscode",
+      "isInternal": "Intern",
+      "externalSubject": "Externe Kennung",
+      "preferredLanguage": "Bevorzugte Sprache"
+    }
+  },
+  "events": {
+    "org": {
+      "legal-entity": {
+        "created": "Legal Entity erstellt",
+        "updated": "Legal Entity aktualisiert",
+        "deactivated": "Legal Entity deaktiviert"
+      },
+      "business-unit": {
+        "created": "Business Unit erstellt",
+        "updated": "Business Unit aktualisiert",
+        "deactivated": "Business Unit deaktiviert"
+      },
+      "warehouse": {
+        "created": "Lager erstellt",
+        "updated": "Lager aktualisiert",
+        "deactivated": "Lager deaktiviert"
+      },
+      "user": {
+        "created": "Benutzer erstellt",
+        "updated": "Benutzer aktualisiert",
+        "deactivated": "Benutzer deaktiviert"
+      },
+      "party": {
+        "created": "Partei erstellt",
+        "updated": "Partei aktualisiert",
+        "deactivated": "Partei deaktiviert"
+      },
+      "group": {
+        "created": "Gruppe erstellt",
+        "updated": "Gruppe aktualisiert"
+      },
+      "location": {
+        "created": "Standort erstellt",
+        "updated": "Standort aktualisiert"
+      }
     }
   }
 }

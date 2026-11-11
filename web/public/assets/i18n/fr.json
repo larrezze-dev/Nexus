@@ -4,7 +4,11 @@
     "reload": "Recharger",
     "save": "Enregistrer",
     "yes": "Oui",
-    "no": "Non"
+    "no": "Non",
+    "tabs": {
+      "general": "Général",
+      "audit": "Audit"
+    }
   },
   "errors": {
     "generic": "Une erreur est survenue. Veuillez réessayer.",
@@ -353,6 +357,91 @@
       "businessUnit": "Unité d'affaires",
       "clear": "Effacer",
       "current": "Actuel : {{value}}"
+    }
+  },
+  "audit": {
+    "summary": "{{count}} événements · le plus récent en premier · heures en Europe/Zurich",
+    "refresh": "Actualiser",
+    "loadMore": "Charger plus",
+    "empty": {
+      "title": "Aucun événement pour l'instant",
+      "hint": "L'historique apparaîtra ici dès que cet élément sera modifié."
+    },
+    "error": "Impossible de charger l'historique.",
+    "retry": "Réessayer",
+    "pii": "Cet événement contient des données personnelles : seuls l'auteur et l'heure sont conservés, pas le détail des modifications.",
+    "unknownActor": "Utilisateur inconnu",
+    "technicalDetails": "Détails techniques",
+    "field": "Champ",
+    "before": "Avant",
+    "after": "Après",
+    "value": "Valeur",
+    "initialValues": "Valeurs initiales",
+    "emptyValue": "(vide)",
+    "fields": {
+      "code": "Code",
+      "captionI18n": "Dénomination",
+      "name": "Nom",
+      "street": "Rue",
+      "postalCode": "Code postal",
+      "city": "Ville",
+      "region": "Région",
+      "locationId": "Emplacement",
+      "legalEntityId": "Entité juridique",
+      "businessUnitId": "Unité opérationnelle",
+      "partyId": "Partie",
+      "groupId": "Groupe",
+      "currencyCode": "Devise",
+      "countryCode": "Pays",
+      "isActive": "Actif",
+      "costCenterCode": "Centre de coûts",
+      "consolidationMethod": "Méthode de consolidation",
+      "reportingCurrencyCode": "Devise de reporting",
+      "partyType": "Type de partie",
+      "legalName": "Raison sociale",
+      "displayName": "Nom d'affichage",
+      "taxId": "Numéro fiscal",
+      "erpCompanyCode": "Code société ERP",
+      "isInternal": "Interne",
+      "externalSubject": "Identifiant externe",
+      "preferredLanguage": "Langue préférée"
+    }
+  },
+  "events": {
+    "org": {
+      "legal-entity": {
+        "created": "Entité juridique créée",
+        "updated": "Entité juridique mise à jour",
+        "deactivated": "Entité juridique désactivée"
+      },
+      "business-unit": {
+        "created": "Unité opérationnelle créée",
+        "updated": "Unité opérationnelle mise à jour",
+        "deactivated": "Unité opérationnelle désactivée"
+      },
+      "warehouse": {
+        "created": "Entrepôt créé",
+        "updated": "Entrepôt mis à jour",
+        "deactivated": "Entrepôt désactivé"
+      },
+      "user": {
+        "created": "Utilisateur créé",
+        "updated": "Utilisateur mis à jour",
+        "deactivated": "Utilisateur désactivé"
+      },
+      "party": {
+        "created": "Partie créée",
+        "updated": "Partie mise à jour",
+        "deactivated": "Partie désactivée"
+      },
+      "group": {
+        "created": "Groupe créé",
+        "updated": "Groupe mis à jour"
+      },
+      "location": {
+        "created": "Emplacement créé",
+        "updated": "Emplacement mis à jour"
+      }
     }
   }
 }
