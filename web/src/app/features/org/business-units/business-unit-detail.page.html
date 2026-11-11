@@ -29,14 +29,28 @@
   }
 
   @if (mode() === 'create' || entity()) {
-    <nx-business-unit-form
-      [mode]="mode()"
-      [initial]="entity()"
-      [saving]="saving()"
-      [fieldErrors]="fieldErrors()"
-      [legalEntityDisplay]="legalEntityDisplay()"
-      [legalEntitySearch]="legalEntitySearch"
-      (save)="onSave($event)"
-    />
+    <mat-tab-group>
+      <mat-tab [label]="'common.tabs.general' | transloco">
+        <nx-business-unit-form
+          [mode]="mode()"
+          [initial]="entity()"
+          [saving]="saving()"
+          [fieldErrors]="fieldErrors()"
+          [legalEntityDisplay]="legalEntityDisplay()"
+          [legalEntitySearch]="legalEntitySearch"
+          (save)="onSave($event)"
+        />
+      </mat-tab>
+
+      @if (mode() === 'edit' && entity(); as current) {
+        <ng-container *nxCan="'AUDIT:READ'">
+          <mat-tab [label]="'common.tabs.audit' | transloco">
+            <ng-template matTabContent>
+              <nx-audit-trail data-testid="audit-tab" aggregateType="business_unit" [aggregateId]="current.id" />
+            </ng-template>
+          </mat-tab>
+        </ng-container>
+      }
+    </mat-tab-group>
   }
 </div>

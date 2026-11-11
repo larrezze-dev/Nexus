@@ -11,6 +11,7 @@ import { LANGUAGE_OPTIONS } from '../../../core/i18n/supported-languages';
 import { isProblem } from '../../../core/http/problem';
 import { NxI18nService } from '../../../core/i18n/nx-i18n.service';
 import { NxCanDirective } from '../../../shared/auth/can.directive';
+import { NxAuditTrailComponent } from '../../../shared/platform/nx-audit-trail/nx-audit-trail.component';
 import { NxEntityPickerComponent } from '../../../shared/ui/nx-entity-picker/nx-entity-picker.component';
 import type { BusinessUnitListItem } from '../../../api/platform/models/business-unit-list-item';
 import type { CreateRoleAssignmentRequest } from '../../../api/platform/models/create-role-assignment-request';
@@ -70,6 +71,7 @@ interface GrantForm {
     MatSelectModule,
     MatTabsModule,
     NxCanDirective,
+    NxAuditTrailComponent,
     NxEntityPickerComponent,
   ],
   templateUrl: './user-detail.page.html',

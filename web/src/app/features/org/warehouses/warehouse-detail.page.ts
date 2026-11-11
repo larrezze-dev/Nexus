@@ -4,11 +4,14 @@ import { ActivatedRoute, Router } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
+import { MatTabsModule } from '@angular/material/tabs';
 import { TranslocoModule } from '@jsverse/transloco';
 import { Observable } from 'rxjs';
 import { BusinessUnitListItem } from '../../../api/platform/models/business-unit-list-item';
 import { LegalEntityListItem } from '../../../api/platform/models/legal-entity-list-item';
 import { LocationListItem } from '../../../api/platform/models/location-list-item';
+import { NxCanDirective } from '../../../shared/auth/can.directive';
+import { NxAuditTrailComponent } from '../../../shared/platform/nx-audit-trail/nx-audit-trail.component';
 import { emptyI18nText, I18nText } from '../../../shared/ui/i18n-text.model';
 import { NxEntityPickerComponent } from '../../../shared/ui/nx-entity-picker/nx-entity-picker.component';
 import { NxI18nCaptionEditorComponent } from '../../../shared/ui/nx-i18n-caption-editor/nx-i18n-caption-editor.component';
@@ -40,6 +43,9 @@ import { WarehouseFacade } from './warehouse.facade';
     NxEntityPickerComponent,
     NxI18nCaptionEditorComponent,
     NxStatusBadgeComponent,
+    NxAuditTrailComponent,
+    NxCanDirective,
+    MatTabsModule,
     MatFormFieldModule,
     MatInputModule,
     MatButtonModule,
@@ -53,81 +59,95 @@ import { WarehouseFacade } from './warehouse.facade';
       }
     </div>
 
-    <form [formGroup]="form" (ngSubmit)="save()">
-      <mat-form-field>
-        <mat-label>{{ 'warehouses.fields.code' | transloco }}</mat-label>
-        <input matInput formControlName="code" data-testid="warehouse-code-input" />
-      </mat-form-field>
+    <mat-tab-group>
+      <mat-tab [label]="'common.tabs.general' | transloco">
+        <form [formGroup]="form" (ngSubmit)="save()">
+          <mat-form-field>
+            <mat-label>{{ 'warehouses.fields.code' | transloco }}</mat-label>
+            <input matInput formControlName="code" data-testid="warehouse-code-input" />
+          </mat-form-field>
 
-      <nx-i18n-caption-editor formControlName="captionI18n" />
+          <nx-i18n-caption-editor formControlName="captionI18n" />
 
-      <div class="nx-field-group">
-        <span class="nx-field-group__label">{{ 'warehouses.fields.location' | transloco }}</span>
-        @if (facade.resolvedLocationLabel(); as label) {
-          <p class="nx-field-current">{{ 'warehouses.fields.current' | transloco: { value: label } }}</p>
-        }
-        <nx-entity-picker [search]="searchLocations" [displayWith]="displayLocation" (selected)="onLocationSelected($event)" />
-      </div>
-
-      <div class="nx-field-group">
-        <span class="nx-field-group__label">{{ 'warehouses.fields.legalEntity' | transloco }}</span>
-        @if (isNew()) {
-          <nx-entity-picker
-            [search]="searchLegalEntities"
-            [displayWith]="displayCode"
-            (selected)="onLegalEntitySelected($event)"
-            data-testid="warehouse-legal-entity-picker"
-          />
-        } @else {
-          <p class="nx-field-current" data-testid="warehouse-legal-entity-current">
-            {{ facade.resolvedLegalEntityLabel() ?? form.controls.legalEntityId.value }}
-          </p>
-        }
-      </div>
-
-      <div class="nx-field-group">
-        <span class="nx-field-group__label">{{ 'warehouses.fields.businessUnit' | transloco }}</span>
-        @if (facade.resolvedBusinessUnitLabel(); as label) {
-          <p class="nx-field-current">{{ 'warehouses.fields.current' | transloco: { value: label } }}</p>
-        }
-        <nx-entity-picker
-          [search]="searchBusinessUnits"
-          [displayWith]="displayCode"
-          (selected)="onBusinessUnitSelected($event)"
-          data-testid="warehouse-business-unit-picker"
-        />
-        <button type="button" mat-button (click)="clearBusinessUnit()">{{ 'warehouses.fields.clear' | transloco }}</button>
-
-        @if (facade.businessUnitError(); as businessUnitError) {
-          <div class="nx-field-error" role="alert" data-testid="warehouse-business-unit-error">
-            {{ businessUnitError }}
+          <div class="nx-field-group">
+            <span class="nx-field-group__label">{{ 'warehouses.fields.location' | transloco }}</span>
+            @if (facade.resolvedLocationLabel(); as label) {
+              <p class="nx-field-current">{{ 'warehouses.fields.current' | transloco: { value: label } }}</p>
+            }
+            <nx-entity-picker [search]="searchLocations" [displayWith]="displayLocation" (selected)="onLocationSelected($event)" />
           </div>
-        }
-      </div>
 
-      @if (facade.error(); as error) {
-        <p role="alert" class="nx-form-error" data-testid="warehouse-form-error">{{ error }}</p>
+          <div class="nx-field-group">
+            <span class="nx-field-group__label">{{ 'warehouses.fields.legalEntity' | transloco }}</span>
+            @if (isNew()) {
+              <nx-entity-picker
+                [search]="searchLegalEntities"
+                [displayWith]="displayCode"
+                (selected)="onLegalEntitySelected($event)"
+                data-testid="warehouse-legal-entity-picker"
+              />
+            } @else {
+              <p class="nx-field-current" data-testid="warehouse-legal-entity-current">
+                {{ facade.resolvedLegalEntityLabel() ?? form.controls.legalEntityId.value }}
+              </p>
+            }
+          </div>
+
+          <div class="nx-field-group">
+            <span class="nx-field-group__label">{{ 'warehouses.fields.businessUnit' | transloco }}</span>
+            @if (facade.resolvedBusinessUnitLabel(); as label) {
+              <p class="nx-field-current">{{ 'warehouses.fields.current' | transloco: { value: label } }}</p>
+            }
+            <nx-entity-picker
+              [search]="searchBusinessUnits"
+              [displayWith]="displayCode"
+              (selected)="onBusinessUnitSelected($event)"
+              data-testid="warehouse-business-unit-picker"
+            />
+            <button type="button" mat-button (click)="clearBusinessUnit()">{{ 'warehouses.fields.clear' | transloco }}</button>
+
+            @if (facade.businessUnitError(); as businessUnitError) {
+              <div class="nx-field-error" role="alert" data-testid="warehouse-business-unit-error">
+                {{ businessUnitError }}
+              </div>
+            }
+          </div>
+
+          @if (facade.error(); as error) {
+            <p role="alert" class="nx-form-error" data-testid="warehouse-form-error">{{ error }}</p>
+          }
+
+          <div class="nx-form-actions">
+            <button mat-button type="button" (click)="cancel()">{{ 'common.cancel' | transloco }}</button>
+            @if (!isNew()) {
+              <button
+                mat-button
+                color="warn"
+                type="button"
+                (click)="deactivate()"
+                [disabled]="facade.saving() || facade.selected()?.isActive === false"
+                data-testid="warehouse-deactivate-button"
+              >
+                {{ 'warehouses.actions.deactivate' | transloco }}
+              </button>
+            }
+            <button mat-raised-button color="primary" type="submit" [disabled]="facade.saving()" data-testid="warehouse-save-button">
+              {{ 'common.save' | transloco }}
+            </button>
+          </div>
+        </form>
+      </mat-tab>
+
+      @if (!isNew() && facade.selected(); as current) {
+        <ng-container *nxCan="'AUDIT:READ'">
+          <mat-tab [label]="'common.tabs.audit' | transloco">
+            <ng-template matTabContent>
+              <nx-audit-trail data-testid="audit-tab" aggregateType="warehouse" [aggregateId]="current.id" />
+            </ng-template>
+          </mat-tab>
+        </ng-container>
       }
-
-      <div class="nx-form-actions">
-        <button mat-button type="button" (click)="cancel()">{{ 'common.cancel' | transloco }}</button>
-        @if (!isNew()) {
-          <button
-            mat-button
-            color="warn"
-            type="button"
-            (click)="deactivate()"
-            [disabled]="facade.saving() || facade.selected()?.isActive === false"
-            data-testid="warehouse-deactivate-button"
-          >
-            {{ 'warehouses.actions.deactivate' | transloco }}
-          </button>
-        }
-        <button mat-raised-button color="primary" type="submit" [disabled]="facade.saving()" data-testid="warehouse-save-button">
-          {{ 'common.save' | transloco }}
-        </button>
-      </div>
-    </form>
+    </mat-tab-group>
   `,
   styles: [
     `

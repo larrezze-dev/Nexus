@@ -235,6 +235,16 @@
           </div>
         </mat-tab>
       }
+
+      @if (!isNew() && facade.selected(); as current) {
+        <ng-container *nxCan="'AUDIT:READ'">
+          <mat-tab [label]="'common.tabs.audit' | transloco">
+            <ng-template matTabContent>
+              <nx-audit-trail data-testid="audit-tab" aggregateType="user" [aggregateId]="current.id" />
+            </ng-template>
+          </mat-tab>
+        </ng-container>
+      }
     </mat-tab-group>
   }
 </div>

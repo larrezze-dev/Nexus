@@ -6,6 +6,7 @@ import { signal } from '@angular/core';
 import { RoleAssignmentsFacade } from '../../access/role-assignments/role-assignments.facade';
 import { UserDetailPage } from './user-detail.page';
 import { SYSTEM_USER_ID, UsersFacade } from './users.facade';
+import { denyAuditRead, findAuditTab, selectAuditTab, stubAuditTrail } from '../audit-tab.testing';
 
 /**
  * `MatTabGroup` only renders a tab's content once it has been activated at least once (it is
@@ -84,6 +85,7 @@ function setup(
     ],
   });
 
+  stubAuditTrail(UserDetailPage);
   const fixture = TestBed.createComponent(UserDetailPage);
   return { fixture, facade, assignmentsFacade };
 }
@@ -386,5 +388,37 @@ describe('UserDetailPage', () => {
     expect(assignmentsFacade.revoke).toHaveBeenCalledWith('ra-1');
     const error = (fixture.nativeElement as HTMLElement).querySelector('[data-testid="assignment-save-error"]');
     expect(error).not.toBeNull();
+  });
+
+  describe('audit tab', () => {
+    it('shows an "Auditoría" tab for an existing record and renders nx-audit-trail when selected', async () => {
+      const { fixture } = setup({ id: 'u-1' }, { selected: signal(existingUser) });
+      fixture.detectChanges();
+      await fixture.whenStable();
+      fixture.detectChanges();
+      const audit = await selectAuditTab(fixture);
+
+      expect(audit).not.toBeNull();
+      expect(audit?.aggregateType()).toBe('user');
+      expect(audit?.aggregateId()).toBe('u-1');
+    });
+
+    it('has no "Auditoría" tab when creating a new record', async () => {
+      const { fixture } = setup({});
+      fixture.detectChanges();
+      await fixture.whenStable();
+      fixture.detectChanges();
+
+      expect(findAuditTab(fixture)).toBeUndefined();
+    });
+
+    it('has no "Auditoría" tab without AUDIT:READ', async () => {
+      const { fixture } = setup({ id: 'u-1' }, { selected: signal(existingUser) });
+      denyAuditRead();
+      fixture.detectChanges();
+      await fixture.whenStable();
+      fixture.detectChanges();
+      expect(findAuditTab(fixture)).toBeUndefined();
+    });
   });
 });

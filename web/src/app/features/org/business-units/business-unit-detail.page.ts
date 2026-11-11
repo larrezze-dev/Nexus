@@ -1,11 +1,13 @@
 import { ChangeDetectionStrategy, Component, OnInit, inject, signal } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
+import { MatTabsModule } from '@angular/material/tabs';
 import { TranslocoModule, TranslocoService } from '@jsverse/transloco';
 import { Observable } from 'rxjs';
 import { isProblem } from '../../../core/http/problem';
 import { NxI18nService } from '../../../core/i18n/nx-i18n.service';
 import { NxCanDirective } from '../../../shared/auth/can.directive';
+import { NxAuditTrailComponent } from '../../../shared/platform/nx-audit-trail/nx-audit-trail.component';
 import { NxStatusBadgeComponent } from '../../../shared/ui/nx-status-badge/nx-status-badge.component';
 import { LegalEntityListItem } from '../../../api/platform/models/legal-entity-list-item';
 import { LegalEntitiesFacade } from '../legal-entities/legal-entities.facade';
@@ -23,7 +25,15 @@ import { BusinessUnitsFacade } from './business-units.facade';
 @Component({
   selector: 'nx-business-unit-detail-page',
   standalone: true,
-  imports: [TranslocoModule, MatButtonModule, NxCanDirective, NxStatusBadgeComponent, BusinessUnitFormComponent],
+  imports: [
+    TranslocoModule,
+    MatButtonModule,
+    MatTabsModule,
+    NxCanDirective,
+    NxAuditTrailComponent,
+    NxStatusBadgeComponent,
+    BusinessUnitFormComponent,
+  ],
   templateUrl: './business-unit-detail.page.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
