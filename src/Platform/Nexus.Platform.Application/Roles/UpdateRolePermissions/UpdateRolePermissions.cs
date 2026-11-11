@@ -11,8 +11,15 @@ namespace Nexus.Platform.Application.Roles.UpdateRolePermissions;
 /// currently-valid grants and closes (<c>valid_to</c>) what is no longer wanted while opening a
 /// new row for what is newly wanted. Codes already granted and still wanted are left untouched
 /// (no new row, no close) - this is a set replacement, not a bulk revoke-then-grant. No
-/// <c>If-Match</c> (the contract's <c>updateRolePermissions</c> has none): this endpoint never
-/// touches the role's own row/version.
+/// <c>If-Match</c> (the contract's <c>updateRolePermissions</c> has none).
+/// <para>
+/// When the set actually changes, <c>Role.RaisePermissionsChanged</c> raises <c>RoleUpdated</c>
+/// (with the new permission codes), which bumps the role's persisted <c>aggregate_version</c>
+/// (ADR-0019): the role's own row is UPDATEd, so its
+/// <c>xmin</c> (ETag) and <c>updated_at</c>/<c>updated_by</c> change too, and two concurrent
+/// permission edits on the same role conflict - the loser gets 409 (concurrency). A request that
+/// changes nothing leaves the role row untouched.
+/// </para>
 /// <para>
 /// The 200 response (the role's new current grants) is built entirely from data already read
 /// before <see cref="IRequestTransaction.CommitAsync"/>: the unit of work is single-use and

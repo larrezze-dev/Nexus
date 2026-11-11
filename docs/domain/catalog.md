@@ -75,7 +75,7 @@ CREATE TABLE catalog.asset_type (
   sales_uom_id      uuid NULL REFERENCES uom.unit_of_measure(id),     -- A11/P11
   is_consumable     boolean NOT NULL DEFAULT false,                   -- A5/P5
   kit_mode          text NOT NULL DEFAULT 'NONE'
-                    CHECK (kit_mode IN ('NONE','VIRTUAL','ASSEMBLY')), -- [+] ⚑ CAT-Q1
+                    CHECK (kit_mode IN ('NONE','VIRTUAL','ASSEMBLY')), -- [+] CAT-Q1 (decidido 2026-11-11)
   unit_weight_kg    numeric(12,3) NULL CHECK (unit_weight_kg >= 0),   -- [+] input de transporte del Solver
   unit_volume_m3    numeric(12,4) NULL CHECK (unit_volume_m3 >= 0),   -- [+]
   replacement_value numeric(19,4) NULL,                               -- [+] valor de reposición (pérdidas, seguro)
@@ -109,6 +109,7 @@ CREATE TABLE catalog.asset_type_bom (
   valid_from               timestamptz NOT NULL,
   valid_to                 timestamptz NULL,
   superseded_by_id         uuid NULL REFERENCES catalog.asset_type_bom(id),
+  is_retired               boolean NOT NULL DEFAULT false,   -- [+] ADR-0020: la baja es una versión
   parent_asset_type_id     uuid NOT NULL REFERENCES catalog.asset_type(id),
   component_asset_type_id  uuid NOT NULL REFERENCES catalog.asset_type(id),
   qty                      numeric(18,4) NOT NULL CHECK (qty > 0),
@@ -119,11 +120,11 @@ CREATE TABLE catalog.asset_type_bom (
   CHECK (parent_asset_type_id <> component_asset_type_id),
   CHECK (business_key = parent_asset_type_id::text || ':' || component_asset_type_id::text),
   CONSTRAINT uq_bom_version UNIQUE (business_key, version_no),
-  CONSTRAINT ck_bom_window CHECK (valid_to IS NULL OR valid_to > valid_from),
+  CONSTRAINT ck_bom_window CHECK (valid_to IS NULL OR valid_to >= valid_from),  -- [+] = : anulada (VER-R8)
   CONSTRAINT ex_bom_overlap EXCLUDE USING gist (business_key WITH =,
-      tstzrange(valid_from, coalesce(valid_to,'infinity')) WITH &&)
+      tstzrange(valid_from, coalesce(valid_to,'infinity')) WITH &&) DEFERRABLE INITIALLY DEFERRED   -- [+] versioning.md §4
 );
-CREATE UNIQUE INDEX uq_bom_current ON catalog.asset_type_bom(business_key) WHERE valid_to IS NULL;
+CREATE INDEX ix_bom_last ON catalog.asset_type_bom(business_key) WHERE valid_to IS NULL;   -- [+] sin UNIQUE (conventions-database §8)
 CREATE INDEX ix_bom_parent ON catalog.asset_type_bom(parent_asset_type_id, valid_from);
 
 -- ===== Paso 1.4 · Bloque F: precio (RLS: LE, VR1) =====
@@ -134,6 +135,7 @@ CREATE TABLE catalog.asset_type_price_rule (
   valid_from         timestamptz NOT NULL,
   valid_to           timestamptz NULL,
   superseded_by_id   uuid NULL REFERENCES catalog.asset_type_price_rule(id),
+  is_retired         boolean NOT NULL DEFAULT false,   -- [+] ADR-0020: la baja es una versión
   asset_type_id      uuid NOT NULL REFERENCES catalog.asset_type(id),
   legal_entity_id    uuid NOT NULL REFERENCES org.legal_entity(id),
   price_rule_code    text NOT NULL,         -- 'STANDARD', 'INTERNAL' (alquiler interno A1) … [+]
@@ -145,11 +147,11 @@ CREATE TABLE catalog.asset_type_price_rule (
   -- + std-append
   CHECK (business_key = asset_type_id::text || ':' || legal_entity_id::text || ':' || price_rule_code),
   CONSTRAINT uq_pr_version UNIQUE (business_key, version_no),
-  CONSTRAINT ck_pr_window CHECK (valid_to IS NULL OR valid_to > valid_from),
+  CONSTRAINT ck_pr_window CHECK (valid_to IS NULL OR valid_to >= valid_from),  -- [+] = : anulada (VER-R8)
   CONSTRAINT ex_pr_overlap EXCLUDE USING gist (business_key WITH =,
-      tstzrange(valid_from, coalesce(valid_to,'infinity')) WITH &&)
+      tstzrange(valid_from, coalesce(valid_to,'infinity')) WITH &&) DEFERRABLE INITIALLY DEFERRED   -- [+] versioning.md §4
 );
-CREATE UNIQUE INDEX uq_pr_current ON catalog.asset_type_price_rule(business_key) WHERE valid_to IS NULL;
+CREATE INDEX ix_pr_last ON catalog.asset_type_price_rule(business_key) WHERE valid_to IS NULL;   -- [+] sin UNIQUE (conventions-database §8)
 CREATE INDEX ix_pr_type_le ON catalog.asset_type_price_rule(asset_type_id, legal_entity_id);
 
 -- ===== Paso 1.5 · Bloque C: unidad física (RLS: LE = propietario) =====
@@ -250,6 +252,8 @@ CREATE OR REPLACE FUNCTION catalog.explode_bom(p_asset_type_id uuid, p_qty numer
 RETURNS TABLE (level int, parent_asset_type_id uuid, component_asset_type_id uuid,
                qty_stock_uom numeric(18,4), is_optional boolean, path uuid[])
 LANGUAGE sql STABLE …;   -- WITH RECURSIVE; corta en profundidad 10 (CAT-R9)
+-- [+] Cada nivel usa la consulta "as of" de conventions-database §8, con AND NOT is_retired
+-- (una línea de BOM dada de baja no se explota, VER-R5).
 ```
 
 La usan commissioning (6.2), la reserva de kits `VIRTUAL` (4.2) y el Solver.
@@ -275,7 +279,7 @@ La usan commissioning (6.2), la reserva de kits `VIRTUAL` (4.2) y el Solver.
 | CAT-R8 | Un tipo `SERIALIZED` tiene `stock_uom_id` `NULL` o de dimensión `COUNT` | [+] |
 | CAT-R9 | El BOM no tiene ciclos y su profundidad máxima es 10 | [+] |
 | CAT-R10 | El BOM y las tarifas siguen VR1 (`versioning.md`): nunca `UPDATE` de campos versionados | A10 |
-| CAT-R11 | Un `AssetType` con `kit_mode ≠ NONE` necesita al menos una línea de BOM vigente para pasar a `ACTIVE`; con `kit_mode = NONE` no puede tener BOM | [+] |
+| CAT-R11 | Un `AssetType` con `kit_mode ≠ NONE` necesita al menos una línea de BOM vigente ("as of" ahora, sin `is_retired`) para pasar a `ACTIVE`; con `kit_mode = NONE` no puede tener líneas de BOM vigentes ni programadas sin `is_retired` | [+] |
 | CAT-R12 | `serial_number` es único por tipo. No se reutiliza aunque el ítem se retire | [+] |
 | CAT-R13 | `asset_item.legal_entity_id` (propietario) no cambia por un alquiler interno (A1: custodia sin cambio de propiedad). Solo cambia con una venta intercompañía explícita (fuera de alcance v1) | A1 |
 | CAT-R14 | El estado de un `AssetItem` sigue §5; `RETIRED` y `LOST` son terminales salvo `LOST → ACTIVE` (aparecido) | [+] |
@@ -314,7 +318,7 @@ stateDiagram-v2
 | `POST /v1/asset-types/{id}/activate` · `/discontinue` · `/reactivate` | `ASSET_TYPE:UPDATE` | 1.3 |
 | `GET/POST /v1/asset-types/{id}/unit-conversions`, `PUT/DELETE …/{convId}` | `ASSET_TYPE:UPDATE` | 1.3 |
 | `GET /v1/asset-types/{id}/bom?asOf=` · `GET …/bom/explode?qty=&asOf=` | `ASSET_TYPE:READ` | 1.4 |
-| `PUT /v1/asset-types/{id}/bom` (lista completa; el servidor versiona cada línea) | `ASSET_TYPE:UPDATE` | 1.4 |
+| `PUT /v1/asset-types/{id}/bom` (lista completa + `validFrom?`; el servidor versiona solo las líneas que cambian en `validFrom`, VER-R7). `[+]` La anulación es **por línea** (decidido 2026-11-11): una línea cambiada anula solo sus propias versiones programadas desde `validFrom`. La respuesta lista `annulledVersionIds` por línea y `otherScheduledLines`: las líneas del mismo kit con versiones programadas posteriores que esta revisión no ha tocado. La pantalla muestra un aviso para que el usuario no deje un BOM mezclado sin querer. Reglas del PUT: (a) cada línea del cuerpo se compara con su `P` en `validFrom`, y si es igual no se versiona aunque tenga programadas; (b) "retiradas" son solo las líneas con `P` vivo y no de baja en `validFrom` que faltan en el cuerpo; (c) las líneas sin `P` que solo existen como programadas no se tocan y van en `otherScheduledLines` | `ASSET_TYPE:UPDATE` | 1.4 |
 | `GET /v1/asset-types/{id}/bom/versions` | `ASSET_TYPE:READ` | 1.4 |
 | `GET /v1/price-rules?assetTypeId=&legalEntityId=&priceRuleCode=&asOf=` | `PRICE_RULE:READ` | 1.4 |
 | `POST /v1/price-rules` (alta, versión 1) | `PRICE_RULE:CREATE` (alcance `body.legalEntityId`) | 1.4 |
@@ -362,7 +366,7 @@ Contexto `catalog`. Master data con estado completo (EV-R4).
 
 ## §9 Abiertos ⚑
 
-- **CAT-Q1 (bloquea 1.4):** semántica de kits. Propuesta: `VIRTUAL` = el kit no tiene stock propio; al reservarlo se reservan sus componentes (4.2). `ASSEMBLY` = el kit se almacena montado como un tipo con stock propio; el BOM solo sirve para el checklist (6.2) y para montarlo. ¿Existen los dos casos en Nüssli? ¿Cómo lo hace hoy EasyJob con sus "Sets"?
+- **CAT-Q1 (decidido 2026-11-11):** se mantienen los tres modos. `NONE`. `VIRTUAL` = el kit no tiene stock propio; al reservarlo se reservan sus componentes (LOG-R25, 4.2). `ASSEMBLY` = el kit se guarda montado como un tipo con stock propio; su BOM solo sirve para el checklist (6.2) y para montarlo. Migración: los Sets de EasyJob pasan a `VIRTUAL` por defecto, y los que se guardan montados a `ASSEMBLY` según la tabla de correspondencia de 7.3 (MIG-R10). Decisión de Luciano.
 - **CAT-Q2:** escalas de precio por duración (factores por día en alquiler). `price_basis` + `min_charge_days` cubre lo básico. Si hay tablas de factores, añadir `day_factor_table jsonb` en una versión de la tarifa.
 - **CAT-Q3:** valoración del alquiler interno. Propuesta: tarifa `INTERNAL` del propietario. Alternativa: margen fijo sobre `STANDARD` definido en `transfer_rule` (`projects.md`).
-- **CAT-Q4:** `asset_batch` es una tabla nueva `[+]`: el manual dice "BATCH → por lote" sin entidad. Confirmar que un lote no es un `AssetItem`.
+- **CAT-Q4 (decidido 2026-11-11):** `catalog.asset_batch` es una tabla propia `[+]`. Un lote (cantidad de un tipo `BATCH` con datos comunes: fecha de fabricación, certificado) **no** es un `AssetItem` (unidad con identidad propia). El stock de un tipo `BATCH` se lleva por (tipo, lote). Decisión de Luciano.

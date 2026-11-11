@@ -30,6 +30,9 @@ public sealed class Widget : AggregateRoot<Guid>
 
     public void MarkDeleted() => RaiseEvent(new WidgetDeleted(Id));
 
+    /// <summary>Raises an event without changing any mapped column (like <c>Role.RaisePermissionsChanged</c>).</summary>
+    public void Touch() => RaiseEvent(new WidgetTouched(Id));
+
     /// <summary>Raises an event whose payload violates the schema (null in a non-nullable string).</summary>
     public void RenameWithInvalidPayload() =>
         RaiseEvent(new WidgetRenamed(Id, null!, RoundedSystemTimeProvider.Instance.GetUtcNow(), 1m, new Dictionary<string, string>(), null));
@@ -67,6 +70,21 @@ public sealed record WidgetDeleted(Guid WidgetId) : IDomainEvent
     public int SchemaVersion => 1;
 
     public string Topic => "nexus.test.widget.deleted";
+
+    public Guid? LegalEntityId => null;
+}
+
+public sealed record WidgetTouched(Guid WidgetId) : IDomainEvent
+{
+    public string AggregateType => "widget";
+
+    public Guid AggregateId => WidgetId;
+
+    public string EventType => "test.widget.touched";
+
+    public int SchemaVersion => 1;
+
+    public string Topic => "nexus.test.widget.touched";
 
     public Guid? LegalEntityId => null;
 }

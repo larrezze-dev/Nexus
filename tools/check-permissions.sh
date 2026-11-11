@@ -53,6 +53,7 @@ if [[ "${#declared_codes[@]}" -eq 0 ]]; then
   exit 0
 fi
 
+declared_list="$(printf '%s\n' "${declared_codes[@]}")"
 failed=0
 
 for file in "${service_files[@]}"; do
@@ -70,7 +71,10 @@ for file in "${service_files[@]}"; do
       # PUBLIC and AUTHENTICATED are reserved values (conventions-api.md §3),
       # not resource codes -- they never need a contracts/permissions.yaml entry.
       [[ "$perm" == "PUBLIC" || "$perm" == "AUTHENTICATED" ]] && continue
-      if ! printf '%s\n' "${declared_codes[@]}" | grep -qx -- "$perm"; then
+      # Here-string, not a pipe: under `set -o pipefail`, `grep -q` exits on the
+      # first match and printf can die of SIGPIPE, failing the pipeline for a
+      # permission that IS declared (seen intermittently in CI).
+      if ! grep -qxF -- "$perm" <<< "$declared_list"; then
         echo "ERROR: x-permission '$perm' in $file is not declared in $PERMISSIONS_FILE." >&2
         failed=1
       fi

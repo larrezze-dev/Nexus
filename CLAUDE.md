@@ -142,9 +142,12 @@ El primer elemento visible debe de ser el dashboard, luego todos los otros los o
 
 #### 10.2.2 Actualizaciones
 
-A cada tarea finalizada actualizar TAREAS.md antes de hacer commit.
+A cada tarea finalizada actualizar TAREAS.html antes de hacer commit.
 
 
 ## 11. Diversos
 
 **Alcance aclarado con Luciano (2026-10-24):** un track C puro (solo esquema de BD + contrato OpenAPI/Avro, sin pantalla ni endpoint real todavía — eso llega con los tracks B/F) no tiene nada que Luciano pueda probar con las manos. Para esos casos, la verificación en vivo del orquestador (Postgres real, Flyway real, Prism real sirviendo ejemplos) sustituye la prueba manual, y el cierre sigue el flujo normal (PR, merge, `Gate C`) sin esperar su aprobación explícita. La §9 se activa de verdad en los tracks que sí producen algo tangible (una pantalla, un endpoint real contra backend real).
+
+
+REGLA DURA: **Interfaz de usuario**: antes de empezar su desarrollo, definir el diseño basico, colores, estilos con Luciano. Luego para cada interfaz de usuario distinta mostrar su preview a Luciano para que de de su ok.

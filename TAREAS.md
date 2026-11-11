@@ -4,21 +4,21 @@
 
 **Status:** `[ ]` no iniciada · `[o]` en marcha (incluye Gate C / En revisión: entregada pero sin aprobar) · `[x]` finalizada (`Aprobado` por Luciano).
 
-**Resumen:** 4/45 tareas aprobadas (8.9%) · esfuerzo de codificación 17/141 tracks (12.1%) · 4 en marcha.
+**Resumen:** 7/45 tareas aprobadas (15.6%) · esfuerzo de codificación 17/141 tracks (12.1%) · 1 en marcha.
 
 ## Fase 0 · Fundación
 
 | Status | Nombre de la tarea | Descripción | Dependencias | Comentarios |
 |---|---|---|---|---|
-| [o] | **0.1** Monorepo, CI y esqueletos (tracks I; estado: En revisión) | Repositorio único, integración continua y esqueletos de todos los proyectos. | — | Todos los tracks entregados; pendiente de aprobación de Luciano. |
-| [o] | **0.2** Entorno local (compose + Keycloak) (tracks I; estado: En revisión) | Entorno local reproducible (contenedores, Keycloak) para desarrollar sin depender de nada externo. | 0.1 | Todos los tracks entregados; pendiente de aprobación de Luciano. Bloqueado por: ADR-0006. |
+| [x] | **0.1** Monorepo, CI y esqueletos (tracks I; estado: Aprobado) | Repositorio único, integración continua y esqueletos de todos los proyectos. | — | Aprobado 2026-11-11. |
+| [x] | **0.2** Entorno local (compose + Keycloak) (tracks I; estado: Aprobado) | Entorno local reproducible (contenedores, Keycloak) para desarrollar sin depender de nada externo. | 0.1 | Aprobado 2026-11-11. Bloqueado por: ADR-0006. |
 | [x] | **0.3** BD: roles, Flyway, Outbox, UnitOfWork (tracks C B; estado: Aprobado) | Base de datos base: roles, migraciones Flyway, bandeja de salida de eventos (Outbox) y unidad de trabajo. | 0.2 | Aprobado 2026-11-06. Bloqueado por: ADR-0001/2/8/9. |
-| [o] | **0.5** Autenticación, Gateway y shell Angular (tracks C B F; estado: En revisión) | Login, gateway de entrada y carcasa de la aplicación web Angular. | 0.2 | Todos los tracks entregados; pendiente de aprobación de Luciano. Bloqueado por: ADR-0006, ADR-0010. |
+| [x] | **0.5** Autenticación, Gateway y shell Angular (tracks C B F; estado: Aprobado) | Login, gateway de entrada y carcasa de la aplicación web Angular. | 0.2 | Aprobado 2026-11-11 (C: PR #12 · B: PR #13 · F: PR #14). Deuda: e2e 0.5-login.spec.ts pasa a 1.3; deuda menor del PR #14 anotada en STATUS. Bloqueado por: ADR-0006, ADR-0010. |
 | [x] | **0.4** Núcleo organizativo (S10) (tracks C B F; estado: Aprobado) | Núcleo organizativo: empresas, almacenes y estructura sobre la que cuelga todo lo demás. | 0.3, 0.5 | Aprobado 2026-10-30. Bloqueado por: ADR-0003, ORG-Q1, ADR-0014. |
 | [x] | **0.6** RBAC + RLS (A6) (tracks C B F; estado: Aprobado) | Roles y permisos (RBAC) y aislamiento de datos por empresa (RLS). | 0.4 | Aprobado 2026-11-06 (5 PRs, 2 ADRs, 2 vulnerabilidades reales corregidas). Bloqueado por: ADR-0004. |
 | [x] | **0.7** Relay, Schema Registry, consumidores, DLQ (A7) (tracks C B S; estado: Aprobado) | Relay que publica eventos a Kafka, registro de esquemas, consumidores y cola de errores. | 0.3 | Aprobado 2026-11-08 (C: PR #25, #27, #30 · S: PR #28 · B: PR #29, #31 · Gate D: PR #32; ADR-0017 y ADR-0018 aceptados). Bloqueado por: ADR-0008, ADR-0018. |
-| [o] | **0.8** Proyecciones ClickHouse y auditoría (tracks C S F; estado: Gate C) | Proyecciones analíticas en ClickHouse y auditoría de cambios. | 0.7 | C entregado (contrato ClickHouse + auditoría, AUDIT:READ, PR #34); S entregado (nexus-projections, BuildingBlocks.Analytics, endpoint de auditoría); sigue F y Gate D. Fallo previo: nexus-aggregate-version siempre 1; ADR-0019 aceptado (2026-11-09), implementación (C + nivel 3) pendiente antes de Gate D. |
-| [ ] | **0.9** Workflow de aprobaciones (A8) (tracks C B S F; estado: Pendiente) | Flujo de aprobaciones reutilizable por el resto de módulos. | 0.6, 0.7 | Bloqueado por: WF-Q1, WF-Q2. |
+| [o] | **0.8** Proyecciones ClickHouse y auditoría (tracks C S F; estado: Gate C) | Proyecciones analíticas en ClickHouse y auditoría de cambios. | 0.7 | C entregado (contrato ClickHouse + auditoría, AUDIT:READ, PR #34); S entregado (nexus-projections, BuildingBlocks.Analytics, endpoint de auditoría, PR #35); ADR-0019 implementado (C: columnas aggregate_version + 409 en updateRolePermissions, PR #37; B: versión persistida como token de concurrencia, PR #38; verificado en vivo: auditoría 3, 2, 1). Sigue F y Gate D; en entornos con datos: rebuild dim_legal_entity y dim_warehouse. |
+| [ ] | **0.9** Workflow de aprobaciones (A8) (tracks C B S F; estado: Pendiente) | Flujo de aprobaciones reutilizable por el resto de módulos. | 0.6, 0.7 | WF-Q1 y WF-Q2 decididos el 2026-11-11 (auto-aprobación opcional por plantilla; sin plantilla, rechazo). Listo para lanzar. |
 | [ ] | **0.10** Gestión documental (A9) (tracks C B F; estado: Pendiente) | Gestión documental: adjuntos y documentos asociados a entidades. | 0.6, 0.7, 0.9 |  |
 | [ ] | **0.11** Terraform Azure + Arc (tracks I; estado: Pendiente) | Infraestructura en Azure como código (Terraform) y conexión Arc. | 0.8, 0.9, 0.10 | Bloqueado por: ADR-0011. |
 
@@ -26,11 +26,11 @@
 
 | Status | Nombre de la tarea | Descripción | Dependencias | Comentarios |
 |---|---|---|---|---|
-| [ ] | **1.1** Capa 1 completa (tracks C B F; estado: Pendiente) | Resto de maestros de la capa 1 (datos organizativos de base). | 0.6, 0.7 |  |
+| [ ] | **1.1** Capa 1 completa (tracks C B F; estado: Pendiente) | Resto de maestros de la capa 1 (datos organizativos de base). | 0.6, 0.7 | ADR-0020 aceptado el 2026-11-11 (org.exchange_rate como ImmutableAggregateRoot). Listo para lanzar. |
 | [ ] | **1.2** Unidades de medida (A11) + `nexus-catalog` (tracks C B F; estado: Pendiente) | Unidades de medida y conversiones; nace el servicio de catálogo. | 0.6, 0.7 |  |
 | [ ] | **1.3** Taxonomía y AssetType (tracks C B S F; estado: Pendiente) | Taxonomía de material y tipos de activo (qué se puede alquilar/mover). | 1.1, 1.2 |  |
-| [ ] | **1.4** Versionado (A10): precios y BOM (tracks C B S F; estado: Pendiente) | Precios y composiciones (BOM/kits) con historial de versiones. | 1.3 | Bloqueado por: CAT-Q1, VER-Q1. |
-| [ ] | **1.5** AssetItem, lotes y proveedores (tracks C B F; estado: Pendiente) | Unidades físicas de material, lotes y proveedores. | 1.3 | Bloqueado por: CAT-Q4. |
+| [ ] | **1.4** Versionado (A10): precios y BOM (tracks C B S F; estado: Pendiente) | Precios y composiciones (BOM/kits) con historial de versiones. | 1.3 | CAT-Q1, VER-Q1 y ADR-0020 cerrados el 2026-11-11 (fecha futura en todas las VR1, el futuro es editable, baja como fila). Depende de 1.3. |
+| [ ] | **1.5** AssetItem, lotes y proveedores (tracks C B F; estado: Pendiente) | Unidades físicas de material, lotes y proveedores. | 1.3 | CAT-Q4 decidido el 2026-11-11: asset_batch es tabla propia. |
 | [ ] | **1.6** Planes de mantenimiento (tracks C B F; estado: Pendiente) | Planes de mantenimiento de los activos. | 1.5 |  |
 
 ## Fase 2 · Proyectos y configuración operacional
@@ -55,7 +55,7 @@
 | Status | Nombre de la tarea | Descripción | Dependencias | Comentarios |
 |---|---|---|---|---|
 | [ ] | **4.1** StockLocation, Transfer, OperationLog (tracks C B S F; estado: Pendiente) | Ubicaciones, transferencias entre almacenes y registro de operaciones. | 3.1, 2.4 | Bloqueado por: LOG-Q2. |
-| [ ] | **4.2** Reservation (tracks C B S F; estado: Pendiente) | Reservas de material para trabajos. | 4.1 | Bloqueado por: LOG-Q1, CAT-Q1. |
+| [ ] | **4.2** Reservation (tracks C B S F; estado: Pendiente) | Reservas de material para trabajos. | 4.1 | Bloqueado por: LOG-Q1. |
 | [ ] | **4.3** AvailabilityProjection (ATP) (tracks C S F; estado: Pendiente) | Disponibilidad prometida (ATP): qué material está libre y cuándo. | 4.2 |  |
 | [ ] | **4.4** Solver (isla JVM) (tracks C J; estado: Pendiente) | Solver Timefold (servicio JVM) que optimiza asignación y transferencias. | 2.4, 4.3 | Depende del hito S5 (aprobar 2.4) y del contrato 4.3-C. Bloqueado por: ADR-0012, SLV-Q1. |
 | [ ] | **4.5** Propuestas del Solver → Transfers (tracks C B S F; estado: Pendiente) | Propuestas del Solver convertidas en transferencias reales. | 4.3, 4.4 |  |
@@ -88,10 +88,25 @@
 |---|---|---|---|---|
 | [ ] | **7.1** GDPR / PII (A12) (tracks C B S F; estado: Pendiente) | Protección de datos personales (GDPR/PII). | 0.9, 5.3 | Bloqueado por: GDP-Q1…Q4. |
 | [ ] | **7.2** ETL: extracción y staging (tracks C B; estado: Pendiente) | ETL: extracción de EasyJob/adunic a staging. | — | Requiere acceso a NUS-SQL-001\NRP. Bloqueado por: acceso a `NUS-SQL-001\NRP`. |
-| [ ] | **7.3** ETL: transformación, carga, id_map, reconciliación (tracks C B; estado: Pendiente) | ETL: transformación, carga, mapa de ids y reconciliación. | 7.2 | Bloqueado por: tablas de correspondencia, CAT-Q1. |
-| [ ] | **7.4** Ensayos, piloto opcional, runbook, go/no-go (tracks B I; estado: Pendiente) | Ensayos de migración, runbook y decisión go/no-go del cutover. | 7.1, 7.3, 0.11 | Bloqueado por: MIG-Q1…Q4. |
+| [ ] | **7.3** ETL: transformación, carga, id_map, reconciliación (tracks C B; estado: Pendiente) | ETL: transformación, carga, mapa de ids y reconciliación. | 7.2 | Bloqueado por: tablas de correspondencia. |
+| [ ] | **7.4** Ensayos, piloto opcional, runbook, go/no-go (tracks B I; estado: Pendiente) | Ensayos de migración, runbook y decisión go/no-go del cutover. | 7.1, 7.3, 0.11 | Bloqueado por: MIG-Q1…Q3. |
+
+## Trabajo derivado de decisiones
+
+| Trabajo | Decisión | Tracks | Antes de |
+|---|---|---|---|
+| `PUT /v1/roles/{id}/permissions` exige `If-Match` (428/409) | 2026-11-11, `domain/access.md §8` | C → B ∥ F | Gate D de 0.9 (siguiente paso que toca `platform.yaml`) |
+| Vinculación del `app_user` sin `oid` en el primer login (solo miembros del tenant, solo en `nexus-platform`) | 2026-11-11, ADR-0006 | B | 7.2 (ETL de usuarios) |
+| Deuda menor del shell (PR #14): listener de 401 sin conectar, posible bucle de redirección con SSO silencioso, accesibilidad (`<html lang>`, `MatPaginatorIntl`, `aria-live`), ruta comodín `**`, estado de error explícito en `nx-data-grid` | 2026-11-11, aprobación de 0.5 | F | 1.3 (primer paso con pantallas de catálogo) |
 
 ## Hitos
 
 | Hito | Condición | Confirmado |
 |---|---|---|
+| Plataforma lista | 0.1–0.10 `Aprobado` | — |
+| Master data 1·2·3 completa (S5) | 2.4 `Aprobado` | — |
+| Ledger operativo (S6) | 3.1 `Aprobado` | — |
+| Planificación con Solver | 4.5 `Aprobado` | — |
+| Ciclo comercial-financiero completo | 5.7 `Aprobado` | — |
+| Captura edge en producción de prueba | 6.5 `Aprobado` | — |
+| Go-live | 7.4 go | — |

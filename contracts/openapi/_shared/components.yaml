@@ -242,8 +242,9 @@ components:
 
     Conflict:
       description: >
-        El recurso ya existe con contenido distinto (alta idempotente), o el
-        `If-Match` enviado no coincide con el `ETag` actual del recurso.
+        El recurso ya existe con contenido distinto (alta idempotente), el
+        `If-Match` enviado no coincide con el `ETag` actual del recurso, o un
+        conflicto de concurrencia detectado al guardar (`code: CONCURRENCY`).
       content:
         application/problem+json:
           schema:

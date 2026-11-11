@@ -70,6 +70,7 @@ h+=`<div class="grid two" style="margin-top:12px">
 h+=`<h2>Progreso por fase</h2><div class="card">${D.phases.map(p=>`<div class="row"><span><b>${esc(p.id)}</b> <span class="mute">${esc(p.name)}</span></span>${bar(p.pct)}<span class="n">${p.pct}% · ${p.ok}/${p.n}</span></div>`).join('')}</div>`;
 
 /* 3. Hitos */
+if((D.derived||[]).length){h+=`<h2>Trabajo derivado de decisiones</h2><div class="card"><table><tr><th>Trabajo</th><th>Decisión</th><th>Tracks</th><th>Antes de</th></tr>${D.derived.map(d=>`<tr><td>${esc(d[0])}</td><td>${esc(d[1])}</td><td>${esc(d[2])}</td><td>${esc(d[3])}</td></tr>`).join('')}</table></div>`;}
 h+=`<h2>Hitos</h2><div class="card"><table><tr><th>Hito</th><th>Condición</th><th>Confirmado</th></tr>${D.milestones.map(m=>`<tr><td>${esc(m[0])}</td><td>${esc(m[1])}</td><td>${esc(m[2]||'—')}</td></tr>`).join('')}</table></div>`;
 
 /* 4. Tareas por fase (bajo nivel) */

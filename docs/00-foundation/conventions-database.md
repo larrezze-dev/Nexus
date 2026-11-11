@@ -63,6 +63,36 @@ updated_by  uuid        NOT NULL
 
 La concurrencia optimista usa la columna de sistema `xmin`, expuesta en la API como `ETag` (`conventions-api.md §5`).
 
+**Tablas raíz de agregado (ADR-0019)** `[+]`: además del bloque mutable,
+
+```sql
+aggregate_version bigint NOT NULL DEFAULT 0,
+CONSTRAINT ck_<t>_aggregate_version CHECK (aggregate_version >= 0)
+```
+
+- **Qué es:** el número de eventos que ha emitido el agregado. La aplicación la escribe siempre de forma explícita, en la misma transacción que el `outbox.message` que numera (`UnitOfWork`), y la cabecera `nexus-aggregate-version` sale de ella (`conventions-events.md §2`). El `DEFAULT 0` solo cubre inserciones SQL que no emiten evento (semillas, fixtures de test).
+- **Concurrencia:** es token de concurrencia de EF Core (`UPDATE … WHERE aggregate_version = <cargada>`), así dos comandos concurrentes no pueden emitir la misma versión. Convive con `xmin`, que sigue respaldando el `ETag`/`If-Match`.
+- **Tablas que la llevan** (migraciones `V202611091000`, `V202611091001`; filas existentes rellenadas a 1, ADR-0019 §4):
+
+| Esquema | Tablas |
+|---|---|
+| `org` | `currency`, `party`, `"group"`, `legal_entity`, `business_unit`, `location`, `warehouse`, `app_user` |
+| `access` | `role`, `role_assignment` |
+
+- `org.currency` la lleva aunque hoy no emite eventos: está mapeada a una subclase de `AggregateRoot<>`.
+- `access.role_assignment` tiene ventana temporal (`valid_from`/`valid_to`), pero es una raíz de agregado mutable, no una tabla VR1 (`domain/versioning.md` la cita en «Qué se versiona» en el sentido A10): por eso la lleva.
+- **Semillas:** en una base nueva las semillas corren después de las migraciones y sus filas quedan en 0; en una base actualizada las filas ya sembradas recibieron 1. Ambos valores son válidos (huecos, `conventions-events.md §7`).
+- **Excluidas:**
+
+| Tabla | Motivo |
+|---|---|
+| `access.permission` | Catálogo sembrado sin clase de agregado (no está mapeada a ninguna subclase de `AggregateRoot<>`) |
+| `access.role_permission` | Historial A10 del agregado `Role`; su evento incrementa `access.role.aggregate_version` |
+
+- **Tablas futuras:** toda tabla mapeada a una subclase de `AggregateRoot<>` la lleva desde su migración de creación, emita eventos o no (ADR-0019 mapea `AggregateRoot.AggregateVersion` a esta columna en todo agregado, así que una tabla de agregado sin ella no se puede cargar). El agente la añade junto al bloque `-- + std` aunque la DDL de `docs/domain/` no la repita. Las append-only (§6) y VR1 (§8) no la llevan (ADR-0019 §5): cada fila es su propia versión.
+- **Append-only y VR1 modeladas como agregado `[+]` (ADR-0020, cierra el ⚑ el 2026-11-11):** se modelan como `ImmutableAggregateRoot<>`, sin columna `aggregate_version`. EF no mapea `AggregateVersion` en esos tipos y la versión del evento se deriva de la fila. Append-only: `nexus-aggregate-id` = `id` de la fila, versión 1. VR1: `nexus-aggregate-id` = `id` de la versión 1 del `business_key`, versión = `version_no`.
+- **No confundir** con la columna `aggregate_version` de las réplicas `*_ref` (`docs/domain/*`): allí es la última versión de origen aplicada por `VersionedReplica`, sin `DEFAULT 0`, y esta regla no se le aplica.
+
 **Tablas append-only:** `created_at`, `created_by` y nada más de auditoría.
 
 **Usuario SYSTEM:** `org.app_user` con `id = '00000000-0000-7000-8000-000000000001'`, sembrado en 0.4. Lo usan jobs y auto-provisiones (P6: `granted_by = SYSTEM`).
@@ -76,7 +106,7 @@ caption_i18n jsonb NOT NULL
   CHECK (jsonb_typeof(caption_i18n) = 'object' AND caption_i18n ? 'de')
 ```
 
-- Claves: `de`, `en`, `fr`, `it`, `es`. Obligatoria: `de` (idioma por defecto del grupo) `[+]` ⚑ confirmar.
+- Claves: `de`, `en`, `fr`, `it`, `es`. Obligatoria: `de` (idioma por defecto del grupo) `[+]` (confirmado por Luciano el 2026-11-11).
 - Orden de resolución en la UI: idioma del usuario → `de` → `en` → primera clave.
 
 ## §6 Tablas append-only (H5)
@@ -152,17 +182,19 @@ id               uuid PRIMARY KEY,           -- cambia en cada versión
 business_key     text NOT NULL,              -- identidad lógica estable
 version_no       integer NOT NULL CHECK (version_no >= 1),
 valid_from       timestamptz NOT NULL,
-valid_to         timestamptz NULL,           -- NULL = versión vigente
+valid_to         timestamptz NULL,           -- NULL = última de la cadena (vigente o programada, VER-R7)
 superseded_by_id uuid NULL REFERENCES <misma tabla>(id),
+is_retired       boolean NOT NULL DEFAULT false,  -- [+] ADR-0020: la baja es una versión
 CONSTRAINT uq_<t>_version UNIQUE (business_key, version_no),
-CONSTRAINT ck_<t>_window  CHECK (valid_to IS NULL OR valid_to > valid_from),
+CONSTRAINT ck_<t>_window  CHECK (valid_to IS NULL OR valid_to >= valid_from),  -- [+] = : versión anulada (VER-R8)
 CONSTRAINT ex_<t>_overlap EXCLUDE USING gist (
     business_key WITH =,
     tstzrange(valid_from, coalesce(valid_to, 'infinity')) WITH &&)
+    DEFERRABLE INITIALLY DEFERRED            -- [+] se comprueba en el COMMIT (versioning.md §4)
 ```
 
-- Índice parcial de versión vigente: `CREATE UNIQUE INDEX ... ON <t>(business_key) WHERE valid_to IS NULL`.
-- Consulta "as of": `WHERE business_key = $1 AND valid_from <= $2 AND (valid_to IS NULL OR valid_to > $2)`.
+- Índice parcial de la última versión de la cadena `[+]`: `CREATE INDEX ix_<t>_last ON <t>(business_key) WHERE valid_to IS NULL`, sin `UNIQUE` (redundante con el `EXCLUDE`, y un `UNIQUE` inmediato rompería el orden INSERT → UPDATE de `versioning.md §4`). **No** identifica la vigente: puede estar programada (VER-R7).
+- Consulta "as of" (también para "vigente ahora") `[+]`: `WHERE business_key = $1 AND valid_from <= $2 AND (valid_to IS NULL OR valid_to > $2) AND NOT is_retired`. Sin `NOT is_retired` solo se usa para el historial. Una versión anulada (`valid_to = valid_from`) nunca cumple el filtro.
 - La operación de versionado está en `domain/versioning.md`.
 
 ## §9 Restricciones e índices
@@ -218,4 +250,4 @@ Consultas que hacen fallar el job si devuelven filas:
 | DBC-4 | Tabla append-only declarada en §6 sin el trigger `trg_<tabla>_append_only` |
 | DBC-5 | Columna `timestamp without time zone`, `real`, `double precision` o `money` |
 | DBC-6 | Tabla propiedad de un rol distinto de `nexus_owner` |
-| DBC-7 | Tabla listada en `db/ci/versioned.txt` sin el trigger `trg_<tabla>_versioned` o sin el índice parcial `uq_*_current` |
+| DBC-7 | Tabla listada en `db/ci/versioned.txt` sin el trigger `trg_<tabla>_versioned`, sin el índice parcial `ix_*_last`, sin `EXCLUDE` diferido o sin la columna `is_retired` `[+]` |

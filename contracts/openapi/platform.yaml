@@ -2522,7 +2522,11 @@ paths:
         altas y cierres (ACC-R7): cierra (`valid_to`) los permisos que ya no
         están en la lista y abre filas nuevas para los que faltaban. Nunca
         hay `UPDATE` de `permission_id` en una fila existente. `x-scope:
-        global`: ver `createRole`.
+        global`: ver `createRole`. `[+]` Cambiar el conjunto de permisos
+        actualiza la fila del rol (`aggregate_version`, ADR-0019), así que su
+        `ETag` (`xmin`) también cambia; si dos ediciones concurrentes de los
+        permisos del mismo rol chocan, la perdedora recibe 409 con
+        `code: CONCURRENCY`.
       tags: [Roles]
       x-permission: "ROLE:UPDATE"
       x-scope: global
@@ -2563,6 +2567,8 @@ paths:
           $ref: '_shared/components.yaml#/components/responses/Forbidden'
         '404':
           $ref: '_shared/components.yaml#/components/responses/NotFound'
+        '409':
+          $ref: '_shared/components.yaml#/components/responses/Conflict'
         '422':
           $ref: '_shared/components.yaml#/components/responses/UnprocessableEntity'
 
