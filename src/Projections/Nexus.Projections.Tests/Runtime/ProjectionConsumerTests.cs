@@ -296,7 +296,14 @@ public sealed class ProjectionConsumerTests(RuntimeEnvironment env)
             }
         }
 
-        await using var first = RuntimeHarness.Create(env, [p]);
+        // Size-triggered first batch: a failed insert pauses EVERY assigned partition, so a batch flushed by
+        // time before partition 1 was fetched (a slow broker) would freeze MapCalls at 5 for the whole
+        // outage. The interval is only the fallback for the partition it keeps after the rebalance.
+        await using var first = RuntimeHarness.Create(env, [p], c =>
+        {
+            c[$"{ProjectionOptions.SectionName}:MaxBatchRows"] = (2 * perPartition).ToString(CultureInfo.InvariantCulture);
+            c[$"{ProjectionOptions.SectionName}:FlushInterval"] = "00:00:10";
+        });
         first.Start(p);
         (await Eventually.Until(() => first.State(p.GroupId) == ConsumerLoopState.DependencyUnavailable, Wait)).ShouldBeTrue("first member blocked on the insert");
         (await Eventually.Until(() => p.MapCalls == 2 * perPartition, Wait)).ShouldBeTrue("first member buffered both partitions");
