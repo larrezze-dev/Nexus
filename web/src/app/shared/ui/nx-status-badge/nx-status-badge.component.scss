@@ -1,34 +1,31 @@
-// ⚑ colores provisionales — a alinear con la paleta corporativa definitiva.
-// Los valores viven en src/styles/tokens.css (--nx-status-*); editar allí.
-// ⚑ Material 22 ya no lee --mdc-chip-*: estos colores NO se aplican hoy. Las líneas
-// --mat-chip-* comentadas son las equivalentes vigentes; descomentarlas (y borrar
-// las --mdc-*) cuando Luciano decida activar el cambio visual.
+// Colores activos desde 0.8 (decisión de Luciano, 2026-11-11).
+// ⚑ La paleta corporativa de Nüssli sigue abierta: para cambiar los colores,
+// editar los tokens --nx-status-* en src/styles/tokens.css (no este fichero).
+//
+// Variables de Material 22 usadas (mat-chip estándar = variante "elevated"):
+//  - --mat-chip-elevated-container-color: fondo de la píldora
+//  - --mat-chip-label-text-color: color del texto
+//  - --mat-chip-outline-width: 0 para que sea una píldora rellena, sin borde
 .nx-status-badge {
+  --mat-chip-outline-width: 0;
+
   &.nx-status-badge--neutral {
-    --mdc-chip-elevated-container-color: var(--nx-status-neutral-bg);
-    // --mat-chip-elevated-container-color: var(--nx-status-neutral-bg);
-    --mdc-chip-label-text-color: var(--nx-status-neutral-fg);
-    // --mat-chip-label-text-color: var(--nx-status-neutral-fg);
+    --mat-chip-elevated-container-color: var(--nx-status-neutral-bg);
+    --mat-chip-label-text-color: var(--nx-status-neutral-fg);
   }
 
   &.nx-status-badge--success {
-    --mdc-chip-elevated-container-color: var(--nx-status-success-bg);
-    // --mat-chip-elevated-container-color: var(--nx-status-success-bg);
-    --mdc-chip-label-text-color: var(--nx-status-success-fg);
-    // --mat-chip-label-text-color: var(--nx-status-success-fg);
+    --mat-chip-elevated-container-color: var(--nx-status-success-bg);
+    --mat-chip-label-text-color: var(--nx-status-success-fg);
   }
 
   &.nx-status-badge--warning {
-    --mdc-chip-elevated-container-color: var(--nx-status-warning-bg);
-    // --mat-chip-elevated-container-color: var(--nx-status-warning-bg);
-    --mdc-chip-label-text-color: var(--nx-status-warning-fg);
-    // --mat-chip-label-text-color: var(--nx-status-warning-fg);
+    --mat-chip-elevated-container-color: var(--nx-status-warning-bg);
+    --mat-chip-label-text-color: var(--nx-status-warning-fg);
   }
 
   &.nx-status-badge--danger {
-    --mdc-chip-elevated-container-color: var(--nx-status-danger-bg);
-    // --mat-chip-elevated-container-color: var(--nx-status-danger-bg);
-    --mdc-chip-label-text-color: var(--nx-status-danger-fg);
-    // --mat-chip-label-text-color: var(--nx-status-danger-fg);
+    --mat-chip-elevated-container-color: var(--nx-status-danger-bg);
+    --mat-chip-label-text-color: var(--nx-status-danger-fg);
   }
 }

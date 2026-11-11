@@ -23,11 +23,9 @@
   --nx-color-error: var(--mat-sys-error);
 
   /* ---------- Estados (nx-status-badge) ----------
-   * ⚑ AÚN NO ACTIVOS: Angular Material 22 ya no lee las variables --mdc-chip-*,
-   * así que nx-status-badge no aplica estos colores hoy. Cambiarlos aquí no
-   * tiene efecto visible hasta que Luciano decida activarlos (cambio visual):
-   * ver el bloque comentado en nx-status-badge.component.scss.
-   * (Sí se usan ya en --nx-diff-after-*.) */
+   * ACTIVOS desde 0.8 (decisión de Luciano, 2026-11-11): editar estos valores
+   * cambia el color de los chips de estado y del diff "después".
+   * ⚑ Paleta corporativa aún abierta. */
   --nx-status-success-bg: #c8e6c9;
   --nx-status-success-fg: #1b5e20;
   --nx-status-warning-bg: #ffe0b2;
