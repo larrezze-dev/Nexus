@@ -30,7 +30,9 @@
               }
             ],
             "styles": [
-              "src/styles.scss"
+              "src/styles.scss",
+              "src/styles/tokens.css",
+              "src/styles/components.css"
             ]
           },
           "configurations": {

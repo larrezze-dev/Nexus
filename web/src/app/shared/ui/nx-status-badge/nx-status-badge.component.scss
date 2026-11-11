@@ -1,22 +1,23 @@
 // ⚑ colores provisionales — a alinear con la paleta corporativa definitiva.
+// Los valores viven en src/styles/tokens.css (--nx-status-*); editar allí.
 .nx-status-badge {
   &.nx-status-badge--neutral {
-    --mdc-chip-elevated-container-color: #e0e0e0;
-    --mdc-chip-label-text-color: #424242;
+    --mdc-chip-elevated-container-color: var(--nx-status-neutral-bg);
+    --mdc-chip-label-text-color: var(--nx-status-neutral-fg);
   }
 
   &.nx-status-badge--success {
-    --mdc-chip-elevated-container-color: #c8e6c9;
-    --mdc-chip-label-text-color: #1b5e20;
+    --mdc-chip-elevated-container-color: var(--nx-status-success-bg);
+    --mdc-chip-label-text-color: var(--nx-status-success-fg);
   }
 
   &.nx-status-badge--warning {
-    --mdc-chip-elevated-container-color: #ffe0b2;
-    --mdc-chip-label-text-color: #e65100;
+    --mdc-chip-elevated-container-color: var(--nx-status-warning-bg);
+    --mdc-chip-label-text-color: var(--nx-status-warning-fg);
   }
 
   &.nx-status-badge--danger {
-    --mdc-chip-elevated-container-color: #ffcdd2;
-    --mdc-chip-label-text-color: #b71c1c;
+    --mdc-chip-elevated-container-color: var(--nx-status-danger-bg);
+    --mdc-chip-label-text-color: var(--nx-status-danger-fg);
   }
 }

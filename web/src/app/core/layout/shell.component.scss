@@ -3,7 +3,7 @@
 }
 
 .nx-shell__sidenav {
-  width: 240px;
+  width: var(--nx-sidenav-width);
 }
 
 .nx-shell__toolbar {
@@ -29,5 +29,5 @@
 }
 
 .nx-shell__content {
-  padding: 1rem;
+  padding: var(--nx-content-padding);
 }
