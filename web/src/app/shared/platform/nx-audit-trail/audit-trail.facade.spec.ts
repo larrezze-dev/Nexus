@@ -169,7 +169,7 @@ describe('AuditTrailFacade', () => {
     expect(facade.items().map((e) => e.aggregateVersion)).toEqual([2]);
   });
 
-  it('stops offering more when an appended page only holds duplicates (new event arrived between pages)', async () => {
+  it('stops offering more when the appended page is short and only holds a duplicate (new event arrived between pages)', async () => {
     const full = Array.from({ length: 50 }, (_, i) => event(60 - i));
     const { facade } = setup(async (_fn, params) => ({
       page: params['page'],
@@ -182,5 +182,22 @@ describe('AuditTrailFacade', () => {
     await facade.loadMore();
     expect(facade.items()).toHaveLength(50);
     expect(facade.hasMore()).toBe(false);
+  });
+
+  it('keeps offering more after a full appended page of duplicates and requests the following page', async () => {
+    const full = Array.from({ length: 50 }, (_, i) => event(200 - i));
+    const { api, facade } = setup(async (_fn, params) => ({
+      page: params['page'],
+      pageSize: 50,
+      total: 120,
+      items: params['page'] === 3 ? [event(1)] : full,
+    }));
+    await facade.load('warehouse', 'w-1');
+    await facade.loadMore();
+    expect(facade.items()).toHaveLength(50);
+    expect(facade.hasMore()).toBe(true);
+    await facade.loadMore();
+    expect(api.invoke.mock.calls.map((c) => (c[1] as { page: number }).page)).toEqual([1, 2, 3]);
+    expect(facade.items()).toHaveLength(51);
   });
 });
