@@ -25,6 +25,6 @@ Antes de lanzar 0.1 tienen que estar en `Aceptado` los ADR 0001–0010. El 0011 
 | [0017](0017-consumer-identity-in-unit-of-work.md) | Identidad del consumidor dentro del `UnitOfWork` | Aceptado | 0.7 track S (consumidores) |
 | [0018](0018-schema-resolution-by-content.md) | Resolución del esquema Avro del relay por contenido, no por versión del subject | Aceptado | 0.7 (track B, entregable 4; track C, `register-schemas.sh`) |
 | [0019](0019-persisted-aggregate-version.md) | Versión de agregado persistida (`nexus-aggregate-version`) | Aceptado | implementación antes de Gate D de 0.8 y del primer consumidor `*_ref` |
-| [0020](0020-immutable-aggregate-version.md) | Versión de agregado en tablas append-only y VR1 | Propuesto | 1.1 (track C), 1.4 |
+| [0020](0020-immutable-aggregate-version.md) | Versión de agregado en tablas append-only y VR1 | Aceptado | 1.1 (track C), 1.4 |
 
 Para un ADR nuevo: copiar `0000-template.md`, siguiente número libre, estado `Propuesto`, y añadir la fila aquí.

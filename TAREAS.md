@@ -26,10 +26,10 @@
 
 | Status | Nombre de la tarea | Descripción | Dependencias | Comentarios |
 |---|---|---|---|---|
-| [ ] | **1.1** Capa 1 completa (tracks C B F; estado: Pendiente) | Resto de maestros de la capa 1 (datos organizativos de base). | 0.6, 0.7 | Espera a que Luciano acepte ADR-0020 (versión de agregado de org.exchange_rate). Bloqueado por: ADR-0020. |
+| [ ] | **1.1** Capa 1 completa (tracks C B F; estado: Pendiente) | Resto de maestros de la capa 1 (datos organizativos de base). | 0.6, 0.7 | ADR-0020 aceptado el 2026-11-11 (org.exchange_rate como ImmutableAggregateRoot). Listo para lanzar. |
 | [ ] | **1.2** Unidades de medida (A11) + `nexus-catalog` (tracks C B F; estado: Pendiente) | Unidades de medida y conversiones; nace el servicio de catálogo. | 0.6, 0.7 |  |
 | [ ] | **1.3** Taxonomía y AssetType (tracks C B S F; estado: Pendiente) | Taxonomía de material y tipos de activo (qué se puede alquilar/mover). | 1.1, 1.2 |  |
-| [ ] | **1.4** Versionado (A10): precios y BOM (tracks C B S F; estado: Pendiente) | Precios y composiciones (BOM/kits) con historial de versiones. | 1.3 | CAT-Q1 y VER-Q1 decididos el 2026-11-11 (fecha futura en todas las VR1, el futuro es editable); espera a ADR-0020. Bloqueado por: ADR-0020. |
+| [ ] | **1.4** Versionado (A10): precios y BOM (tracks C B S F; estado: Pendiente) | Precios y composiciones (BOM/kits) con historial de versiones. | 1.3 | CAT-Q1, VER-Q1 y ADR-0020 cerrados el 2026-11-11 (fecha futura en todas las VR1, el futuro es editable, baja como fila). Depende de 1.3. |
 | [ ] | **1.5** AssetItem, lotes y proveedores (tracks C B F; estado: Pendiente) | Unidades físicas de material, lotes y proveedores. | 1.3 | CAT-Q4 decidido el 2026-11-11: asset_batch es tabla propia. |
 | [ ] | **1.6** Planes de mantenimiento (tracks C B F; estado: Pendiente) | Planes de mantenimiento de los activos. | 1.5 |  |
 
