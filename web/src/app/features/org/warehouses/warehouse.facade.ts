@@ -74,6 +74,8 @@ export class WarehouseFacade {
   readonly resolvedBusinessUnitLabel = this.resolvedBusinessUnitLabelSignal.asReadonly();
 
   private etag: string | null = null;
+  /** Monotonic sequence: only the latest `load()` (and none issued before a `reset()`) may apply its result. */
+  private loadSeq = 0;
 
   list(
     page: number,
@@ -102,6 +104,7 @@ export class WarehouseFacade {
   }
 
   async load(id: string): Promise<void> {
+    const seq = ++this.loadSeq;
     this.loadingSignal.set(true);
     this.errorSignal.set(null);
     this.resolvedLocationLabelSignal.set(null);
@@ -109,13 +112,20 @@ export class WarehouseFacade {
     this.resolvedBusinessUnitLabelSignal.set(null);
     try {
       const response = await this.api.invoke$Response(getWarehouse, { id });
+      if (seq !== this.loadSeq) {
+        return;
+      }
       this.selectedSignal.set(response.body);
       this.etag = response.headers.get('ETag');
-      await this.resolveLabels(response.body);
+      await this.resolveLabels(response.body, seq);
     } catch (error: unknown) {
-      this.errorSignal.set(this.describe(error).message);
+      if (seq === this.loadSeq) {
+        this.errorSignal.set(this.describe(error).message);
+      }
     } finally {
-      this.loadingSignal.set(false);
+      if (seq === this.loadSeq) {
+        this.loadingSignal.set(false);
+      }
     }
   }
 
@@ -178,6 +188,8 @@ export class WarehouseFacade {
 
   /** Clears stale `selected()`/error state from a previous detail visit, e.g. before starting a "new" form. */
   reset(): void {
+    this.loadSeq++;
+    this.loadingSignal.set(false);
     this.selectedSignal.set(null);
     this.errorSignal.set(null);
     this.businessUnitErrorSignal.set(null);
@@ -224,7 +236,7 @@ export class WarehouseFacade {
    * those three ids into short display labels once, right after `load()`, so the detail page can
    * show "Current: <label>" next to each picker.
    */
-  private async resolveLabels(warehouse: Warehouse): Promise<void> {
+  private async resolveLabels(warehouse: Warehouse, seq: number): Promise<void> {
     const [location, legalEntity, businessUnit] = await Promise.all([
       this.api.invoke(getLocation, { id: warehouse.locationId }).catch(() => null),
       this.api.invoke(getLegalEntity, { id: warehouse.legalEntityId }).catch(() => null),
@@ -232,6 +244,9 @@ export class WarehouseFacade {
         ? this.api.invoke(getBusinessUnit, { id: warehouse.businessUnitId }).catch(() => null)
         : Promise.resolve(null),
     ]);
+    if (seq !== this.loadSeq) {
+      return;
+    }
     this.resolvedLocationLabelSignal.set(location ? this.labelFor(location.code, location.name) : null);
     this.resolvedLegalEntityLabelSignal.set(legalEntity ? legalEntity.code : null);
     this.resolvedBusinessUnitLabelSignal.set(businessUnit ? businessUnit.code : null);

@@ -128,4 +128,57 @@ describe('UsersFacade', () => {
     expect(results).toHaveLength(1);
     expect(results[0].code).toBe('OPS-01');
   });
+
+  describe('load() sequencing', () => {
+    const userB: User = { ...user, id: '018f1a3c-7e3b-7c5a-9c2e-6a2f8e9b0c81', fullName: 'Bob' };
+    const url = (id: string) => `/api/platform/v1/users/${id}`;
+
+    it('ignores an older load() that resolves after a newer one (selected and ETag stay B)', async () => {
+      const { facade, httpMock } = setup();
+      const loadA = facade.load(user.id);
+      const loadB = facade.load(userB.id);
+      const reqA = httpMock.expectOne(url(user.id));
+      const reqB = httpMock.expectOne(url(userB.id));
+
+      reqB.flush(userB, { headers: { ETag: '"b"' } });
+      await loadB;
+      reqA.flush(user, { headers: { ETag: '"a"' } });
+      await loadA;
+
+      expect(facade.selected()?.id).toBe(userB.id);
+      expect(facade.loading()).toBe(false);
+
+      const update = facade.update(userB.id, { fullName: 'Bob 2' } as never);
+      const put = httpMock.expectOne(url(userB.id));
+      expect(put.request.headers.get('If-Match')).toBe('"b"');
+      put.flush(userB);
+      await update;
+    });
+
+    it('ignores a late failure of an older load()', async () => {
+      const { facade, httpMock } = setup();
+      const loadA = facade.load(user.id);
+      const loadB = facade.load(userB.id);
+      const reqA = httpMock.expectOne(url(user.id));
+      httpMock.expectOne(url(userB.id)).flush(userB, { headers: { ETag: '"b"' } });
+      await loadB;
+      reqA.flush({}, { status: 500, statusText: 'err' });
+      await loadA;
+
+      expect(facade.selected()?.id).toBe(userB.id);
+      expect(facade.error()).toBeNull();
+    });
+
+    it('discards the result of a load() still in flight when reset() is called', async () => {
+      const { facade, httpMock } = setup();
+      const load = facade.load(user.id);
+      const req = httpMock.expectOne(url(user.id));
+      facade.reset();
+      req.flush(user, { headers: { ETag: '"a"' } });
+      await load;
+
+      expect(facade.selected()).toBeNull();
+      expect(facade.loading()).toBe(false);
+    });
+  });
 });

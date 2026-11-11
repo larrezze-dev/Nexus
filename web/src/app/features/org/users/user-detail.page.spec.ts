@@ -470,5 +470,16 @@ describe('UserDetailPage', () => {
       expect(input()?.value).toBe('Edited Name');
       expect(fixture.componentInstance['form'].controls.fullName.value).toBe('Edited Name');
     });
+
+    it('shows neither the "Asignaciones" nor the "Auditoría" tab when the user failed to load', async () => {
+      const { fixture } = setup({ id: 'u-1' }, { selected: signal(null) });
+      fixture.detectChanges();
+      await fixture.whenStable();
+      fixture.detectChanges();
+
+      const tabs = Array.from((fixture.nativeElement as HTMLElement).querySelectorAll('[role="tab"]'));
+      expect(tabs).toHaveLength(1);
+      expect(findAuditTab(fixture)).toBeUndefined();
+    });
   });
 });

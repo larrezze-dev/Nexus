@@ -53,6 +53,8 @@ export class UsersFacade {
   readonly fieldErrors = this.fieldErrorsSignal.asReadonly();
 
   private selectedETag: string | null = null;
+  /** Monotonic sequence: only the latest `load()` (and none issued before a `reset()`) may apply its result. */
+  private loadSeq = 0;
 
   /** `fetch` for `nx-data-grid`. `page` is 0-based (grid convention); the API itself is 1-based. */
   list(page: number, pageSize: number, sort: NxSortModel | null): Observable<Page<UserListItem>> {
@@ -73,6 +75,8 @@ export class UsersFacade {
 
   /** Clears `selected`/errors, e.g. when navigating from an existing user's detail to "new". */
   reset(): void {
+    this.loadSeq++;
+    this.loadingSignal.set(false);
     this.selectedSignal.set(null);
     this.selectedETag = null;
     this.errorSignal.set(null);
@@ -80,17 +84,25 @@ export class UsersFacade {
   }
 
   async load(id: string): Promise<void> {
+    const seq = ++this.loadSeq;
     this.loadingSignal.set(true);
     this.errorSignal.set(null);
     this.fieldErrorsSignal.set(null);
     try {
       const response = await this.api.invoke$Response(getUser, { id });
+      if (seq !== this.loadSeq) {
+        return;
+      }
       this.selectedSignal.set(response.body);
       this.selectedETag = response.headers.get('ETag');
     } catch (error: unknown) {
-      this.applyError(error);
+      if (seq === this.loadSeq) {
+        this.applyError(error);
+      }
     } finally {
-      this.loadingSignal.set(false);
+      if (seq === this.loadSeq) {
+        this.loadingSignal.set(false);
+      }
     }
   }
 

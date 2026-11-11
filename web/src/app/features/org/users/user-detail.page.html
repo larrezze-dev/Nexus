@@ -92,7 +92,7 @@
         </form>
       </mat-tab>
 
-      @if (!isNew()) {
+      @if (!isNew() && facade.selected()) {
         <mat-tab [label]="'org.users.detail.tabs.assignments' | transloco">
           <div class="nx-user-detail-page__assignments">
             <a
