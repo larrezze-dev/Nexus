@@ -203,7 +203,8 @@ public sealed class RoundtripTests(RoundtripFixture fixture) : IClassFixture<Rou
         await createdConsumer.StartAsync(Ct);
         try
         {
-            await WaitUntilAsync(() => Task.FromResult(createdConsumer.Applied.Count == 1), "the created event is applied to the replica");
+            // Committed state, not the in-memory Applied list (filled before the consumer's COMMIT).
+            await WaitUntilAsync(async () => await ReplicaVersionAsync(created.Id) == 1, "the created event is committed to the replica");
         }
         finally
         {
@@ -215,16 +216,17 @@ public sealed class RoundtripTests(RoundtripFixture fixture) : IClassFixture<Rou
         await updatedConsumer.StartAsync(Ct);
         try
         {
-            await WaitUntilAsync(() => Task.FromResult(updatedConsumer.Applied.Count == 2), "both updated events are applied to the replica");
+            await WaitUntilAsync(async () => await ReplicaVersionAsync(created.Id) == 3, "both updated events are committed to the replica");
         }
         finally
         {
             await updatedConsumer.StopAsync(CancellationToken.None);
         }
 
-        // nexus-aggregate-version: 1 (created), then 2 and 3, in order; every apply wrote the row.
-        createdConsumer.Applied.ShouldBe([(1L, ReplicaApplyResult.Applied)]);
-        updatedConsumer.Applied.ShouldBe([(2L, ReplicaApplyResult.Applied), (3L, ReplicaApplyResult.Applied)]);
+        // Secondary: nexus-aggregate-version 1 (created), then 2 and 3, in order; every apply wrote
+        // the row. Distinct: a handler attempt rolled back and retried records the same entry twice.
+        createdConsumer.Applied.Distinct().ShouldBe([(1L, ReplicaApplyResult.Applied)]);
+        updatedConsumer.Applied.Distinct().ShouldBe([(2L, ReplicaApplyResult.Applied), (3L, ReplicaApplyResult.Applied)]);
         (await ReadReplicaAsync(created.Id)).ShouldBe((3L, created.Code + "-2", "AT"));
 
         // Re-delivery of the version-2 event (state of the first update) in a new transaction: ignored, row untouched.
@@ -261,6 +263,16 @@ public sealed class RoundtripTests(RoundtripFixture fixture) : IClassFixture<Rou
                 SchemaRegistryUrl = fixture.Kafka.SchemaRegistryUrl,
             }),
             new ConsumerHealthRegistry(TimeProvider.System));
+
+    /// <summary>The committed <c>aggregate_version</c> of the replica row, or null while it does not exist.</summary>
+    private async Task<long?> ReplicaVersionAsync(Guid id)
+    {
+        await using var connection = await fixture.Database.OpenAsOwnerAsync(Ct);
+        await using var command = new NpgsqlCommand(
+            $"SELECT aggregate_version FROM {RoundtripFixture.EffectSchema}.legal_entity_ref WHERE legal_entity_id = $1", connection);
+        command.Parameters.Add(new NpgsqlParameter<Guid> { TypedValue = id });
+        return await command.ExecuteScalarAsync(Ct) is long version ? version : null;
+    }
 
     private async Task<(long Version, string Code, string CountryCode)> ReadReplicaAsync(Guid id)
     {

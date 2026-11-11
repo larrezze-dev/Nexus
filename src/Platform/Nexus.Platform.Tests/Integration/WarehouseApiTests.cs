@@ -222,34 +222,35 @@ public sealed class WarehouseApiTests : IClassFixture<PlatformApiFixture>
         using var admin = _fixture.CreateClientFor(Org.Admin.Oid);
         var created = await CreateAsync(admin, NewWarehouse());
 
-        Task<HttpResponseMessage>[] puts;
-        await using (var holder = await _fixture.Database.Admin.OpenConnectionAsync(Ct))
-        await using (var hold = await holder.BeginTransactionAsync(Ct))
-        {
-            await using (var lockRow = new NpgsqlCommand("SELECT 1 FROM org.warehouse WHERE id = $1 FOR UPDATE", holder, hold))
-            {
-                lockRow.Parameters.Add(new NpgsqlParameter { Value = created.Id });
-                (await lockRow.ExecuteScalarAsync(Ct)).ShouldNotBeNull();
-            }
-
-            puts =
-            [
-                PutAsync(admin, created.Id, created.ETag, ToUpdate(created.Request) with { Code = created.Request.Code + "-P0" }),
-                PutAsync(admin, created.Id, created.ETag, ToUpdate(created.Request) with { Code = created.Request.Code + "-P1" }),
-            ];
-
-            await WaitUntilAsync(
-                async () => await _fixture.Database.ScalarAsync<long>(
-                    "SELECT count(*) FROM pg_stat_activity " +
-                    "WHERE usename = 'svc_platform' AND wait_event_type = 'Lock' AND query ILIKE '%UPDATE%warehouse%'") == 2,
-                puts);
-
-            await hold.RollbackAsync(Ct);
-        }
-
-        var responses = await Task.WhenAll(puts);
+        Task<HttpResponseMessage>[] puts = [];
         try
         {
+            await using (var holder = await _fixture.Database.Admin.OpenConnectionAsync(Ct))
+            await using (var hold = await holder.BeginTransactionAsync(Ct))
+            {
+                await using (var lockRow = new NpgsqlCommand("SELECT 1 FROM org.warehouse WHERE id = $1 FOR UPDATE", holder, hold))
+                {
+                    lockRow.Parameters.Add(new NpgsqlParameter { Value = created.Id });
+                    (await lockRow.ExecuteScalarAsync(Ct)).ShouldNotBeNull();
+                }
+
+                puts =
+                [
+                    PutAsync(admin, created.Id, created.ETag, ToUpdate(created.Request) with { Code = created.Request.Code + "-P0" }),
+                    PutAsync(admin, created.Id, created.ETag, ToUpdate(created.Request) with { Code = created.Request.Code + "-P1" }),
+                ];
+
+                await WaitUntilAsync(
+                    async () => await _fixture.Database.ScalarAsync<long>(
+                        "SELECT count(*) FROM pg_stat_activity " +
+                        "WHERE usename = 'svc_platform' AND wait_event_type = 'Lock' AND query ILIKE '%UPDATE%warehouse%'") == 2,
+                    puts);
+
+                await hold.RollbackAsync(Ct);
+            }
+
+            var responses = await Task.WhenAll(puts);
+
             responses.Count(r => r.StatusCode == HttpStatusCode.OK).ShouldBe(1);
             var conflict = responses.Single(r => r.StatusCode != HttpStatusCode.OK);
             conflict.StatusCode.ShouldBe(HttpStatusCode.Conflict);
@@ -272,9 +273,16 @@ public sealed class WarehouseApiTests : IClassFixture<PlatformApiFixture>
         }
         finally
         {
-            foreach (var response in responses)
+            // The row lock is released by now (the holder's transaction is disposed even when
+            // WaitUntilAsync failed), so both PUTs can finish: never leave them running or
+            // their responses undisposed. WhenAny does not throw if a request faulted.
+            await Task.WhenAny(Task.WhenAll(puts));
+            foreach (var put in puts)
             {
-                response.Dispose();
+                if (put.IsCompletedSuccessfully)
+                {
+                    (await put).Dispose();
+                }
             }
         }
     }
