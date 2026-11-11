@@ -1,6 +1,6 @@
 # ADR-0020 · Versión de agregado en tablas append-only y VR1
 
-- **Estado:** Propuesto
+- **Estado:** Aceptado (Luciano, 2026-11-11)
 - **Fecha:** 2026-11-11
 - **Decide:** Luciano Arrezze
 - **Afecta a:** 1.1 (`org.exchange_rate`), 1.4 (`asset_type_bom`, `asset_type_price_rule`), 5.4 (`hr.role_rate`), 5.6 (`controlling.cost_concept_reserve_pct`), `conventions-database.md §4 y §8`, `conventions-events.md §2`, `domain/versioning.md`

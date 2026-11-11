@@ -32,10 +32,10 @@ Antes de lanzar 0.1 deben estar en `Aceptado` los ADR 0001–0010 (`docs/adr/REA
 
 | Paso | Título | Tracks | Depende de | Paralelo con | Bloqueado por | Estado | Aprobado (fecha) |
 |---|---|---|---|---|---|---|---|
-| [1.1](F1/1.1-capa1-completa.md) | Capa 1 completa | C → B ∥ F | 0.6, 0.7 | 1.2 | ADR-0020 | Pendiente | |
+| [1.1](F1/1.1-capa1-completa.md) | Capa 1 completa | C → B ∥ F | 0.6, 0.7 | 1.2 | — | Pendiente | |
 | [1.2](F1/1.2-unidades-de-medida.md) | Unidades de medida (A11) + `nexus-catalog` | C → B ∥ F | 0.6, 0.7 | 1.1 | — | Pendiente | |
 | [1.3](F1/1.3-taxonomia-asset-type.md) | Taxonomía y AssetType | C → B ∥ S ∥ F | 1.1, 1.2 | — | — | Pendiente | |
-| [1.4](F1/1.4-versionado-precio-bom.md) | Versionado (A10): precios y BOM | C → B ∥ S ∥ F | 1.3 | 1.5 | ADR-0020 | Pendiente | |
+| [1.4](F1/1.4-versionado-precio-bom.md) | Versionado (A10): precios y BOM | C → B ∥ S ∥ F | 1.3 | 1.5 | — | Pendiente | |
 | [1.5](F1/1.5-items-lotes-proveedores.md) | AssetItem, lotes y proveedores | C → B ∥ F | 1.3 | 1.4 | — | Pendiente | |
 | [1.6](F1/1.6-mantenimiento.md) | Planes de mantenimiento | C → B ∥ F | 1.5 | 2.1 | — | Pendiente | |
 
