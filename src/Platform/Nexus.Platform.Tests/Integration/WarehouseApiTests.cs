@@ -3,6 +3,7 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using Nexus.BuildingBlocks.Application;
 using Nexus.BuildingBlocks.Testing;
+using Npgsql;
 using Shouldly;
 
 namespace Nexus.Platform.Tests.Integration;
@@ -186,7 +187,146 @@ public sealed class WarehouseApiTests : IClassFixture<PlatformApiFixture>
         (await ListAsync(userA, $"q={tag}&legalEntityId={Org.LegalEntityB.Id}")).Total.ShouldBe(0);
     }
 
+    [Fact(DisplayName = "ADR-0019: create + two updates of a warehouse emit aggregate versions 1, 2, 3 and org.warehouse keeps 3")]
+    public async Task Create_and_two_updates_emit_versions_1_2_3()
+    {
+        using var admin = _fixture.CreateClientFor(Org.Admin.Oid);
+        var created = await CreateAsync(admin, NewWarehouse());
+
+        var first = await PutAsync(admin, created.Id, created.ETag, ToUpdate(created.Request) with { Code = created.Request.Code + "-1" });
+        first.StatusCode.ShouldBe(HttpStatusCode.OK);
+        var second = await PutAsync(admin, created.Id, first.Headers.ETag!.Tag, ToUpdate(created.Request) with { Code = created.Request.Code + "-2" });
+        second.StatusCode.ShouldBe(HttpStatusCode.OK);
+
+        (await OutboxEventsAsync(created.Id)).ShouldBe(
+        [
+            (1L, "org.warehouse.created"),
+            (2L, "org.warehouse.updated"),
+            (3L, "org.warehouse.updated"),
+        ]);
+        (await _fixture.Database.ScalarAsync<long>("SELECT aggregate_version FROM org.warehouse WHERE id = $1", created.Id)).ShouldBe(3);
+    }
+
+    /// <summary>
+    /// Deterministic overlap, not a timing race: a superuser transaction holds the warehouse row
+    /// with <c>FOR UPDATE</c> (it changes neither <c>xmin</c> nor <c>aggregate_version</c>). Both
+    /// PUTs load version 1, pass the If-Match check and then block in their <c>UPDATE</c>; the
+    /// test waits until both are seen waiting on a lock, then releases the row. The first UPDATE
+    /// to get it commits; the other one re-checks <c>WHERE aggregate_version = 1 AND xmin = …</c>
+    /// against the committed row, matches nothing and fails with DbUpdateConcurrencyException,
+    /// which the exception handler maps to 409 (not the handler's own If-Match 409).
+    /// </summary>
+    [Fact(DisplayName = "ADR-0019: two concurrent PUTs with the same If-Match: one 200, one 409 concurrency, a single outbox row with version 2")]
+    public async Task Concurrent_updates_with_the_same_if_match_commit_once()
+    {
+        using var admin = _fixture.CreateClientFor(Org.Admin.Oid);
+        var created = await CreateAsync(admin, NewWarehouse());
+
+        Task<HttpResponseMessage>[] puts = [];
+        try
+        {
+            await using (var holder = await _fixture.Database.Admin.OpenConnectionAsync(Ct))
+            await using (var hold = await holder.BeginTransactionAsync(Ct))
+            {
+                await using (var lockRow = new NpgsqlCommand("SELECT 1 FROM org.warehouse WHERE id = $1 FOR UPDATE", holder, hold))
+                {
+                    lockRow.Parameters.Add(new NpgsqlParameter { Value = created.Id });
+                    (await lockRow.ExecuteScalarAsync(Ct)).ShouldNotBeNull();
+                }
+
+                puts =
+                [
+                    PutAsync(admin, created.Id, created.ETag, ToUpdate(created.Request) with { Code = created.Request.Code + "-P0" }),
+                    PutAsync(admin, created.Id, created.ETag, ToUpdate(created.Request) with { Code = created.Request.Code + "-P1" }),
+                ];
+
+                await WaitUntilAsync(
+                    async () => await _fixture.Database.ScalarAsync<long>(
+                        "SELECT count(*) FROM pg_stat_activity " +
+                        "WHERE usename = 'svc_platform' AND wait_event_type = 'Lock' AND query ILIKE '%UPDATE%warehouse%'") == 2,
+                    puts);
+
+                await hold.RollbackAsync(Ct);
+            }
+
+            var responses = await Task.WhenAll(puts);
+
+            responses.Count(r => r.StatusCode == HttpStatusCode.OK).ShouldBe(1);
+            var conflict = responses.Single(r => r.StatusCode != HttpStatusCode.OK);
+            conflict.StatusCode.ShouldBe(HttpStatusCode.Conflict);
+            conflict.Content.Headers.ContentType?.MediaType.ShouldBe("application/problem+json");
+            var problem = await ReadAsync(conflict);
+            problem.GetProperty("code").GetString().ShouldBe("CONCURRENCY");
+            problem.GetProperty("type").GetString()!.ShouldEndWith("/conflict");
+            problem.GetProperty("detail").GetString()!.ShouldContain("while this request was being processed"); // DbUpdateConcurrencyException path
+
+            (await OutboxEventsAsync(created.Id)).ShouldBe(
+            [
+                (1L, "org.warehouse.created"),
+                (2L, "org.warehouse.updated"),
+            ]);
+            (await _fixture.Database.ScalarAsync<long>("SELECT aggregate_version FROM org.warehouse WHERE id = $1", created.Id)).ShouldBe(2);
+
+            var winner = await ReadAsync(responses.Single(r => r.StatusCode == HttpStatusCode.OK));
+            (await _fixture.Database.ScalarAsync<string>("SELECT code FROM org.warehouse WHERE id = $1", created.Id))
+                .ShouldBe(winner.GetProperty("code").GetString());
+        }
+        finally
+        {
+            // The row lock is released by now (the holder's transaction is disposed even when
+            // WaitUntilAsync failed), so both PUTs can finish: never leave them running or
+            // their responses undisposed. WhenAny does not throw if a request faulted.
+            await Task.WhenAny(Task.WhenAll(puts));
+            foreach (var put in puts)
+            {
+                if (put.IsCompletedSuccessfully)
+                {
+                    (await put).Dispose();
+                }
+            }
+        }
+    }
+
     // --- helpers ---------------------------------------------------------------------------
+
+    /// <summary>Polls <paramref name="condition"/> (30 s budget); fails early if a request already finished.</summary>
+    private static async Task WaitUntilAsync(Func<Task<bool>> condition, IReadOnlyList<Task<HttpResponseMessage>> requests)
+    {
+        var deadline = DateTime.UtcNow.AddSeconds(30);
+        while (!await condition())
+        {
+            if (requests.FirstOrDefault(r => r.IsCompleted) is { } done)
+            {
+                var response = await done;
+                throw new ShouldAssertException(
+                    $"A PUT finished ({(int)response.StatusCode}) before both were blocked on the row lock: " +
+                    await response.Content.ReadAsStringAsync(Ct));
+            }
+
+            if (DateTime.UtcNow > deadline)
+            {
+                throw new TimeoutException("Both PUTs never blocked on the warehouse row lock.");
+            }
+
+            await Task.Delay(25, Ct);
+        }
+    }
+
+    private async Task<List<(long Version, string EventType)>> OutboxEventsAsync(Guid aggregateId)
+    {
+        await using var command = _fixture.Database.Admin.CreateCommand(
+            "SELECT aggregate_version, event_type FROM outbox.message WHERE aggregate_id = $1 ORDER BY aggregate_version, created_at");
+        command.Parameters.Add(new NpgsqlParameter { Value = aggregateId });
+        await using var reader = await command.ExecuteReaderAsync(Ct);
+        var rows = new List<(long, string)>();
+        while (await reader.ReadAsync(Ct))
+        {
+            rows.Add((reader.GetInt64(0), reader.GetString(1)));
+        }
+
+        return rows;
+    }
+
 
     private static async Task<ListPage> ListAsync(HttpClient client, string query)
     {

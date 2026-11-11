@@ -113,4 +113,66 @@ public sealed class ProjectionsClickHouseTests : IAsyncLifetime
         (await Scalar<long>($"SELECT count() FROM nexus_analytics.dim_warehouse FINAL WHERE legal_entity_id = '{Le}' AND warehouse_id = '{Wh}'")).ShouldBe(1);
         (await Scalar<long>($"SELECT count() FROM nexus_analytics.dim_warehouse FINAL WHERE warehouse_id = '{Wh}' AND business_unit_id = '{Bu}' AND caption_i18n['de'] = 'Haupt' AND is_active")).ShouldBe(1);
     }
+
+    private async Task Exec(string sql)
+    {
+        await using var conn = Connect();
+        await conn.OpenAsync();
+        await using var cmd = conn.CreateCommand();
+        cmd.CommandText = sql;
+        await cmd.ExecuteNonQueryAsync();
+    }
+
+    private static Guid EventId(int n) => Guid.Parse($"0197a000-0000-7000-8000-0000000001{n:00}");
+
+    [Fact(DisplayName = "dim_warehouse: reprocessing an old event (v2) after v3 keeps the newest state, also after merge (ADR-0019)")]
+    public async Task Dim_warehouse_reprocessed_old_event_keeps_newest_state()
+    {
+        var p = new DimWarehouseProjection();
+        var v1 = Record("nexus.org.warehouse.created", Envelope("org.warehouse.created", "warehouse", Wh, version: 1, eventId: EventId(1)),
+            Warehouse("warehouse.created.v1.avsc", Wh, Le, null));
+        var v2 = Record("nexus.org.warehouse.updated", Envelope("org.warehouse.updated", "warehouse", Wh, version: 2, eventId: EventId(2)),
+            Warehouse("warehouse.updated.v1.avsc", Wh, Le, null, isActive: false));
+        var v3 = Record("nexus.org.warehouse.updated", Envelope("org.warehouse.updated", "warehouse", Wh, version: 3, eventId: EventId(3)),
+            Warehouse("warehouse.updated.v1.avsc", Wh, Le, Bu));
+
+        // Each in its own insert (separate parts, like separate consumer batches), then a late redelivery of v2.
+        await Insert(p, v1);
+        await Insert(p, v2);
+        await Insert(p, v3);
+        await Insert(p, v2);
+
+        var newest = $"warehouse_id = '{Wh}' AND _aggregate_version = 3 AND business_unit_id = '{Bu}' AND is_active";
+        (await Scalar<long>($"SELECT count() FROM nexus_analytics.dim_warehouse FINAL WHERE warehouse_id = '{Wh}'")).ShouldBe(1);
+        (await Scalar<long>($"SELECT count() FROM nexus_analytics.dim_warehouse FINAL WHERE {newest}")).ShouldBe(1);
+
+        await Exec("OPTIMIZE TABLE nexus_analytics.dim_warehouse FINAL");
+        (await Scalar<long>($"SELECT count() FROM nexus_analytics.dim_warehouse WHERE warehouse_id = '{Wh}'")).ShouldBe(1);
+        (await Scalar<long>($"SELECT count() FROM nexus_analytics.dim_warehouse WHERE {newest}")).ShouldBe(1);
+    }
+
+    [Fact(DisplayName = "dim_legal_entity: reprocessing an old event (v2) after v3 keeps the newest state, also after merge (ADR-0019)")]
+    public async Task Dim_legal_entity_reprocessed_old_event_keeps_newest_state()
+    {
+        var p = new DimLegalEntityProjection();
+        var v1 = Record("nexus.org.legal-entity.created", Envelope("org.legal-entity.created", "legal-entity", Le, version: 1, eventId: EventId(11)),
+            LegalEntity("legal-entity.created.v1.avsc", Le));
+        var v2 = Record("nexus.org.legal-entity.deactivated", Envelope("org.legal-entity.deactivated", "legal-entity", Le, version: 2, eventId: EventId(12)),
+            LegalEntity("legal-entity.deactivated.v1.avsc", Le, isActive: false));
+        var v3 = Record("nexus.org.legal-entity.updated", Envelope("org.legal-entity.updated", "legal-entity", Le, version: 3, eventId: EventId(13)),
+            LegalEntity("legal-entity.updated.v1.avsc", Le, isActive: true));
+
+        await Insert(p, v1);
+        await Insert(p, v2);
+        await Insert(p, v3);
+        await Insert(p, v2);
+
+        var newest = $"legal_entity_id = '{Le}' AND _aggregate_version = 3 AND is_active";
+        (await Scalar<long>($"SELECT count() FROM nexus_analytics.dim_legal_entity FINAL WHERE legal_entity_id = '{Le}'")).ShouldBe(1);
+        (await Scalar<long>($"SELECT count() FROM nexus_analytics.dim_legal_entity FINAL WHERE {newest}")).ShouldBe(1);
+
+        await Exec("OPTIMIZE TABLE nexus_analytics.dim_legal_entity FINAL");
+        (await Scalar<long>($"SELECT count() FROM nexus_analytics.dim_legal_entity WHERE legal_entity_id = '{Le}'")).ShouldBe(1);
+        (await Scalar<long>($"SELECT count() FROM nexus_analytics.dim_legal_entity WHERE {newest}")).ShouldBe(1);
+    }
 }

@@ -426,8 +426,10 @@ public sealed class UnitOfWorkTests(PersistenceDatabaseFixture db) : IAsyncLifet
         (await CountOutbox(widgetId)).ShouldBe(1);
     }
 
-    [Fact]
-    public void Model_MapsXminAndIgnoresAggregateBookkeeping()
+    // BE-R3 + ADR-0019: xmin stays the ETag token on aggregate roots even though they now carry a
+    // second concurrency token (aggregate_version); DomainEvents stays out of the model.
+    [Fact(DisplayName = "ADR-0019 / BE-R3: model maps xmin and aggregate_version as concurrency tokens, ignores DomainEvents")]
+    public void Model_MapsXminAndAggregateVersion_AndIgnoresDomainEvents()
     {
         // Model building needs no live connection.
         var uow = db.CreateUnitOfWork(_dataSource, _userId, _correlationId);
@@ -438,8 +440,18 @@ public sealed class UnitOfWorkTests(PersistenceDatabaseFixture db) : IAsyncLifet
         xmin.IsConcurrencyToken.ShouldBeTrue();
         xmin.GetColumnName().ShouldBe("xmin");
         xmin.GetColumnType().ShouldBe("xid");
-        entity.FindProperty(nameof(Widget.AggregateVersion)).ShouldBeNull();
+        xmin.ValueGenerated.ShouldBe(Microsoft.EntityFrameworkCore.Metadata.ValueGenerated.OnAddOrUpdate);
+
+        var version = entity.FindProperty(nameof(Widget.AggregateVersion))!;
+        version.IsConcurrencyToken.ShouldBeTrue();
+        version.GetColumnName().ShouldBe("aggregate_version");
+        version.GetColumnType().ShouldBe("bigint");
+        version.IsNullable.ShouldBeFalse();
+        version.ValueGenerated.ShouldBe(Microsoft.EntityFrameworkCore.Metadata.ValueGenerated.Never); // the app always sends it, INSERT included
+        version.FieldInfo.ShouldNotBeNull(); // private setter: materialized through the backing field
+
         entity.FindNavigation(nameof(Widget.DomainEvents)).ShouldBeNull();
+        entity.FindProperty(nameof(Widget.DomainEvents)).ShouldBeNull();
         entity.FindProperty(nameof(Widget.Name))!.GetColumnName().ShouldBe("name");
     }
 

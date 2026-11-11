@@ -160,15 +160,42 @@ public sealed class UnitOfWork : IUnitOfWork
             // 1. Snapshot aggregates BEFORE SaveChanges: deleted entities are detached by it,
             //    and their events (e.g. "deactivated") must not be lost.
             aggregates = new List<object>(_explicitAggregates);
+            var tracked = new HashSet<object>(ReferenceEqualityComparer.Instance);
             foreach (var dbContext in _dbContexts)
             {
                 foreach (var entry in dbContext.ChangeTracker.Entries())
                 {
-                    if (AggregateAccessor.IsAggregate(entry.Entity.GetType())
-                        && !aggregates.Contains(entry.Entity, ReferenceEqualityComparer.Instance))
+                    if (!AggregateAccessor.IsAggregate(entry.Entity.GetType()))
+                    {
+                        continue;
+                    }
+
+                    if (!aggregates.Contains(entry.Entity, ReferenceEqualityComparer.Instance))
                     {
                         aggregates.Add(entry.Entity);
                     }
+
+                    if (AggregateVersionConvention.PersistsVersion(entry.Metadata))
+                    {
+                        tracked.Add(entry.Entity);
+                    }
+                }
+            }
+
+            // ADR-0019: an aggregate's version is persisted (aggregate_version) only through an
+            // enlisted DbContext that maps it on the aggregate's own row. Events of an aggregate
+            // that is untracked (AddEventsFrom), or tracked without that column (owned, keyless,
+            // view-mapped), would carry versions nobody saves, and the next command would reissue
+            // them. Fail before any write.
+            foreach (var aggregate in aggregates)
+            {
+                if (!tracked.Contains(aggregate) && AggregateAccessor.For(aggregate.GetType()).HasPendingEvents(aggregate))
+                {
+                    throw new InvalidOperationException(
+                        $"ADR-0019: {aggregate.GetType().Name} has pending events but no enlisted DbContext tracks it on a row " +
+                        "with aggregate_version (untracked, e.g. only registered with AddEventsFrom, or mapped as owned, " +
+                        "keyless or to a view), so its version would not be persisted. " +
+                        "Load or add it through a DbContextBase that maps its table before committing.");
                 }
             }
 
@@ -323,6 +350,9 @@ public sealed class UnitOfWork : IUnitOfWork
                 yield return new PendingDomainEvent(events[i], version - events.Count + i + 1);
             }
         }
+
+        public bool HasPendingEvents(object aggregate) =>
+            ((IReadOnlyList<IDomainEvent>)_domainEvents.GetValue(aggregate)!).Count > 0;
 
         public void Clear(object aggregate) => _clear.Invoke(aggregate, null);
 

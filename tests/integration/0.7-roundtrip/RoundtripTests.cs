@@ -16,6 +16,7 @@ using Nexus.BuildingBlocks.Messaging;
 using Nexus.BuildingBlocks.Messaging.Dlq;
 using Nexus.BuildingBlocks.Messaging.Health;
 using Nexus.BuildingBlocks.Messaging.Inbox;
+using Nexus.BuildingBlocks.Messaging.Replica;
 using Nexus.BuildingBlocks.Messaging.Retry;
 using Nexus.BuildingBlocks.Persistence;
 using Nexus.BuildingBlocks.Web.Correlation;
@@ -174,6 +175,75 @@ public sealed class RoundtripTests(RoundtripFixture fixture) : IClassFixture<Rou
         secondRun.HandledLegalEntities.ShouldNotContain(first.Id, "the inbox skipped the redelivered record");
     }
 
+    [Fact(DisplayName = "EV-ORDER / ADR-0019: a legal entity created and updated twice through the API reaches a VersionedReplica as aggregate versions 1, 2, 3, every update is applied, and a re-delivered version 2 is ignored")]
+    public async Task LegalEntity_CreatedThenUpdatedTwice_VersionedReplicaAppliesEveryUpdate()
+    {
+        using var admin = fixture.CreateClientFor(fixture.Org.Admin.Oid);
+        var created = await CreateLegalEntityAsync(admin, Guid.NewGuid());
+
+        var update1 = await UpdateLegalEntityAsync(admin, created.Id, created.ETag, created.Code, "EUR", "DE");
+        var update2 = await UpdateLegalEntityAsync(admin, created.Id, update1.ETag, created.Code + "-2", "EUR", "AT");
+        update2.ETag.ShouldNotBe(update1.ETag);
+
+        await WaitUntilAsync(
+            async () => await fixture.Database.ScalarAsync<long>(
+                "SELECT count(*) FROM outbox.message WHERE status = 'PUBLISHED' AND aggregate_id = $1 AND event_type LIKE 'org.legal-entity.%'",
+                created.Id) == 3,
+            "the relay publishes created + two updated events");
+
+        await using var host = fixture.BuildConsumerHost();
+        using var dlq = new KafkaDlqPublisher(fixture.Kafka.BootstrapServers, TimeProvider.System);
+        var replica = new VersionedReplica(new ReplicaTable(
+            RoundtripFixture.EffectSchema, "legal_entity_ref", ["code", "country_code"], keyColumn: "legal_entity_id"));
+        var useCase = $"replica-{Guid.CreateVersion7():N}";
+
+        // Created first (different topic: cross-topic order is not guaranteed, so make it deterministic), then the updates.
+        using var createdConsumer = new ReplicaConsumer<LegalEntityCreated>(
+            Runtime(host, dlq), useCase + "-c", RoundtripFixture.Topic, replica, created.Id, m => (m.id, m.code, m.countryCode));
+        await createdConsumer.StartAsync(Ct);
+        try
+        {
+            // Committed state, not the in-memory Applied list (filled before the consumer's COMMIT).
+            await WaitUntilAsync(async () => await ReplicaVersionAsync(created.Id) == 1, "the created event is committed to the replica");
+        }
+        finally
+        {
+            await createdConsumer.StopAsync(CancellationToken.None);
+        }
+
+        using var updatedConsumer = new ReplicaConsumer<LegalEntityUpdated>(
+            Runtime(host, dlq), useCase + "-u", RoundtripFixture.UpdatedTopic, replica, created.Id, m => (m.id, m.code, m.countryCode));
+        await updatedConsumer.StartAsync(Ct);
+        try
+        {
+            await WaitUntilAsync(async () => await ReplicaVersionAsync(created.Id) == 3, "both updated events are committed to the replica");
+        }
+        finally
+        {
+            await updatedConsumer.StopAsync(CancellationToken.None);
+        }
+
+        // Secondary: nexus-aggregate-version 1 (created), then 2 and 3, in order; every apply wrote
+        // the row. Distinct: a handler attempt rolled back and retried records the same entry twice.
+        createdConsumer.Applied.Distinct().ShouldBe([(1L, ReplicaApplyResult.Applied)]);
+        updatedConsumer.Applied.Distinct().ShouldBe([(2L, ReplicaApplyResult.Applied), (3L, ReplicaApplyResult.Applied)]);
+        (await ReadReplicaAsync(created.Id)).ShouldBe((3L, created.Code + "-2", "AT"));
+
+        // Re-delivery of the version-2 event (state of the first update) in a new transaction: ignored, row untouched.
+        await using var connection = new NpgsqlConnection(fixture.Database.GetConnectionString(RoundtripFixture.ConsumerRole));
+        await connection.OpenAsync(Ct);
+        await using var transaction = await connection.BeginTransactionAsync(Ct);
+        var redelivered = await replica.ApplyAsync(
+            transaction,
+            created.Id,
+            2,
+            new Dictionary<string, object?> { ["code"] = created.Code, ["country_code"] = "DE" },
+            Ct);
+        await transaction.CommitAsync(Ct);
+        redelivered.ShouldBe(ReplicaApplyResult.IgnoredStale);
+        (await ReadReplicaAsync(created.Id)).ShouldBe((3L, created.Code + "-2", "AT"));
+    }
+
     private static string Header(ConsumeResult<string, byte[]> record, string name) =>
         Encoding.UTF8.GetString(record.Message.Headers.GetLastBytes(name));
 
@@ -193,6 +263,40 @@ public sealed class RoundtripTests(RoundtripFixture fixture) : IClassFixture<Rou
                 SchemaRegistryUrl = fixture.Kafka.SchemaRegistryUrl,
             }),
             new ConsumerHealthRegistry(TimeProvider.System));
+
+    /// <summary>The committed <c>aggregate_version</c> of the replica row, or null while it does not exist.</summary>
+    private async Task<long?> ReplicaVersionAsync(Guid id)
+    {
+        await using var connection = await fixture.Database.OpenAsOwnerAsync(Ct);
+        await using var command = new NpgsqlCommand(
+            $"SELECT aggregate_version FROM {RoundtripFixture.EffectSchema}.legal_entity_ref WHERE legal_entity_id = $1", connection);
+        command.Parameters.Add(new NpgsqlParameter<Guid> { TypedValue = id });
+        return await command.ExecuteScalarAsync(Ct) is long version ? version : null;
+    }
+
+    private async Task<(long Version, string Code, string CountryCode)> ReadReplicaAsync(Guid id)
+    {
+        await using var connection = await fixture.Database.OpenAsOwnerAsync(Ct);
+        await using var command = new NpgsqlCommand(
+            $"SELECT aggregate_version, code, country_code FROM {RoundtripFixture.EffectSchema}.legal_entity_ref WHERE legal_entity_id = $1", connection);
+        command.Parameters.Add(new NpgsqlParameter<Guid> { TypedValue = id });
+        await using var reader = await command.ExecuteReaderAsync(Ct);
+        (await reader.ReadAsync(Ct)).ShouldBeTrue("the replica row exists");
+        return (reader.GetInt64(0), reader.GetString(1), reader.GetString(2));
+    }
+
+    private static async Task<UpdatedLegalEntity> UpdateLegalEntityAsync(
+        HttpClient client, Guid id, string etag, string code, string currency, string country)
+    {
+        using var request = new HttpRequestMessage(HttpMethod.Put, new Uri($"/v1/legal-entities/{id}", UriKind.Relative))
+        {
+            Content = JsonContent.Create(new { Code = code, CurrencyCode = currency, CountryCode = country }),
+        };
+        request.Headers.TryAddWithoutValidation("If-Match", etag);
+        var response = await client.SendAsync(request, Ct);
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
+        return new UpdatedLegalEntity(response.Headers.ETag!.Tag);
+    }
 
     private async Task<CreatedLegalEntity> CreateLegalEntityAsync(HttpClient client, Guid correlationId, Stopwatch? sendTimer = null)
     {
@@ -219,7 +323,7 @@ public sealed class RoundtripTests(RoundtripFixture fixture) : IClassFixture<Rou
         var body = (await response.Content.ReadFromJsonAsync<JsonDocument>(Ct))!.RootElement;
         body.GetProperty("id").GetGuid().ShouldBe(id);
         response.Headers.TryGetValues(CorrelationMiddleware.HeaderName, out var echoed).ShouldBeTrue();
-        return new CreatedLegalEntity(id, code, echoed!.Single());
+        return new CreatedLegalEntity(id, code, echoed!.Single(), response.Headers.ETag!.Tag);
     }
 
     private async Task<long> PublishedCountAsync(IEnumerable<CreatedLegalEntity> entities) =>
@@ -245,7 +349,70 @@ public sealed class RoundtripTests(RoundtripFixture fixture) : IClassFixture<Rou
         }
     }
 
-    private sealed record CreatedLegalEntity(Guid Id, string Code, string EchoedCorrelationId);
+    private sealed record CreatedLegalEntity(Guid Id, string Code, string EchoedCorrelationId, string ETag);
+
+    private sealed record UpdatedLegalEntity(string ETag);
+
+    /// <summary>
+    /// A <see cref="NexusConsumer{TEvent}"/> whose effect applies the event to the test legal-entity replica
+    /// through <see cref="VersionedReplica"/>, inside the consumer's unit of work (same transaction as the inbox row).
+    /// Only events of <c>aggregateId</c> are applied (the topic is shared with other tests).
+    /// </summary>
+    private sealed class ReplicaConsumer<TEvent> : NexusConsumer<TEvent>
+        where TEvent : class, Avro.Specific.ISpecificRecord
+    {
+        private readonly VersionedReplica _replica;
+        private readonly Guid _aggregateId;
+        private readonly Func<TEvent, (Guid Id, string Code, string CountryCode)> _state;
+        private readonly List<(long Version, ReplicaApplyResult Result)> _applied = [];
+
+        public ReplicaConsumer(
+            NexusConsumerRuntime runtime,
+            string useCase,
+            string topic,
+            VersionedReplica replica,
+            Guid aggregateId,
+            Func<TEvent, (Guid, string, string)> state)
+            : base(runtime.CreateOptions("operations", useCase, topic), runtime)
+        {
+            _replica = replica;
+            _aggregateId = aggregateId;
+            _state = state;
+        }
+
+        /// <summary>(nexus-aggregate-version, apply result) of every event of the aggregate, in delivery order.</summary>
+        public IReadOnlyList<(long Version, ReplicaApplyResult Result)> Applied
+        {
+            get
+            {
+                lock (_applied)
+                {
+                    return [.. _applied];
+                }
+            }
+        }
+
+        protected override async Task HandleAsync(TEvent message, EventEnvelope envelope, IServiceProvider services, CancellationToken ct)
+        {
+            var (id, code, countryCode) = _state(message);
+            if (id != _aggregateId)
+            {
+                return;
+            }
+
+            var uow = services.GetRequiredService<IUnitOfWork>();
+            var result = await _replica.ApplyAsync(
+                uow.Transaction!,
+                id,
+                envelope.AggregateVersion,
+                new Dictionary<string, object?> { ["code"] = code, ["country_code"] = countryCode },
+                ct);
+            lock (_applied)
+            {
+                _applied.Add((envelope.AggregateVersion, result));
+            }
+        }
+    }
 
     /// <summary>
     /// A <see cref="NexusConsumer{TEvent}"/> of the real <c>nexus.org.legal-entity.created</c> topic
