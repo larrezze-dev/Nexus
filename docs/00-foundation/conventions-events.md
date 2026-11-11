@@ -27,7 +27,7 @@ El contrato A7 se reparte entre **cabeceras Kafka** (envoltorio) y **valor Avro*
 | `event_type` | cabecera `nexus-event-type` | `<contexto>.<aggregate>.<evento>` |
 | `aggregate_type` | cabecera `nexus-aggregate-type` | texto |
 | `aggregate_id` | cabecera `nexus-aggregate-id` **y clave del mensaje Kafka** | UUID |
-| `aggregate_version` `[+]` | cabecera `nexus-aggregate-version` | entero, crece por agregado |
+| `aggregate_version` `[+]` | cabecera `nexus-aggregate-version` | entero, crece por agregado: número de eventos emitidos por el agregado, persistido en la columna `aggregate_version` de su tabla (`[+]` ADR-0019, `conventions-database.md §4`). El primer evento es 1; en agregados anteriores a ADR-0019 el siguiente evento tras el backfill es 2 |
 | `occurred_at` | cabecera `nexus-occurred-at` | ISO-8601 UTC |
 | `actor_user_id` | cabecera `nexus-actor-user-id` | UUID |
 | `schema_version` | cabecera `nexus-schema-version` | entero (`v<n>` del archivo `.avsc`; `[+]` independiente del número de versión del subject en el Schema Registry, ADR-0018) |
@@ -154,7 +154,7 @@ CREATE TABLE inbox.processed_message (
 ```
 
 - **Reintentos:** 1 intento + 3 reintentos con backoff (200 ms, 1 s, 5 s), es decir, 4 intentos en total `[+]`. Si el 4.º también falla → mensaje a `{topic}.DLQ` con cabeceras `nexus-dlq-error`, `nexus-dlq-consumer`, `nexus-dlq-failed-at`, y se continúa. `[+]` Si la propia publicación en la DLQ falla, el consumidor pausa sus particiones (sin confirmar el offset), reintenta la publicación con backoff exponencial (tope ~30 s), se informa `Unhealthy` y reanuda cuando lo consigue: el mensaje nunca se pierde ni se salta.
-- **Orden:** un consumidor que necesite orden comprueba `aggregate_version` y descarta versiones anteriores a la ya aplicada.
+- **Orden:** un consumidor que necesite orden comprueba `aggregate_version` y descarta versiones anteriores a la ya aplicada. `[+]` La serie puede tener huecos (filas sembradas por SQL sin evento empiezan en 0; el backfill de ADR-0019 deja el siguiente evento en 2), así que solo se compara con `>`; nunca se espera `+1`.
 - El consumidor abre su transacción con `app.current_user_id` = `actor_user_id` del evento si la acción es en nombre del usuario, o SYSTEM si es una reacción del sistema. La ficha del paso indica cuál.
 
 ## §8 Proyecciones a ClickHouse (`nexus-projections`)
@@ -164,6 +164,7 @@ CREATE TABLE inbox.processed_message (
 - Toda tabla lleva `legal_entity_id` (para el filtro de alcance), `_event_id`, `_aggregate_version`, `_ingested_at`.
 - Motor por defecto: `ReplacingMergeTree(_aggregate_version)`, con `ORDER BY` que empieza por `legal_entity_id`. Las consultas usan `FINAL` o agregan con `argMax`.
 - Idempotencia por `ReplacingMergeTree`: reprocesar un evento no duplica.
+- `[+]` `_aggregate_version` puede tener huecos (filas sembradas por SQL sin evento, backfill de ADR-0019): `ReplacingMergeTree`/`argMax` se quedan con la mayor, y ninguna proyección espera versiones consecutivas.
 - `[+]` **Excepción `event_log`** (paso 0.8): sus columnas se llaman `event_id` y `aggregate_version` (sin `_`), el motor es `ReplacingMergeTree(_ingested_at)` y el `ORDER BY` empieza por el agregado (`aggregate_type, aggregate_id, aggregate_version, event_id`), porque su acceso es siempre por agregado y no por Mandant. El filtro de alcance se sigue aplicando en la consulta: `legal_entity_id IN (...)` con las legal entities donde el actor tiene `AUDIT:READ` (`access.has_permission`, no `visible_legal_entities()`); las filas con `legal_entity_id` NULL solo son visibles con `AUDIT:READ` en una asignación `GLOBAL`.
 - `[+]` Los topics con `pii: true` en `topics.yaml` guardan en `event_log` solo las cabeceras (`payload_json = ''`), según EV-R5; el endpoint de auditoría devuelve `payload` y `previousPayload` a `null` para ellos.
 - Reconstrucción: `nexus-projections rebuild <proyeccion>` borra la tabla, resetea el offset del grupo y relee el topic desde el inicio.
