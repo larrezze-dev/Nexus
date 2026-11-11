@@ -1,10 +1,12 @@
 import { ChangeDetectionStrategy, Component, OnInit, inject, signal } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
+import { MatTabsModule } from '@angular/material/tabs';
 import { TranslocoModule, TranslocoService } from '@jsverse/transloco';
 import { isProblem } from '../../../core/http/problem';
 import { NxI18nService } from '../../../core/i18n/nx-i18n.service';
 import { NxCanDirective } from '../../../shared/auth/can.directive';
+import { NxAuditTrailComponent } from '../../../shared/platform/nx-audit-trail/nx-audit-trail.component';
 import { NxStatusBadgeComponent } from '../../../shared/ui/nx-status-badge/nx-status-badge.component';
 import { LegalEntityFormComponent, LegalEntityFormValue } from './legal-entity-form.component';
 import { LegalEntitiesFacade } from './legal-entities.facade';
@@ -23,7 +25,15 @@ import { LegalEntitiesFacade } from './legal-entities.facade';
 @Component({
   selector: 'nx-legal-entity-detail-page',
   standalone: true,
-  imports: [TranslocoModule, MatButtonModule, NxCanDirective, NxStatusBadgeComponent, LegalEntityFormComponent],
+  imports: [
+    TranslocoModule,
+    MatButtonModule,
+    MatTabsModule,
+    NxCanDirective,
+    NxAuditTrailComponent,
+    NxStatusBadgeComponent,
+    LegalEntityFormComponent,
+  ],
   templateUrl: './legal-entity-detail.page.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })

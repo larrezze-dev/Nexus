@@ -4,7 +4,11 @@
     "reload": "Reload",
     "save": "Save",
     "yes": "Yes",
-    "no": "No"
+    "no": "No",
+    "tabs": {
+      "general": "General",
+      "audit": "Audit"
+    }
   },
   "errors": {
     "generic": "Something went wrong. Please try again.",
@@ -353,6 +357,95 @@
       "businessUnit": "Business unit",
       "clear": "Clear",
       "current": "Current: {{value}}"
+    }
+  },
+  "audit": {
+    "summary": "{{count}} events · most recent first · times in Europe/Zurich",
+    "refresh": "Refresh",
+    "loadMore": "Load more",
+    "empty": {
+      "title": "No events yet",
+      "hint": "Changes appear here a few seconds after saving. If you expect to see something, press “Refresh”."
+    },
+    "error": "The audit trail could not be loaded. Please try again.",
+    "retry": "Retry",
+    "pii": "This event contains personal data: only who and when are stored, not the details of the changes.",
+    "unknownActor": "Unknown user",
+    "technicalDetails": "Technical details",
+    "field": "Field",
+    "before": "Before",
+    "after": "After",
+    "value": "Value",
+    "initialValues": "Initial values",
+    "emptyValue": "(empty)",
+    "fields": {
+      "code": "Code",
+      "captionI18n": "Caption",
+      "name": "Name",
+      "street": "Street",
+      "postalCode": "Postal code",
+      "city": "City",
+      "region": "Region",
+      "locationId": "Location",
+      "legalEntityId": "Legal entity",
+      "businessUnitId": "Business unit",
+      "partyId": "Party",
+      "groupId": "Group",
+      "currencyCode": "Currency",
+      "countryCode": "Country",
+      "isActive": "Active",
+      "costCenterCode": "Cost center",
+      "consolidationMethod": "Consolidation method",
+      "reportingCurrencyCode": "Reporting currency",
+      "partyType": "Party type",
+      "legalName": "Legal name",
+      "displayName": "Display name",
+      "taxId": "Tax ID",
+      "erpCompanyCode": "ERP company code",
+      "isInternal": "Internal",
+      "externalSubject": "External subject",
+      "preferredLanguage": "Preferred language"
+    },
+    "summaryOne": "1 event · times in Europe/Zurich",
+    "loading": "Loading audit trail…",
+    "previousUnavailable": "Previous version unavailable: showing current values.",
+    "noMore": "No more events"
+  },
+  "events": {
+    "org": {
+      "legal-entity": {
+        "created": "Legal entity created",
+        "updated": "Legal entity updated",
+        "deactivated": "Legal entity deactivated"
+      },
+      "business-unit": {
+        "created": "Business unit created",
+        "updated": "Business unit updated",
+        "deactivated": "Business unit deactivated"
+      },
+      "warehouse": {
+        "created": "Warehouse created",
+        "updated": "Warehouse updated",
+        "deactivated": "Warehouse deactivated"
+      },
+      "user": {
+        "created": "User created",
+        "updated": "User updated",
+        "deactivated": "User deactivated"
+      },
+      "party": {
+        "created": "Party created",
+        "updated": "Party updated",
+        "deactivated": "Party deactivated"
+      },
+      "group": {
+        "created": "Group created",
+        "updated": "Group updated"
+      },
+      "location": {
+        "created": "Location created",
+        "updated": "Location updated"
+      }
     }
   }
 }

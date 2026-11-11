@@ -9,6 +9,7 @@ import { NxI18nService } from '../../../core/i18n/nx-i18n.service';
 import { LegalEntitiesFacade } from '../legal-entities/legal-entities.facade';
 import { BusinessUnitsFacade } from './business-units.facade';
 import { BusinessUnitDetailPage } from './business-unit-detail.page';
+import { denyAuditRead, findAuditTab, selectAuditTab, stubAuditTrail } from '../audit-tab.testing';
 
 const legalEntity: LegalEntity = {
   id: '018f1a3c-7e3b-7c5a-9c2e-6a2f8e9b0c40',
@@ -101,6 +102,7 @@ async function setupPage(
     ],
   }).compileComponents();
 
+  stubAuditTrail(BusinessUnitDetailPage);
   const fixture: ComponentFixture<BusinessUnitDetailPage> = TestBed.createComponent(BusinessUnitDetailPage);
   return fixture;
 }
@@ -167,5 +169,45 @@ describe('BusinessUnitDetailPage', () => {
     });
 
     expect(router.navigate).toHaveBeenCalledWith(['..', businessUnit.id], { relativeTo: expect.anything() });
+  });
+
+  describe('audit tab', () => {
+    it('shows an "Auditoría" tab for an existing record and renders nx-audit-trail when selected', async () => {
+      const fixture = await setupPage(
+        { id: businessUnit.id },
+        createBusinessUnitFacadeStub(businessUnit),
+        createLegalEntitiesFacadeStub(legalEntity),
+      );
+      fixture.detectChanges();
+      await fixture.componentInstance['initialized'];
+      fixture.detectChanges();
+      const audit = await selectAuditTab(fixture);
+
+      expect(audit).not.toBeNull();
+      expect(audit?.aggregateType()).toBe('business_unit');
+      expect(audit?.aggregateId()).toBe(businessUnit.id);
+    });
+
+    it('has no "Auditoría" tab when creating a new record', async () => {
+      const fixture = await setupPage({}, createBusinessUnitFacadeStub(null), createLegalEntitiesFacadeStub(null));
+      fixture.detectChanges();
+      await fixture.whenStable();
+      fixture.detectChanges();
+
+      expect(findAuditTab(fixture)).toBeUndefined();
+    });
+
+    it('has no "Auditoría" tab without AUDIT:READ', async () => {
+      const fixture = await setupPage(
+        { id: businessUnit.id },
+        createBusinessUnitFacadeStub(businessUnit),
+        createLegalEntitiesFacadeStub(legalEntity),
+      );
+      denyAuditRead();
+      fixture.detectChanges();
+      await fixture.componentInstance['initialized'];
+      fixture.detectChanges();
+      expect(findAuditTab(fixture)).toBeUndefined();
+    });
   });
 });

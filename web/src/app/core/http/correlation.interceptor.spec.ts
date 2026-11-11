@@ -48,4 +48,44 @@ describe('correlationInterceptor', () => {
     second.flush({});
     controller.verify();
   });
+
+  describe('request scope', () => {
+    function send(url: string) {
+      TestBed.configureTestingModule({
+        providers: [
+          provideHttpClient(withInterceptors([correlationInterceptor])),
+          provideHttpClientTesting(),
+        ],
+      });
+      const http = TestBed.inject(HttpClient);
+      const controller = TestBed.inject(HttpTestingController);
+      http.get(url).subscribe();
+      const req = controller.expectOne(url);
+      req.flush({});
+      controller.verify();
+      return req.request.headers.get(CORRELATION_ID_HEADER);
+    }
+
+    it('adds the header to API requests with a relative URL', () => {
+      expect(send('/api/platform/v1/me')).toBeTruthy();
+    });
+
+    it('adds the header to same-origin absolute URLs', () => {
+      expect(send(`${window.location.origin}/api/platform/v1/me`)).toBeTruthy();
+    });
+
+    it('does not add the header to protocol-relative URLs pointing to another host', () => {
+      expect(send('//other-host/x')).toBeNull();
+    });
+
+    it('does not add the header to data: URLs', () => {
+      expect(send('data:text/plain,hello')).toBeNull();
+    });
+
+    it('does not add the header to cross-origin requests (OIDC provider)', () => {
+      expect(
+        send('http://localhost:8180/realms/nexus/.well-known/openid-configuration'),
+      ).toBeNull();
+    });
+  });
 });

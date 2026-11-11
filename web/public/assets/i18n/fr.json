@@ -4,7 +4,11 @@
     "reload": "Recharger",
     "save": "Enregistrer",
     "yes": "Oui",
-    "no": "Non"
+    "no": "Non",
+    "tabs": {
+      "general": "Général",
+      "audit": "Audit"
+    }
   },
   "errors": {
     "generic": "Une erreur est survenue. Veuillez réessayer.",
@@ -353,6 +357,95 @@
       "businessUnit": "Unité d'affaires",
       "clear": "Effacer",
       "current": "Actuel : {{value}}"
+    }
+  },
+  "audit": {
+    "summary": "{{count}} événements · le plus récent en premier · heures en Europe/Zurich",
+    "refresh": "Actualiser",
+    "loadMore": "Charger plus",
+    "empty": {
+      "title": "Aucun événement pour l'instant",
+      "hint": "Les modifications apparaissent ici quelques secondes après l'enregistrement. Si vous attendez quelque chose, cliquez sur « Actualiser »."
+    },
+    "error": "Impossible de charger l'audit. Veuillez réessayer.",
+    "retry": "Réessayer",
+    "pii": "Cet événement contient des données personnelles : seuls l'auteur et l'heure sont conservés, pas le détail des modifications.",
+    "unknownActor": "Utilisateur inconnu",
+    "technicalDetails": "Détails techniques",
+    "field": "Champ",
+    "before": "Avant",
+    "after": "Après",
+    "value": "Valeur",
+    "initialValues": "Valeurs initiales",
+    "emptyValue": "(vide)",
+    "fields": {
+      "code": "Code",
+      "captionI18n": "Libellé",
+      "name": "Nom",
+      "street": "Rue",
+      "postalCode": "Code postal",
+      "city": "Ville",
+      "region": "Région",
+      "locationId": "Site",
+      "legalEntityId": "Entité juridique",
+      "businessUnitId": "Unité d'affaires",
+      "partyId": "Partenaire",
+      "groupId": "Groupe",
+      "currencyCode": "Devise",
+      "countryCode": "Pays",
+      "isActive": "Actif",
+      "costCenterCode": "Centre de coûts",
+      "consolidationMethod": "Méthode de consolidation",
+      "reportingCurrencyCode": "Devise de reporting",
+      "partyType": "Type de partenaire",
+      "legalName": "Raison sociale",
+      "displayName": "Nom affiché",
+      "taxId": "Numéro fiscal",
+      "erpCompanyCode": "Code société ERP",
+      "isInternal": "Interne",
+      "externalSubject": "Identifiant externe",
+      "preferredLanguage": "Langue préférée"
+    },
+    "summaryOne": "1 événement · heures en Europe/Zurich",
+    "loading": "Chargement de l'audit…",
+    "previousUnavailable": "Version précédente indisponible : affichage des valeurs actuelles.",
+    "noMore": "Plus d'événements"
+  },
+  "events": {
+    "org": {
+      "legal-entity": {
+        "created": "Entité juridique créée",
+        "updated": "Entité juridique mise à jour",
+        "deactivated": "Entité juridique désactivée"
+      },
+      "business-unit": {
+        "created": "Unité opérationnelle créée",
+        "updated": "Unité opérationnelle mise à jour",
+        "deactivated": "Unité opérationnelle désactivée"
+      },
+      "warehouse": {
+        "created": "Entrepôt créé",
+        "updated": "Entrepôt mis à jour",
+        "deactivated": "Entrepôt désactivé"
+      },
+      "user": {
+        "created": "Utilisateur créé",
+        "updated": "Utilisateur mis à jour",
+        "deactivated": "Utilisateur désactivé"
+      },
+      "party": {
+        "created": "Partenaire créé",
+        "updated": "Partenaire mis à jour",
+        "deactivated": "Partenaire désactivé"
+      },
+      "group": {
+        "created": "Groupe créé",
+        "updated": "Groupe mis à jour"
+      },
+      "location": {
+        "created": "Emplacement créé",
+        "updated": "Emplacement mis à jour"
+      }
     }
   }
 }

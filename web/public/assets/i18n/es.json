@@ -4,7 +4,11 @@
     "reload": "Recargar",
     "save": "Guardar",
     "yes": "Sí",
-    "no": "No"
+    "no": "No",
+    "tabs": {
+      "general": "General",
+      "audit": "Auditoría"
+    }
   },
   "errors": {
     "generic": "Algo salió mal. Inténtalo de nuevo.",
@@ -353,6 +357,95 @@
       "businessUnit": "Business unit",
       "clear": "Quitar",
       "current": "Actual: {{value}}"
+    }
+  },
+  "audit": {
+    "summary": "{{count}} eventos · el más reciente primero · horas en Europe/Zurich",
+    "refresh": "Actualizar",
+    "loadMore": "Cargar más",
+    "empty": {
+      "title": "Todavía no hay eventos",
+      "hint": "Los cambios aparecen aquí unos segundos después de guardar. Si esperas ver algo, pulsa «Actualizar»."
+    },
+    "error": "No se ha podido cargar la auditoría. Inténtalo de nuevo.",
+    "retry": "Reintentar",
+    "pii": "Este evento contiene datos personales: solo se guarda quién y cuándo, no el detalle de los cambios.",
+    "unknownActor": "Usuario desconocido",
+    "technicalDetails": "Detalles técnicos",
+    "field": "Campo",
+    "before": "Antes",
+    "after": "Después",
+    "value": "Valor",
+    "initialValues": "Valores iniciales",
+    "emptyValue": "(vacío)",
+    "fields": {
+      "code": "Código",
+      "captionI18n": "Denominación",
+      "name": "Nombre",
+      "street": "Calle",
+      "postalCode": "Código postal",
+      "city": "Ciudad",
+      "region": "Región",
+      "locationId": "Ubicación",
+      "legalEntityId": "Entidad legal",
+      "businessUnitId": "Business unit",
+      "partyId": "Tercero",
+      "groupId": "Grupo",
+      "currencyCode": "Moneda",
+      "countryCode": "País",
+      "isActive": "Activo",
+      "costCenterCode": "Centro de costo",
+      "consolidationMethod": "Método de consolidación",
+      "reportingCurrencyCode": "Moneda de reporte",
+      "partyType": "Tipo de tercero",
+      "legalName": "Razón social",
+      "displayName": "Nombre visible",
+      "taxId": "NIF/CIF",
+      "erpCompanyCode": "Código de sociedad ERP",
+      "isInternal": "Interno",
+      "externalSubject": "Identificador externo",
+      "preferredLanguage": "Idioma preferido"
+    },
+    "summaryOne": "1 evento · horas en Europe/Zurich",
+    "loading": "Cargando auditoría…",
+    "previousUnavailable": "Versión anterior no disponible: se muestran los valores actuales.",
+    "noMore": "No hay más eventos"
+  },
+  "events": {
+    "org": {
+      "legal-entity": {
+        "created": "Legal entity creada",
+        "updated": "Legal entity actualizada",
+        "deactivated": "Legal entity desactivada"
+      },
+      "business-unit": {
+        "created": "Business unit creada",
+        "updated": "Business unit actualizada",
+        "deactivated": "Business unit desactivada"
+      },
+      "warehouse": {
+        "created": "Almacén creado",
+        "updated": "Almacén actualizado",
+        "deactivated": "Almacén desactivado"
+      },
+      "user": {
+        "created": "Usuario creado",
+        "updated": "Usuario actualizado",
+        "deactivated": "Usuario desactivado"
+      },
+      "party": {
+        "created": "Tercero creado",
+        "updated": "Tercero actualizado",
+        "deactivated": "Tercero desactivado"
+      },
+      "group": {
+        "created": "Grupo creado",
+        "updated": "Grupo actualizado"
+      },
+      "location": {
+        "created": "Ubicación creada",
+        "updated": "Ubicación actualizada"
+      }
     }
   }
 }

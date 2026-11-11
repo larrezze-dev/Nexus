@@ -1,0 +1,64 @@
+/*
+ * NEXUS — clases genéricas reutilizables. Solo usan tokens --nx-* (ver tokens.css).
+ */
+
+/* Cabecera de página: título + acciones en una fila. */
+.nx-header-bar {
+  display: flex;
+  align-items: center;
+  gap: var(--nx-space-4);
+  margin-bottom: var(--nx-space-4);
+}
+
+/* Tarjeta de contenido. */
+.nx-card {
+  background: var(--nx-color-surface-raised);
+  border: 1px solid var(--nx-color-border);
+  border-radius: var(--nx-radius-lg);
+  padding: var(--nx-space-4);
+}
+
+/* Estado vacío (sin datos). */
+.nx-empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--nx-space-2);
+  padding: var(--nx-space-5);
+  border: 1px dashed var(--nx-color-border);
+  border-radius: var(--nx-radius-lg);
+  color: var(--nx-color-text-muted);
+  text-align: center;
+}
+
+/* Aviso; la variante --error es la de errores. */
+.nx-alert {
+  display: flex;
+  align-items: center;
+  gap: var(--nx-space-3);
+  padding: var(--nx-space-3) var(--nx-space-4);
+  border-radius: var(--nx-radius-lg);
+}
+
+.nx-alert--error {
+  background: var(--nx-alert-error-bg);
+  color: var(--nx-alert-error-fg);
+}
+
+/* Chip pequeño con borde (p. ej. "v3"). */
+.nx-chip-outline {
+  display: inline-flex;
+  align-items: center;
+  padding: 0 var(--nx-space-2);
+  border: 1px solid var(--nx-color-border);
+  border-radius: var(--nx-radius-sm);
+  color: var(--nx-color-text-muted);
+  font-size: 0.75rem;
+  line-height: 1.5rem;
+}
+
+/* Texto monoespaciado (ids, JSON). */
+.nx-mono {
+  font-family: var(--nx-font-mono);
+}

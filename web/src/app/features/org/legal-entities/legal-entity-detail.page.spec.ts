@@ -7,6 +7,7 @@ import { LegalEntity } from '../../../api/platform/models/legal-entity';
 import { NxI18nService } from '../../../core/i18n/nx-i18n.service';
 import { LegalEntitiesFacade } from './legal-entities.facade';
 import { LegalEntityDetailPage } from './legal-entity-detail.page';
+import { denyAuditRead, findAuditTab, selectAuditTab, stubAuditTrail } from '../audit-tab.testing';
 
 const legalEntity: LegalEntity = {
   id: '018f1a3c-7e3b-7c5a-9c2e-6a2f8e9b0c40',
@@ -69,6 +70,7 @@ async function setupPage(paramMap: Record<string, string>, facade: ReturnType<ty
     ],
   }).compileComponents();
 
+  stubAuditTrail(LegalEntityDetailPage);
   const fixture: ComponentFixture<LegalEntityDetailPage> = TestBed.createComponent(LegalEntityDetailPage);
   return fixture;
 }
@@ -145,5 +147,37 @@ describe('LegalEntityDetailPage', () => {
     });
 
     expect(router.navigate).toHaveBeenCalledWith(['..', legalEntity.id], { relativeTo: expect.anything() });
+  });
+
+  describe('audit tab', () => {
+    it('shows an "Auditoría" tab for an existing record and renders nx-audit-trail when selected', async () => {
+      const fixture = await setupPage({ id: legalEntity.id }, createFacadeStub(legalEntity));
+      fixture.detectChanges();
+      await fixture.whenStable();
+      fixture.detectChanges();
+      const audit = await selectAuditTab(fixture);
+
+      expect(audit).not.toBeNull();
+      expect(audit?.aggregateType()).toBe('legal-entity');
+      expect(audit?.aggregateId()).toBe(legalEntity.id);
+    });
+
+    it('has no "Auditoría" tab when creating a new record', async () => {
+      const fixture = await setupPage({}, createFacadeStub(null));
+      fixture.detectChanges();
+      await fixture.whenStable();
+      fixture.detectChanges();
+
+      expect(findAuditTab(fixture)).toBeUndefined();
+    });
+
+    it('has no "Auditoría" tab without AUDIT:READ', async () => {
+      const fixture = await setupPage({ id: legalEntity.id }, createFacadeStub(legalEntity));
+      denyAuditRead();
+      fixture.detectChanges();
+      await fixture.whenStable();
+      fixture.detectChanges();
+      expect(findAuditTab(fixture)).toBeUndefined();
+    });
   });
 });

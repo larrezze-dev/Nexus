@@ -4,7 +4,11 @@
     "reload": "Ricarica",
     "save": "Salva",
     "yes": "Sì",
-    "no": "No"
+    "no": "No",
+    "tabs": {
+      "general": "Generale",
+      "audit": "Audit"
+    }
   },
   "errors": {
     "generic": "Qualcosa è andato storto. Riprova.",
@@ -353,6 +357,95 @@
       "businessUnit": "Business unit",
       "clear": "Rimuovi",
       "current": "Attuale: {{value}}"
+    }
+  },
+  "audit": {
+    "summary": "{{count}} eventi · il più recente per primo · orari in Europe/Zurich",
+    "refresh": "Aggiorna",
+    "loadMore": "Carica altro",
+    "empty": {
+      "title": "Ancora nessun evento",
+      "hint": "Le modifiche compaiono qui pochi secondi dopo il salvataggio. Se ti aspetti di vedere qualcosa, premi «Aggiorna»."
+    },
+    "error": "Impossibile caricare l'audit. Riprova.",
+    "retry": "Riprova",
+    "pii": "Questo evento contiene dati personali: vengono conservati solo chi e quando, non il dettaglio delle modifiche.",
+    "unknownActor": "Utente sconosciuto",
+    "technicalDetails": "Dettagli tecnici",
+    "field": "Campo",
+    "before": "Prima",
+    "after": "Dopo",
+    "value": "Valore",
+    "initialValues": "Valori iniziali",
+    "emptyValue": "(vuoto)",
+    "fields": {
+      "code": "Codice",
+      "captionI18n": "Etichetta",
+      "name": "Nome",
+      "street": "Via",
+      "postalCode": "CAP",
+      "city": "Città",
+      "region": "Regione",
+      "locationId": "Sede",
+      "legalEntityId": "Entità legale",
+      "businessUnitId": "Business unit",
+      "partyId": "Partner",
+      "groupId": "Gruppo",
+      "currencyCode": "Valuta",
+      "countryCode": "Paese",
+      "isActive": "Attivo",
+      "costCenterCode": "Centro di costo",
+      "consolidationMethod": "Metodo di consolidamento",
+      "reportingCurrencyCode": "Valuta di reporting",
+      "partyType": "Tipo di partner",
+      "legalName": "Ragione sociale",
+      "displayName": "Nome visualizzato",
+      "taxId": "Partita IVA",
+      "erpCompanyCode": "Codice azienda ERP",
+      "isInternal": "Interno",
+      "externalSubject": "Identificativo esterno",
+      "preferredLanguage": "Lingua preferita"
+    },
+    "summaryOne": "1 evento · orari in Europe/Zurich",
+    "loading": "Caricamento audit…",
+    "previousUnavailable": "Versione precedente non disponibile: vengono mostrati i valori attuali.",
+    "noMore": "Nessun altro evento"
+  },
+  "events": {
+    "org": {
+      "legal-entity": {
+        "created": "Entità giuridica creata",
+        "updated": "Entità giuridica aggiornata",
+        "deactivated": "Entità giuridica disattivata"
+      },
+      "business-unit": {
+        "created": "Business unit creata",
+        "updated": "Business unit aggiornata",
+        "deactivated": "Business unit disattivata"
+      },
+      "warehouse": {
+        "created": "Magazzino creato",
+        "updated": "Magazzino aggiornato",
+        "deactivated": "Magazzino disattivato"
+      },
+      "user": {
+        "created": "Utente creato",
+        "updated": "Utente aggiornato",
+        "deactivated": "Utente disattivato"
+      },
+      "party": {
+        "created": "Partner creato",
+        "updated": "Partner aggiornato",
+        "deactivated": "Partner disattivato"
+      },
+      "group": {
+        "created": "Gruppo creato",
+        "updated": "Gruppo aggiornato"
+      },
+      "location": {
+        "created": "Ubicazione creata",
+        "updated": "Ubicazione aggiornata"
+      }
     }
   }
 }

@@ -18,7 +18,7 @@
       <p role="status">{{ 'org.users.detail.systemUserNotice' | transloco }}</p>
     }
 
-    <mat-tab-group>
+    <mat-tab-group mat-stretch-tabs="false" mat-align-tabs="start">
       <mat-tab [label]="'org.users.detail.tabs.general' | transloco">
         <form [formGroup]="form" (ngSubmit)="save()">
           <mat-form-field>
@@ -65,7 +65,13 @@
           </div>
 
           <div class="nx-user-detail-page__actions">
-            <button mat-flat-button color="primary" type="submit" [disabled]="facade.saving()" data-testid="user-save-button">
+            <button
+              mat-flat-button
+              color="primary"
+              type="submit"
+              [disabled]="facade.saving()"
+              data-testid="user-save-button"
+            >
               {{ 'common.save' | transloco }}
             </button>
             <a mat-button routerLink="..">{{ 'common.cancel' | transloco }}</a>
@@ -86,10 +92,13 @@
         </form>
       </mat-tab>
 
-      @if (!isNew()) {
+      @if (!isNew() && facade.selected()) {
         <mat-tab [label]="'org.users.detail.tabs.assignments' | transloco">
           <div class="nx-user-detail-page__assignments">
-            <a mat-button [routerLink]="['/access/users', facade.selected()?.id, 'effective-scope']">
+            <a
+              mat-button
+              [routerLink]="['/access/users', facade.selected()?.id, 'effective-scope']"
+            >
               {{ 'org.users.detail.assignments.effectiveScopeLink' | transloco }}
             </a>
 
@@ -126,7 +135,9 @@
               </div>
 
               <mat-form-field>
-                <mat-label>{{ 'org.users.detail.assignments.fields.scopeType' | transloco }}</mat-label>
+                <mat-label>{{
+                  'org.users.detail.assignments.fields.scopeType' | transloco
+                }}</mat-label>
                 <mat-select
                   formControlName="scopeType"
                   data-testid="assignment-scope-type-select"
@@ -177,16 +188,30 @@
               }
 
               <mat-form-field>
-                <mat-label>{{ 'org.users.detail.assignments.fields.validFrom' | transloco }}</mat-label>
-                <input matInput type="date" formControlName="validFrom" data-testid="assignment-valid-from-input" />
+                <mat-label>{{
+                  'org.users.detail.assignments.fields.validFrom' | transloco
+                }}</mat-label>
+                <input
+                  matInput
+                  type="date"
+                  formControlName="validFrom"
+                  data-testid="assignment-valid-from-input"
+                />
               </mat-form-field>
               @for (message of assignmentErrorsFor('validFrom'); track message) {
                 <p role="alert" data-testid="assignment-valid-from-error">{{ message }}</p>
               }
 
               <mat-form-field>
-                <mat-label>{{ 'org.users.detail.assignments.fields.validTo' | transloco }}</mat-label>
-                <input matInput type="date" formControlName="validTo" data-testid="assignment-valid-to-input" />
+                <mat-label>{{
+                  'org.users.detail.assignments.fields.validTo' | transloco
+                }}</mat-label>
+                <input
+                  matInput
+                  type="date"
+                  formControlName="validTo"
+                  data-testid="assignment-valid-to-input"
+                />
               </mat-form-field>
               @for (message of assignmentErrorsFor('validTo'); track message) {
                 <p role="alert" data-testid="assignment-valid-to-error">{{ message }}</p>
@@ -207,15 +232,21 @@
             @if (assignmentsFacade.loading()) {
               <p>{{ 'org.users.detail.loading' | transloco }}</p>
             } @else if (assignments().length === 0) {
-              <p data-testid="assignments-empty">{{ 'org.users.detail.assignments.empty' | transloco }}</p>
+              <p data-testid="assignments-empty">
+                {{ 'org.users.detail.assignments.empty' | transloco }}
+              </p>
             } @else {
               <ul class="nx-user-detail-page__assignment-list" data-testid="assignments-list">
                 @for (assignment of assignments(); track assignment.id) {
                   <li>
-                    <span>{{ 'org.users.detail.assignments.scopeTypes.' + assignment.scopeType | transloco }}</span>
+                    <span>{{
+                      'org.users.detail.assignments.scopeTypes.' + assignment.scopeType | transloco
+                    }}</span>
                     <span>{{ assignment.validFrom.slice(0, 10) }}</span>
                     <span>{{ assignment.validTo ? assignment.validTo.slice(0, 10) : '—' }}</span>
-                    <span>{{ 'org.users.detail.assignments.sources.' + assignment.source | transloco }}</span>
+                    <span>{{
+                      'org.users.detail.assignments.sources.' + assignment.source | transloco
+                    }}</span>
                     @if (assignmentsFacade.canRevoke(assignment.id)) {
                       <button
                         mat-button
@@ -234,6 +265,22 @@
             }
           </div>
         </mat-tab>
+      }
+
+      @if (!isNew() && facade.selected(); as current) {
+        @if (current.id === routeId()) {
+          <ng-container *nxCan="'AUDIT:READ'">
+            <mat-tab [label]="'common.tabs.audit' | transloco">
+              <ng-template matTabContent>
+                <nx-audit-trail
+                  data-testid="audit-tab"
+                  aggregateType="user"
+                  [aggregateId]="current.id"
+                />
+              </ng-template>
+            </mat-tab>
+          </ng-container>
+        }
       }
     </mat-tab-group>
   }

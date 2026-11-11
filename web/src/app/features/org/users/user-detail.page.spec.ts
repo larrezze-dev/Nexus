@@ -6,6 +6,7 @@ import { signal } from '@angular/core';
 import { RoleAssignmentsFacade } from '../../access/role-assignments/role-assignments.facade';
 import { UserDetailPage } from './user-detail.page';
 import { SYSTEM_USER_ID, UsersFacade } from './users.facade';
+import { auditTrailInstances, clickTab, denyAuditRead, findAuditTab, selectAuditTab, stubAuditTrail } from '../audit-tab.testing';
 
 /**
  * `MatTabGroup` only renders a tab's content once it has been activated at least once (it is
@@ -84,6 +85,7 @@ function setup(
     ],
   });
 
+  stubAuditTrail(UserDetailPage);
   const fixture = TestBed.createComponent(UserDetailPage);
   return { fixture, facade, assignmentsFacade };
 }
@@ -386,5 +388,107 @@ describe('UserDetailPage', () => {
     expect(assignmentsFacade.revoke).toHaveBeenCalledWith('ra-1');
     const error = (fixture.nativeElement as HTMLElement).querySelector('[data-testid="assignment-save-error"]');
     expect(error).not.toBeNull();
+  });
+
+  describe('audit tab', () => {
+    it('shows an "Auditoría" tab for an existing record and renders nx-audit-trail when selected', async () => {
+      const { fixture } = setup({ id: 'u-1' }, { selected: signal(existingUser) });
+      fixture.detectChanges();
+      await fixture.whenStable();
+      fixture.detectChanges();
+      const audit = await selectAuditTab(fixture);
+
+      expect(audit).not.toBeNull();
+      expect(audit?.aggregateType()).toBe('user');
+      expect(audit?.aggregateId()).toBe('u-1');
+    });
+
+    it('has no "Auditoría" tab when creating a new record', async () => {
+      const { fixture } = setup({});
+      fixture.detectChanges();
+      await fixture.whenStable();
+      fixture.detectChanges();
+
+      expect(findAuditTab(fixture)).toBeUndefined();
+    });
+
+    it('has no "Auditoría" tab without AUDIT:READ', async () => {
+      const { fixture } = setup({ id: 'u-1' }, { selected: signal(existingUser) });
+      denyAuditRead();
+      fixture.detectChanges();
+      await fixture.whenStable();
+      fixture.detectChanges();
+      expect(findAuditTab(fixture)).toBeUndefined();
+    });
+
+    it('calls facade.reset() before facade.load() in edit mode', async () => {
+      const { fixture, facade } = setup({ id: 'u-1' }, { selected: signal(existingUser) });
+      fixture.detectChanges();
+      await fixture.whenStable();
+      const reset = facade.reset as ReturnType<typeof vi.fn>;
+      const load = facade.load as ReturnType<typeof vi.fn>;
+      expect(reset.mock.invocationCallOrder[0]).toBeLessThan(load.mock.invocationCallOrder[0]);
+    });
+
+    it('does not show the audit tab nor a foreign id when selected is another user (failed load)', async () => {
+      const { fixture } = setup({ id: 'u-2' }, { selected: signal(existingUser) });
+      fixture.detectChanges();
+      await fixture.whenStable();
+      fixture.detectChanges();
+
+      expect(findAuditTab(fixture)).toBeUndefined();
+      expect(auditTrailInstances(fixture)).toHaveLength(0);
+    });
+
+    it('re-creates nx-audit-trail every time the audit tab is re-selected', async () => {
+      const { fixture } = setup({ id: 'u-1' }, { selected: signal(existingUser) });
+      fixture.detectChanges();
+      await fixture.whenStable();
+      fixture.detectChanges();
+      const first = await selectAuditTab(fixture);
+      await clickTab(fixture, 'org.users.detail.tabs.general');
+      await clickTab(fixture, 'common.tabs.audit');
+      const second = await selectAuditTab(fixture);
+
+      expect(first).not.toBeNull();
+      expect(second).not.toBeNull();
+      expect(second).not.toBe(first);
+    });
+
+    it('keeps the General form values across General -> Auditoría -> General', async () => {
+      const { fixture } = setup({ id: 'u-1' }, { selected: signal(existingUser) });
+      fixture.detectChanges();
+      await fixture.whenStable();
+      fixture.detectChanges();
+      const input = () =>
+        (fixture.nativeElement as HTMLElement).querySelector<HTMLInputElement>('[data-testid="user-full-name-input"]');
+      input()!.value = 'Edited Name';
+      input()!.dispatchEvent(new Event('input'));
+      await selectAuditTab(fixture);
+      await clickTab(fixture, 'org.users.detail.tabs.general');
+
+      expect(input()?.value).toBe('Edited Name');
+      expect(fixture.componentInstance['form'].controls.fullName.value).toBe('Edited Name');
+    });
+
+    it('shows neither the "Asignaciones" nor the "Auditoría" tab when the user failed to load', async () => {
+      const { fixture } = setup({ id: 'u-1' }, { selected: signal(null) });
+      fixture.detectChanges();
+      await fixture.whenStable();
+      fixture.detectChanges();
+
+      const tabs = Array.from((fixture.nativeElement as HTMLElement).querySelectorAll('[role="tab"]'));
+      expect(tabs).toHaveLength(1);
+      expect(findAuditTab(fixture)).toBeUndefined();
+    });
+
+    it('does not request the assignments list when the user failed to load', async () => {
+      const { fixture, assignmentsFacade } = setup({ id: 'u-1' }, { selected: signal(null) });
+      fixture.detectChanges();
+      await fixture.whenStable();
+      fixture.detectChanges();
+
+      expect(assignmentsFacade.list).not.toHaveBeenCalled();
+    });
   });
 });

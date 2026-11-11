@@ -1,0 +1,157 @@
+<ng-container *transloco="let t">
+  <div class="nx-audit">
+    @if (facade.loading()) {
+      <mat-progress-bar mode="indeterminate" [attr.aria-label]="t('audit.loading')" />
+    }
+
+    <div class="nx-audit__bar">
+      <span class="nx-audit__summary" data-testid="audit-summary">{{
+        facade.total() === 1 ? t('audit.summaryOne') : t('audit.summary', { count: facade.total() })
+      }}</span>
+      <span class="nx-audit__spacer"></span>
+      <button mat-stroked-button type="button" data-testid="audit-refresh" [disabled]="facade.loading()" (click)="reload()">
+        <mat-icon aria-hidden="true">refresh</mat-icon>
+        {{ t('audit.refresh') }}
+      </button>
+    </div>
+
+    @if (facade.error()) {
+      <div class="nx-alert nx-alert--error" role="alert" data-testid="audit-error">
+        <span class="nx-audit__alert-text">{{ t('audit.error') }}</span>
+        <button mat-stroked-button type="button" data-testid="audit-retry" (click)="retry()">{{ t('audit.retry') }}</button>
+      </div>
+    }
+
+    @if (facade.loading() && views().length === 0) {
+      <div class="nx-audit__skeleton" aria-hidden="true" data-testid="audit-skeleton">
+        <span class="nx-audit__skeleton-line nx-audit__skeleton-line--title"></span>
+        <span class="nx-audit__skeleton-line"></span>
+        <span class="nx-audit__skeleton-line nx-audit__skeleton-line--short"></span>
+      </div>
+    } @else if (!facade.loading() && !facade.error() && views().length === 0) {
+      <div class="nx-empty-state" data-testid="audit-empty">
+        <strong>{{ t('audit.empty.title') }}</strong>
+        <span>{{ t('audit.empty.hint') }}</span>
+      </div>
+    }
+
+    @if (views().length > 0) {
+      <ol class="nx-audit__timeline" data-testid="audit-list" [attr.aria-busy]="facade.loading()">
+        @for (view of views(); track view.event.eventId) {
+          <li class="nx-audit__item" data-testid="audit-event">
+            <div class="nx-audit__rail">
+              <span class="nx-audit__icon nx-audit__icon--{{ view.kind }}">
+                <mat-icon aria-hidden="true">{{ view.icon }}</mat-icon>
+              </span>
+              <span class="nx-audit__line"></span>
+            </div>
+            <article class="nx-audit__card">
+              <div class="nx-audit__head">
+                <h3 class="nx-audit__title" data-testid="audit-title">{{ view.title }}</h3>
+                <span class="nx-chip-outline" data-testid="audit-version">v{{ view.event.aggregateVersion }}</span>
+                <span class="nx-audit__spacer"></span>
+                <span class="nx-audit__meta">
+                  @if (view.actor !== null) {
+                    <span data-testid="audit-actor">{{ view.actor }}</span>
+                  } @else {
+                    <em data-testid="audit-actor">{{ t('audit.unknownActor') }}</em>
+                  }
+                  · {{ view.date }}
+                </span>
+              </div>
+
+              @switch (view.diff.kind) {
+                @case ('pii') {
+                  <p class="nx-audit__pii" data-testid="audit-pii">
+                    <mat-icon aria-hidden="true">lock</mat-icon>
+                    <span>{{ t('audit.pii') }}</span>
+                  </p>
+                }
+                @case ('initial') {
+                  @if (view.diff.rows.length > 0) {
+                    <p class="nx-audit__label">{{ t('audit.initialValues') }}</p>
+                    <ng-container *ngTemplateOutlet="values; context: { $implicit: view.diff.rows }" />
+                  }
+                }
+                @case ('current') {
+                  @if (view.diff.rows.length > 0) {
+                    <p class="nx-audit__label" data-testid="audit-previous-unavailable">{{ t('audit.previousUnavailable') }}</p>
+                    <ng-container *ngTemplateOutlet="values; context: { $implicit: view.diff.rows }" />
+                  }
+                }
+                @case ('changes') {
+                  @if (view.diff.rows.length > 0) {
+                    <table class="nx-audit__table" data-testid="audit-changes">
+                      <thead>
+                        <tr>
+                          <th scope="col" class="nx-audit__col-field">{{ t('audit.field') }}</th>
+                          <th scope="col">{{ t('audit.before') }}</th>
+                          <th scope="col">{{ t('audit.after') }}</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        @for (row of view.diff.rows; track row.key) {
+                          <tr data-testid="audit-row">
+                            <th scope="row">{{ row.label }}</th>
+                            <td>
+                              <span class="nx-audit__diff nx-audit__diff--before" [class.nx-audit__empty-value]="row.before.empty" [class.nx-mono]="row.before.mono" [attr.title]="row.before.title">{{ row.before.text }}</span>
+                            </td>
+                            <td>
+                              <span class="nx-audit__diff nx-audit__diff--after" [class.nx-audit__empty-value]="row.after.empty" [class.nx-mono]="row.after.mono" [attr.title]="row.after.title">{{ row.after.text }}</span>
+                            </td>
+                          </tr>
+                        }
+                      </tbody>
+                    </table>
+                  }
+                }
+              }
+
+              <details class="nx-audit__details">
+                <summary>{{ t('audit.technicalDetails') }}</summary>
+                <p class="nx-mono">
+                  eventType {{ view.event.eventType }} · eventId {{ view.event.eventId }} · correlationId {{ view.event.correlationId }}
+                </p>
+              </details>
+            </article>
+          </li>
+        }
+      </ol>
+    }
+
+    @if (!facade.hasMore() && views().length > 0) {
+      <p class="nx-audit__end" data-testid="audit-no-more">{{ t('audit.noMore') }}</p>
+    }
+
+    @if (facade.hasMore()) {
+      <div class="nx-audit__more">
+        <button mat-stroked-button type="button" data-testid="audit-load-more" [disabled]="facade.loading()" (click)="loadMore()">
+          {{ t('audit.loadMore') }}
+        </button>
+      </div>
+    }
+  </div>
+
+  <ng-template #values let-rows>
+    <table class="nx-audit__table" data-testid="audit-initial">
+      <thead>
+        <tr>
+          <th scope="col" class="nx-audit__col-field">{{ t('audit.field') }}</th>
+          <th scope="col">{{ t('audit.value') }}</th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (row of rows; track row.key) {
+          <tr data-testid="audit-row">
+            <th scope="row">{{ row.label }}</th>
+            <td><ng-container *ngTemplateOutlet="plain; context: { $implicit: row.after }" /></td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  </ng-template>
+
+  <ng-template #plain let-cell>
+    <span [class.nx-audit__empty-value]="cell.empty" [class.nx-mono]="cell.mono" [attr.title]="cell.title">{{ cell.text }}</span>
+  </ng-template>
+</ng-container>

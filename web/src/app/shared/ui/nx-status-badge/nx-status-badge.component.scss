@@ -1,22 +1,31 @@
-// ⚑ colores provisionales — a alinear con la paleta corporativa definitiva.
+// Colores activos desde 0.8 (decisión de Luciano, 2026-11-11).
+// ⚑ La paleta corporativa de Nüssli sigue abierta: para cambiar los colores,
+// editar los tokens --nx-status-* en src/styles/tokens.css (no este fichero).
+//
+// Variables de Material 22 usadas (mat-chip estándar = variante "elevated"):
+//  - --mat-chip-elevated-container-color: fondo de la píldora
+//  - --mat-chip-label-text-color: color del texto
+//  - --mat-chip-outline-width: 0 para que sea una píldora rellena, sin borde
 .nx-status-badge {
+  --mat-chip-outline-width: 0;
+
   &.nx-status-badge--neutral {
-    --mdc-chip-elevated-container-color: #e0e0e0;
-    --mdc-chip-label-text-color: #424242;
+    --mat-chip-elevated-container-color: var(--nx-status-neutral-bg);
+    --mat-chip-label-text-color: var(--nx-status-neutral-fg);
   }
 
   &.nx-status-badge--success {
-    --mdc-chip-elevated-container-color: #c8e6c9;
-    --mdc-chip-label-text-color: #1b5e20;
+    --mat-chip-elevated-container-color: var(--nx-status-success-bg);
+    --mat-chip-label-text-color: var(--nx-status-success-fg);
   }
 
   &.nx-status-badge--warning {
-    --mdc-chip-elevated-container-color: #ffe0b2;
-    --mdc-chip-label-text-color: #e65100;
+    --mat-chip-elevated-container-color: var(--nx-status-warning-bg);
+    --mat-chip-label-text-color: var(--nx-status-warning-fg);
   }
 
   &.nx-status-badge--danger {
-    --mdc-chip-elevated-container-color: #ffcdd2;
-    --mdc-chip-label-text-color: #b71c1c;
+    --mat-chip-elevated-container-color: var(--nx-status-danger-bg);
+    --mat-chip-label-text-color: var(--nx-status-danger-fg);
   }
 }

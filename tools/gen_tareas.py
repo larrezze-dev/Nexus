@@ -63,7 +63,7 @@ NOTES = {
  "0.4": "Aprobado 2026-10-30.",
  "0.6": "Aprobado 2026-11-06 (5 PRs, 2 ADRs, 2 vulnerabilidades reales corregidas).",
  "0.7": "Aprobado 2026-11-08 (C: PR #25, #27, #30 · S: PR #28 · B: PR #29, #31 · Gate D: PR #32; ADR-0017 y ADR-0018 aceptados).",
- "0.8": "C entregado (contrato ClickHouse + auditoría, AUDIT:READ, PR #34); S entregado (nexus-projections, BuildingBlocks.Analytics, endpoint de auditoría, PR #35); ADR-0019 implementado (C: columnas aggregate_version + 409 en updateRolePermissions, PR #37; B: versión persistida como token de concurrencia, PR #38; verificado en vivo: auditoría 3, 2, 1). Sigue F y Gate D; en entornos con datos: rebuild dim_legal_entity y dim_warehouse.",
+ "0.8": "C (PR #34), S (PR #35) y ADR-0019 (PR #37, #38) entregados. F entregado: nx-audit-trail (línea de tiempo con diff campo a campo y referencias resueltas), pestaña Auditoría en LE, BU, almacén y usuario, y tokens CSS de la GUI (web/src/styles). Gate D verificado en vivo: created/updated/updated con versiones 1, 2, 3 en < 2 s; rebuild event_log con las mismas cifras. Pendiente la prueba manual y aprobación de Luciano.",
  "0.1": "Aprobado 2026-11-11.",
  "0.2": "Aprobado 2026-11-11.",
  "0.5": "Aprobado 2026-11-11 (C: PR #12 · B: PR #13 · F: PR #14). Deuda: e2e 0.5-login.spec.ts pasa a 1.3; deuda menor del PR #14 anotada en STATUS.",

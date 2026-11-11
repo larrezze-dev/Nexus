@@ -10,19 +10,11 @@ export const environment: NexusEnvironment = {
   auth: {
     authority: 'http://localhost:8180/realms/nexus',
     clientId: 'nexus-web',
-    // ⚑ DUDA SIN RESOLVER (dejar que F5/el orquestador la cierren):
-    // ADR-0006 dice que el *protocol mapper* de Keycloak hace que el
-    // comportamiento sea equivalente al de Entra ID, pero no dice si el
-    // *nombre* del scope en el realm `nexus` es literalmente
-    // "api://nexus/access_as_user" (formato App ID URI de Entra ID) o un
-    // client scope de Keycloak con un nombre plano (p. ej. "access_as_user"),
-    // ya que Keycloak no usa la convención App ID URI de Entra ID para sus
-    // scopes. Se deja aquí el mismo literal que cita la ficha 0.5 ("scope =
-    // openid profile api://nexus/access_as_user o el equivalente de
-    // Keycloak") para no inventar un nombre distinto sin dejar constancia:
-    // quien configure el realm Keycloak (paso 0.2/infra) debe confirmar el
-    // nombre real del client scope y ajustar este valor si difiere.
-    scope: 'openid profile api://nexus/access_as_user',
+    // En Keycloak el client scope se llama literalmente `access_as_user`
+    // (infra/compose/keycloak/realm-nexus.json) y añade aud=api://nexus
+    // mediante su audience mapper. En Entra ID (environment.ts) se mantiene
+    // la forma App ID URI `api://nexus/access_as_user`.
+    scope: 'openid profile access_as_user',
     redirectUrl: 'http://localhost:4200',
     postLogoutRedirectUri: 'http://localhost:4200',
   },

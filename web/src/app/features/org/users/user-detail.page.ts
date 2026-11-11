@@ -11,6 +11,7 @@ import { LANGUAGE_OPTIONS } from '../../../core/i18n/supported-languages';
 import { isProblem } from '../../../core/http/problem';
 import { NxI18nService } from '../../../core/i18n/nx-i18n.service';
 import { NxCanDirective } from '../../../shared/auth/can.directive';
+import { NxAuditTrailComponent } from '../../../shared/platform/nx-audit-trail/nx-audit-trail.component';
 import { NxEntityPickerComponent } from '../../../shared/ui/nx-entity-picker/nx-entity-picker.component';
 import type { BusinessUnitListItem } from '../../../api/platform/models/business-unit-list-item';
 import type { CreateRoleAssignmentRequest } from '../../../api/platform/models/create-role-assignment-request';
@@ -70,6 +71,7 @@ interface GrantForm {
     MatSelectModule,
     MatTabsModule,
     NxCanDirective,
+    NxAuditTrailComponent,
     NxEntityPickerComponent,
   ],
   templateUrl: './user-detail.page.html',
@@ -132,6 +134,9 @@ export class UserDetailPage implements OnInit {
   protected readonly displayWarehouse = (wh: WarehouseListItem): string =>
     `${wh.code} — ${resolveCaption(wh.captionI18n, this.i18n.getActiveLanguage(), wh.code)}`;
 
+  /** Id from the route; the audit tab only shows for the record that matches it. */
+  protected readonly routeId = signal<string | null>(null);
+
   async ngOnInit(): Promise<void> {
     const id = this.route.snapshot.paramMap.get('id');
 
@@ -142,7 +147,9 @@ export class UserDetailPage implements OnInit {
     }
 
     this.isNew.set(false);
+    this.routeId.set(id);
     this.isSystemUser.set(id === SYSTEM_USER_ID);
+    this.facade.reset();
     await this.facade.load(id);
 
     const user = this.facade.selected();
@@ -167,7 +174,10 @@ export class UserDetailPage implements OnInit {
 
     // "Asignaciones" tab only exists once the user is saved (there is nothing to list/grant
     // against for a brand-new, not-yet-created user).
-    await this.loadAssignments(id);
+    // Skipped when the user failed to load (nothing to list assignments for).
+    if (this.facade.selected()?.id === id) {
+      await this.loadAssignments(id);
+    }
   }
 
   private async loadAssignments(userId: string): Promise<void> {

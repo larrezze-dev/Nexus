@@ -1,0 +1,79 @@
+/*
+ * NEXUS — tokens de diseño semánticos (--nx-*).
+ *
+ * Este fichero es CSS plano: se edita sin herramientas. Los componentes solo
+ * usan estos tokens, nunca colores hexadecimales. Los valores por defecto
+ * apuntan al tema Material M3 (theme.scss) para que cambiar la paleta allí
+ * se propague aquí; los hex literales son los que ya usaba el código.
+ *
+ * ⚑ La paleta corporativa de Nüssli sigue pendiente de decisión: cuando se
+ * cierre, bastará con tocar este fichero (y theme.scss para primary/tertiary).
+ */
+:root {
+  /* ---------- Colores base ---------- */
+  --nx-color-surface: var(--mat-sys-surface);                       /* fondo de página */
+  --nx-color-surface-raised: var(--mat-sys-surface-container-lowest); /* tarjetas */
+  --nx-color-surface-muted: var(--mat-sys-surface-container);       /* zonas atenuadas */
+  --nx-color-text: var(--mat-sys-on-surface);
+  --nx-color-text-muted: var(--mat-sys-on-surface-variant);
+  --nx-color-border: var(--mat-sys-outline-variant);
+  --nx-color-primary: var(--mat-sys-primary);
+  --nx-color-on-primary: var(--mat-sys-on-primary);
+  --nx-color-accent: var(--mat-sys-tertiary);
+  --nx-color-error: var(--mat-sys-error);
+
+  /* ---------- Estados (nx-status-badge) ----------
+   * ACTIVOS desde 0.8 (decisión de Luciano, 2026-11-11): editar estos valores
+   * cambia el color de los chips de estado y del diff "después".
+   * ⚑ Paleta corporativa aún abierta. */
+  --nx-status-success-bg: #c8e6c9;
+  --nx-status-success-fg: #1b5e20;
+  --nx-status-warning-bg: #ffe0b2;
+  --nx-status-warning-fg: #e65100;
+  --nx-status-danger-bg: #ffcdd2;
+  --nx-status-danger-fg: #b71c1c;
+  --nx-status-neutral-bg: #e0e0e0;
+  --nx-status-neutral-fg: #424242;
+
+  /* ---------- Tipos de evento (historial de auditoría) ---------- */
+  --nx-event-created-bg: var(--mat-sys-primary-container);
+  --nx-event-created-fg: var(--mat-sys-on-primary-container);
+  /* valores del diseño aprobado; el tertiary-container M3 de la paleta cyan es demasiado saturado */
+  --nx-event-updated-bg: #cce8e7;
+  --nx-event-updated-fg: #004f4f;
+  --nx-event-deactivated-bg: var(--mat-sys-error-container);
+  --nx-event-deactivated-fg: var(--mat-sys-on-error-container);
+  --nx-event-other-bg: var(--mat-sys-surface-container-highest);
+  --nx-event-other-fg: var(--mat-sys-on-surface-variant);
+
+  /* ---------- Diff antes/después ---------- */
+  --nx-diff-before-bg: var(--mat-sys-error-container);
+  --nx-diff-before-fg: var(--mat-sys-on-error-container);
+  --nx-diff-after-bg: var(--nx-status-success-bg);
+  --nx-diff-after-fg: var(--nx-status-success-fg);
+
+  /* ---------- Avisos ---------- */
+  --nx-alert-error-bg: var(--mat-sys-error-container);
+  --nx-alert-error-fg: var(--mat-sys-on-error-container);
+
+  /* ---------- Forma ---------- */
+  --nx-radius-sm: 4px;
+  --nx-radius-md: 8px;
+  --nx-radius-lg: 12px;
+
+  /* ---------- Espaciado ---------- */
+  --nx-space-1: 4px;
+  --nx-space-2: 8px;
+  --nx-space-3: 12px;
+  --nx-space-4: 16px;
+  --nx-space-5: 24px;
+  --nx-space-6: 32px;
+
+  /* ---------- Tipografía ---------- */
+  --nx-font-family: Roboto, 'Helvetica Neue', sans-serif;
+  --nx-font-mono: 'Roboto Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  /* ---------- Layout ---------- */
+  --nx-sidenav-width: 240px;
+  --nx-content-padding: 1rem;
+}
