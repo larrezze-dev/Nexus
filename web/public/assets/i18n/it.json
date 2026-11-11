@@ -380,7 +380,7 @@
     "emptyValue": "(vuoto)",
     "fields": {
       "code": "Codice",
-      "captionI18n": "Denominazione",
+      "captionI18n": "Etichetta",
       "name": "Nome",
       "street": "Via",
       "postalCode": "CAP",

@@ -111,14 +111,21 @@ export class AuditTrailFacade {
       const fetched = (response.items ?? []) as AuditEvent[];
       this.page = page;
       this.failedAppend = false;
+      let addedNew = true;
       this.itemsSignal.update((current) => {
         if (!append) {
           return fetched;
         }
         const known = new Set(current.map((event) => event.eventId));
-        return [...current, ...fetched.filter((event) => !known.has(event.eventId))];
+        const fresh = fetched.filter((event) => !known.has(event.eventId));
+        addedNew = fresh.length > 0;
+        return [...current, ...fresh];
       });
-      this.totalSignal.set(response.total ?? this.itemsSignal().length);
+      // A short or all-duplicate appended page means the server has nothing more to give (events
+      // that arrived between pages shift the offsets): clamp the total so `hasMore` turns false
+      // instead of offering endless empty pages.
+      const exhausted = append && (fetched.length < AUDIT_PAGE_SIZE || !addedNew);
+      this.totalSignal.set(exhausted ? this.itemsSignal().length : (response.total ?? this.itemsSignal().length));
       this.loadingSignal.set(false);
       void this.resolveReferences(fetched);
     } catch {

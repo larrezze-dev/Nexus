@@ -59,4 +59,15 @@ describe('audit-diff', () => {
     expect(shortUuid(id)).toBe('0192f3a1…0c7c');
     expect(isUuid('nope')).toBe(false);
   });
+
+  it('shows a removed map key as value to empty when the map becomes {}', () => {
+    expect(computeAuditDiff({ captionI18n: {} }, { captionI18n: { de: 'x' } })).toEqual({
+      kind: 'changes',
+      rows: [{ path: 'captionI18n.de', field: 'captionI18n', subKey: 'de', before: 'x', after: null }],
+    });
+  });
+
+  it('returns no rows for {} versus {}', () => {
+    expect(computeAuditDiff({}, {})).toEqual({ kind: 'changes', rows: [] });
+  });
 });

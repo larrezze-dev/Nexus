@@ -168,4 +168,19 @@ describe('AuditTrailFacade', () => {
     await first;
     expect(facade.items().map((e) => e.aggregateVersion)).toEqual([2]);
   });
+
+  it('stops offering more when an appended page only holds duplicates (new event arrived between pages)', async () => {
+    const full = Array.from({ length: 50 }, (_, i) => event(60 - i));
+    const { facade } = setup(async (_fn, params) => ({
+      page: params['page'],
+      pageSize: 50,
+      total: 51,
+      items: params['page'] === 1 ? full : [full[49]],
+    }));
+    await facade.load('warehouse', 'w-1');
+    expect(facade.hasMore()).toBe(true);
+    await facade.loadMore();
+    expect(facade.items()).toHaveLength(50);
+    expect(facade.hasMore()).toBe(false);
+  });
 });
