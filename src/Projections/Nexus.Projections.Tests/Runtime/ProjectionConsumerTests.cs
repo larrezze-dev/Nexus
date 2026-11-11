@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Globalization;
 using System.Net;
 using System.Text;
 using Confluent.Kafka;
@@ -295,7 +296,17 @@ public sealed class ProjectionConsumerTests(RuntimeEnvironment env)
             }
         }
 
-        await using var first = RuntimeHarness.Create(env, [p]);
+        // Size-triggered first batch: a failed insert pauses EVERY assigned partition, so a batch flushed by
+        // time before partition 1 was fetched would freeze MapCalls below 10 for the whole outage. The batch
+        // clock starts before decoding, so a slow broker (per-partition offset reset and fetch) or the
+        // cold-cache Schema Registry lookup of a fresh deserializer can each eat the base 300 ms interval.
+        // 10 s is a compromise: long enough to cover that skew, short enough to flush the 5 rows `first`
+        // keeps after the eager rebalance (below MaxBatchRows) well inside the post-recovery wait.
+        await using var first = RuntimeHarness.Create(env, [p], c =>
+        {
+            c[$"{ProjectionOptions.SectionName}:MaxBatchRows"] = (2 * perPartition).ToString(CultureInfo.InvariantCulture);
+            c[$"{ProjectionOptions.SectionName}:FlushInterval"] = "00:00:10";
+        });
         first.Start(p);
         (await Eventually.Until(() => first.State(p.GroupId) == ConsumerLoopState.DependencyUnavailable, Wait)).ShouldBeTrue("first member blocked on the insert");
         (await Eventually.Until(() => p.MapCalls == 2 * perPartition, Wait)).ShouldBeTrue("first member buffered both partitions");
@@ -341,17 +352,27 @@ public sealed class ProjectionConsumerTests(RuntimeEnvironment env)
 
         // Long waits: the survivor must spend the rebalance INSIDE its keep-alive wait, where the partition
         // it inherits arrives un-paused and its records show up as strays.
-        static void SlowBackoff(Dictionary<string, string?> c)
+        // Size-triggered batches: a failed insert pauses EVERY assigned partition, so a batch flushed by
+        // time before the other partition's records were fetched (a slow broker: per-partition offset
+        // reset and fetch; or the cold-cache Schema Registry lookup, since the batch clock starts before
+        // decoding) would freeze the Map counter below the precondition for the whole outage.
+        // Each member's first insert is therefore exactly the records it owns: both partitions for the
+        // leaver (its interval never fires: it leaves before ClickHouse is back), one for the survivor
+        // (its 2 * perPartition records after the take-over flush in two full batches; the interval is
+        // only a fallback).
+        static Action<Dictionary<string, string?>> Member(int maxBatchRows, string flushInterval) => c =>
         {
             c[$"{ProjectionOptions.SectionName}:TransientInitialBackoff"] = "00:00:04";
             c[$"{ProjectionOptions.SectionName}:TransientMaxBackoff"] = "00:00:04";
-        }
+            c[$"{ProjectionOptions.SectionName}:MaxBatchRows"] = maxBatchRows.ToString(CultureInfo.InvariantCulture);
+            c[$"{ProjectionOptions.SectionName}:FlushInterval"] = flushInterval;
+        };
 
         // One projection INSTANCE per member (same name, so same group and table): separate Map counters.
         var survivorP = new TestProjection(name, ProjectionSubscription.ForTopics(topic));
         var leaverP = new TestProjection(name, ProjectionSubscription.ForTopics(topic));
-        await using var survivor = RuntimeHarness.Create(env, [survivorP], SlowBackoff);
-        var leaver = RuntimeHarness.Create(env, [leaverP], SlowBackoff);
+        await using var survivor = RuntimeHarness.Create(env, [survivorP], Member(perPartition, "00:00:10"));
+        var leaver = RuntimeHarness.Create(env, [leaverP], Member(2 * perPartition, "00:10:00"));
         await using (leaver)
         {
             // The leaver starts alone and takes BOTH partitions; the survivor then joins and gets ONE. So the
