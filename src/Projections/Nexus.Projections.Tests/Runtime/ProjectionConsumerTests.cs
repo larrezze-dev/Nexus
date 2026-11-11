@@ -297,8 +297,11 @@ public sealed class ProjectionConsumerTests(RuntimeEnvironment env)
         }
 
         // Size-triggered first batch: a failed insert pauses EVERY assigned partition, so a batch flushed by
-        // time before partition 1 was fetched (a slow broker) would freeze MapCalls at 5 for the whole
-        // outage. The interval is only the fallback for the partition it keeps after the rebalance.
+        // time before partition 1 was fetched would freeze MapCalls below 10 for the whole outage. The batch
+        // clock starts before decoding, so a slow broker (per-partition offset reset and fetch) or the
+        // cold-cache Schema Registry lookup of a fresh deserializer can each eat the base 300 ms interval.
+        // 10 s is a compromise: long enough to cover that skew, short enough to flush the 5 rows `first`
+        // keeps after the eager rebalance (below MaxBatchRows) well inside the post-recovery wait.
         await using var first = RuntimeHarness.Create(env, [p], c =>
         {
             c[$"{ProjectionOptions.SectionName}:MaxBatchRows"] = (2 * perPartition).ToString(CultureInfo.InvariantCulture);
@@ -351,7 +354,8 @@ public sealed class ProjectionConsumerTests(RuntimeEnvironment env)
         // it inherits arrives un-paused and its records show up as strays.
         // Size-triggered batches: a failed insert pauses EVERY assigned partition, so a batch flushed by
         // time before the other partition's records were fetched (a slow broker: per-partition offset
-        // reset and fetch) would freeze the Map counter below the precondition for the whole outage.
+        // reset and fetch; or the cold-cache Schema Registry lookup, since the batch clock starts before
+        // decoding) would freeze the Map counter below the precondition for the whole outage.
         // Each member's first insert is therefore exactly the records it owns: both partitions for the
         // leaver (its interval never fires: it leaves before ClickHouse is back), one for the survivor
         // (its 2 * perPartition records after the take-over flush in two full batches; the interval is
