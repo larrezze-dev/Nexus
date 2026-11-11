@@ -481,5 +481,14 @@ describe('UserDetailPage', () => {
       expect(tabs).toHaveLength(1);
       expect(findAuditTab(fixture)).toBeUndefined();
     });
+
+    it('does not request the assignments list when the user failed to load', async () => {
+      const { fixture, assignmentsFacade } = setup({ id: 'u-1' }, { selected: signal(null) });
+      fixture.detectChanges();
+      await fixture.whenStable();
+      fixture.detectChanges();
+
+      expect(assignmentsFacade.list).not.toHaveBeenCalled();
+    });
   });
 });

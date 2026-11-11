@@ -174,7 +174,10 @@ export class UserDetailPage implements OnInit {
 
     // "Asignaciones" tab only exists once the user is saved (there is nothing to list/grant
     // against for a brand-new, not-yet-created user).
-    await this.loadAssignments(id);
+    // Skipped when the user failed to load (nothing to list assignments for).
+    if (this.facade.selected()?.id === id) {
+      await this.loadAssignments(id);
+    }
   }
 
   private async loadAssignments(userId: string): Promise<void> {
