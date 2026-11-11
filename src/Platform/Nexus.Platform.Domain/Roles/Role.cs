@@ -97,9 +97,12 @@ public sealed class Role : AggregateRoot<Guid>
     }
 
     /// <summary>
-    /// Rule ACC-R7: changing a role's permissions does not touch any of this aggregate's own
+    /// Rule ACC-R7: changing a role's permissions changes none of this aggregate's business
     /// columns, but still raises <see cref="RoleUpdated"/> (domain/access.md §9) carrying the
-    /// new full set of currently-valid permission codes. Called by
+    /// new full set of currently-valid permission codes. Raising it bumps
+    /// <see cref="Nexus.BuildingBlocks.Domain.AggregateRoot{TId}.AggregateVersion"/>, which is
+    /// persisted in <c>access.role.aggregate_version</c> (ADR-0019), so the role row is still
+    /// UPDATEd (version, <c>xmin</c>, <c>updated_at</c>/<c>updated_by</c>). Called by
     /// <c>UpdateRolePermissions</c> only when the diff actually adds or closes at least one row.
     /// </summary>
     public void RaisePermissionsChanged(IReadOnlyList<string> newPermissionCodes) =>

@@ -13,8 +13,9 @@ namespace Nexus.Platform.Application.Roles.UpdateRolePermissions;
 /// (no new row, no close) - this is a set replacement, not a bulk revoke-then-grant. No
 /// <c>If-Match</c> (the contract's <c>updateRolePermissions</c> has none).
 /// <para>
-/// When the set actually changes, the role raises <c>RolePermissionsChanged</c>, which bumps its
-/// persisted <c>aggregate_version</c> (ADR-0019): the role's own row is UPDATEd, so its
+/// When the set actually changes, <c>Role.RaisePermissionsChanged</c> raises <c>RoleUpdated</c>
+/// (with the new permission codes), which bumps the role's persisted <c>aggregate_version</c>
+/// (ADR-0019): the role's own row is UPDATEd, so its
 /// <c>xmin</c> (ETag) and <c>updated_at</c>/<c>updated_by</c> change too, and two concurrent
 /// permission edits on the same role conflict - the loser gets 409 (concurrency). A request that
 /// changes nothing leaves the role row untouched.
