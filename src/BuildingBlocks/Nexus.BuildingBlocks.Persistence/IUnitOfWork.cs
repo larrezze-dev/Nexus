@@ -53,10 +53,11 @@ public interface IUnitOfWork : IRequestTransaction, IAsyncDisposable
     /// one that an enlisted DbContext also tracks is harmless.
     /// <para>
     /// ADR-0019: the aggregate must be tracked (any state but Detached) by an enlisted
-    /// <see cref="DbContextBase"/> at commit, because that is the only way its
-    /// <c>aggregate_version</c> is persisted and guarded. <c>CommitAsync</c> throws
-    /// <see cref="InvalidOperationException"/>, before any write and rolling back, if a
-    /// registered aggregate with pending events is not tracked.
+    /// <see cref="DbContextBase"/> that maps it on its own table row, because that is the only way
+    /// its <c>aggregate_version</c> is persisted and guarded. <c>CommitAsync</c> throws
+    /// <see cref="InvalidOperationException"/>, before any write and rolling back, if an aggregate
+    /// with pending events (registered here or tracked) is not tracked that way: untracked, or
+    /// mapped as owned, keyless or to a view.
     /// </para>
     /// </summary>
     void AddEventsFrom<TId>(AggregateRoot<TId> aggregate)

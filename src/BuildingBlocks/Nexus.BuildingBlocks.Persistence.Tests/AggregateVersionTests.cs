@@ -285,6 +285,45 @@ public sealed class AggregateVersionTests(PersistenceDatabaseFixture db) : IAsyn
         (await StoredVersion(widgetId)).ShouldBe(6);
     }
 
+    [Fact(DisplayName = "ADR-0019: aggregates without a table row of their own (view, keyless) do not map AggregateVersion")]
+    public void Model_AggregateWithoutOwnTableRow_IgnoresAggregateVersion()
+    {
+        var uow = db.CreateUnitOfWork(_dataSource, _userId, Guid.CreateVersion7()); // model only, never begun
+
+        using (var viewCtx = new WidgetViewDbContext(uow))
+        {
+            var entity = viewCtx.Model.FindEntityType(typeof(Widget))!;
+            entity.GetViewName().ShouldBe("widget_view");
+            entity.FindProperty(nameof(Widget.AggregateVersion)).ShouldBeNull();
+            entity.FindProperty(RowVersion.PropertyName).ShouldBeNull();
+        }
+
+        using var keylessCtx = new KeylessWidgetDbContext(uow);
+        keylessCtx.Model.FindEntityType(typeof(Widget))!.FindProperty(nameof(Widget.AggregateVersion)).ShouldBeNull();
+    }
+
+    [Fact(DisplayName = "ADR-0019: a tracked aggregate whose mapping has no aggregate_version (view) cannot emit events")]
+    public async Task TrackedAggregateWithoutVersionColumn_WithPendingEvents_Throws()
+    {
+        var widgetId = Guid.CreateVersion7();
+        await db.ExecuteAsync($"INSERT INTO uow_test.widget (id, name, aggregate_version) VALUES ('{widgetId}', 'v', 3)");
+
+        await using (var uow = NewUnitOfWork())
+        {
+            await uow.BeginAsync(Ct);
+            await using var ctx = new WidgetViewDbContext(uow);
+            var widget = await ctx.Set<Widget>().SingleAsync(w => w.Id == widgetId, Ct); // loads (selects no aggregate_version)
+            widget.AggregateVersion.ShouldBe(0);
+            widget.Touch();
+
+            var ex = await Should.ThrowAsync<InvalidOperationException>(() => uow.CommitAsync(Ct));
+            ex.Message.ShouldContain("ADR-0019");
+        }
+
+        (await OutboxVersions(widgetId)).ShouldBeEmpty();
+        (await StoredVersion(widgetId)).ShouldBe(3);
+    }
+
     private static TaskCompletionSource NewSignal() => new(TaskCreationOptions.RunContinuationsAsynchronously);
 
     private UnitOfWork NewUnitOfWork() => db.CreateUnitOfWork(_dataSource, _userId, Guid.CreateVersion7());
@@ -316,5 +355,26 @@ public sealed class AggregateVersionTests(PersistenceDatabaseFixture db) : IAsyn
         }
 
         return versions;
+    }
+
+    private sealed class WidgetViewDbContext(IUnitOfWork uow) : DbContextBase(uow)
+    {
+        protected override void OnModelCreating(ModelBuilder modelBuilder) =>
+            modelBuilder.Entity<Widget>(b =>
+            {
+                b.ToView("widget_view", "uow_test");
+                b.HasKey(w => w.Id);
+            });
+    }
+
+    private sealed class KeylessWidgetDbContext(IUnitOfWork uow) : DbContextBase(uow)
+    {
+        protected override void OnModelCreating(ModelBuilder modelBuilder) =>
+            modelBuilder.Entity<Widget>(b =>
+            {
+                b.ToView("widget_view", "uow_test");
+                b.HasNoKey();
+                b.Property(w => w.Id); // read-only Id: not discovered by convention without HasKey
+            });
     }
 }

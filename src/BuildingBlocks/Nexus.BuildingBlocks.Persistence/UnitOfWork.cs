@@ -170,25 +170,32 @@ public sealed class UnitOfWork : IUnitOfWork
                         continue;
                     }
 
-                    tracked.Add(entry.Entity);
                     if (!aggregates.Contains(entry.Entity, ReferenceEqualityComparer.Instance))
                     {
                         aggregates.Add(entry.Entity);
+                    }
+
+                    if (AggregateVersionConvention.PersistsVersion(entry.Metadata))
+                    {
+                        tracked.Add(entry.Entity);
                     }
                 }
             }
 
             // ADR-0019: an aggregate's version is persisted (aggregate_version) only through an
-            // enlisted DbContext. Events of an untracked aggregate would carry versions nobody
-            // saves, and the next command would reissue them. Fail before any write.
-            foreach (var aggregate in _explicitAggregates)
+            // enlisted DbContext that maps it on the aggregate's own row. Events of an aggregate
+            // that is untracked (AddEventsFrom), or tracked without that column (owned, keyless,
+            // view-mapped), would carry versions nobody saves, and the next command would reissue
+            // them. Fail before any write.
+            foreach (var aggregate in aggregates)
             {
                 if (!tracked.Contains(aggregate) && AggregateAccessor.For(aggregate.GetType()).HasPendingEvents(aggregate))
                 {
                     throw new InvalidOperationException(
-                        $"ADR-0019: {aggregate.GetType().Name} was registered with AddEventsFrom and has pending events, " +
-                        "but no enlisted DbContext tracks it, so its aggregate_version would not be persisted. " +
-                        "Load or add it through a DbContextBase before committing.");
+                        $"ADR-0019: {aggregate.GetType().Name} has pending events but no enlisted DbContext tracks it on a row " +
+                        "with aggregate_version (untracked, e.g. only registered with AddEventsFrom, or mapped as owned, " +
+                        "keyless or to a view), so its version would not be persisted. " +
+                        "Load or add it through a DbContextBase that maps its table before committing.");
                 }
             }
 

@@ -100,7 +100,8 @@ internal sealed class NexusExceptionHandler : IExceptionHandler
                 return (nexusException.ProblemType, extensions, exception.Message);
             }
 
-            // BE-R3: EF Core's xmin check failed on save — the row changed after it was loaded.
+            // BE-R3 / ADR-0019: a concurrency token check failed on save -- xmin (every entity) or
+            // aggregate_version (aggregate roots): the row changed after it was loaded.
             case DbUpdateConcurrencyException:
                 return (
                     NexusProblemType.Concurrency,

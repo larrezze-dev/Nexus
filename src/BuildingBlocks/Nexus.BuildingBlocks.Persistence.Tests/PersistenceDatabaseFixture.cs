@@ -65,7 +65,10 @@ public sealed class PersistenceDatabaseFixture : IAsyncLifetime
               scope_key  text PRIMARY KEY,
               next_value bigint NOT NULL DEFAULT 1
             );
+            -- A view over the aggregate table: an aggregate mapped to it has no aggregate_version.
+            CREATE VIEW uow_test.widget_view AS SELECT id, name FROM uow_test.widget;
             GRANT USAGE ON SCHEMA uow_test TO svc_platform;
+            GRANT SELECT ON uow_test.widget_view TO svc_platform;
             GRANT SELECT, INSERT, UPDATE, DELETE ON uow_test.widget TO svc_platform;
             GRANT SELECT, INSERT, UPDATE ON uow_test.number_sequence TO svc_platform;
             """);

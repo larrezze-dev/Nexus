@@ -152,8 +152,10 @@ internal sealed class AggregateRootMembersConvention : IEntityTypeAddedConventio
 ///   the domain).</item>
 /// </list>
 /// Runs at model finalization, after <c>OnModelCreating</c>, so services cannot forget it.
-/// Skipped: owned and keyless types and types not mapped to a table (not aggregate roots with a
-/// row of their own). A derived type of a TPH hierarchy inherits the property from its root.
+/// Owned and keyless types and types not mapped to a table (views, queries) have no row of their
+/// own: the property is <c>Ignore</c>d there, so EF does not select a missing column, and the
+/// <c>UnitOfWork</c> refuses to write events of such an aggregate (<see cref="PersistsVersion"/>).
+/// A derived type of a TPH hierarchy inherits the property from its root.
 /// </summary>
 internal sealed class AggregateVersionConvention : IModelFinalizingConvention
 {
@@ -165,12 +167,31 @@ internal sealed class AggregateVersionConvention : IModelFinalizingConvention
     {
         foreach (var entityType in modelBuilder.Metadata.GetEntityTypes().ToList())
         {
-            if (entityType.BaseType is not null
-                || entityType.IsOwned()
-                || entityType.FindPrimaryKey() is null
-                || entityType.GetTableName() is null
-                || FindAggregateRootType(entityType.ClrType) is not { } aggregateRootType)
+            if (FindAggregateRootType(entityType.ClrType) is not { } aggregateRootType)
             {
+                continue;
+            }
+
+            if (entityType.BaseType is not null)
+            {
+                // TPH: the root entity type maps it for the whole row. Only a derived aggregate
+                // under a non-aggregate root would declare it itself, with no column for it.
+                if (entityType.FindDeclaredProperty(PropertyName) is not null)
+                {
+                    entityType.Builder.Ignore(PropertyName);
+                }
+
+                continue;
+            }
+
+            if (entityType.IsOwned()
+                || entityType.FindPrimaryKey() is null
+                || entityType.GetTableName() is null)
+            {
+                // No row of its own (owned, keyless, view/query): there is no aggregate_version
+                // to read or write, so keep EF from selecting a column that does not exist. Its
+                // version is not persisted, so the UnitOfWork refuses to write its events.
+                entityType.Builder.Ignore(PropertyName);
                 continue;
             }
 
@@ -199,6 +220,13 @@ internal sealed class AggregateVersionConvention : IModelFinalizingConvention
             }
         }
     }
+
+    /// <summary>
+    /// Whether rows of <paramref name="entityType"/> persist and guard <c>aggregate_version</c>
+    /// (mapped by this convention as a concurrency token).
+    /// </summary>
+    internal static bool PersistsVersion(IReadOnlyEntityType entityType) =>
+        entityType.FindProperty(PropertyName) is { IsConcurrencyToken: true };
 
     /// <summary>The closed <c>AggregateRoot&lt;TId&gt;</c> in <paramref name="type"/>'s hierarchy, or null.</summary>
     internal static Type? FindAggregateRootType(Type type)
