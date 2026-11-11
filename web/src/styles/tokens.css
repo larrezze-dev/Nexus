@@ -22,7 +22,12 @@
   --nx-color-accent: var(--mat-sys-tertiary);
   --nx-color-error: var(--mat-sys-error);
 
-  /* ---------- Estados (nx-status-badge) ---------- */
+  /* ---------- Estados (nx-status-badge) ----------
+   * ⚑ AÚN NO ACTIVOS: Angular Material 22 ya no lee las variables --mdc-chip-*,
+   * así que nx-status-badge no aplica estos colores hoy. Cambiarlos aquí no
+   * tiene efecto visible hasta que Luciano decida activarlos (cambio visual):
+   * ver el bloque comentado en nx-status-badge.component.scss.
+   * (Sí se usan ya en --nx-diff-after-*.) */
   --nx-status-success-bg: #c8e6c9;
   --nx-status-success-fg: #1b5e20;
   --nx-status-warning-bg: #ffe0b2;
@@ -48,6 +53,10 @@
   --nx-diff-after-bg: var(--nx-status-success-bg);
   --nx-diff-after-fg: var(--nx-status-success-fg);
 
+  /* ---------- Avisos ---------- */
+  --nx-alert-error-bg: var(--mat-sys-error-container);
+  --nx-alert-error-fg: var(--mat-sys-on-error-container);
+
   /* ---------- Forma ---------- */
   --nx-radius-sm: 4px;
   --nx-radius-md: 8px;
@@ -68,5 +77,4 @@
   /* ---------- Layout ---------- */
   --nx-sidenav-width: 240px;
   --nx-content-padding: 1rem;
-  --nx-content-max-width: 1200px; /* solo lo usan las clases nuevas */
 }

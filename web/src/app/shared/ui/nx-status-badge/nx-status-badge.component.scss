@@ -1,23 +1,34 @@
 // ⚑ colores provisionales — a alinear con la paleta corporativa definitiva.
 // Los valores viven en src/styles/tokens.css (--nx-status-*); editar allí.
+// ⚑ Material 22 ya no lee --mdc-chip-*: estos colores NO se aplican hoy. Las líneas
+// --mat-chip-* comentadas son las equivalentes vigentes; descomentarlas (y borrar
+// las --mdc-*) cuando Luciano decida activar el cambio visual.
 .nx-status-badge {
   &.nx-status-badge--neutral {
     --mdc-chip-elevated-container-color: var(--nx-status-neutral-bg);
+    // --mat-chip-elevated-container-color: var(--nx-status-neutral-bg);
     --mdc-chip-label-text-color: var(--nx-status-neutral-fg);
+    // --mat-chip-label-text-color: var(--nx-status-neutral-fg);
   }
 
   &.nx-status-badge--success {
     --mdc-chip-elevated-container-color: var(--nx-status-success-bg);
+    // --mat-chip-elevated-container-color: var(--nx-status-success-bg);
     --mdc-chip-label-text-color: var(--nx-status-success-fg);
+    // --mat-chip-label-text-color: var(--nx-status-success-fg);
   }
 
   &.nx-status-badge--warning {
     --mdc-chip-elevated-container-color: var(--nx-status-warning-bg);
+    // --mat-chip-elevated-container-color: var(--nx-status-warning-bg);
     --mdc-chip-label-text-color: var(--nx-status-warning-fg);
+    // --mat-chip-label-text-color: var(--nx-status-warning-fg);
   }
 
   &.nx-status-badge--danger {
     --mdc-chip-elevated-container-color: var(--nx-status-danger-bg);
+    // --mat-chip-elevated-container-color: var(--nx-status-danger-bg);
     --mdc-chip-label-text-color: var(--nx-status-danger-fg);
+    // --mat-chip-label-text-color: var(--nx-status-danger-fg);
   }
 }

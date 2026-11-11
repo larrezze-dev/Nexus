@@ -3,7 +3,7 @@
  */
 
 /* Cabecera de página: título + acciones en una fila. */
-.nx-page-header {
+.nx-header-bar {
   display: flex;
   align-items: center;
   gap: var(--nx-space-4);
@@ -42,8 +42,8 @@
 }
 
 .nx-alert--error {
-  background: var(--mat-sys-error-container);
-  color: var(--mat-sys-on-error-container);
+  background: var(--nx-alert-error-bg);
+  color: var(--nx-alert-error-fg);
 }
 
 /* Chip pequeño con borde (p. ej. "v3"). */

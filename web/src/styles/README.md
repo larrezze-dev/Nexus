@@ -5,10 +5,14 @@ Todo el aspecto de la interfaz se adapta editando solo CSS.
 | Fichero | Qué controla |
 |---|---|
 | `theme.scss` | Tema Angular Material M3: paleta (primary/tertiary), tipografía y densidad. |
-| `tokens.css` | Tokens semánticos NEXUS (`--nx-*`): colores de superficie y texto, estados, tipos de evento, diff, radios, espaciado, fuentes y layout. |
-| `components.css` | Clases genéricas (`.nx-page-header`, `.nx-card`, `.nx-empty-state`, `.nx-alert`, `.nx-chip-outline`, `.nx-mono`) que solo usan tokens. |
+| `tokens.css` | Tokens semánticos NEXUS (`--nx-*`): colores de superficie y texto, estados (ver aviso abajo), tipos de evento, diff, radios, espaciado, fuentes y layout. |
+| `components.css` | Clases genéricas (`.nx-header-bar`, `.nx-card`, `.nx-empty-state`, `.nx-alert`, `.nx-chip-outline`, `.nx-mono`) que solo usan tokens. |
 
 `styles.scss` solo importa el tema y fija la fuente del `body`. Ambos CSS se cargan desde `angular.json`.
+
+## Aviso: colores de `nx-status-badge` aún no activos
+
+Angular Material 22 ya no lee `--mdc-chip-*`; solo `--mat-chip-elevated-container-color` y `--mat-chip-label-text-color`. Por eso `nx-status-badge` hoy no aplica los colores y editar `--nx-status-*` no cambia nada en esos chips (sí en `--nx-diff-after-*`). Para activarlos (cambio visual, pendiente de decisión de Luciano), descomentar las líneas `--mat-chip-*` en `nx-status-badge.component.scss`.
 
 ## Regla
 
