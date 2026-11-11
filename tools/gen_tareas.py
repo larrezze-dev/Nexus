@@ -64,9 +64,9 @@ NOTES = {
  "0.6": "Aprobado 2026-11-06 (5 PRs, 2 ADRs, 2 vulnerabilidades reales corregidas).",
  "0.7": "Aprobado 2026-11-08 (C: PR #25, #27, #30 · S: PR #28 · B: PR #29, #31 · Gate D: PR #32; ADR-0017 y ADR-0018 aceptados).",
  "0.8": "C entregado (contrato ClickHouse + auditoría, AUDIT:READ, PR #34); S entregado (nexus-projections, BuildingBlocks.Analytics, endpoint de auditoría, PR #35); ADR-0019 implementado (C: columnas aggregate_version + 409 en updateRolePermissions, PR #37; B: versión persistida como token de concurrencia, PR #38; verificado en vivo: auditoría 3, 2, 1). Sigue F y Gate D; en entornos con datos: rebuild dim_legal_entity y dim_warehouse.",
- "0.1": "Todos los tracks entregados; pendiente de aprobación de Luciano.",
- "0.2": "Todos los tracks entregados; pendiente de aprobación de Luciano.",
- "0.5": "Todos los tracks entregados; pendiente de aprobación de Luciano.",
+ "0.1": "Aprobado 2026-11-11.",
+ "0.2": "Aprobado 2026-11-11.",
+ "0.5": "Aprobado 2026-11-11 (C: PR #12 · B: PR #13 · F: PR #14). Deuda: e2e 0.5-login.spec.ts pasa a 1.3; deuda menor del PR #14 anotada en STATUS.",
  "4.4": "Depende del hito S5 (aprobar 2.4) y del contrato 4.3-C.",
  "7.2": "Requiere acceso a NUS-SQL-001\\NRP.",
 }
