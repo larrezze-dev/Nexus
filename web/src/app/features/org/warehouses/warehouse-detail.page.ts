@@ -59,7 +59,7 @@ import { WarehouseFacade } from './warehouse.facade';
       }
     </div>
 
-    <mat-tab-group>
+    <mat-tab-group mat-stretch-tabs="false" mat-align-tabs="start">
       <mat-tab [label]="'common.tabs.general' | transloco">
         <form [formGroup]="form" (ngSubmit)="save()">
           <mat-form-field>

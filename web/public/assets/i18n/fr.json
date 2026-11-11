@@ -393,7 +393,7 @@
       "groupId": "Groupe",
       "currencyCode": "Devise",
       "countryCode": "Pays",
-      "isActive": "Statut",
+      "isActive": "Actif",
       "costCenterCode": "Centre de coûts",
       "consolidationMethod": "Méthode de consolidation",
       "reportingCurrencyCode": "Devise de reporting",

@@ -393,7 +393,7 @@
       "groupId": "Group",
       "currencyCode": "Currency",
       "countryCode": "Country",
-      "isActive": "Status",
+      "isActive": "Active",
       "costCenterCode": "Cost center",
       "consolidationMethod": "Consolidation method",
       "reportingCurrencyCode": "Reporting currency",

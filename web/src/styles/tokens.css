@@ -40,8 +40,9 @@
   /* ---------- Tipos de evento (historial de auditoría) ---------- */
   --nx-event-created-bg: var(--mat-sys-primary-container);
   --nx-event-created-fg: var(--mat-sys-on-primary-container);
-  --nx-event-updated-bg: var(--mat-sys-tertiary-container);
-  --nx-event-updated-fg: var(--mat-sys-on-tertiary-container);
+  /* valores del diseño aprobado; el tertiary-container M3 de la paleta cyan es demasiado saturado */
+  --nx-event-updated-bg: #cce8e7;
+  --nx-event-updated-fg: #004f4f;
   --nx-event-deactivated-bg: var(--mat-sys-error-container);
   --nx-event-deactivated-fg: var(--mat-sys-on-error-container);
   --nx-event-other-bg: var(--mat-sys-surface-container-highest);

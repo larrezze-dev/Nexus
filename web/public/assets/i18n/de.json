@@ -393,7 +393,7 @@
       "groupId": "Gruppe",
       "currencyCode": "Währung",
       "countryCode": "Land",
-      "isActive": "Status",
+      "isActive": "Aktiv",
       "costCenterCode": "Kostenstelle",
       "consolidationMethod": "Konsolidierungsmethode",
       "reportingCurrencyCode": "Berichtswährung",

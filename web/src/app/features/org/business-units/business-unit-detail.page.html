@@ -29,7 +29,7 @@
   }
 
   @if (mode() === 'create' || entity()) {
-    <mat-tab-group>
+    <mat-tab-group mat-stretch-tabs="false" mat-align-tabs="start">
       <mat-tab [label]="'common.tabs.general' | transloco">
         <nx-business-unit-form
           [mode]="mode()"
