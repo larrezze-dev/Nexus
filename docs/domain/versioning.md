@@ -8,7 +8,7 @@
 
 **VR1:** en una tabla versionable nunca se hace `UPDATE` sobre un campo versionado. Se inserta una fila nueva con `valid_from = t` y se cierra la anterior con `valid_to = t`. La clave de negocio (`business_key`) es estable entre versiones; el `id` cambia en cada versión.
 
-**Fecha de efecto `[+]` (VER-Q1, decidido 2026-11-11):** `t` es "ahora" (el instante de la transacción, §3) por defecto, pero se puede programar una versión con fecha futura (`t ≥ now()`) en **cualquier** tabla VR1. Principio: **el pasado nunca cambia; el futuro se puede editar.** Una versión nueva con fecha `t` cierra la que esté vigente justo antes de `t` y **anula** las versiones programadas desde `t`. Las anuladas se quedan en la tabla con ventana vacía y no se borran (VER-R8).
+**Fecha de efecto `[+]` (VER-Q1, decidido 2026-11-11):** `t` es "ahora" (el instante de la transacción, §3) por defecto, pero se puede programar una versión con fecha futura (`t ≥` ahora, `infra.app_now()`) en **cualquier** tabla VR1. Principio: **el pasado nunca cambia; el futuro se puede editar.** Una versión nueva con fecha `t` cierra la que esté vigente justo antes de `t` y **anula** las versiones programadas desde `t`. Las anuladas se quedan en la tabla con ventana vacía y no se borran (VER-R8).
 
 **Consecuencia para todo consumidor `[+]`:** `valid_to IS NULL` ya no significa "vigente", sino "última de la cadena", que puede estar programada. Lo vigente en un instante se obtiene **siempre** con la consulta "as of" (VER-R5): ATP, Solver, explosión de BOM, checklists, resolución de tarifas y réplicas. Nunca se toma sin más la última versión.
 
@@ -34,7 +34,7 @@
 
 Plantilla en `conventions-database.md §8` (`EXCLUDE` diferido hasta el `COMMIT`, índice parcial de la última versión sin `UNIQUE`). Además:
 
-**Reloj de la transacción `[+]` (decidido 2026-11-11):** el `UnitOfWork` fija al abrir la transacción `SET LOCAL nexus.now = '<instante de TimeProvider>'` y lo expone a la aplicación como el instante de la transacción. En la base de datos, `infra.app_now()` devuelve `coalesce(current_setting('nexus.now', true)::timestamptz, now())`. El guard y `VersionedRepository<T>` usan **ese mismo instante** ("ahora" en este documento): no hay dos relojes y los tests con `FakeTimeProvider` pueden probar fechas pasadas y futuras.
+**Reloj de la transacción `[+]` (decidido 2026-11-11):** el `UnitOfWork` fija al abrir la transacción `set_config('nexus.now', $1, true)` (local a la transacción, como `app.current_user_id`) con el instante de `TimeProvider`, y lo expone a la aplicación como el instante de la transacción. En la base de datos, `infra.app_now()` devuelve `coalesce(nullif(current_setting('nexus.now', true), '')::timestamptz, now())`: en una conexión reutilizada del pool la variable vale `''`, no `NULL` (mismo patrón que `app.current_user_id` en `R__access__scope_functions.sql`). El guard y `VersionedRepository<T>` usan **ese mismo instante** ("ahora" en este documento): no hay dos relojes y los tests con `FakeTimeProvider` pueden probar fechas pasadas y futuras.
 
 **Estados de una fila `[+]`:** *anulada* si `valid_to = valid_from` (ventana vacía; nunca cumple la consulta "as of" ni vuelve a cambiar); *viva* en otro caso.
 
@@ -73,9 +73,9 @@ El orden INSERT → UPDATE es el que genera EF Core (la fila referenciada por `s
 
 **Alta** de un `business_key` nuevo: `version_no = 1`, `superseded_by_id = NULL`; admite `validFrom`. Un alta (`POST /v1/<recurso>`) para un `business_key` que ya existe, aunque esté de baja → 409, remite a `/versions`.
 
-**Baja lógica `[+]` (ADR-0020):** es una versión más, con `is_retired = true` y los valores de `P` copiados. Sigue los pasos 1–8 y admite `validFrom`. Sin `P`, o con `P` ya de baja → 422 `VER-R9`. Volver a dar de alta un `business_key` dado de baja es otra versión con `is_retired = false`.
+**Baja lógica `[+]` (ADR-0020):** es una versión más, con `is_retired = true` y los valores de `P` copiados. Sigue los pasos 1–8 y admite `validFrom`. Sin `P`, o con `P` ya de baja → 422 `VER-R9` (no aplica a la versión que crea "Anular programada"). Volver a dar de alta un `business_key` dado de baja es otra versión con `is_retired = false`.
 
-**Anular una versión programada `[+]` (decidido 2026-11-11):** `POST …/versions/{versionNo}/annul`, solo para una versión viva con `valid_from >` ahora. Crea una versión con `t` = `valid_from` de la anulada y los valores de `P`. Si no hay `P` (era un alta programada), crea una baja (`is_retired = true`) con los valores de la anulada. Como cualquier versión con fecha `t`, anula también las programadas posteriores a `t` (pasos 3 y 7). No hay mecánica nueva en la base de datos.
+**Anular una versión programada `[+]` (decidido 2026-11-11):** `POST …/versions/{versionNo}/annul`, solo para una versión viva con `valid_from >` ahora. Crea una versión con `t` = `valid_from` de la anulada y los valores de `P`. Si no hay `P` (era un alta programada), crea una baja (`is_retired = true`) con los valores de la anulada. Esta versión no pasa por VER-R9: restaura el estado anterior, aunque sea "no existe" o "de baja". Como cualquier versión con fecha `t`, anula también las programadas posteriores a `t` (pasos 3 y 7). No hay mecánica nueva en la base de datos.
 
 ## §5 Reglas
 
@@ -89,7 +89,7 @@ El orden INSERT → UPDATE es el que genera EF Core (la fila referenciada por `s
 | VER-R6 | Los FK desde documentos transaccionales a una tabla VR1 apuntan al `id` de la **versión** usada (trazabilidad exacta), además de copiar el valor (VR2). Nunca a una versión con `is_retired` ni anulada en el momento de crear el documento `[+]` | [+] |
 | VER-R7 | `valid_from` es "ahora" o una fecha futura indicada por el usuario (`validFrom`), en cualquier tabla VR1. Una fecha pasada → 422 `VER-R7` | [+] VER-Q1 (2026-11-11) |
 | VER-R8 | El futuro es editable: una versión con fecha `t` cierra la vigente justo antes de `t` y anula las programadas vivas con `valid_from >= t` (`valid_to = valid_from`, ventana vacía, nunca visible en "as of"). Nada que ya haya sido vigente cambia: `valid_to`/`superseded_by_id` solo se mueven si el `valid_to` viejo y el nuevo son `>=` ahora (`infra.app_now()`) | [+] VER-Q1 (2026-11-11) |
-| VER-R9 | La baja necesita una versión vigente justo antes de `t` que no esté de baja; copia sus valores | [+] ADR-0020 |
+| VER-R9 | La baja (`/retire`) necesita una versión vigente justo antes de `t` que no esté de baja; copia sus valores. No aplica a la versión que crea "Anular programada" (§4) | [+] ADR-0020 |
 | VER-R10 | Si la versión a la que apunta un documento se anula después, el documento conserva su snapshot (VR2) y su FK. La pantalla del documento muestra el aviso "versión de origen anulada" (con el `status` de la versión, §6), y el responsable decide si recalcula a mano. No hay recálculo automático | [+] (decidido 2026-11-11) |
 
 ## §6 API (patrón por recurso versionado)

@@ -200,7 +200,7 @@ md += [f"| {a} | {b} | {c or '—'} |" for a, b, c in milestones]
 # ---------- TAREAS.html ----------
 data = dict(steps=steps, phases=ph_stats, phase_names={p["id"]: p["name"] for p in phases},
             tot_u=tot_u, done_u=done_u, n=n, n_ok=n_ok, n_wip=n_wip, pct_effort=pct_effort, pct_tasks=pct_tasks,
-            by_status=by_status, tr_tot=tr_tot, tr_done=tr_done, milestones=milestones, questions=questions,
+            by_status=by_status, tr_tot=tr_tot, tr_done=tr_done, milestones=milestones, derived=derived, questions=questions,
             blocked=[s["id"] for s in blocked_steps])
 TEMPLATE = (Path(__file__).parent / "tareas_template.html").read_text(encoding="utf-8")
 (ROOT / "TAREAS.html").write_text(TEMPLATE.replace("/*DATA*/null", json.dumps(data, ensure_ascii=False)), encoding="utf-8")
