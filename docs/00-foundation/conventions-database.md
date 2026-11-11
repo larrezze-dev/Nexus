@@ -79,14 +79,19 @@ CONSTRAINT ck_<t>_aggregate_version CHECK (aggregate_version >= 0)
 | `org` | `currency`, `party`, `"group"`, `legal_entity`, `business_unit`, `location`, `warehouse`, `app_user` |
 | `access` | `role`, `role_assignment` |
 
+- `org.currency` la lleva aunque hoy no emite eventos: está mapeada a una subclase de `AggregateRoot<>`.
+- `access.role_assignment` tiene ventana temporal (`valid_from`/`valid_to`), pero es una raíz de agregado mutable, no una tabla VR1 (`domain/versioning.md` la cita en «Qué se versiona» en el sentido A10): por eso la lleva.
+- **Semillas:** en una base nueva las semillas corren después de las migraciones y sus filas quedan en 0; en una base actualizada las filas ya sembradas recibieron 1. Ambos valores son válidos (huecos, `conventions-events.md §7`).
 - **Excluidas:**
 
 | Tabla | Motivo |
 |---|---|
-| `access.permission` | Catálogo sembrado; no hay clase de agregado ni emite eventos |
+| `access.permission` | Catálogo sembrado sin clase de agregado (no está mapeada a ninguna subclase de `AggregateRoot<>`) |
 | `access.role_permission` | Historial A10 del agregado `Role`; su evento incrementa `access.role.aggregate_version` |
 
-- **Tablas futuras:** toda tabla raíz de un agregado que emite eventos la lleva desde su migración de creación; el agente la añade junto al bloque `-- + std` aunque la DDL de `docs/domain/` no la repita. Las tablas append-only (§6) y las versionadas VR1 (§8) **nunca**: cada fila es su propia versión.
+- **Tablas futuras:** toda tabla mapeada a una subclase de `AggregateRoot<>` la lleva desde su migración de creación, emita eventos o no (ADR-0019 mapea `AggregateRoot.AggregateVersion` a esta columna en todo agregado, así que una tabla de agregado sin ella no se puede cargar). El agente la añade junto al bloque `-- + std` aunque la DDL de `docs/domain/` no la repita. Las append-only (§6) y VR1 (§8) no la llevan (ADR-0019 §5): cada fila es su propia versión.
+- ⚑ Si una tabla append-only o VR1 se modela como subclase de `AggregateRoot<>` (p. ej. `org.exchange_rate` con `exchange-rate.published` en 1.1, append-only; o los eventos `.versioned` de 1.4, VR1), queda por decidir de dónde sale `nexus-aggregate-version` y cómo la excluye el mapeo de EF. Se decide antes de 1.1 (su track C crea la tabla); hasta entonces no se crea ninguna.
+- **No confundir** con la columna `aggregate_version` de las réplicas `*_ref` (`docs/domain/*`): allí es la última versión de origen aplicada por `VersionedReplica`, sin `DEFAULT 0`, y esta regla no se le aplica.
 
 **Tablas append-only:** `created_at`, `created_by` y nada más de auditoría.
 

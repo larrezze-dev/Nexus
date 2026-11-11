@@ -14,7 +14,8 @@
 -- How the column is added, per table:
 --   1. ADD COLUMN ... NOT NULL DEFAULT 1 -- backfill. Every event already
 --      published for these aggregates carries version 1 (ADR-0019 §4), so the
---      next one must go out as 2. On PostgreSQL >= 11 a constant default is
+--      next one must go out as 2 (org.currency emits no events; backfilled
+--      to 1 for uniformity). On PostgreSQL >= 11 a constant default is
 --      stored once in the catalog (pg_attribute.attmissingval): no table
 --      rewrite and no UPDATE, hence nothing for triggers or RLS to see (org
 --      has neither, but this stays true if that ever changes).
