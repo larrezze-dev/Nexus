@@ -134,6 +134,9 @@ export class UserDetailPage implements OnInit {
   protected readonly displayWarehouse = (wh: WarehouseListItem): string =>
     `${wh.code} — ${resolveCaption(wh.captionI18n, this.i18n.getActiveLanguage(), wh.code)}`;
 
+  /** Id from the route; the audit tab only shows for the record that matches it. */
+  protected readonly routeId = signal<string | null>(null);
+
   async ngOnInit(): Promise<void> {
     const id = this.route.snapshot.paramMap.get('id');
 
@@ -144,7 +147,9 @@ export class UserDetailPage implements OnInit {
     }
 
     this.isNew.set(false);
+    this.routeId.set(id);
     this.isSystemUser.set(id === SYSTEM_USER_ID);
+    this.facade.reset();
     await this.facade.load(id);
 
     const user = this.facade.selected();

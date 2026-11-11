@@ -47,3 +47,20 @@ export async function selectAuditTab(fixture: ComponentFixture<unknown>): Promis
   }
   return null;
 }
+
+/** Clicks the tab whose label contains `labelKey` (labels render as raw i18n keys in specs). */
+export async function clickTab(fixture: ComponentFixture<unknown>, labelKey: string): Promise<void> {
+  const tabs = (fixture.nativeElement as HTMLElement).querySelectorAll<HTMLElement>('[role="tab"]');
+  Array.from(tabs)
+    .find((tab) => (tab.textContent ?? '').includes(labelKey))
+    ?.click();
+  fixture.detectChanges();
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  fixture.detectChanges();
+}
+
+export function auditTrailInstances(fixture: ComponentFixture<unknown>): NxAuditTrailStubComponent[] {
+  return fixture.debugElement
+    .queryAll(By.directive(NxAuditTrailStubComponent))
+    .map((el) => el.componentInstance as NxAuditTrailStubComponent);
+}

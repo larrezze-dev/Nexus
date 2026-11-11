@@ -5,7 +5,7 @@ import { TranslocoTestingModule } from '@jsverse/transloco';
 import { signal } from '@angular/core';
 import { of } from 'rxjs';
 import { Warehouse } from '../../../api/platform/models/warehouse';
-import { denyAuditRead, findAuditTab, selectAuditTab, stubAuditTrail } from '../audit-tab.testing';
+import { auditTrailInstances, clickTab, denyAuditRead, findAuditTab, selectAuditTab, stubAuditTrail } from '../audit-tab.testing';
 import { WarehouseDetailPage } from './warehouse-detail.page';
 import { WarehouseFacade } from './warehouse.facade';
 
@@ -86,5 +86,43 @@ describe('WarehouseDetailPage audit tab', () => {
   it('has no "Auditoría" tab without AUDIT:READ', async () => {
     const fixture = await setupPage({ id: warehouse.id }, createFacadeStub(warehouse), true);
     expect(findAuditTab(fixture)).toBeUndefined();
+  });
+
+  it('calls facade.reset() before facade.load() in edit mode', async () => {
+    const facade = createFacadeStub(warehouse);
+    await setupPage({ id: warehouse.id }, facade);
+    expect(facade.reset.mock.invocationCallOrder[0]).toBeLessThan(facade.load.mock.invocationCallOrder[0]);
+  });
+
+  it('does not show the audit tab nor a foreign id when selected is another record (failed load)', async () => {
+    const other = { ...warehouse, id: '018f1a3c-7e3b-7c5a-9c2e-6a2f8e9b0c99' } as Warehouse;
+    const fixture = await setupPage({ id: warehouse.id }, createFacadeStub(other));
+    expect(findAuditTab(fixture)).toBeUndefined();
+    expect(auditTrailInstances(fixture)).toHaveLength(0);
+  });
+
+  it('re-creates nx-audit-trail every time the audit tab is re-selected', async () => {
+    const fixture = await setupPage({ id: warehouse.id }, createFacadeStub(warehouse));
+    const first = await selectAuditTab(fixture);
+    await clickTab(fixture, 'common.tabs.general');
+    await clickTab(fixture, 'common.tabs.audit');
+    const second = await selectAuditTab(fixture);
+
+    expect(first).not.toBeNull();
+    expect(second).not.toBeNull();
+    expect(second).not.toBe(first);
+  });
+
+  it('keeps the General form values across General -> Auditoría -> General', async () => {
+    const fixture = await setupPage({ id: warehouse.id }, createFacadeStub(warehouse));
+    const input = () =>
+      (fixture.nativeElement as HTMLElement).querySelector<HTMLInputElement>('[data-testid="warehouse-code-input"]');
+    input()!.value = 'WH-EDITED';
+    input()!.dispatchEvent(new Event('input'));
+    await selectAuditTab(fixture);
+    await clickTab(fixture, 'common.tabs.general');
+
+    expect(input()?.value).toBe('WH-EDITED');
+    expect(fixture.componentInstance['form'].controls.code.value).toBe('WH-EDITED');
   });
 });

@@ -53,7 +53,11 @@ import { WarehouseFacade } from './warehouse.facade';
   ],
   template: `
     <div class="nx-page-header">
-      <h1>{{ (isNew() ? 'warehouses.detail.title.create' : 'warehouses.detail.title.edit') | transloco }}</h1>
+      <h1>
+        {{
+          (isNew() ? 'warehouses.detail.title.create' : 'warehouses.detail.title.edit') | transloco
+        }}
+      </h1>
       @if (!isNew() && facade.selected(); as warehouse) {
         <nx-status-badge [status]="warehouse.isActive ? 'active' : 'inactive'" />
       }
@@ -70,15 +74,25 @@ import { WarehouseFacade } from './warehouse.facade';
           <nx-i18n-caption-editor formControlName="captionI18n" />
 
           <div class="nx-field-group">
-            <span class="nx-field-group__label">{{ 'warehouses.fields.location' | transloco }}</span>
+            <span class="nx-field-group__label">{{
+              'warehouses.fields.location' | transloco
+            }}</span>
             @if (facade.resolvedLocationLabel(); as label) {
-              <p class="nx-field-current">{{ 'warehouses.fields.current' | transloco: { value: label } }}</p>
+              <p class="nx-field-current">
+                {{ 'warehouses.fields.current' | transloco: { value: label } }}
+              </p>
             }
-            <nx-entity-picker [search]="searchLocations" [displayWith]="displayLocation" (selected)="onLocationSelected($event)" />
+            <nx-entity-picker
+              [search]="searchLocations"
+              [displayWith]="displayLocation"
+              (selected)="onLocationSelected($event)"
+            />
           </div>
 
           <div class="nx-field-group">
-            <span class="nx-field-group__label">{{ 'warehouses.fields.legalEntity' | transloco }}</span>
+            <span class="nx-field-group__label">{{
+              'warehouses.fields.legalEntity' | transloco
+            }}</span>
             @if (isNew()) {
               <nx-entity-picker
                 [search]="searchLegalEntities"
@@ -94,9 +108,13 @@ import { WarehouseFacade } from './warehouse.facade';
           </div>
 
           <div class="nx-field-group">
-            <span class="nx-field-group__label">{{ 'warehouses.fields.businessUnit' | transloco }}</span>
+            <span class="nx-field-group__label">{{
+              'warehouses.fields.businessUnit' | transloco
+            }}</span>
             @if (facade.resolvedBusinessUnitLabel(); as label) {
-              <p class="nx-field-current">{{ 'warehouses.fields.current' | transloco: { value: label } }}</p>
+              <p class="nx-field-current">
+                {{ 'warehouses.fields.current' | transloco: { value: label } }}
+              </p>
             }
             <nx-entity-picker
               [search]="searchBusinessUnits"
@@ -104,7 +122,9 @@ import { WarehouseFacade } from './warehouse.facade';
               (selected)="onBusinessUnitSelected($event)"
               data-testid="warehouse-business-unit-picker"
             />
-            <button type="button" mat-button (click)="clearBusinessUnit()">{{ 'warehouses.fields.clear' | transloco }}</button>
+            <button type="button" mat-button (click)="clearBusinessUnit()">
+              {{ 'warehouses.fields.clear' | transloco }}
+            </button>
 
             @if (facade.businessUnitError(); as businessUnitError) {
               <div class="nx-field-error" role="alert" data-testid="warehouse-business-unit-error">
@@ -118,7 +138,9 @@ import { WarehouseFacade } from './warehouse.facade';
           }
 
           <div class="nx-form-actions">
-            <button mat-button type="button" (click)="cancel()">{{ 'common.cancel' | transloco }}</button>
+            <button mat-button type="button" (click)="cancel()">
+              {{ 'common.cancel' | transloco }}
+            </button>
             @if (!isNew()) {
               <button
                 mat-button
@@ -131,7 +153,13 @@ import { WarehouseFacade } from './warehouse.facade';
                 {{ 'warehouses.actions.deactivate' | transloco }}
               </button>
             }
-            <button mat-raised-button color="primary" type="submit" [disabled]="facade.saving()" data-testid="warehouse-save-button">
+            <button
+              mat-raised-button
+              color="primary"
+              type="submit"
+              [disabled]="facade.saving()"
+              data-testid="warehouse-save-button"
+            >
               {{ 'common.save' | transloco }}
             </button>
           </div>
@@ -139,13 +167,19 @@ import { WarehouseFacade } from './warehouse.facade';
       </mat-tab>
 
       @if (!isNew() && facade.selected(); as current) {
-        <ng-container *nxCan="'AUDIT:READ'">
-          <mat-tab [label]="'common.tabs.audit' | transloco">
-            <ng-template matTabContent>
-              <nx-audit-trail data-testid="audit-tab" aggregateType="warehouse" [aggregateId]="current.id" />
-            </ng-template>
-          </mat-tab>
-        </ng-container>
+        @if (current.id === routeId()) {
+          <ng-container *nxCan="'AUDIT:READ'">
+            <mat-tab [label]="'common.tabs.audit' | transloco">
+              <ng-template matTabContent>
+                <nx-audit-trail
+                  data-testid="audit-tab"
+                  aggregateType="warehouse"
+                  [aggregateId]="current.id"
+                />
+              </ng-template>
+            </mat-tab>
+          </ng-container>
+        }
       }
     </mat-tab-group>
   `,
@@ -184,6 +218,8 @@ export class WarehouseDetailPage implements OnInit {
 
   protected readonly isNew = signal(true);
   private warehouseId: string | null = null;
+  /** Id from the route; the audit tab only shows for the record that matches it. */
+  protected readonly routeId = signal<string | null>(null);
 
   protected readonly form = new FormGroup({
     locationId: new FormControl('', { nonNullable: true, validators: [Validators.required] }),
@@ -200,13 +236,16 @@ export class WarehouseDetailPage implements OnInit {
     this.facade.searchBusinessUnits(this.form.controls.legalEntityId.value)(query);
 
   protected readonly displayCode = (item: { code: string }): string => item.code;
-  protected readonly displayLocation = (item: LocationListItem): string => (item.code ? `${item.code} — ${item.name}` : item.name);
+  protected readonly displayLocation = (item: LocationListItem): string =>
+    item.code ? `${item.code} — ${item.name}` : item.name;
 
   ngOnInit(): void {
     const id = this.route.snapshot.paramMap.get('id');
     if (id && id !== 'new') {
       this.isNew.set(false);
       this.warehouseId = id;
+      this.routeId.set(id);
+      this.facade.reset();
       void this.loadExisting(id);
     } else {
       this.facade.reset();

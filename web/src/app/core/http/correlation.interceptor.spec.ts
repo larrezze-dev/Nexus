@@ -74,6 +74,14 @@ describe('correlationInterceptor', () => {
       expect(send(`${window.location.origin}/api/platform/v1/me`)).toBeTruthy();
     });
 
+    it('does not add the header to protocol-relative URLs pointing to another host', () => {
+      expect(send('//other-host/x')).toBeNull();
+    });
+
+    it('does not add the header to data: URLs', () => {
+      expect(send('data:text/plain,hello')).toBeNull();
+    });
+
     it('does not add the header to cross-origin requests (OIDC provider)', () => {
       expect(
         send('http://localhost:8180/realms/nexus/.well-known/openid-configuration'),
