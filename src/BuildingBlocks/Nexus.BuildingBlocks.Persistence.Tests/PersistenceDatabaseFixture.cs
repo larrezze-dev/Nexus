@@ -11,8 +11,9 @@ namespace Nexus.BuildingBlocks.Persistence.Tests;
 /// Disposable PostgreSQL 17 for this project's tests. Applies the repository's real
 /// <c>db/migrations/V*__infra__*.sql</c> files (read-only; infra base + outbox/inbox with their
 /// exact grants), after a minimal stand-in for <c>db/bootstrap/00_roles.sql</c> (roles only).
-/// Then adds a test-only schema <c>uow_test</c> with a business table and a
-/// <c>number_sequence</c> table, granted to <c>svc_platform</c> the way a context migration
+/// Then adds a test-only schema <c>uow_test</c> with a business table (an aggregate root table,
+/// so it carries <c>aggregate_version</c> like every real one: conventions-database.md §4,
+/// ADR-0019) and a <c>number_sequence</c> table, granted to <c>svc_platform</c> the way a context migration
 /// would. Services connect as <c>svc_platform</c>, which holds only INSERT on outbox.message.
 ///
 /// Not the shared step-0.3 PostgresFixture (that one belongs to Nexus.BuildingBlocks.Testing).
@@ -54,7 +55,12 @@ public sealed class PersistenceDatabaseFixture : IAsyncLifetime
         await ExecuteAsync(
             """
             CREATE SCHEMA uow_test;
-            CREATE TABLE uow_test.widget (id uuid PRIMARY KEY, name text NOT NULL);
+            CREATE TABLE uow_test.widget (
+              id                uuid PRIMARY KEY,
+              name              text NOT NULL,
+              aggregate_version bigint NOT NULL DEFAULT 0,
+              CONSTRAINT ck_widget_aggregate_version CHECK (aggregate_version >= 0)
+            );
             CREATE TABLE uow_test.number_sequence (
               scope_key  text PRIMARY KEY,
               next_value bigint NOT NULL DEFAULT 1

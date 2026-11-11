@@ -14,6 +14,9 @@ namespace Nexus.BuildingBlocks.Persistence;
 ///   <item>snake_case names (EFCore.NamingConventions).</item>
 ///   <item>Optimistic concurrency on the <c>xmin</c> system column for every entity type
 ///   (BE-R3), applied by a model-finalizing convention so that services cannot forget it.</item>
+///   <item>Aggregate roots also persist <c>AggregateVersion</c> in <c>aggregate_version</c>,
+///   a second concurrency token (ADR-0019), so event versions survive between commands and two
+///   concurrent commands cannot emit the same version.</item>
 ///   <item>BE-R2: <c>SaveChanges</c>/<c>SaveChangesAsync</c> throw when called directly; only
 ///   <see cref="IUnitOfWork.CommitAsync"/> saves.</item>
 ///   <item>No EF migrations (ADR-0001): schemas come from Flyway SQL.</item>
@@ -105,6 +108,7 @@ public abstract class DbContextBase : DbContext
     {
         ArgumentNullException.ThrowIfNull(configurationBuilder);
         configurationBuilder.Conventions.Add(_ => new AggregateRootMembersConvention());
+        configurationBuilder.Conventions.Add(_ => new AggregateVersionConvention());
         configurationBuilder.Conventions.Add(_ => new XminConcurrencyTokenConvention());
         base.ConfigureConventions(configurationBuilder);
     }
@@ -114,37 +118,117 @@ public abstract class DbContextBase : DbContext
 }
 
 /// <summary>
-/// Keeps the in-memory bookkeeping of <see cref="Domain.AggregateRoot{TId}"/>
-/// (<c>DomainEvents</c>, <c>AggregateVersion</c>) out of the EF model, so that no service has
-/// to <c>Ignore</c> them by hand and no table needs columns for them.
+/// Keeps <c>DomainEvents</c> (in-memory bookkeeping of <see cref="Domain.AggregateRoot{TId}"/>)
+/// out of the EF model, so that no service has to <c>Ignore</c> it by hand.
+/// <c>AggregateVersion</c> is <b>not</b> ignored: it is persisted (ADR-0019) and configured by
+/// <see cref="AggregateVersionConvention"/> once the model is complete.
 /// </summary>
 internal sealed class AggregateRootMembersConvention : IEntityTypeAddedConvention
 {
     public void ProcessEntityTypeAdded(IConventionEntityTypeBuilder entityTypeBuilder, IConventionContext<IConventionEntityTypeBuilder> context)
     {
-        for (var type = entityTypeBuilder.Metadata.ClrType; type is not null; type = type.BaseType)
+        if (AggregateVersionConvention.FindAggregateRootType(entityTypeBuilder.Metadata.ClrType) is not null)
         {
-            if (type.IsGenericType && type.GetGenericTypeDefinition() == typeof(Domain.AggregateRoot<>))
+            entityTypeBuilder.Ignore(nameof(Domain.AggregateRoot<int>.DomainEvents));
+        }
+    }
+}
+
+/// <summary>
+/// ADR-0019: maps <see cref="Domain.AggregateRoot{TId}.AggregateVersion"/> to the
+/// <c>aggregate_version</c> column of every aggregate root table (conventions-database.md §4,
+/// "Tablas raíz de agregado") as an EF Core concurrency token:
+/// <list type="bullet">
+///   <item>Loaded with the aggregate, so <c>RaiseEvent</c> continues from the persisted count and
+///   the <c>UnitOfWork</c> numbers each outbox row <c>AggregateVersion - n + i + 1</c>.</item>
+///   <item>Concurrency token: <c>UPDATE … WHERE aggregate_version = &lt;loaded&gt;</c> (EF Core
+///   compares the original value), so two concurrent commands on the same aggregate cannot both
+///   commit the same version; the loser gets <see cref="DbUpdateConcurrencyException"/> → 409.
+///   It sits next to <c>xmin</c> (<see cref="XminConcurrencyTokenConvention"/>), which keeps
+///   backing the ETag/If-Match.</item>
+///   <item>Never store-generated: the application always sends the value, on INSERT too (the
+///   column's <c>DEFAULT 0</c> is only for SQL seeds that emit no event).</item>
+///   <item>Materialized through the auto-property's backing field (the setter is private to
+///   the domain).</item>
+/// </list>
+/// Runs at model finalization, after <c>OnModelCreating</c>, so services cannot forget it.
+/// Skipped: owned and keyless types and types not mapped to a table (not aggregate roots with a
+/// row of their own). A derived type of a TPH hierarchy inherits the property from its root.
+/// </summary>
+internal sealed class AggregateVersionConvention : IModelFinalizingConvention
+{
+    internal const string PropertyName = nameof(Domain.AggregateRoot<int>.AggregateVersion);
+
+    internal const string ColumnName = "aggregate_version";
+
+    public void ProcessModelFinalizing(IConventionModelBuilder modelBuilder, IConventionContext<IConventionModelBuilder> context)
+    {
+        foreach (var entityType in modelBuilder.Metadata.GetEntityTypes().ToList())
+        {
+            if (entityType.BaseType is not null
+                || entityType.IsOwned()
+                || entityType.FindPrimaryKey() is null
+                || entityType.GetTableName() is null
+                || FindAggregateRootType(entityType.ClrType) is not { } aggregateRootType)
             {
-                entityTypeBuilder.Ignore(nameof(Domain.AggregateRoot<int>.DomainEvents));
-                entityTypeBuilder.Ignore(nameof(Domain.AggregateRoot<int>.AggregateVersion));
-                return;
+                continue;
+            }
+
+            var member = aggregateRootType.GetProperty(PropertyName)!;
+            var property = entityType.Builder.Property(member);
+            if (property is null)
+            {
+                // Explicitly ignored by the service: only possible on purpose, so fail loudly
+                // instead of silently emitting every event with version 1 again.
+                throw new InvalidOperationException(
+                    $"ADR-0019: {entityType.DisplayName()} is an aggregate root but {PropertyName} could not be mapped to '{ColumnName}'.");
+            }
+
+            property.HasColumnName(ColumnName);
+            property.HasColumnType("bigint");
+            property.IsRequired(true);
+            property.IsConcurrencyToken(true);
+            property.ValueGenerated(ValueGenerated.Never);
+
+            // The setter is private to the domain: EF Core reads and writes the auto-property's
+            // backing field (found by convention). Fail at model build, not at the first load.
+            if (property.Metadata.FieldInfo is null && property.Metadata.PropertyInfo?.SetMethod is null)
+            {
+                throw new InvalidOperationException(
+                    $"ADR-0019: EF Core cannot materialize {entityType.DisplayName()}.{PropertyName} (no backing field or setter found).");
             }
         }
+    }
+
+    /// <summary>The closed <c>AggregateRoot&lt;TId&gt;</c> in <paramref name="type"/>'s hierarchy, or null.</summary>
+    internal static Type? FindAggregateRootType(Type type)
+    {
+        for (var current = type; current is not null; current = current.BaseType)
+        {
+            if (current.IsGenericType && current.GetGenericTypeDefinition() == typeof(Domain.AggregateRoot<>))
+            {
+                return current;
+            }
+        }
+
+        return null;
     }
 }
 
 /// <summary>
 /// BE-R3: maps PostgreSQL's <c>xmin</c> system column as a shadow <see cref="uint"/> concurrency
 /// token (column type <c>xid</c>, regenerated on every insert/update) on every root entity type
-/// that is mapped to a table and has no concurrency token of its own.
+/// that is mapped to a table. It backs the API's ETag/If-Match (<see cref="RowVersion"/>).
 ///
 /// This is what Npgsql's <c>UseXminAsConcurrencyToken()</c> used to do per entity (it is
 /// obsolete since EFCore.PG 7 in favour of a <c>uint</c> row-version property); doing it in a
 /// model-finalizing convention runs after <c>OnModelCreating</c>, so entities configured there
 /// are covered too. Skipped: derived types (the root's token covers the row), owned types
 /// (they share the owner's row or are versioned through it), keyless types and entities not
-/// mapped to a table (views, queries), and entities that already declare a concurrency token.
+/// mapped to a table (views, queries), and entities that already map an <c>xmin</c> property.
+/// Other concurrency tokens do not replace it: aggregate roots also carry
+/// <c>aggregate_version</c> (<see cref="AggregateVersionConvention"/>, ADR-0019), and the ETag
+/// still comes from <c>xmin</c>.
 /// </summary>
 internal sealed class XminConcurrencyTokenConvention : IModelFinalizingConvention
 {
@@ -158,7 +242,7 @@ internal sealed class XminConcurrencyTokenConvention : IModelFinalizingConventio
                 || entityType.IsOwned()
                 || entityType.FindPrimaryKey() is null
                 || entityType.GetTableName() is null
-                || entityType.GetProperties().Any(p => p.IsConcurrencyToken))
+                || entityType.FindProperty(PropertyName) is not null)
             {
                 continue;
             }
