@@ -211,6 +211,80 @@ public sealed class AggregateVersionTests(PersistenceDatabaseFixture db) : IAsyn
         (await StoredVersion(widgetId)).ShouldBe(3);
     }
 
+    [Fact(DisplayName = "ADR-0019: AddEventsFrom with an untracked aggregate that has pending events fails the commit before any write")]
+    public async Task AddEventsFrom_UntrackedAggregateWithPendingEvents_Throws_AndPersistsNothing()
+    {
+        var widgetId = Guid.CreateVersion7();
+        var otherId = Guid.CreateVersion7();
+
+        await using (var uow = NewUnitOfWork())
+        {
+            await uow.BeginAsync(Ct);
+
+            // A business write in the same unit of work, to prove the failure rolls it back.
+            await using (var cmd = new NpgsqlCommand("INSERT INTO uow_test.widget (id, name) VALUES ($1, 'other')", uow.Connection, uow.Transaction))
+            {
+                cmd.Parameters.Add(new NpgsqlParameter { Value = otherId });
+                await cmd.ExecuteNonQueryAsync(Ct);
+            }
+
+            await using var ctx = new WidgetDbContext(uow); // enlisted, but does not track the widget
+            var untracked = Widget.Create(widgetId, "a");
+            untracked.Rename("b", 1m, RoundedSystemTimeProvider.Instance.GetUtcNow());
+            uow.AddEventsFrom(untracked);
+
+            var ex = await Should.ThrowAsync<InvalidOperationException>(() => uow.CommitAsync(Ct));
+            ex.Message.ShouldContain("ADR-0019");
+            ex.Message.ShouldContain(nameof(Widget));
+            uow.IsActive.ShouldBeFalse();
+            untracked.DomainEvents.Count.ShouldBe(1); // not cleared: nothing was committed
+        }
+
+        (await OutboxVersions(widgetId)).ShouldBeEmpty();
+        (await db.ScalarAsync<long>("SELECT count(*) FROM uow_test.widget WHERE id = ANY($1)", new[] { widgetId, otherId })).ShouldBe(0);
+    }
+
+    [Fact(DisplayName = "ADR-0019: AddEventsFrom with an untracked aggregate without pending events does not block the commit")]
+    public async Task AddEventsFrom_UntrackedAggregateWithoutPendingEvents_Commits()
+    {
+        var otherId = Guid.CreateVersion7();
+
+        await using (var uow = NewUnitOfWork())
+        {
+            await uow.BeginAsync(Ct);
+            await using (var cmd = new NpgsqlCommand("INSERT INTO uow_test.widget (id, name) VALUES ($1, 'other')", uow.Connection, uow.Transaction))
+            {
+                cmd.Parameters.Add(new NpgsqlParameter { Value = otherId });
+                await cmd.ExecuteNonQueryAsync(Ct);
+            }
+
+            uow.AddEventsFrom(Widget.Create(Guid.CreateVersion7(), "quiet"));
+            await uow.CommitAsync(Ct);
+        }
+
+        (await db.ScalarAsync<long>("SELECT count(*) FROM uow_test.widget WHERE id = $1", otherId)).ShouldBe(1);
+    }
+
+    [Fact(DisplayName = "ADR-0019: AddEventsFrom with a loaded (tracked) aggregate writes its events with the persisted version")]
+    public async Task AddEventsFrom_TrackedLoadedAggregate_IsWrittenWithPersistedVersion()
+    {
+        var widgetId = Guid.CreateVersion7();
+        await db.ExecuteAsync($"INSERT INTO uow_test.widget (id, name, aggregate_version) VALUES ('{widgetId}', 'x', 5)");
+
+        await using (var uow = NewUnitOfWork())
+        {
+            await uow.BeginAsync(Ct);
+            await using var ctx = new WidgetDbContext(uow);
+            var widget = await ctx.Widgets.SingleAsync(w => w.Id == widgetId, Ct);
+            widget.Touch();
+            uow.AddEventsFrom(widget);
+            await uow.CommitAsync(Ct);
+        }
+
+        (await OutboxVersions(widgetId)).ShouldBe([6L]);
+        (await StoredVersion(widgetId)).ShouldBe(6);
+    }
+
     private static TaskCompletionSource NewSignal() => new(TaskCreationOptions.RunContinuationsAsynchronously);
 
     private UnitOfWork NewUnitOfWork() => db.CreateUnitOfWork(_dataSource, _userId, Guid.CreateVersion7());

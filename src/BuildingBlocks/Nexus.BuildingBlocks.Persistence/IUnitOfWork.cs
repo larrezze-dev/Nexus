@@ -35,17 +35,29 @@ public interface IUnitOfWork : IRequestTransaction, IAsyncDisposable
     NpgsqlTransaction Transaction { get; }
 
     /// <summary>
-    /// Registers an event that is not raised by an aggregate tracked by an enlisted DbContext
-    /// (e.g. written with Dapper). <paramref name="aggregateVersion"/> becomes
-    /// <c>outbox.message.aggregate_version</c>.
+    /// Registers an event that is not raised by an aggregate tracked by an enlisted DbContext.
+    /// <paramref name="aggregateVersion"/> becomes <c>outbox.message.aggregate_version</c> as is.
+    /// <para>
+    /// Intended for emitters that are not aggregates (consumers, jobs). If the event belongs to an
+    /// aggregate whose table has <c>aggregate_version</c> (ADR-0019, conventions-database.md §4),
+    /// the caller must persist and guard that version in this same transaction (e.g.
+    /// <c>UPDATE … SET aggregate_version = @new WHERE id = @id AND aggregate_version = @loaded</c>
+    /// and check the row count); otherwise versions repeat or race.
+    /// </para>
     /// </summary>
     void AddEvent(IDomainEvent domainEvent, long aggregateVersion);
 
     /// <summary>
-    /// Registers an aggregate that is not tracked by an enlisted DbContext (e.g. persisted with
-    /// Dapper) so that its pending domain events are written on commit, with their versions,
-    /// and cleared afterwards. Registering an aggregate that is also tracked is harmless: each
-    /// aggregate instance is collected once.
+    /// Registers an aggregate so that its pending domain events are written on commit, with their
+    /// versions, and cleared afterwards. Each aggregate instance is collected once, so registering
+    /// one that an enlisted DbContext also tracks is harmless.
+    /// <para>
+    /// ADR-0019: the aggregate must be tracked (any state but Detached) by an enlisted
+    /// <see cref="DbContextBase"/> at commit, because that is the only way its
+    /// <c>aggregate_version</c> is persisted and guarded. <c>CommitAsync</c> throws
+    /// <see cref="InvalidOperationException"/>, before any write and rolling back, if a
+    /// registered aggregate with pending events is not tracked.
+    /// </para>
     /// </summary>
     void AddEventsFrom<TId>(AggregateRoot<TId> aggregate)
         where TId : notnull;

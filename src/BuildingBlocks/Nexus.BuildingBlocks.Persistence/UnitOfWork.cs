@@ -160,15 +160,35 @@ public sealed class UnitOfWork : IUnitOfWork
             // 1. Snapshot aggregates BEFORE SaveChanges: deleted entities are detached by it,
             //    and their events (e.g. "deactivated") must not be lost.
             aggregates = new List<object>(_explicitAggregates);
+            var tracked = new HashSet<object>(ReferenceEqualityComparer.Instance);
             foreach (var dbContext in _dbContexts)
             {
                 foreach (var entry in dbContext.ChangeTracker.Entries())
                 {
-                    if (AggregateAccessor.IsAggregate(entry.Entity.GetType())
-                        && !aggregates.Contains(entry.Entity, ReferenceEqualityComparer.Instance))
+                    if (!AggregateAccessor.IsAggregate(entry.Entity.GetType()))
+                    {
+                        continue;
+                    }
+
+                    tracked.Add(entry.Entity);
+                    if (!aggregates.Contains(entry.Entity, ReferenceEqualityComparer.Instance))
                     {
                         aggregates.Add(entry.Entity);
                     }
+                }
+            }
+
+            // ADR-0019: an aggregate's version is persisted (aggregate_version) only through an
+            // enlisted DbContext. Events of an untracked aggregate would carry versions nobody
+            // saves, and the next command would reissue them. Fail before any write.
+            foreach (var aggregate in _explicitAggregates)
+            {
+                if (!tracked.Contains(aggregate) && AggregateAccessor.For(aggregate.GetType()).HasPendingEvents(aggregate))
+                {
+                    throw new InvalidOperationException(
+                        $"ADR-0019: {aggregate.GetType().Name} was registered with AddEventsFrom and has pending events, " +
+                        "but no enlisted DbContext tracks it, so its aggregate_version would not be persisted. " +
+                        "Load or add it through a DbContextBase before committing.");
                 }
             }
 
@@ -323,6 +343,9 @@ public sealed class UnitOfWork : IUnitOfWork
                 yield return new PendingDomainEvent(events[i], version - events.Count + i + 1);
             }
         }
+
+        public bool HasPendingEvents(object aggregate) =>
+            ((IReadOnlyList<IDomainEvent>)_domainEvents.GetValue(aggregate)!).Count > 0;
 
         public void Clear(object aggregate) => _clear.Invoke(aggregate, null);
 
