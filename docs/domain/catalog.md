@@ -75,7 +75,7 @@ CREATE TABLE catalog.asset_type (
   sales_uom_id      uuid NULL REFERENCES uom.unit_of_measure(id),     -- A11/P11
   is_consumable     boolean NOT NULL DEFAULT false,                   -- A5/P5
   kit_mode          text NOT NULL DEFAULT 'NONE'
-                    CHECK (kit_mode IN ('NONE','VIRTUAL','ASSEMBLY')), -- [+] ⚑ CAT-Q1
+                    CHECK (kit_mode IN ('NONE','VIRTUAL','ASSEMBLY')), -- [+] CAT-Q1 (decidido 2026-11-11)
   unit_weight_kg    numeric(12,3) NULL CHECK (unit_weight_kg >= 0),   -- [+] input de transporte del Solver
   unit_volume_m3    numeric(12,4) NULL CHECK (unit_volume_m3 >= 0),   -- [+]
   replacement_value numeric(19,4) NULL,                               -- [+] valor de reposición (pérdidas, seguro)
@@ -109,6 +109,7 @@ CREATE TABLE catalog.asset_type_bom (
   valid_from               timestamptz NOT NULL,
   valid_to                 timestamptz NULL,
   superseded_by_id         uuid NULL REFERENCES catalog.asset_type_bom(id),
+  is_retired               boolean NOT NULL DEFAULT false,   -- [+] ADR-0020: la baja es una versión
   parent_asset_type_id     uuid NOT NULL REFERENCES catalog.asset_type(id),
   component_asset_type_id  uuid NOT NULL REFERENCES catalog.asset_type(id),
   qty                      numeric(18,4) NOT NULL CHECK (qty > 0),
@@ -119,7 +120,7 @@ CREATE TABLE catalog.asset_type_bom (
   CHECK (parent_asset_type_id <> component_asset_type_id),
   CHECK (business_key = parent_asset_type_id::text || ':' || component_asset_type_id::text),
   CONSTRAINT uq_bom_version UNIQUE (business_key, version_no),
-  CONSTRAINT ck_bom_window CHECK (valid_to IS NULL OR valid_to > valid_from),
+  CONSTRAINT ck_bom_window CHECK (valid_to IS NULL OR valid_to >= valid_from),  -- [+] = : anulada (VER-R8)
   CONSTRAINT ex_bom_overlap EXCLUDE USING gist (business_key WITH =,
       tstzrange(valid_from, coalesce(valid_to,'infinity')) WITH &&)
 );
@@ -134,6 +135,7 @@ CREATE TABLE catalog.asset_type_price_rule (
   valid_from         timestamptz NOT NULL,
   valid_to           timestamptz NULL,
   superseded_by_id   uuid NULL REFERENCES catalog.asset_type_price_rule(id),
+  is_retired         boolean NOT NULL DEFAULT false,   -- [+] ADR-0020: la baja es una versión
   asset_type_id      uuid NOT NULL REFERENCES catalog.asset_type(id),
   legal_entity_id    uuid NOT NULL REFERENCES org.legal_entity(id),
   price_rule_code    text NOT NULL,         -- 'STANDARD', 'INTERNAL' (alquiler interno A1) … [+]
@@ -145,7 +147,7 @@ CREATE TABLE catalog.asset_type_price_rule (
   -- + std-append
   CHECK (business_key = asset_type_id::text || ':' || legal_entity_id::text || ':' || price_rule_code),
   CONSTRAINT uq_pr_version UNIQUE (business_key, version_no),
-  CONSTRAINT ck_pr_window CHECK (valid_to IS NULL OR valid_to > valid_from),
+  CONSTRAINT ck_pr_window CHECK (valid_to IS NULL OR valid_to >= valid_from),  -- [+] = : anulada (VER-R8)
   CONSTRAINT ex_pr_overlap EXCLUDE USING gist (business_key WITH =,
       tstzrange(valid_from, coalesce(valid_to,'infinity')) WITH &&)
 );
@@ -362,7 +364,7 @@ Contexto `catalog`. Master data con estado completo (EV-R4).
 
 ## §9 Abiertos ⚑
 
-- **CAT-Q1 (bloquea 1.4):** semántica de kits. Propuesta: `VIRTUAL` = el kit no tiene stock propio; al reservarlo se reservan sus componentes (4.2). `ASSEMBLY` = el kit se almacena montado como un tipo con stock propio; el BOM solo sirve para el checklist (6.2) y para montarlo. ¿Existen los dos casos en Nüssli? ¿Cómo lo hace hoy EasyJob con sus "Sets"?
+- **CAT-Q1 (decidido 2026-11-11):** se mantienen los tres modos. `NONE`. `VIRTUAL` = el kit no tiene stock propio; al reservarlo se reservan sus componentes (LOG-R25, 4.2). `ASSEMBLY` = el kit se guarda montado como un tipo con stock propio; su BOM solo sirve para el checklist (6.2) y para montarlo. Migración: los Sets de EasyJob pasan a `VIRTUAL` por defecto, y los que se guardan montados a `ASSEMBLY` según la tabla de correspondencia de 7.3 (MIG-R10). Decisión de Luciano.
 - **CAT-Q2:** escalas de precio por duración (factores por día en alquiler). `price_basis` + `min_charge_days` cubre lo básico. Si hay tablas de factores, añadir `day_factor_table jsonb` en una versión de la tarifa.
 - **CAT-Q3:** valoración del alquiler interno. Propuesta: tarifa `INTERNAL` del propietario. Alternativa: margen fijo sobre `STANDARD` definido en `transfer_rule` (`projects.md`).
-- **CAT-Q4:** `asset_batch` es una tabla nueva `[+]`: el manual dice "BATCH → por lote" sin entidad. Confirmar que un lote no es un `AssetItem`.
+- **CAT-Q4 (decidido 2026-11-11):** `catalog.asset_batch` es una tabla propia `[+]`. Un lote (cantidad de un tipo `BATCH` con datos comunes: fecha de fabricación, certificado) **no** es un `AssetItem` (unidad con identidad propia). El stock de un tipo `BATCH` se lleva por (tipo, lote). Decisión de Luciano.

@@ -95,7 +95,7 @@ Las tablas y columnas exactas de EasyJob y adunic se toman de las skills `ej-cru
 | 1 | Empresas propias (Mandanten EJ) | `org.party` + `org."group"` / `legal_entity` / `business_unit` | MIG-R1 |
 | 2 | `Stock` (almacenes EJ) | `org.location` + `org.warehouse` → `stock.stock_location` (evento) | MIG-R2 |
 | 3 | `Address` (empresas, contactos, direcciones) + `601_Partner` | `org.party` (ORGANIZATION/PERSON), `party_location`, `party_relationship` | MIG-R3, MIG-R4 |
-| 4 | Usuarios EJ | `org.app_user` (sin `external_subject`; se vincula al primer login ⚑) + `access.role_assignment` | MIG-R5 |
+| 4 | Usuarios EJ | `org.app_user` (sin `external_subject`, con `email`; se vincula al primer login por identidad del tenant, ADR-0006) + `access.role_assignment` | MIG-R5 |
 | 5 | Unidades implícitas | — (P11: `stock_uom_id` `NULL`) | MIG-R6 |
 | 6 | Grupos/categorías de `StockType` | `catalog.asset_family` / `asset_category` | MIG-R7 |
 | 7 | `StockType` | `catalog.asset_type` (`ej_stock_type_ref`) | MIG-R8, MIG-R9 |
@@ -123,7 +123,7 @@ Las tablas y columnas exactas de EasyJob y adunic se toman de las skills `ej-cru
 | MIG-R7 | Los grupos de EJ se mapean a familia/categoría con una tabla de correspondencia aprobada | [+] |
 | MIG-R8 | **`tracking_mode`** (corrige la doble contabilidad, §5): un `StockType` con `StockItem` serializados activos → `SERIALIZED`; sin ellos → `BULK`; `BATCH` solo por lista explícita. Un `StockType` con `StockItem` **y** cantidad a granel distinta del número de ítems → `BLOCKER` hasta decidir | §5, Apéndice B |
 | MIG-R9 | Los tipos migrados entran `ACTIVE` (CAT-R2) salvo los marcados obsoletos en EJ → `DISCONTINUED` | [+] |
-| MIG-R10 | Sets EJ → `kit_mode` según CAT-Q1 (debe estar cerrado antes de 7.3) | CAT-Q1 |
+| MIG-R10 | Sets EJ → `kit_mode = VIRTUAL` por defecto; los que se guardan montados → `ASSEMBLY`, según la tabla de correspondencia que aprueba Luciano (MIG-R1) | CAT-Q1 (2026-11-11) |
 | MIG-R11 | Precios vigentes → versión 1 `STANDARD` por LE; sin histórico (A10 empieza en el corte) | A10 |
 | MIG-R12 | `StockItem` → `AssetItem` con su propietario (LE) y estado; los RFID/códigos de EJ → `asset_identifier` normalizados (WHS-R1). Series duplicadas por tipo → `BLOCKER` | §10 |
 | MIG-R13 | Solo se migran proyectos y Jobs **vivos** (no cerrados ni cancelados) a la fecha de corte; el histórico queda en EasyJob en solo lectura ⚑ MIG-Q1 | D12 |

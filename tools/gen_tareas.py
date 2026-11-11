@@ -67,6 +67,10 @@ NOTES = {
  "0.1": "Aprobado 2026-11-11.",
  "0.2": "Aprobado 2026-11-11.",
  "0.5": "Aprobado 2026-11-11 (C: PR #12 · B: PR #13 · F: PR #14). Deuda: e2e 0.5-login.spec.ts pasa a 1.3; deuda menor del PR #14 anotada en STATUS.",
+ "0.9": "WF-Q1 y WF-Q2 decididos el 2026-11-11 (auto-aprobación opcional por plantilla; sin plantilla, rechazo). Listo para lanzar.",
+ "1.1": "Espera a que Luciano acepte ADR-0020 (versión de agregado de org.exchange_rate).",
+ "1.4": "CAT-Q1 y VER-Q1 decididos el 2026-11-11 (fecha futura en todas las VR1, el futuro es editable); espera a ADR-0020.",
+ "1.5": "CAT-Q4 decidido el 2026-11-11: asset_batch es tabla propia.",
  "4.4": "Depende del hito S5 (aprobar 2.4) y del contrato 4.3-C.",
  "7.2": "Requiere acceso a NUS-SQL-001\\NRP.",
 }
