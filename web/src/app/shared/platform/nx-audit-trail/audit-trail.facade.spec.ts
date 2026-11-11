@@ -66,7 +66,7 @@ describe('AuditTrailFacade', () => {
       throw new HttpErrorResponse({ status: 500, error: { status: 500 } });
     });
     await facade.load('warehouse', 'w-1');
-    expect(facade.error()).not.toBeNull();
+    expect(facade.error()).toBe(true);
     expect(facade.items()).toEqual([]);
     expect(facade.loading()).toBe(false);
   });
@@ -104,5 +104,68 @@ describe('AuditTrailFacade', () => {
     await facade.reload();
     await Promise.resolve();
     expect(api.invoke.mock.calls.filter((c) => c[0] === getLocation)).toHaveLength(1);
+  });
+
+  it('keeps the loaded items visible while reloading', async () => {
+    let release: (value: unknown) => void = () => undefined;
+    let first = true;
+    const { facade } = setup(() => {
+      if (first) {
+        first = false;
+        return Promise.resolve({ page: 1, pageSize: 50, total: 1, items: [event(1)] });
+      }
+      return new Promise((resolve) => (release = resolve));
+    });
+    await facade.load('warehouse', 'w-1');
+    const pending = facade.reload();
+    expect(facade.loading()).toBe(true);
+    expect(facade.items()).toHaveLength(1);
+    release({ page: 1, pageSize: 50, total: 2, items: [event(2), event(1)] });
+    await pending;
+    expect(facade.items()).toHaveLength(2);
+  });
+
+  it('keeps loaded pages when loadMore fails and retry() retries that page', async () => {
+    let failPage2 = true;
+    const { api, facade } = setup(async (_fn, params) => {
+      if (params['page'] === 2 && failPage2) {
+        throw new HttpErrorResponse({ status: 500 });
+      }
+      return { page: params['page'], pageSize: 50, total: 2, items: [params['page'] === 1 ? event(2) : event(1)] };
+    });
+    await facade.load('warehouse', 'w-1');
+    await facade.loadMore();
+    expect(facade.error()).toBe(true);
+    expect(facade.items()).toHaveLength(1);
+
+    failPage2 = false;
+    await facade.retry();
+    expect(facade.error()).toBe(false);
+    expect(facade.items().map((e) => e.aggregateVersion)).toEqual([2, 1]);
+    expect(api.invoke.mock.calls.map((c) => (c[1] as { page: number }).page)).toEqual([1, 2, 2]);
+  });
+
+  it('skips events already present when appending', async () => {
+    const { facade } = setup(async (_fn, params) => ({
+      page: params['page'],
+      pageSize: 50,
+      total: 3,
+      items: params['page'] === 1 ? [event(3), event(2)] : [event(2), event(1)],
+    }));
+    await facade.load('warehouse', 'w-1');
+    await facade.loadMore();
+    expect(facade.items().map((e) => e.aggregateVersion)).toEqual([3, 2, 1]);
+  });
+
+  it('discards a stale response that arrives after a newer request', async () => {
+    const resolvers: ((value: unknown) => void)[] = [];
+    const { facade } = setup(() => new Promise((resolve) => resolvers.push(resolve)));
+    const first = facade.load('warehouse', 'w-1');
+    const second = facade.reload();
+    resolvers[1]({ page: 1, pageSize: 50, total: 1, items: [event(2)] });
+    await second;
+    resolvers[0]({ page: 1, pageSize: 50, total: 1, items: [event(1)] });
+    await first;
+    expect(facade.items().map((e) => e.aggregateVersion)).toEqual([2]);
   });
 });

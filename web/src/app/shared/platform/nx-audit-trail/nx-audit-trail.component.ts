@@ -28,6 +28,7 @@ export interface AuditRowView {
 export type AuditDiffView =
   | { readonly kind: 'pii' }
   | { readonly kind: 'initial'; readonly rows: readonly AuditRowView[] }
+  | { readonly kind: 'current'; readonly rows: readonly AuditRowView[] }
   | { readonly kind: 'changes'; readonly rows: readonly AuditRowView[] };
 
 export interface AuditEventView {
@@ -70,10 +71,11 @@ export class NxAuditTrailComponent {
   protected readonly facade = inject(AuditTrailFacade);
   private readonly transloco = inject(TranslocoService);
   private readonly format = inject(NxFormatService);
-  private readonly lang = toSignal(this.transloco.langChanges$, { initialValue: this.transloco.getActiveLang() });
+  /** Emits once the translations of the active language are loaded (not merely when it is switched). */
+  private readonly translations = toSignal(this.transloco.selectTranslation(), { initialValue: undefined });
 
   protected readonly views = computed<readonly AuditEventView[]>(() => {
-    this.lang();
+    this.translations();
     const labels = this.facade.resolvedLabels();
     return this.facade.items().map((event) => this.toView(event, labels));
   });
@@ -90,6 +92,10 @@ export class NxAuditTrailComponent {
     void this.facade.reload();
   }
 
+  protected retry(): void {
+    void this.facade.retry();
+  }
+
   protected loadMore(): void {
     void this.facade.loadMore();
   }
@@ -103,16 +109,24 @@ export class NxAuditTrailComponent {
       icon: KIND_ICONS[kind],
       title: this.translateOr(`events.${event.eventType}`, event.eventType),
       actor: event.actorDisplayName,
-      date: this.format.formatDate(event.occurredAt, { second: '2-digit' }),
-      diff: this.toDiffView(computeAuditDiff(event.payload, event.previousPayload), labels),
+      date: this.format.formatDate(event.occurredAt, { second: '2-digit', hourCycle: 'h23' }),
+      diff: this.toDiffView(computeAuditDiff(event.payload, event.previousPayload), kind, labels),
     };
   }
 
-  private toDiffView(diff: AuditDiff, labels: Readonly<Record<string, string>>): AuditDiffView {
+  private toDiffView(
+    diff: AuditDiff,
+    eventKind: AuditEventView['kind'],
+    labels: Readonly<Record<string, string>>,
+  ): AuditDiffView {
     if (diff.kind === 'pii') {
       return diff;
     }
-    return { kind: diff.kind, rows: diff.rows.map((row) => this.toRowView(row, labels)) };
+    const rows = diff.rows.map((row) => this.toRowView(row, labels));
+    // "Initial values" only makes sense for a creation; any other event without a previous
+    // payload (e.g. its predecessor was never audited) shows the current values with a notice.
+    const kind = diff.kind === 'initial' && eventKind !== 'created' ? 'current' : diff.kind;
+    return { kind, rows };
   }
 
   private toRowView(row: AuditDiffRow, labels: Readonly<Record<string, string>>): AuditRowView {

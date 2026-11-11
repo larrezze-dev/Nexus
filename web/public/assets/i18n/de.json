@@ -365,9 +365,9 @@
     "loadMore": "Mehr laden",
     "empty": {
       "title": "Noch keine Ereignisse",
-      "hint": "Sobald dieses Objekt geändert wird, erscheint hier der Verlauf."
+      "hint": "Änderungen erscheinen hier wenige Sekunden nach dem Speichern. Falls Sie etwas erwarten, klicken Sie auf «Aktualisieren»."
     },
-    "error": "Der Verlauf konnte nicht geladen werden.",
+    "error": "Das Audit konnte nicht geladen werden. Bitte versuchen Sie es erneut.",
     "retry": "Erneut versuchen",
     "pii": "Dieses Ereignis enthält personenbezogene Daten: Es wird nur gespeichert, wer es wann ausgelöst hat, nicht die Details der Änderungen.",
     "unknownActor": "Unbekannter Benutzer",
@@ -383,29 +383,33 @@
       "captionI18n": "Bezeichnung",
       "name": "Name",
       "street": "Strasse",
-      "postalCode": "Postleitzahl",
-      "city": "Ort",
+      "postalCode": "PLZ",
+      "city": "Stadt",
       "region": "Region",
       "locationId": "Standort",
-      "legalEntityId": "Legal Entity",
+      "legalEntityId": "Gesellschaft",
       "businessUnitId": "Business Unit",
-      "partyId": "Partei",
+      "partyId": "Partner",
       "groupId": "Gruppe",
       "currencyCode": "Währung",
       "countryCode": "Land",
-      "isActive": "Aktiv",
+      "isActive": "Status",
       "costCenterCode": "Kostenstelle",
       "consolidationMethod": "Konsolidierungsmethode",
       "reportingCurrencyCode": "Berichtswährung",
-      "partyType": "Parteityp",
-      "legalName": "Rechtlicher Name",
+      "partyType": "Partnertyp",
+      "legalName": "Rechtsname",
       "displayName": "Anzeigename",
       "taxId": "Steuernummer",
-      "erpCompanyCode": "ERP-Gesellschaftscode",
+      "erpCompanyCode": "ERP-Firmencode",
       "isInternal": "Intern",
       "externalSubject": "Externe Kennung",
       "preferredLanguage": "Bevorzugte Sprache"
-    }
+    },
+    "summaryOne": "1 Ereignis · Zeiten in Europe/Zurich",
+    "loading": "Audit wird geladen…",
+    "previousUnavailable": "Vorherige Version nicht verfügbar: Es werden die aktuellen Werte angezeigt.",
+    "noMore": "Keine weiteren Ereignisse"
   },
   "events": {
     "org": {
@@ -430,9 +434,9 @@
         "deactivated": "Benutzer deaktiviert"
       },
       "party": {
-        "created": "Partei erstellt",
-        "updated": "Partei aktualisiert",
-        "deactivated": "Partei deaktiviert"
+        "created": "Partner erstellt",
+        "updated": "Partner aktualisiert",
+        "deactivated": "Partner deaktiviert"
       },
       "group": {
         "created": "Gruppe erstellt",

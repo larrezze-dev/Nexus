@@ -365,9 +365,9 @@
     "loadMore": "Carica altro",
     "empty": {
       "title": "Ancora nessun evento",
-      "hint": "La cronologia apparirà qui non appena questo elemento verrà modificato."
+      "hint": "Le modifiche compaiono qui pochi secondi dopo il salvataggio. Se ti aspetti di vedere qualcosa, premi «Aggiorna»."
     },
-    "error": "Impossibile caricare la cronologia.",
+    "error": "Impossibile caricare l'audit. Riprova.",
     "retry": "Riprova",
     "pii": "Questo evento contiene dati personali: vengono conservati solo chi e quando, non il dettaglio delle modifiche.",
     "unknownActor": "Utente sconosciuto",
@@ -386,26 +386,30 @@
       "postalCode": "CAP",
       "city": "Città",
       "region": "Regione",
-      "locationId": "Ubicazione",
-      "legalEntityId": "Entità giuridica",
+      "locationId": "Sede",
+      "legalEntityId": "Entità legale",
       "businessUnitId": "Business unit",
-      "partyId": "Parte",
+      "partyId": "Partner",
       "groupId": "Gruppo",
       "currencyCode": "Valuta",
       "countryCode": "Paese",
-      "isActive": "Attivo",
+      "isActive": "Stato",
       "costCenterCode": "Centro di costo",
       "consolidationMethod": "Metodo di consolidamento",
       "reportingCurrencyCode": "Valuta di reporting",
-      "partyType": "Tipo di parte",
+      "partyType": "Tipo di partner",
       "legalName": "Ragione sociale",
       "displayName": "Nome visualizzato",
-      "taxId": "Codice fiscale",
-      "erpCompanyCode": "Codice società ERP",
+      "taxId": "Partita IVA",
+      "erpCompanyCode": "Codice azienda ERP",
       "isInternal": "Interno",
       "externalSubject": "Identificativo esterno",
       "preferredLanguage": "Lingua preferita"
-    }
+    },
+    "summaryOne": "1 evento · orari in Europe/Zurich",
+    "loading": "Caricamento audit…",
+    "previousUnavailable": "Versione precedente non disponibile: vengono mostrati i valori attuali.",
+    "noMore": "Nessun altro evento"
   },
   "events": {
     "org": {
@@ -430,9 +434,9 @@
         "deactivated": "Utente disattivato"
       },
       "party": {
-        "created": "Parte creata",
-        "updated": "Parte aggiornata",
-        "deactivated": "Parte disattivata"
+        "created": "Partner creato",
+        "updated": "Partner aggiornato",
+        "deactivated": "Partner disattivato"
       },
       "group": {
         "created": "Gruppo creato",

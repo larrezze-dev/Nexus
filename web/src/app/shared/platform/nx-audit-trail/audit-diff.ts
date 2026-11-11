@@ -49,7 +49,8 @@ export function flattenPayload(payload: AuditPayload): Map<string, unknown> {
         continue;
       }
       const path = prefix ? `${prefix}.${key}` : key;
-      if (isPlainObject(child) && Object.keys(child).length > 0) {
+      if (isPlainObject(child)) {
+        // `{}` carries no leaf: treated as absent, so it never produces a "{}" row.
         walk(child, path);
       } else {
         result.set(path, child);

@@ -365,9 +365,9 @@
     "loadMore": "Cargar más",
     "empty": {
       "title": "Todavía no hay eventos",
-      "hint": "El historial aparecerá aquí en cuanto se modifique este registro."
+      "hint": "Los cambios aparecen aquí unos segundos después de guardar. Si esperas ver algo, pulsa «Actualizar»."
     },
-    "error": "No se pudo cargar el historial.",
+    "error": "No se ha podido cargar la auditoría. Inténtalo de nuevo.",
     "retry": "Reintentar",
     "pii": "Este evento contiene datos personales: solo se guarda quién y cuándo, no el detalle de los cambios.",
     "unknownActor": "Usuario desconocido",
@@ -387,25 +387,29 @@
       "city": "Ciudad",
       "region": "Región",
       "locationId": "Ubicación",
-      "legalEntityId": "Legal entity",
+      "legalEntityId": "Entidad legal",
       "businessUnitId": "Business unit",
-      "partyId": "Parte",
+      "partyId": "Tercero",
       "groupId": "Grupo",
       "currencyCode": "Moneda",
       "countryCode": "País",
-      "isActive": "Activo",
-      "costCenterCode": "Centro de coste",
+      "isActive": "Estado",
+      "costCenterCode": "Centro de costo",
       "consolidationMethod": "Método de consolidación",
       "reportingCurrencyCode": "Moneda de reporte",
-      "partyType": "Tipo de parte",
+      "partyType": "Tipo de tercero",
       "legalName": "Razón social",
       "displayName": "Nombre visible",
-      "taxId": "Identificador fiscal",
+      "taxId": "NIF/CIF",
       "erpCompanyCode": "Código de sociedad ERP",
       "isInternal": "Interno",
       "externalSubject": "Identificador externo",
       "preferredLanguage": "Idioma preferido"
-    }
+    },
+    "summaryOne": "1 evento · horas en Europe/Zurich",
+    "loading": "Cargando auditoría…",
+    "previousUnavailable": "Versión anterior no disponible: se muestran los valores actuales.",
+    "noMore": "No hay más eventos"
   },
   "events": {
     "org": {
@@ -430,9 +434,9 @@
         "deactivated": "Usuario desactivado"
       },
       "party": {
-        "created": "Parte creada",
-        "updated": "Parte actualizada",
-        "deactivated": "Parte desactivada"
+        "created": "Tercero creado",
+        "updated": "Tercero actualizado",
+        "deactivated": "Tercero desactivado"
       },
       "group": {
         "created": "Grupo creado",

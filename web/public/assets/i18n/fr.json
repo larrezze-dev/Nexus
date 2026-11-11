@@ -365,9 +365,9 @@
     "loadMore": "Charger plus",
     "empty": {
       "title": "Aucun événement pour l'instant",
-      "hint": "L'historique apparaîtra ici dès que cet élément sera modifié."
+      "hint": "Les modifications apparaissent ici quelques secondes après l'enregistrement. Si vous attendez quelque chose, cliquez sur « Actualiser »."
     },
-    "error": "Impossible de charger l'historique.",
+    "error": "Impossible de charger l'audit. Veuillez réessayer.",
     "retry": "Réessayer",
     "pii": "Cet événement contient des données personnelles : seuls l'auteur et l'heure sont conservés, pas le détail des modifications.",
     "unknownActor": "Utilisateur inconnu",
@@ -380,32 +380,36 @@
     "emptyValue": "(vide)",
     "fields": {
       "code": "Code",
-      "captionI18n": "Dénomination",
+      "captionI18n": "Libellé",
       "name": "Nom",
       "street": "Rue",
       "postalCode": "Code postal",
       "city": "Ville",
       "region": "Région",
-      "locationId": "Emplacement",
+      "locationId": "Site",
       "legalEntityId": "Entité juridique",
-      "businessUnitId": "Unité opérationnelle",
-      "partyId": "Partie",
+      "businessUnitId": "Unité d'affaires",
+      "partyId": "Partenaire",
       "groupId": "Groupe",
       "currencyCode": "Devise",
       "countryCode": "Pays",
-      "isActive": "Actif",
+      "isActive": "Statut",
       "costCenterCode": "Centre de coûts",
       "consolidationMethod": "Méthode de consolidation",
       "reportingCurrencyCode": "Devise de reporting",
-      "partyType": "Type de partie",
+      "partyType": "Type de partenaire",
       "legalName": "Raison sociale",
-      "displayName": "Nom d'affichage",
+      "displayName": "Nom affiché",
       "taxId": "Numéro fiscal",
       "erpCompanyCode": "Code société ERP",
       "isInternal": "Interne",
       "externalSubject": "Identifiant externe",
       "preferredLanguage": "Langue préférée"
-    }
+    },
+    "summaryOne": "1 événement · heures en Europe/Zurich",
+    "loading": "Chargement de l'audit…",
+    "previousUnavailable": "Version précédente indisponible : affichage des valeurs actuelles.",
+    "noMore": "Plus d'événements"
   },
   "events": {
     "org": {
@@ -430,9 +434,9 @@
         "deactivated": "Utilisateur désactivé"
       },
       "party": {
-        "created": "Partie créée",
-        "updated": "Partie mise à jour",
-        "deactivated": "Partie désactivée"
+        "created": "Partenaire créé",
+        "updated": "Partenaire mis à jour",
+        "deactivated": "Partenaire désactivé"
       },
       "group": {
         "created": "Groupe créé",

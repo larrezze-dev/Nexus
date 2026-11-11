@@ -365,9 +365,9 @@
     "loadMore": "Load more",
     "empty": {
       "title": "No events yet",
-      "hint": "The history appears here as soon as this record is changed."
+      "hint": "Changes appear here a few seconds after saving. If you expect to see something, press “Refresh”."
     },
-    "error": "The history could not be loaded.",
+    "error": "The audit trail could not be loaded. Please try again.",
     "retry": "Retry",
     "pii": "This event contains personal data: only who and when are stored, not the details of the changes.",
     "unknownActor": "Unknown user",
@@ -380,7 +380,7 @@
     "emptyValue": "(empty)",
     "fields": {
       "code": "Code",
-      "captionI18n": "Name",
+      "captionI18n": "Caption",
       "name": "Name",
       "street": "Street",
       "postalCode": "Postal code",
@@ -393,7 +393,7 @@
       "groupId": "Group",
       "currencyCode": "Currency",
       "countryCode": "Country",
-      "isActive": "Active",
+      "isActive": "Status",
       "costCenterCode": "Cost center",
       "consolidationMethod": "Consolidation method",
       "reportingCurrencyCode": "Reporting currency",
@@ -405,7 +405,11 @@
       "isInternal": "Internal",
       "externalSubject": "External subject",
       "preferredLanguage": "Preferred language"
-    }
+    },
+    "summaryOne": "1 event · times in Europe/Zurich",
+    "loading": "Loading audit trail…",
+    "previousUnavailable": "Previous version unavailable: showing current values.",
+    "noMore": "No more events"
   },
   "events": {
     "org": {
