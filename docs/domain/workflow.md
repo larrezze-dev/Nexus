@@ -126,7 +126,7 @@ El cálculo de "alcance que cubre" usa la misma lógica que `access.has_permissi
 | WF-R3 | Una `REJECT` válida en cualquier paso pasa la solicitud a `REJECTED` (cierra) | [+] |
 | WF-R4 | Un mismo usuario decide como máximo una vez por paso | [+] |
 | WF-R5 | Solo decide un usuario devuelto por `eligible_approvers` para el paso actual. Si no, 403 `forbidden` | A8, A6 |
-| WF-R6 | El solicitante no puede aprobar su propia solicitud (segregación de funciones), salvo que la plantilla con la que nació la solicitud tenga `allow_self_approval = true` (por defecto `false`). Una decisión del propio solicitante se marca como auto-aprobación: `selfApproval = true` en la acción de la API y en el evento `approved`, derivado de `actor_user_id = requested_by` (no se guarda columna) | [+] WF-Q1 (2026-11-11) |
+| WF-R6 | El solicitante no puede aprobar su propia solicitud (segregación de funciones), salvo que la plantilla con la que nació la solicitud tenga `allow_self_approval = true` (por defecto `false`). Una decisión del propio solicitante se marca como auto-aprobación: `selfApproval = true` en la acción de la API y en el evento `approved`, derivado de `actor_user_id = requested_by` (no se guarda columna). Con el flag activo, el solicitante es elegible **en todos los pasos**, también como voto de un `QUORUM`. WF-R4 sigue limitando a una decisión por paso (decidido 2026-11-11). Con el flag apagado, delegar en el solicitante → 422 `WF-R6` | [+] WF-Q1 (2026-11-11) |
 | WF-R7 | `DELEGATE`: no avanza `current_step_order`; el delegado pasa a ser elegible en ese paso; el delegante deja de serlo. El delegado no puede volver a delegar en el mismo paso | P8 |
 | WF-R8 | Cerrado el último paso con aprobación → `APPROVED`. Si no, `current_step_order + 1` | A8 |
 | WF-R9 | `expires_at` es `NULL` salvo que lo pida el servicio de origen. Un job pasa a `EXPIRED` las solicitudes vencidas. **Nunca auto-aprueba ni auto-rechaza** | P8 |
@@ -160,10 +160,10 @@ Un recurso con solicitud `EXPIRED` sigue en su estado `PENDING_APPROVAL`. El res
 | Método y ruta | Permiso | Notas |
 |---|---|---|
 | `GET /v1/approval-definitions` · `GET /v1/approval-definitions/{id}` | `APPROVAL_DEFINITION:READ` | Con sus pasos |
-| `POST /v1/approval-definitions` | `APPROVAL_DEFINITION:CREATE` | Alta con pasos y `allowSelfApproval` (por defecto `false`). Desactiva la anterior activa del mismo tipo en la misma transacción |
+| `POST /v1/approval-definitions` | `APPROVAL_DEFINITION:CREATE` | Alta con pasos y `allowSelfApproval` (por defecto `false`) `[+]`. Desactiva la anterior activa del mismo tipo en la misma transacción |
 | `POST /v1/approval-definitions/{id}/deactivate` | `APPROVAL_DEFINITION:UPDATE` | |
 | `GET /v1/approval-requests?status=&resourceType=&mine=assigned\|requested&page=` | `APPROVAL_REQUEST:READ` | `mine=assigned` = donde soy elegible ahora |
-| `GET /v1/approval-requests/{id}` | `APPROVAL_REQUEST:READ` | Incluye acciones (cada una con `selfApproval`), paso actual y elegibles |
+| `GET /v1/approval-requests/{id}` | `APPROVAL_REQUEST:READ` | Incluye acciones (cada una con `selfApproval` `[+]`), paso actual y elegibles |
 | `GET /v1/approval-requests/by-resource/{resourceType}/{resourceId}` | `APPROVAL_REQUEST:READ` | Para `nx-approval-panel`: la viva o la última |
 | `POST /v1/approval-requests/{id}/approve` · `/reject` · `/delegate` | `APPROVAL_REQUEST:APPROVE` + WF-R5 | Cuerpo: `comment`; `delegateToUserId` en delegate. `If-Match` |
 
@@ -186,7 +186,7 @@ Los publica cualquier servicio a través de `IApprovalClient` de `BuildingBlocks
 |---|---|---|
 | `nexus.platform.approval.requested` | Solicitud creada | `approvalRequestId`, `resourceType`, `resourceId`, `legalEntityId`, `currentStepOrder` |
 | `nexus.platform.approval.step-advanced` `[+]` | Paso cerrado sin ser el último | + `stepOrder` |
-| `nexus.platform.approval.approved` | `APPROVED` | + `approvedBy` (último aprobador), `decidedAt`, `selfApproval` (`true` si alguna `APPROVE` la hizo el solicitante, WF-R6) |
+| `nexus.platform.approval.approved` | `APPROVED` | + `approvedBy` (último aprobador), `decidedAt`, `selfApproval` `[+]` (`true` si alguna `APPROVE` la hizo el solicitante, WF-R6) |
 | `nexus.platform.approval.rejected` | `REJECTED`, o alta rechazada (WF-R12, WF-R13) | + `rejectedBy?`, `comment?`, `reasonCode` (`REJECTED_BY_APPROVER`, `ALREADY_PENDING`, `NO_ACTIVE_WORKFLOW`) |
 | `nexus.platform.approval.expired` | Job de vencimiento | + `expiredAt` |
 | `nexus.platform.approval.cancelled` | `CANCELLED` | + `reason` |
@@ -198,15 +198,15 @@ Todos llevan `resourceType` y `resourceId` en el payload. Los consumidores de or
 | Pantalla | Contenido |
 |---|---|
 | Bandeja "Mis aprobaciones" | Pestañas: *Pendientes de mí* (`mine=assigned`), *Solicitadas por mí*, *Historial*. Fila: recurso (enlace a su pantalla), solicitante, fecha, paso actual, vence |
-| Detalle de solicitud | Línea de tiempo de acciones (las auto-aprobaciones, con distintivo visible); botones Aprobar / Rechazar (comentario obligatorio) / Delegar (selector de usuario) |
+| Detalle de solicitud | Línea de tiempo de acciones (las auto-aprobaciones, con distintivo visible `[+]`); botones Aprobar / Rechazar (comentario obligatorio) / Delegar (selector de usuario) |
 | `nx-approval-panel` | Componente compartido para la pestaña "Aprobaciones" de cualquier recurso: estado, paso actual, elegibles, historial, botones si soy elegible |
-| Plantillas | Lista por `resource_type`; alta de una nueva versión con editor de pasos (orden, rol, SINGLE/QUORUM, quorum) y la casilla "Permitir que el solicitante apruebe" (`allowSelfApproval`) |
+| Plantillas | Lista por `resource_type`; alta de una nueva versión con editor de pasos (orden, rol, SINGLE/QUORUM, quorum) y la casilla "Permitir que el solicitante apruebe" (`allowSelfApproval`) `[+]` |
 
 Contador de pendientes en la barra superior (consulta `mine=assigned` con `pageSize=1`).
 
 ## §9 Abiertos ⚑
 
-- **WF-Q1 (decidido 2026-11-11):** segregación por defecto; cada plantilla puede permitir la auto-aprobación con `allow_self_approval` (por defecto `false`), y la auto-aprobación queda marcada (WF-R6). Decisión de Luciano.
+- **WF-Q1 (decidido 2026-11-11):** segregación por defecto; cada plantilla puede permitir la auto-aprobación con `allow_self_approval` (por defecto `false`), y la auto-aprobación queda marcada (WF-R6). Con el flag, sin límites: todos los pasos, también votos de quórum. Decisión de Luciano.
 - **WF-Q2 (decidido 2026-11-11):** sin plantilla activa, el alta se rechaza con `NO_ACTIVE_WORKFLOW` (WF-R13); no hay plantilla implícita. Decisión de Luciano.
 - **WF-Q3:** notificaciones (email/Teams) a los elegibles. No está en el manual; se propone un paso posterior con un consumidor de `approval.requested`.
 

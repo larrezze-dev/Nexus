@@ -133,9 +133,9 @@ CREATE TABLE hr.role_rate (                          -- manual: RoleRate; VR1 [+
   CONSTRAINT uq_rr_version UNIQUE (business_key, version_no),
   CONSTRAINT ck_rr_window CHECK (valid_to IS NULL OR valid_to >= valid_from),  -- [+] = : anulada (VER-R8)
   CONSTRAINT ex_rr_overlap EXCLUDE USING gist (business_key WITH =,
-      tstzrange(valid_from, coalesce(valid_to,'infinity')) WITH &&)
+      tstzrange(valid_from, coalesce(valid_to,'infinity')) WITH &&) DEFERRABLE INITIALLY DEFERRED   -- [+] versioning.md §4
 );
-CREATE UNIQUE INDEX uq_rr_current ON hr.role_rate(business_key) WHERE valid_to IS NULL;
+CREATE INDEX ix_rr_last ON hr.role_rate(business_key) WHERE valid_to IS NULL;   -- [+] sin UNIQUE (conventions-database §8)
 
 -- ===== Paso 5.4 · réplicas (ARC-R3) =====
 CREATE TABLE hr.project_ref (                        -- [+] desde nexus.project.project.*

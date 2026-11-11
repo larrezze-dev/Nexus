@@ -75,9 +75,9 @@ CREATE TABLE controlling.cost_concept_reserve_pct (   -- VR1 [+]
   CONSTRAINT uq_crp_version UNIQUE (business_key, version_no),
   CONSTRAINT ck_crp_window CHECK (valid_to IS NULL OR valid_to >= valid_from),  -- [+] = : anulada (VER-R8)
   CONSTRAINT ex_crp_overlap EXCLUDE USING gist (business_key WITH =,
-      tstzrange(valid_from, coalesce(valid_to,'infinity')) WITH &&)
+      tstzrange(valid_from, coalesce(valid_to,'infinity')) WITH &&) DEFERRABLE INITIALLY DEFERRED   -- [+] versioning.md §4
 );
-CREATE UNIQUE INDEX uq_crp_current ON controlling.cost_concept_reserve_pct(business_key) WHERE valid_to IS NULL;
+CREATE INDEX ix_crp_last ON controlling.cost_concept_reserve_pct(business_key) WHERE valid_to IS NULL;   -- [+] sin UNIQUE (conventions-database §8)
 
 -- [+] Reglas de imputación: hacen datos la tabla "Origen del coste real, por categoría" de A5
 CREATE TABLE controlling.cost_mapping_rule (

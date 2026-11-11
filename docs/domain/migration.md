@@ -172,4 +172,4 @@ Los informes se generan como CSV + resumen Markdown en `migration-reports/<run_i
 - **MIG-Q1:** ¿se migra histórico (proyectos cerrados, movimientos pasados) para reporting? Propuesta: no al OLTP; si hace falta, carga directa a ClickHouse en tablas `hist_*` separadas.
 - **MIG-Q2:** facturas abiertas y P&L de proyectos en curso en el momento del corte.
 - **MIG-Q3:** alcance del piloto (D12 dice "subconjunto controlado de Mandant/almacenes"). Operar una LE en NEXUS mientras otras siguen en EJ sería coexistencia (D11). Propuesta: piloto sin operación real.
-- **MIG-Q4:** vinculación de usuarios a Entra ID: por email en el primer login o pre-cargado desde el directorio.
+- **MIG-Q4 (decidido 2026-11-11):** vinculación en el primer login por la identidad del tenant (UPN de una cuenta miembro con dominio verificado), nunca por el claim `email`. Los invitados B2B, con `oid` manual (ADR-0006). `[+]` 7.2/7.3 cargan en `app_user.email` el UPN conciliado con Entra (no el email de EasyJob si difiere, p. ej. un alias), para evitar 403 masivos en el go-live.

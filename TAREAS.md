@@ -89,12 +89,24 @@
 | [ ] | **7.1** GDPR / PII (A12) (tracks C B S F; estado: Pendiente) | Protección de datos personales (GDPR/PII). | 0.9, 5.3 | Bloqueado por: GDP-Q1…Q4. |
 | [ ] | **7.2** ETL: extracción y staging (tracks C B; estado: Pendiente) | ETL: extracción de EasyJob/adunic a staging. | — | Requiere acceso a NUS-SQL-001\NRP. Bloqueado por: acceso a `NUS-SQL-001\NRP`. |
 | [ ] | **7.3** ETL: transformación, carga, id_map, reconciliación (tracks C B; estado: Pendiente) | ETL: transformación, carga, mapa de ids y reconciliación. | 7.2 | Bloqueado por: tablas de correspondencia. |
-| [ ] | **7.4** Ensayos, piloto opcional, runbook, go/no-go (tracks B I; estado: Pendiente) | Ensayos de migración, runbook y decisión go/no-go del cutover. | 7.1, 7.3, 0.11 | Bloqueado por: MIG-Q1…Q4. |
+| [ ] | **7.4** Ensayos, piloto opcional, runbook, go/no-go (tracks B I; estado: Pendiente) | Ensayos de migración, runbook y decisión go/no-go del cutover. | 7.1, 7.3, 0.11 | Bloqueado por: MIG-Q1…Q3. |
+
+## Trabajo derivado de decisiones
+
+| Trabajo | Decisión | Tracks | Antes de |
+|---|---|---|---|
+| `PUT /v1/roles/{id}/permissions` exige `If-Match` (428/409) | 2026-11-11, `domain/access.md §8` | C → B ∥ F | Gate D de 0.9 (siguiente paso que toca `platform.yaml`) |
+| Vinculación del `app_user` sin `oid` en el primer login (solo miembros del tenant, solo en `nexus-platform`) | 2026-11-11, ADR-0006 | B | 7.2 (ETL de usuarios) |
+| Deuda menor del shell (PR #14): listener de 401 sin conectar, posible bucle de redirección con SSO silencioso, accesibilidad (`<html lang>`, `MatPaginatorIntl`, `aria-live`), ruta comodín `**`, estado de error explícito en `nx-data-grid` | 2026-11-11, aprobación de 0.5 | F | 1.3 (primer paso con pantallas de catálogo) |
 
 ## Hitos
 
 | Hito | Condición | Confirmado |
 |---|---|---|
-| Trabajo | Decisión | Tracks | Antes de |
-| `PUT /v1/roles/{id}/permissions` exige `If-Match` (428/409) | 2026-11-11, `domain/access.md §8` | C → B ∥ F | Gate D de 0.9 (siguiente paso que toca `platform.yaml`) |
-| Vinculación del `app_user` sin `oid` en el primer login | 2026-11-11, ADR-0006 | B | 7.2 (ETL de usuarios) |
+| Plataforma lista | 0.1–0.10 `Aprobado` | — |
+| Master data 1·2·3 completa (S5) | 2.4 `Aprobado` | — |
+| Ledger operativo (S6) | 3.1 `Aprobado` | — |
+| Planificación con Solver | 4.5 `Aprobado` | — |
+| Ciclo comercial-financiero completo | 5.7 `Aprobado` | — |
+| Captura edge en producción de prueba | 6.5 `Aprobado` | — |
+| Go-live | 7.4 go | — |

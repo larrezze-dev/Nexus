@@ -150,11 +150,24 @@ for p in phases:
     ph_stats.append(dict(id=p["id"], name=p["name"], n=len(ps), ok=sum(s["status"] == "Aprobado" for s in ps),
                          units=u, done=d, pct=round(100 * d / u)))
 blocked_steps = [s for s in steps if s["blocked"] not in ("—", "")]
-milestones = []
-for line in STATUS.split("## Hitos")[1].split("## Preguntas")[0].splitlines():
-    m = re.match(r"\| (.+?) \| (.+?) \| (.*?) \|$", line)
-    if m and m.group(1) not in ("Hito", "---"):
-        milestones.append((m.group(1), m.group(2), m.group(3)))
+def section(title):
+    """Body of the '## <title>…' section of STATUS.md, up to the next '## ' heading."""
+    return STATUS.split("\n## " + title, 1)[1].split("\n## ", 1)[0]
+
+def table_rows(text, header):
+    rows = []
+    for line in text.splitlines():
+        if not line.startswith("|"):
+            continue
+        cells = [c.strip() for c in line.strip().strip("|").split("|")]
+        if cells[0] in (header, "---") or set(cells[0]) <= {"-"}:
+            continue
+        rows.append(cells)
+    return rows
+
+milestones = [tuple((r + ["", "", ""])[:3]) for r in table_rows(section("Hitos"), "Hito")]
+derived = [tuple((r + ["", "", "", ""])[:4]) for r in table_rows(section("Trabajo derivado"), "Trabajo")] \
+    if "\n## Trabajo derivado" in STATUS else []
 questions = []
 for line in STATUS.split("## Preguntas abiertas")[1].splitlines():
     m = re.match(r"\| (.+?) \| (.+?) \| (.+?) \|$", line)
@@ -176,6 +189,10 @@ for p in phases:
         tr = " ".join(s["tracks"])
         md.append(f"| {s['mark']} | **{s['id']}** {esc(s['title'])} (tracks {tr}; estado: {s['status']}) | {esc(s['desc'])} | {deps} | {esc(s['note'])} |")
     md.append("")
+if derived:
+    md += ["## Trabajo derivado de decisiones", "", "| Trabajo | Decisión | Tracks | Antes de |", "|---|---|---|---|"]
+    md += [f"| {esc(a)} | {esc(b)} | {c} | {esc(d)} |" for a, b, c, d in derived]
+    md += [""]
 md += ["## Hitos", "", "| Hito | Condición | Confirmado |", "|---|---|---|"]
 md += [f"| {a} | {b} | {c or '—'} |" for a, b, c in milestones]
 (ROOT / "TAREAS.md").write_text("\n".join(md) + "\n", encoding="utf-8")

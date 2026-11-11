@@ -122,9 +122,9 @@ CREATE TABLE catalog.asset_type_bom (
   CONSTRAINT uq_bom_version UNIQUE (business_key, version_no),
   CONSTRAINT ck_bom_window CHECK (valid_to IS NULL OR valid_to >= valid_from),  -- [+] = : anulada (VER-R8)
   CONSTRAINT ex_bom_overlap EXCLUDE USING gist (business_key WITH =,
-      tstzrange(valid_from, coalesce(valid_to,'infinity')) WITH &&)
+      tstzrange(valid_from, coalesce(valid_to,'infinity')) WITH &&) DEFERRABLE INITIALLY DEFERRED   -- [+] versioning.md §4
 );
-CREATE UNIQUE INDEX uq_bom_current ON catalog.asset_type_bom(business_key) WHERE valid_to IS NULL;
+CREATE INDEX ix_bom_last ON catalog.asset_type_bom(business_key) WHERE valid_to IS NULL;   -- [+] sin UNIQUE (conventions-database §8)
 CREATE INDEX ix_bom_parent ON catalog.asset_type_bom(parent_asset_type_id, valid_from);
 
 -- ===== Paso 1.4 · Bloque F: precio (RLS: LE, VR1) =====
@@ -149,9 +149,9 @@ CREATE TABLE catalog.asset_type_price_rule (
   CONSTRAINT uq_pr_version UNIQUE (business_key, version_no),
   CONSTRAINT ck_pr_window CHECK (valid_to IS NULL OR valid_to >= valid_from),  -- [+] = : anulada (VER-R8)
   CONSTRAINT ex_pr_overlap EXCLUDE USING gist (business_key WITH =,
-      tstzrange(valid_from, coalesce(valid_to,'infinity')) WITH &&)
+      tstzrange(valid_from, coalesce(valid_to,'infinity')) WITH &&) DEFERRABLE INITIALLY DEFERRED   -- [+] versioning.md §4
 );
-CREATE UNIQUE INDEX uq_pr_current ON catalog.asset_type_price_rule(business_key) WHERE valid_to IS NULL;
+CREATE INDEX ix_pr_last ON catalog.asset_type_price_rule(business_key) WHERE valid_to IS NULL;   -- [+] sin UNIQUE (conventions-database §8)
 CREATE INDEX ix_pr_type_le ON catalog.asset_type_price_rule(asset_type_id, legal_entity_id);
 
 -- ===== Paso 1.5 · Bloque C: unidad física (RLS: LE = propietario) =====
@@ -252,6 +252,8 @@ CREATE OR REPLACE FUNCTION catalog.explode_bom(p_asset_type_id uuid, p_qty numer
 RETURNS TABLE (level int, parent_asset_type_id uuid, component_asset_type_id uuid,
                qty_stock_uom numeric(18,4), is_optional boolean, path uuid[])
 LANGUAGE sql STABLE …;   -- WITH RECURSIVE; corta en profundidad 10 (CAT-R9)
+-- [+] Cada nivel usa la consulta "as of" de conventions-database §8, con AND NOT is_retired
+-- (una línea de BOM dada de baja no se explota, VER-R5).
 ```
 
 La usan commissioning (6.2), la reserva de kits `VIRTUAL` (4.2) y el Solver.
@@ -277,7 +279,7 @@ La usan commissioning (6.2), la reserva de kits `VIRTUAL` (4.2) y el Solver.
 | CAT-R8 | Un tipo `SERIALIZED` tiene `stock_uom_id` `NULL` o de dimensión `COUNT` | [+] |
 | CAT-R9 | El BOM no tiene ciclos y su profundidad máxima es 10 | [+] |
 | CAT-R10 | El BOM y las tarifas siguen VR1 (`versioning.md`): nunca `UPDATE` de campos versionados | A10 |
-| CAT-R11 | Un `AssetType` con `kit_mode ≠ NONE` necesita al menos una línea de BOM vigente para pasar a `ACTIVE`; con `kit_mode = NONE` no puede tener BOM | [+] |
+| CAT-R11 | Un `AssetType` con `kit_mode ≠ NONE` necesita al menos una línea de BOM vigente ("as of" ahora, sin `is_retired`) para pasar a `ACTIVE`; con `kit_mode = NONE` no puede tener líneas de BOM vigentes ni programadas sin `is_retired` | [+] |
 | CAT-R12 | `serial_number` es único por tipo. No se reutiliza aunque el ítem se retire | [+] |
 | CAT-R13 | `asset_item.legal_entity_id` (propietario) no cambia por un alquiler interno (A1: custodia sin cambio de propiedad). Solo cambia con una venta intercompañía explícita (fuera de alcance v1) | A1 |
 | CAT-R14 | El estado de un `AssetItem` sigue §5; `RETIRED` y `LOST` son terminales salvo `LOST → ACTIVE` (aparecido) | [+] |
@@ -316,7 +318,7 @@ stateDiagram-v2
 | `POST /v1/asset-types/{id}/activate` · `/discontinue` · `/reactivate` | `ASSET_TYPE:UPDATE` | 1.3 |
 | `GET/POST /v1/asset-types/{id}/unit-conversions`, `PUT/DELETE …/{convId}` | `ASSET_TYPE:UPDATE` | 1.3 |
 | `GET /v1/asset-types/{id}/bom?asOf=` · `GET …/bom/explode?qty=&asOf=` | `ASSET_TYPE:READ` | 1.4 |
-| `PUT /v1/asset-types/{id}/bom` (lista completa; el servidor versiona cada línea) | `ASSET_TYPE:UPDATE` | 1.4 |
+| `PUT /v1/asset-types/{id}/bom` (lista completa + `validFrom?`; el servidor versiona solo las líneas que cambian en `validFrom`, VER-R7). `[+]` La anulación es **por línea** (decidido 2026-11-11): una línea cambiada anula solo sus propias versiones programadas desde `validFrom`. La respuesta lista `annulledVersionIds` por línea y `otherScheduledLines`: las líneas del mismo kit con versiones programadas posteriores que esta revisión no ha tocado. La pantalla muestra un aviso para que el usuario no deje un BOM mezclado sin querer | `ASSET_TYPE:UPDATE` | 1.4 |
 | `GET /v1/asset-types/{id}/bom/versions` | `ASSET_TYPE:READ` | 1.4 |
 | `GET /v1/price-rules?assetTypeId=&legalEntityId=&priceRuleCode=&asOf=` | `PRICE_RULE:READ` | 1.4 |
 | `POST /v1/price-rules` (alta, versión 1) | `PRICE_RULE:CREATE` (alcance `body.legalEntityId`) | 1.4 |

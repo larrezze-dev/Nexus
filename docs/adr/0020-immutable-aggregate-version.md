@@ -13,12 +13,17 @@ Ese mismo día Luciano cerró VER-Q1 (`valid_from` futuro en **todas** las tabla
 
 ## Decisión
 
-1. **Clase base `ImmutableAggregateRoot<TId>`** (`BuildingBlocks.Domain`), derivada de `AggregateRoot<TId>`. Representa una fila que se inserta una vez y emite **como mucho un evento, en su alta**. `AggregateVersionConvention` no mapea `AggregateVersion` en estos tipos: la ignora en el modelo de EF y no se busca ninguna columna `aggregate_version`. El `UnitOfWork` acepta sus eventos aunque la versión no esté persistida, porque la versión se deriva de la fila (punto 2). Una fila de estas que se carga y se modifica (solo el cierre de VR1) no emite eventos.
+1. **Clase base `ImmutableAggregateRoot<TId>`** (`BuildingBlocks.Domain`), derivada de `AggregateRoot<TId>`. Representa una fila que se inserta una vez y emite **como mucho un evento, en su alta**: un segundo `RaiseEvent` lanza `InvalidOperationException`. Contrato:
+   - Propiedades abstractas `EventAggregateId` (`Guid`) y `EventAggregateVersion` (`long`), calculadas desde la fila (punto 2).
+   - `AggregateVersionConvention` (ADR-0019) **ignora** `AggregateVersion` en estos tipos, sin buscar una columna `aggregate_version`.
+   - El `UnitOfWork`/`OutboxWriter`, para un `ImmutableAggregateRoot<>`, toma `nexus-aggregate-id` de `EventAggregateId` y `nexus-aggregate-version` de `EventAggregateVersion`, en lugar de `Id` y del contador `AggregateVersion - n + i + 1`. También deja de rechazar sus eventos por "versión no persistida".
+   - Una fila de estas que se carga y se modifica (solo el cierre de VR1) no emite eventos.
+   - Variante VR1: `VersionedAggregateRoot<TId>` (deriva de la anterior) con `BusinessKey`, `VersionNo`, `IsRetired` y `LineageId` (no mapeado). `VersionedRepository<T>` rellena `LineageId` con el `id` de la fila `version_no = 1`, que ya ha leído para bloquear la cadena (`versioning.md §4`, paso 2). En la propia versión 1, `LineageId = Id`.
 2. **De dónde sale la versión del evento:**
    - **Append-only** (p. ej. `org.exchange_rate`): cada fila es un agregado propio. `nexus-aggregate-id` = `id` de la fila; `nexus-aggregate-version` = **1**, siempre.
    - **VR1**: el agregado es la cadena de versiones de un `business_key`. `nexus-aggregate-id` = **`id` de la fila con `version_no = 1`** de ese `business_key` (identificador de linaje: estable, UUID y ya generado por la aplicación, ADR-0009). `nexus-aggregate-version` = **`version_no`** de la fila nueva. El payload sigue llevando `businessKey`.
 3. **Todo evento VR1 corresponde a una fila.** Por eso la baja lógica pasa a ser una versión más: una fila con `is_retired = true` que copia los valores de la anterior (columna nueva en la plantilla de `conventions-database.md §8`). Así `version_no` es consecutivo, ningún número de evento se queda sin fila y una baja programada que luego se anula no deja huecos ni duplicados. Volver a dar de alta un `business_key` dado de baja es otra versión (`is_retired = false`) de la misma cadena.
-4. **Concurrencia:** la fila nueva solo se inserta. Dos comandos simultáneos sobre el mismo `business_key` chocan en `UNIQUE (business_key, version_no)` o en el `EXCLUDE` de no solapamiento. El perdedor recibe 409 por el camino existente y nunca publica un número de versión duplicado. El paso 1 de `versioning.md §4` (`FOR UPDATE` sobre las filas afectadas) serializa el caso normal.
+4. **Concurrencia:** los comandos sobre el mismo `business_key` se serializan bloqueando la fila `version_no = 1` (`versioning.md §4`, paso 2) y leyendo la cadena después del bloqueo. Lo que se escape (dos altas simultáneas, o un camino que no pase por `VersionedRepository`) choca en `uq_<t>_version` o en el `EXCLUDE` de no solapamiento, que es diferido y salta en el `COMMIT`. Los dos constraints se registran en el mapa de `NexusExceptionHandler`, y el `UnitOfWork` traduce también los fallos del `COMMIT`: el perdedor recibe 409 y nunca publica un número de versión duplicado. El instante de la transacción lo fija la aplicación (`SET LOCAL nexus.now`, `versioning.md §3`).
 5. **Versiones anuladas** (VER-R7, "el futuro es editable"): una versión programada que queda anulada mantiene su `version_no`, que nunca se reutiliza. El evento de la versión que la anula lleva `annulledVersionIds`. Los consumidores (proyecciones `*_history`, réplicas) marcan esas versiones como anuladas. La serie de `nexus-aggregate-version` sigue siendo estrictamente creciente.
 
 ## Alternativas descartadas
@@ -41,5 +46,6 @@ Ese mismo día Luciano cerró VER-Q1 (`valid_from` futuro en **todas** las tabla
 
 - Test de `BuildingBlocks.Persistence`: un `ImmutableAggregateRoot<>` sin columna `aggregate_version` se carga y se guarda, y su evento sale con versión 1 (append-only) o con `version_no` (VR1).
 - Test de `VersionedRepository<T>` (1.4): alta, dos versiones y baja dan las versiones 1, 2, 3 y 4 con el mismo `nexus-aggregate-id`. Volver a dar de alta da la 5.
+- Un segundo `RaiseEvent` en un `ImmutableAggregateRoot<>` lanza `InvalidOperationException`.
 - Dos versiones concurrentes del mismo `business_key`: una gana y la otra recibe 409, sin versión duplicada en el outbox.
 - Versión programada anulada (VER-R7): su `version_no` no se reutiliza y el evento siguiente lleva `annulledVersionIds`.

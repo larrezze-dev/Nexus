@@ -99,7 +99,7 @@ Puerta A3: **abierta** (P3).
 | [7.1](F7/7.1-gdpr.md) | GDPR / PII (A12) | C → B ∥ S ∥ F | 0.9, 5.3 | 7.2 | GDP-Q1…Q4 | Pendiente | |
 | [7.2](F7/7.2-etl-extraccion.md) | ETL: extracción y staging | C → B | contratos F1–F6 | 7.1 | acceso a `NUS-SQL-001\NRP` | Pendiente | |
 | [7.3](F7/7.3-etl-transformacion-carga.md) | ETL: transformación, carga, id_map, reconciliación | C → B | 7.2 | — | tablas de correspondencia | Pendiente | |
-| [7.4](F7/7.4-cutover.md) | Ensayos, piloto opcional, runbook, go/no-go | I ∥ B | 7.1, 7.3, 0.11 | — | MIG-Q1…Q4 | Pendiente | |
+| [7.4](F7/7.4-cutover.md) | Ensayos, piloto opcional, runbook, go/no-go | I ∥ B | 7.1, 7.3, 0.11 | — | MIG-Q1…Q3 | Pendiente | |
 
 ## Hitos
 
@@ -120,7 +120,8 @@ Cambios pequeños que salen de decisiones cerradas fuera de un paso. Cada uno va
 | Trabajo | Decisión | Tracks | Antes de |
 |---|---|---|---|
 | `PUT /v1/roles/{id}/permissions` exige `If-Match` (428/409) | 2026-11-11, `domain/access.md §8` | C → B ∥ F | Gate D de 0.9 (siguiente paso que toca `platform.yaml`) |
-| Vinculación del `app_user` sin `oid` en el primer login | 2026-11-11, ADR-0006 | B | 7.2 (ETL de usuarios) |
+| Vinculación del `app_user` sin `oid` en el primer login (solo miembros del tenant, solo en `nexus-platform`) | 2026-11-11, ADR-0006 | B | 7.2 (ETL de usuarios) |
+| Deuda menor del shell (PR #14): listener de 401 sin conectar, posible bucle de redirección con SSO silencioso, accesibilidad (`<html lang>`, `MatPaginatorIntl`, `aria-live`), ruta comodín `**`, estado de error explícito en `nx-data-grid` | 2026-11-11, aprobación de 0.5 | F | 1.3 (primer paso con pantallas de catálogo) |
 
 ## Preguntas abiertas ⚑ por paso
 

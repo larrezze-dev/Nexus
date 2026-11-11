@@ -190,10 +190,11 @@ CONSTRAINT ck_<t>_window  CHECK (valid_to IS NULL OR valid_to >= valid_from),  -
 CONSTRAINT ex_<t>_overlap EXCLUDE USING gist (
     business_key WITH =,
     tstzrange(valid_from, coalesce(valid_to, 'infinity')) WITH &&)
+    DEFERRABLE INITIALLY DEFERRED            -- [+] se comprueba en el COMMIT (versioning.md §4)
 ```
 
-- Índice parcial de la última versión de la cadena: `CREATE UNIQUE INDEX ... ON <t>(business_key) WHERE valid_to IS NULL`. **No** identifica la vigente: puede estar programada (VER-R7).
-- Consulta "as of" (también para "vigente ahora", con `$2 = now()`): `WHERE business_key = $1 AND valid_from <= $2 AND (valid_to IS NULL OR valid_to > $2)`. Si la fila tiene `is_retired`, el recurso no existe en `$2`. Una versión anulada (`valid_to = valid_from`) nunca cumple el filtro.
+- Índice parcial de la última versión de la cadena `[+]`: `CREATE INDEX ix_<t>_last ON <t>(business_key) WHERE valid_to IS NULL`, sin `UNIQUE` (redundante con el `EXCLUDE`, y un `UNIQUE` inmediato rompería el orden INSERT → UPDATE de `versioning.md §4`). **No** identifica la vigente: puede estar programada (VER-R7).
+- Consulta "as of" (también para "vigente ahora") `[+]`: `WHERE business_key = $1 AND valid_from <= $2 AND (valid_to IS NULL OR valid_to > $2) AND NOT is_retired`. Sin `NOT is_retired` solo se usa para el historial. Una versión anulada (`valid_to = valid_from`) nunca cumple el filtro.
 - La operación de versionado está en `domain/versioning.md`.
 
 ## §9 Restricciones e índices
@@ -249,4 +250,4 @@ Consultas que hacen fallar el job si devuelven filas:
 | DBC-4 | Tabla append-only declarada en §6 sin el trigger `trg_<tabla>_append_only` |
 | DBC-5 | Columna `timestamp without time zone`, `real`, `double precision` o `money` |
 | DBC-6 | Tabla propiedad de un rol distinto de `nexus_owner` |
-| DBC-7 | Tabla listada en `db/ci/versioned.txt` sin el trigger `trg_<tabla>_versioned` o sin el índice parcial `uq_*_current` |
+| DBC-7 | Tabla listada en `db/ci/versioned.txt` sin el trigger `trg_<tabla>_versioned`, sin el índice parcial `ix_*_last`, sin `EXCLUDE` diferido o sin la columna `is_retired` `[+]` |
