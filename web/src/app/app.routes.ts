@@ -1,5 +1,6 @@
 import { Routes } from '@angular/router';
 import { authGuard } from './core/auth/auth.guard';
+import { postLoginRedirect } from './core/auth/return-url';
 import { nexusHttpRoutes } from './core/http/http.routes';
 import { AuthenticatedShellComponent } from './core/layout/authenticated-shell.component';
 import { accessRolesRoutes } from './features/access/roles/roles.routes';
@@ -29,7 +30,7 @@ export const routes: Routes = [
     canActivate: [authGuard],
     component: AuthenticatedShellComponent,
     children: [
-      { path: '', pathMatch: 'full', redirectTo: 'account' },
+      { path: '', pathMatch: 'full', redirectTo: postLoginRedirect },
       {
         path: 'account',
         // `nav: false`: reachable from the user menu, not listed in the sidenav.
