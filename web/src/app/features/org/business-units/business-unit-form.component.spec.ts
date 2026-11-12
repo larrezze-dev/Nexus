@@ -10,6 +10,7 @@ const legalEntity: LegalEntityListItem = {
   id: '018f1a3c-7e3b-7c5a-9c2e-6a2f8e9b0c40',
   groupId: '018f1a3c-7e3b-7c5a-9c2e-6a2f8e9b0c30',
   code: 'LE-CH',
+  legalName: 'SAPE smart bud AG',
   currencyCode: 'CHF',
   countryCode: 'CH',
   isActive: true,

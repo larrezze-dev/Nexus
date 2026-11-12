@@ -265,6 +265,7 @@ describe('UserDetailPage', () => {
     fixture.componentInstance['onLegalEntityScopeSelected']({
       id: 'le-1',
       code: 'LE-CH',
+      legalName: 'SAPE smart bud AG',
       countryCode: 'CH',
       currencyCode: 'CHF',
       groupId: 'g-1',

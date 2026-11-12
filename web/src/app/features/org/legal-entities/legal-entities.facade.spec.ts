@@ -22,6 +22,7 @@ const listItem: LegalEntityListItem = {
   id: legalEntity.id,
   groupId: legalEntity.groupId,
   code: legalEntity.code,
+  legalName: 'SAPE smart bud AG',
   currencyCode: legalEntity.currencyCode,
   countryCode: legalEntity.countryCode,
   isActive: true,
