@@ -53,6 +53,18 @@ describe('NxI18nCaptionEditorComponent', () => {
     return fixture.nativeElement.querySelector(`input[data-lang="${lang}"]`);
   }
 
+  it('shows «German is required» once the host form marks every field as touched (invalid submit)', () => {
+    fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('[data-testid="nx-i18n-caption-editor-de-error"]')).toBeNull();
+
+    fixture.componentInstance.form.markAllAsTouched();
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.querySelector('[data-testid="nx-i18n-caption-editor-de-error"]')?.textContent).toContain(
+      'German is required',
+    );
+  });
+
   it('renders one row per supported language', () => {
     fixture.detectChanges();
 

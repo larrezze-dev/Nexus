@@ -1,13 +1,19 @@
+// One field per language on two columns (de | en, fr | it, es), as the approved canvas shows
+// («Name in each language», board 3); one column below 600 px. Same gaps as `nx-form-grid`.
 .nx-i18n-caption-editor {
-  display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  column-gap: var(--nx-form-gap-x);
+  row-gap: var(--nx-form-gap-y);
+  align-items: start; // a row with an error message must not stretch its neighbour
+  min-width: 0;
 
   &__row {
     width: 100%;
+    min-width: 0;
   }
 
-  &__required {
-    color: var(--mat-sys-error, #b3261e);
+  @media (max-width: 599.98px) {
+    grid-template-columns: minmax(0, 1fr);
   }
 }

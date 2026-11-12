@@ -1,4 +1,13 @@
-import { ChangeDetectionStrategy, Component, forwardRef } from '@angular/core';
+import {
+  AfterViewInit,
+  ChangeDetectionStrategy,
+  ChangeDetectorRef,
+  Component,
+  DestroyRef,
+  Injector,
+  forwardRef,
+  inject,
+} from '@angular/core';
 import {
   AbstractControl,
   FormBuilder,
@@ -6,7 +15,9 @@ import {
   FormGroup,
   NG_VALIDATORS,
   NG_VALUE_ACCESSOR,
+  NgControl,
   ReactiveFormsModule,
+  TouchedChangeEvent,
   ValidationErrors,
   Validator,
   Validators,
@@ -53,8 +64,12 @@ type CaptionFormGroup = FormGroup<Record<SupportedLanguage, FormControl<string>>
     },
   ],
 })
-export class NxI18nCaptionEditorComponent implements ControlValueAccessor, Validator {
+export class NxI18nCaptionEditorComponent implements ControlValueAccessor, Validator, AfterViewInit {
   protected readonly languages = SUPPORTED_LANGUAGES;
+
+  private readonly injector = inject(Injector);
+  private readonly destroyRef = inject(DestroyRef);
+  private readonly cdr = inject(ChangeDetectorRef);
 
   protected readonly form: CaptionFormGroup;
 
@@ -72,6 +87,28 @@ export class NxI18nCaptionEditorComponent implements ControlValueAccessor, Valid
 
     this.form.valueChanges.pipe(takeUntilDestroyed()).subscribe((value) => {
       this.onChange(this.toI18nText(value));
+    });
+  }
+
+  /**
+   * The host form's `markAllAsTouched()` (invalid submit) touches the composite control only;
+   * pass it on to the per-language rows so «German is required» shows like any other field error
+   * (and clear it again when the host form is reset).
+   * `NgControl` is read lazily (a constructor injection would be a DI cycle with the
+   * `NG_VALUE_ACCESSOR` this component provides), and only after the view init: `formControlName`
+   * binds its control in its own `ngOnChanges`, which runs after this component's `ngOnInit`.
+   */
+  ngAfterViewInit(): void {
+    const control = this.injector.get(NgControl, null, { self: true })?.control;
+    control?.events.pipe(takeUntilDestroyed(this.destroyRef)).subscribe((event) => {
+      if (event instanceof TouchedChangeEvent) {
+        if (event.touched) {
+          this.form.markAllAsTouched();
+        } else {
+          this.form.markAsUntouched(); // host form reset
+        }
+        this.cdr.markForCheck();
+      }
     });
   }
 
