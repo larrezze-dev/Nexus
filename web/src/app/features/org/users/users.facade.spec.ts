@@ -26,7 +26,7 @@ describe('UsersFacade', () => {
       providers: [
         provideHttpClient(),
         provideHttpClientTesting(),
-        { provide: NxI18nService, useValue: { translateErrorCode: (code: string | null) => code ?? 'generic' } },
+        { provide: NxI18nService, useValue: { translateErrorCode: (code: string | null) => code ?? 'generic', getActiveLanguage: () => 'de' } },
       ],
     });
 

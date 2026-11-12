@@ -1,7 +1,12 @@
-// ⚑ paleta provisional — colores corporativos de Nüssli pendientes de decisión.
-// Tema M3 de Angular Material (paso 0.5, core/layout). Cuando la decisión de
-// marca esté cerrada, solo hay que cambiar los valores de `color` de este
-// fichero; ningún componente depende de los nombres de paleta concretos.
+// Tema M3 de Angular Material (paso 0.5; sistema de diseño «Fundamentos», 2026-11-12).
+//
+// ⚑ Paleta corporativa de Nüssli pendiente: la paleta generadora sigue siendo
+// la azul de M3 (primary = --nx-color-primary). Cuando la marca esté cerrada, se cambia
+// `primary`/`tertiary` aquí y los hex de `tokens.css`; ningún componente
+// depende de los nombres de paleta concretos.
+//
+// Los colores base NO están aquí: viven en tokens.css (--nx-*). Este fichero
+// solo redirige los tokens de sistema de Material (--mat-sys-*) hacia ellos.
 @use '@angular/material' as mat;
 
 html {
@@ -15,8 +20,43 @@ html {
         primary: mat.$blue-palette,
         tertiary: mat.$cyan-palette,
       ),
-      typography: Roboto,
+      // Misma pila que --nx-font-family (tokens.css): todos los --mat-sys-*-font
+      // apuntan a ella, así ningún componente Material cae en la serif del navegador.
+      typography: (
+        plain-family: var(--nx-font-family),
+        brand-family: var(--nx-font-family),
+      ),
       density: 0,
+    )
+  );
+
+  // Superficies neutras: la paleta azul de M3 genera superficies rosadas/lavanda.
+  // Se sustituyen por los grises de tokens.css. Componente → token de sistema:
+  //   fondo de mat-sidenav-content → background
+  //   toolbar, mat-sidenav, diálogo, tarjeta outlined → surface
+  //   tarjeta elevated → surface-container-low; menú y panel de mat-select → surface-container
+  //   campo «fill», divisores de pestañas y menús → surface-variant
+  //   borde de campo «outline» y de chips → outline; tarjeta outlined → outline-variant
+  @include mat.theme-overrides(
+    (
+      background: var(--nx-color-surface),
+      on-background: var(--nx-color-text),
+      surface: var(--nx-color-surface-raised),
+      surface-bright: var(--nx-color-surface-raised),
+      surface-container-lowest: var(--nx-color-surface-raised),
+      surface-container-low: var(--nx-color-surface-raised),
+      surface-container: var(--nx-color-surface-raised),
+      surface-container-high: var(--nx-color-surface-raised),
+      surface-container-highest: var(--nx-color-surface-muted),
+      surface-variant: var(--nx-color-surface-muted),
+      surface-dim: var(--nx-color-surface-muted),
+      on-surface: var(--nx-color-text),
+      on-surface-variant: var(--nx-color-text-muted),
+      outline: var(--nx-color-outline),
+      outline-variant: var(--nx-color-border),
+      primary: var(--nx-color-primary),
+      primary-container: var(--nx-color-primary-container),
+      error: var(--nx-color-error),
     )
   );
 }

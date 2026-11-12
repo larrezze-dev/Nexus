@@ -1,32 +1,26 @@
-import { Component, inject } from '@angular/core';
-import { ActivatedRoute } from '@angular/router';
-import { toSignal } from '@angular/core/rxjs-interop';
+import { Component } from '@angular/core';
+import { MatButtonModule } from '@angular/material/button';
+import { RouterLink } from '@angular/router';
 import { TranslocoPipe } from '@jsverse/transloco';
-import { map } from 'rxjs';
+import { NxEmptyStateComponent } from '../../../shared/ui/layout/nx-empty-state.component';
 
 /**
- * Shown when a request fails with 403 (ficha 0.5, track F point 2). `errorInterceptor`
- * navigates here with `?permission=<RESOURCE:ACTION>` when the `Problem` carries
- * `requiredPermission`, so a direct link stays shareable/testable without router state.
+ * Shown when a request fails with 403. `errorInterceptor` may append `?permission=...` to the
+ * URL; it is deliberately not displayed (technical wording, not for end users).
  */
 @Component({
   selector: 'nx-forbidden-page',
-  imports: [TranslocoPipe],
+  imports: [TranslocoPipe, RouterLink, MatButtonModule, NxEmptyStateComponent],
   template: `
-    <h1>{{ 'httpPages.forbidden.title' | transloco }}</h1>
-    <p>{{ 'httpPages.forbidden.message' | transloco }}</p>
-    @if (requiredPermission()) {
-      <p>
-        {{ 'httpPages.forbidden.requiredPermission' | transloco: { permission: requiredPermission() } }}
-      </p>
-    }
+    <nx-empty-state
+      [headingLevel]="1"
+      kind="forbidden"
+      [title]="'httpPages.forbidden.title' | transloco"
+      [message]="'httpPages.forbidden.message' | transloco"
+      data-testid="nx-forbidden-page"
+    >
+      <a mat-flat-button routerLink="/account">{{ 'httpPages.goToAccount' | transloco }}</a>
+    </nx-empty-state>
   `,
 })
-export class ForbiddenPage {
-  private readonly route = inject(ActivatedRoute);
-
-  readonly requiredPermission = toSignal(
-    this.route.queryParamMap.pipe(map((params) => params.get('permission'))),
-    { initialValue: null },
-  );
-}
+export class ForbiddenPage {}

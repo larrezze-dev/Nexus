@@ -13,6 +13,7 @@ import { LegalEntityListItem } from '../../../api/platform/models/legal-entity-l
 import { LegalEntitiesFacade } from '../legal-entities/legal-entities.facade';
 import { BusinessUnitFormComponent, BusinessUnitFormValue } from './business-unit-form.component';
 import { BusinessUnitsFacade } from './business-units.facade';
+import { NxBreadcrumbService } from '../../../core/layout/breadcrumb.service';
 
 /**
  * `BusinessUnit` detail/create page — same structure as
@@ -44,6 +45,7 @@ export class BusinessUnitDetailPage implements OnInit {
   private readonly router = inject(Router);
   private readonly i18n = inject(NxI18nService);
   private readonly transloco = inject(TranslocoService);
+  private readonly breadcrumb = inject(NxBreadcrumbService);
 
   protected readonly mode = signal<'create' | 'edit'>('create');
   protected readonly saving = signal(false);
@@ -81,6 +83,7 @@ export class BusinessUnitDetailPage implements OnInit {
 
   private async loadForEdit(id: string): Promise<void> {
     await this.facade.load(id);
+    this.breadcrumb.setCurrentLabel(this.entity()?.code ?? null);
     const legalEntityId = this.entity()?.legalEntityId;
     if (legalEntityId) {
       await this.legalEntitiesFacade.load(legalEntityId);

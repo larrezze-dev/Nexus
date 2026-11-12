@@ -10,6 +10,7 @@ import { NxAuditTrailComponent } from '../../../shared/platform/nx-audit-trail/n
 import { NxStatusBadgeComponent } from '../../../shared/ui/nx-status-badge/nx-status-badge.component';
 import { LegalEntityFormComponent, LegalEntityFormValue } from './legal-entity-form.component';
 import { LegalEntitiesFacade } from './legal-entities.facade';
+import { NxBreadcrumbService } from '../../../core/layout/breadcrumb.service';
 
 /**
  * `LegalEntity` detail/create page (`conventions-frontend.md §4`). No `id`
@@ -43,6 +44,7 @@ export class LegalEntityDetailPage implements OnInit {
   private readonly router = inject(Router);
   private readonly i18n = inject(NxI18nService);
   private readonly transloco = inject(TranslocoService);
+  private readonly breadcrumb = inject(NxBreadcrumbService);
 
   protected readonly mode = signal<'create' | 'edit'>('create');
   protected readonly saving = signal(false);
@@ -57,7 +59,9 @@ export class LegalEntityDetailPage implements OnInit {
     const id = this.route.snapshot.paramMap.get('id');
     if (id) {
       this.mode.set('edit');
-      void this.facade.load(id);
+      void this.facade
+        .load(id)
+        .then(() => this.breadcrumb.setCurrentLabel(this.entity()?.code ?? null));
     } else {
       this.mode.set('create');
     }

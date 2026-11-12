@@ -1,35 +1,42 @@
 /*
  * NEXUS — tokens de diseño semánticos (--nx-*).
  *
- * Este fichero es CSS plano: se edita sin herramientas. Los componentes solo
- * usan estos tokens, nunca colores hexadecimales. Los valores por defecto
- * apuntan al tema Material M3 (theme.scss) para que cambiar la paleta allí
- * se propague aquí; los hex literales son los que ya usaba el código.
+ * Este fichero es CSS plano: se edita sin herramientas y es la ÚNICA fuente de
+ * los colores base. Los componentes solo usan estos tokens, nunca colores
+ * hexadecimales. theme.scss redirige las superficies, textos, bordes, primary
+ * y error del tema Material M3 (--mat-sys-*) hacia estos tokens, así que
+ * cambiar un valor aquí cambia también toolbar, menús, tarjetas y campos de
+ * formulario de Material.
  *
- * ⚑ La paleta corporativa de Nüssli sigue pendiente de decisión: cuando se
- * cierre, bastará con tocar este fichero (y theme.scss para primary/tertiary).
+ * Valores: sistema de diseño aprobado por Luciano (canvas «Fundamentos»,
+ * 2026-11-12). ⚑ La paleta corporativa de Nüssli sigue abierta: el primary
+ * es el azul M3 de antes (#005CBB) hasta que se decida.
  */
 :root {
   /* ---------- Colores base ---------- */
-  --nx-color-surface: var(--mat-sys-surface);                       /* fondo de página */
-  --nx-color-surface-raised: var(--mat-sys-surface-container-lowest); /* tarjetas */
-  --nx-color-surface-muted: var(--mat-sys-surface-container);       /* zonas atenuadas */
-  --nx-color-text: var(--mat-sys-on-surface);
-  --nx-color-text-muted: var(--mat-sys-on-surface-variant);
-  --nx-color-border: var(--mat-sys-outline-variant);
-  --nx-color-primary: var(--mat-sys-primary);
+  --nx-color-surface: #f6f7f9;            /* fondo de página (gris neutro) */
+  --nx-color-surface-raised: #ffffff;     /* tarjetas, toolbar, menús, diálogos, grid */
+  --nx-color-surface-muted: #eef0f3;      /* zonas atenuadas, campo «fill», divisores de pestaña */
+  --nx-color-text: #1b1c1f;
+  --nx-color-text-muted: #5a6068;         /* 5.9:1 sobre el fondo, 6.3:1 sobre blanco */
+  --nx-color-border: #dde1e6;             /* bordes decorativos (tarjetas, separadores) */
+  --nx-color-outline: #737880;            /* bordes de controles (campo «outline», chips): ≥ 3:1 */
+  --nx-color-primary: #005cbb;            /* ⚑ azul M3 provisional */
   --nx-color-on-primary: var(--mat-sys-on-primary);
+  --nx-color-primary-container: #d7e3ff;  /* fondos seleccionados, evento «created» */
+  --nx-color-on-primary-container: var(--mat-sys-on-primary-container);
   --nx-color-accent: var(--mat-sys-tertiary);
-  --nx-color-error: var(--mat-sys-error);
+  --nx-color-error: #ba1a1a;
 
   /* ---------- Estados (nx-status-badge) ----------
    * ACTIVOS desde 0.8 (decisión de Luciano, 2026-11-11): editar estos valores
    * cambia el color de los chips de estado y del diff "después".
+   * Texto de aviso oscurecido el 2026-11-12 (#e65100 → #8a3500: de 3.0:1 a 6.4:1, WCAG AA).
    * ⚑ Paleta corporativa aún abierta. */
   --nx-status-success-bg: #c8e6c9;
   --nx-status-success-fg: #1b5e20;
   --nx-status-warning-bg: #ffe0b2;
-  --nx-status-warning-fg: #e65100;
+  --nx-status-warning-fg: #8a3500;
   --nx-status-danger-bg: #ffcdd2;
   --nx-status-danger-fg: #b71c1c;
   --nx-status-neutral-bg: #e0e0e0;
@@ -52,9 +59,21 @@
   --nx-diff-after-bg: var(--nx-status-success-bg);
   --nx-diff-after-fg: var(--nx-status-success-fg);
 
-  /* ---------- Avisos ---------- */
+  /* ---------- Avisos (.nx-alert--*) ---------- */
   --nx-alert-error-bg: var(--mat-sys-error-container);
   --nx-alert-error-fg: var(--mat-sys-on-error-container);
+  --nx-alert-warning-bg: #fff3e0;         /* aviso 409 del diseño aprobado (tablero 5) */
+  --nx-alert-warning-fg: #5a2500;         /* 10.9:1 sobre #fff3e0 */
+  --nx-alert-info-bg: var(--nx-color-primary-container);
+  --nx-alert-info-fg: var(--nx-color-on-primary-container);
+  --nx-alert-success-bg: var(--nx-status-success-bg);
+  --nx-alert-success-fg: var(--nx-status-success-fg);
+
+  /* ---------- Listas y estados (nx-data-grid, nx-empty-state) ---------- */
+  --nx-color-row-hover: #f3f6fb;          /* tinte de fila al pasar el ratón (tablero 2) */
+  --nx-color-row-divider: var(--nx-color-surface-muted); /* línea entre filas, más suave que el borde de cabecera */
+  --nx-color-skeleton: #e9ecf0;           /* barras de las filas esqueleto (tablero 5) */
+  --nx-color-icon-container: #eef2f8;     /* círculo del icono de un estado vacío/404 (tablero 5) */
 
   /* ---------- Forma ---------- */
   --nx-radius-sm: 4px;
@@ -69,11 +88,41 @@
   --nx-space-5: 24px;
   --nx-space-6: 32px;
 
-  /* ---------- Tipografía ---------- */
-  --nx-font-family: Roboto, 'Helvetica Neue', sans-serif;
-  --nx-font-mono: 'Roboto Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+  /* ---------- Tipografía ----------
+   * Roboto autoalojada (@fontsource, cargada en styles.scss). theme.scss usa
+   * esta misma pila para la tipografía de Material: ningún componente cae en serif. */
+  --nx-font-family: Roboto, 'Helvetica Neue', Arial, sans-serif;
+  --nx-font-mono: 'Roboto Mono', ui-monospace, Menlo, monospace;
+
+  /* Escala: tamaño / interlineado / peso, y el atajo para `font:`. */
+  --nx-text-page-title-size: 28px;        /* h1 de página */
+  --nx-text-page-title-line: 36px;
+  --nx-text-page-title-weight: 500;
+  --nx-text-page-title: var(--nx-text-page-title-weight) var(--nx-text-page-title-size) / var(--nx-text-page-title-line) var(--nx-font-family);
+  --nx-text-section-title-size: 18px;     /* título de sección de formulario o tarjeta */
+  --nx-text-section-title-line: 24px;
+  --nx-text-section-title-weight: 500;
+  --nx-text-section-title: var(--nx-text-section-title-weight) var(--nx-text-section-title-size) / var(--nx-text-section-title-line) var(--nx-font-family);
+  --nx-text-body-size: 14px;              /* texto normal */
+  --nx-text-body-line: 20px;
+  --nx-text-body: 400 var(--nx-text-body-size) / var(--nx-text-body-line) var(--nx-font-family);
+  --nx-text-label-size: 12px;             /* etiquetas, ayudas, captions */
+  --nx-text-label-line: 16px;
+  --nx-text-label: 400 var(--nx-text-label-size) / var(--nx-text-label-line) var(--nx-font-family);
+  --nx-text-mono-size: 13px;              /* códigos, ids, JSON */
 
   /* ---------- Layout ---------- */
-  --nx-sidenav-width: 240px;
-  --nx-content-padding: 1rem;
+  --nx-toolbar-height: 56px;
+  --nx-sidenav-width: 248px;
+  --nx-content-padding: 32px;             /* 24px por debajo de 1280px (ver @media abajo) */
+  --nx-page-max-width-form: 1120px;       /* ancho máximo de detalle y formulario */
+  --nx-form-gap-x: 24px;                  /* rejilla de formulario: entre columnas */
+  --nx-form-gap-y: 16px;                  /* rejilla de formulario: entre filas */
+}
+
+/* Por debajo de 1280px (breakpoints compact y medium): menos relleno alrededor del contenido. */
+@media (max-width: 1279.98px) {
+  :root {
+    --nx-content-padding: 24px;
+  }
 }

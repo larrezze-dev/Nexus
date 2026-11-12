@@ -2,11 +2,10 @@ import { Component, inject } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
-import { TranslocoModule, TranslocoService } from '@jsverse/transloco';
-import type { ColDef } from 'ag-grid-community';
+import { TranslocoModule } from '@jsverse/transloco';
 import { Observable } from 'rxjs';
 import { LocationListItem } from '../../../api/platform/models/location-list-item';
-import { NxDataGridComponent } from '../../../shared/ui/nx-data-grid/nx-data-grid.component';
+import { NxColDef, NxDataGridComponent } from '../../../shared/ui/nx-data-grid/nx-data-grid.component';
 import { NxSortModel, Page } from '../../../shared/ui/page.model';
 import { LocationActiveCellComponent } from './location-active-cell.component';
 import { LocationFacade } from './location.facade';
@@ -44,16 +43,15 @@ import { LocationFacade } from './location.facade';
 export class LocationListPage {
   private readonly facade = inject(LocationFacade);
   private readonly router = inject(Router);
-  private readonly transloco = inject(TranslocoService);
 
-  protected readonly columns: ColDef<LocationListItem>[] = [
-    { field: 'code', headerName: this.transloco.translate('locations.list.columns.code'), flex: 1 },
-    { field: 'name', headerName: this.transloco.translate('locations.list.columns.name'), flex: 2 },
-    { field: 'city', headerName: this.transloco.translate('locations.list.columns.city'), flex: 1 },
-    { field: 'countryCode', headerName: this.transloco.translate('locations.list.columns.countryCode'), flex: 1 },
+  protected readonly columns: NxColDef<LocationListItem>[] = [
+    { field: 'code', headerKey: 'locations.list.columns.code', flex: 1 },
+    { field: 'name', headerKey: 'locations.list.columns.name', flex: 2 },
+    { field: 'city', headerKey: 'locations.list.columns.city', flex: 1 },
+    { field: 'countryCode', headerKey: 'locations.list.columns.countryCode', flex: 1 },
     {
       field: 'isActive',
-      headerName: this.transloco.translate('locations.list.columns.isActive'),
+      headerKey: 'locations.list.columns.isActive',
       flex: 1,
       cellRenderer: LocationActiveCellComponent,
     },

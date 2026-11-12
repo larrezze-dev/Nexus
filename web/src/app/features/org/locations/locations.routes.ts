@@ -12,17 +12,34 @@ import { Routes } from '@angular/router';
 export const locationsRoutes: Routes = [
   {
     path: 'locations',
-    data: { titleKey: 'nav.locations', icon: 'place', permission: 'ORG_STRUCTURE:READ' },
+    data: {
+      navGroup: 'org',
+      titleKey: 'nav.locations',
+      icon: 'place',
+      permission: 'ORG_STRUCTURE:READ',
+    },
     loadComponent: () => import('./location-list.page').then((m) => m.LocationListPage),
   },
   {
     path: 'locations/new',
-    data: { permission: 'ORG_STRUCTURE:CREATE' },
+    data: {
+      navGroup: 'org',
+      listTitleKey: 'nav.locations',
+      listPath: '/locations',
+      crumbKey: 'breadcrumb.new.location',
+      permission: 'ORG_STRUCTURE:CREATE',
+    },
     loadComponent: () => import('./location-detail.page').then((m) => m.LocationDetailPage),
   },
   {
     path: 'locations/:id',
-    data: { permission: 'ORG_STRUCTURE:READ' },
+    data: {
+      navGroup: 'org',
+      listTitleKey: 'nav.locations',
+      listPath: '/locations',
+      detail: true,
+      permission: 'ORG_STRUCTURE:READ',
+    },
     loadComponent: () => import('./location-detail.page').then((m) => m.LocationDetailPage),
   },
 ];

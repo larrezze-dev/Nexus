@@ -53,7 +53,7 @@ describe('BusinessUnitListPage', () => {
 
     fixture.componentInstance['onSelectionChanged']([listItem]);
 
-    expect(navigateSpy).toHaveBeenCalledWith(['..', listItem.id], { relativeTo: expect.anything() });
+    expect(navigateSpy).toHaveBeenCalledWith([listItem.id], { relativeTo: expect.anything() });
   });
 
   it('does not navigate when zero or more than one row is selected', () => {

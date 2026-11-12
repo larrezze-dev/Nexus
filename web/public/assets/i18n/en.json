@@ -24,31 +24,46 @@
     "ORG-R3": "A warehouse with a business unit must use a business unit that belongs to the same legal entity."
   },
   "shell": {
+    "skipToContent": "Skip to content",
+    "topBar": {
+      "showMenu": "Show menu",
+      "hideMenu": "Hide menu",
+      "homeAriaLabel": "NEXUS – Home"
+    },
     "nav": {
-      "home": "Home"
+      "ariaLabel": "Main menu"
+    },
+    "language": {
+      "ariaLabel": "Language: {{language}}. Change language"
     },
     "userMenu": {
-      "language": "Language"
-    },
-    "topBar": {
-      "searchPlaceholder": "Search",
-      "searchTooltip": "Coming soon",
-      "searchAriaLabel": "Global search (coming soon)",
-      "userMenuAriaLabel": "User menu"
+      "ariaLabel": "User menu",
+      "ariaLabelNamed": "User menu for {{name}}",
+      "logout": "Sign out"
     }
   },
   "httpPages": {
+    "goToAccount": "Go to My account",
     "forbidden": {
-      "title": "Access denied",
-      "message": "You do not have permission to view this page.",
-      "requiredPermission": "Required permission: {{permission}}"
+      "title": "You do not have access to this page",
+      "message": "If you need it, ask an administrator."
     },
     "notFound": {
-      "title": "Page not found",
-      "message": "The page you are looking for does not exist or was moved."
+      "title": "We can't find this page",
+      "message": "The link may be mistyped or the record no longer exists."
+    },
+    "unauthorized": {
+      "title": "Sign-in failed",
+      "message": "Your session has expired or access was denied. Please sign in again.",
+      "signIn": "Sign in again"
     }
   },
   "nav": {
+    "groups": {
+      "org": "Organization",
+      "people": "People & third parties",
+      "access": "Access"
+    },
     "account": "My account",
     "users": "Users",
     "parties": "Parties",
@@ -58,7 +73,7 @@
     },
     "locations": "Locations",
     "warehouses": "Warehouses",
-    "orgTree": "Organization tree",
+    "orgTree": "Structure",
     "orgCurrencies": "Currencies",
     "access": {
       "roles": "Roles"
@@ -120,11 +135,79 @@
     }
   },
   "breadcrumb": {
-    "ariaLabel": "Breadcrumb"
+    "ariaLabel": "Breadcrumb",
+    "loading": "Loading…",
+    "effectiveScope": "What this user sees",
+    "new": {
+      "legalEntity": "New legal entity",
+      "businessUnit": "New business unit",
+      "location": "New location",
+      "warehouse": "New warehouse",
+      "user": "New user",
+      "party": "New third party",
+      "role": "New role"
+    }
   },
   "shared": {
     "dataGrid": {
-      "empty": "No data available."
+      "empty": "No data available.",
+      "retry": "Retry"
+    },
+    "layout": {
+      "pageHeader": {
+        "count": "{{count}} records",
+        "countOne": "1 record"
+      },
+      "filterBar": {
+        "clear": "Clear filters",
+        "ariaLabel": "Filters"
+      },
+      "sectionIndex": {
+        "title": "On this page"
+      },
+      "confirm": {
+        "confirm": "Confirm"
+      }
+    },
+    "emptyState": {
+      "empty": {
+        "title": "No records yet",
+        "message": "Once records are created, they appear here."
+      },
+      "noResults": {
+        "title": "No records match your search",
+        "message": "Try a different text or remove some filters."
+      },
+      "error": {
+        "title": "The data could not be loaded",
+        "message": "Check your connection and try again. If the problem persists, contact support."
+      },
+      "forbidden": {
+        "title": "You don't have access to this page",
+        "message": "Your user is not allowed to see this page. If you need it, ask an administrator."
+      },
+      "notFound": {
+        "title": "We can't find this page",
+        "message": "The link may be mistyped or the record no longer exists."
+      }
+    },
+    "grid": {
+      "loadingOoo": "Loading…",
+      "noRowsToShow": "No data available",
+      "ariaSortableColumn": "Press ENTER to sort",
+      "ariaRowSelectAll": "Press Space to toggle selection of all rows",
+      "ariaSkeletonCellLoading": "Row data is loading",
+      "ariaSkeletonCellLoadingFailed": "Row failed to load",
+      "loadingError": "Error"
+    },
+    "paginator": {
+      "itemsPerPage": "Items per page",
+      "nextPage": "Next page",
+      "previousPage": "Previous page",
+      "firstPage": "First page",
+      "lastPage": "Last page",
+      "rangeLabel": "{{start}}–{{end}} of {{length}}",
+      "rangeLabelEmpty": "0 of 0"
     },
     "status": {
       "draft": "Draft",
@@ -202,7 +285,8 @@
         "fullName": "Full name",
         "email": "Email",
         "preferredLanguage": "Preferred language",
-        "businessUnit": "Business unit"
+        "businessUnit": "Business unit",
+        "isActive": "Status"
       }
     },
     "parties": {
@@ -234,7 +318,8 @@
         "displayName": "Display name",
         "taxId": "Tax ID",
         "erpCompanyCode": "ERP company code",
-        "isInternal": "Internal"
+        "isInternal": "Internal",
+        "isActive": "Status"
       }
     },
     "legalEntities": {

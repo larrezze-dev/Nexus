@@ -1,6 +1,7 @@
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';
+import { NxI18nService } from '../../../core/i18n/nx-i18n.service';
 import { firstValueFrom } from 'rxjs';
 import type { RoleAssignment } from '../../../api/platform/models/role-assignment';
 import type { RoleAssignmentListItem } from '../../../api/platform/models/role-assignment-list-item';
@@ -39,7 +40,11 @@ const assignment: RoleAssignment = {
 describe('RoleAssignmentsFacade', () => {
   function setup() {
     TestBed.configureTestingModule({
-      providers: [provideHttpClient(), provideHttpClientTesting()],
+      providers: [
+        provideHttpClient(),
+        provideHttpClientTesting(),
+        { provide: NxI18nService, useValue: { getActiveLanguage: () => 'de' } },
+      ],
     });
     return {
       facade: TestBed.inject(RoleAssignmentsFacade),

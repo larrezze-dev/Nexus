@@ -1,35 +1,142 @@
-<div class="nx-data-grid">
-  <div class="nx-data-grid__viewport">
-    <ag-grid-angular
-      class="nx-data-grid__grid"
-      [columnDefs]="columns()"
-      [rowData]="rowData()"
-      [theme]="theme"
-      [loading]="loading()"
-      rowSelection="multiple"
-      (gridReady)="onGridReady($event)"
-      (sortChanged)="onSortChanged($event)"
-      (selectionChanged)="onSelectionChanged($event)"
-    />
-
-    @if (!loading() && total() === 0) {
-      <div class="nx-data-grid__empty" data-testid="nx-data-grid-empty">
-        {{ emptyMessageKey() | transloco }}
-      </div>
-    }
-
-    @if (loading()) {
-      <div class="nx-data-grid__loading" data-testid="nx-data-grid-loading">
-        <mat-spinner diameter="32" />
-      </div>
+<div class="nx-data-grid" [attr.data-state]="state()" [attr.aria-busy]="state() === 'loading'">
+  <!-- Table (≥ 600 px). Kept mounted while loading or empty so its column/sort state survives. -->
+  <div class="nx-data-grid__table" [class.nx-data-grid__table--hidden]="state() !== 'rows'">
+    @for (locale of gridInstances(); track locale) {
+      <ag-grid-angular
+        class="nx-data-grid__grid"
+        domLayout="autoHeight"
+        rowClass="nx-data-grid__row"
+        [theme]="theme"
+        [columnDefs]="gridColumns()"
+        [defaultColDef]="defaultColDef"
+        [rowData]="rowData()"
+        [localeText]="locale"
+        [loading]="false"
+        [suppressNoRowsOverlay]="true"
+        (gridReady)="onGridReady($event)"
+        (sortChanged)="onSortChanged($event)"
+        (rowClicked)="onRowClicked($event)"
+        (cellKeyDown)="onCellKeyDown($event)"
+      />
     }
   </div>
 
-  <mat-paginator
-    [length]="total()"
-    [pageIndex]="pageIndex()"
-    [pageSize]="pageSizeState()"
-    [pageSizeOptions]="pageSizeOptions()"
-    (page)="onPage($event)"
-  />
+  <!-- Cards (< 600 px): one button per row with title, subtitle and status. -->
+  @if (state() === 'rows') {
+    <ul class="nx-data-grid__cards" data-testid="nx-data-grid-cards">
+      @for (row of rowData(); track $index) {
+        <li class="nx-data-grid__card-item">
+          <button type="button" class="nx-data-grid__card" (click)="openRow(row)">
+            <span class="nx-data-grid__card-text">
+              @if (cardColumns().title; as column) {
+                <span class="nx-data-grid__card-title" [class.nx-mono]="isMono(column)">{{ cellText(column, row) }}</span>
+              }
+              @if (cardColumns().subtitle; as column) {
+                <span class="nx-data-grid__card-subtitle" [class.nx-mono]="isMono(column)">{{
+                  cellText(column, row)
+                }}</span>
+              }
+            </span>
+            @if (cardColumns().status; as column) {
+              <span class="nx-data-grid__card-status">
+                @if (hasComponentRenderer(column)) {
+                  <ng-container [nxGridCell]="column" [nxGridCellRow]="row" />
+                } @else {
+                  {{ cellText(column, row) }}
+                }
+              </span>
+            }
+            <mat-icon class="nx-data-grid__card-chevron" aria-hidden="true">chevron_right</mat-icon>
+          </button>
+        </li>
+      }
+    </ul>
+  }
+
+  @switch (state()) {
+    @case ('loading') {
+      <div class="nx-data-grid__skeleton" data-testid="nx-data-grid-loading" role="status">
+        <span class="nx-data-grid__sr-only">{{ 'shared.grid.loadingOoo' | transloco }}</span>
+        <div class="nx-data-grid__skeleton-table" aria-hidden="true">
+          <div class="nx-data-grid__skeleton-head">
+            @for (column of skeletonColumns(); track column.index) {
+              <span
+                class="nx-data-grid__skeleton-cell"
+                [style.flex]="column.flex !== null ? column.flex + ' 1 0' : null"
+                [style.width.px]="column.width"
+                >{{ column.header }}</span
+              >
+            }
+          </div>
+          @for (row of skeletonRows(); track row) {
+            <div class="nx-data-grid__skeleton-row">
+              @for (column of skeletonColumns(); track column.index) {
+                <span
+                  class="nx-data-grid__skeleton-cell"
+                  [style.flex]="column.flex !== null ? column.flex + ' 1 0' : null"
+                  [style.width.px]="column.width"
+                >
+                  <span
+                    class="nx-data-grid__skeleton-bar"
+                    [class.nx-data-grid__skeleton-bar--pill]="column.pill"
+                    [style.width.%]="column.pill ? null : skeletonBarWidth(row, column.index)"
+                  ></span>
+                </span>
+              }
+            </div>
+          }
+        </div>
+        <div class="nx-data-grid__skeleton-cards" aria-hidden="true">
+          @for (row of skeletonRows(); track row) {
+            <div class="nx-data-grid__card nx-data-grid__card--skeleton">
+              <span class="nx-data-grid__card-text">
+                <span class="nx-data-grid__skeleton-bar" [style.width.%]="skeletonBarWidth(row, 0)"></span>
+                <span class="nx-data-grid__skeleton-bar nx-data-grid__skeleton-bar--thin" [style.width.%]="40"></span>
+              </span>
+              <span class="nx-data-grid__skeleton-bar nx-data-grid__skeleton-bar--pill"></span>
+            </div>
+          }
+        </div>
+      </div>
+    }
+    @case ('error') {
+      <nx-empty-state kind="error" data-testid="nx-data-grid-error">
+        <button mat-stroked-button type="button" data-testid="nx-data-grid-retry" (click)="reload()">
+          <mat-icon aria-hidden="true">refresh</mat-icon>
+          {{ 'shared.dataGrid.retry' | transloco }}
+        </button>
+      </nx-empty-state>
+    }
+    @case ('empty') {
+      <nx-empty-state
+        kind="empty"
+        data-testid="nx-data-grid-empty"
+        [title]="emptyMessageKey() | transloco"
+        [message]="emptyHintKey() ? (emptyHintKey()! | transloco) : ''"
+        [icon]="emptyIcon()"
+      >
+        <ng-content select="[nxEmptyAction]" />
+      </nx-empty-state>
+    }
+    @case ('no-results') {
+      <nx-empty-state kind="no-results" data-testid="nx-data-grid-no-results" [title]="noResultsMessageKey() | transloco">
+        @if (canClearFilters()) {
+          <button mat-stroked-button type="button" data-testid="nx-data-grid-clear-filters" (click)="onClearFilters()">
+            {{ 'shared.layout.filterBar.clear' | transloco }}
+          </button>
+        }
+      </nx-empty-state>
+    }
+  }
+
+  @if (showPaginator()) {
+    <mat-paginator
+      class="nx-data-grid__paginator"
+      [length]="total()"
+      [pageIndex]="pageIndex()"
+      [pageSize]="pageSizeState()"
+      [pageSizeOptions]="pageSizeOptions()"
+      (page)="onPage($event)"
+    />
+  }
 </div>

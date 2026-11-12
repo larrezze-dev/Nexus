@@ -17,6 +17,8 @@ import type { RoleAssignment } from '../../../api/platform/models/role-assignmen
 import type { RoleAssignmentListItem } from '../../../api/platform/models/role-assignment-list-item';
 import type { RoleListItem } from '../../../api/platform/models/role-list-item';
 import type { WarehouseListItem } from '../../../api/platform/models/warehouse-list-item';
+import { NxI18nService } from '../../../core/i18n/nx-i18n.service';
+import { resolveCaption } from '../../../shared/ui/caption/caption.util';
 
 /**
  * Facade for `RoleAssignment` (`ACC-R*`, `domain/access.md`): the only thing between the
@@ -38,6 +40,7 @@ import type { WarehouseListItem } from '../../../api/platform/models/warehouse-l
 @Injectable({ providedIn: 'root' })
 export class RoleAssignmentsFacade {
   private readonly api = inject(Api);
+  private readonly i18n = inject(NxI18nService);
 
   private readonly itemsSignal = signal<RoleAssignmentListItem[]>([]);
   private readonly loadingSignal = signal(false);
@@ -141,7 +144,7 @@ export class RoleAssignmentsFacade {
         const items = response.items ?? [];
         return needle
           ? items.filter(
-              (bu) => bu.code.toLowerCase().includes(needle) || bu.captionI18n.de.toLowerCase().includes(needle),
+              (bu) => bu.code.toLowerCase().includes(needle) || resolveCaption(bu.captionI18n, this.i18n.getActiveLanguage(), bu.code).toLowerCase().includes(needle),
             )
           : items;
       }),

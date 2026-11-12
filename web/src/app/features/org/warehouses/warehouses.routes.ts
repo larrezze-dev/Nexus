@@ -12,17 +12,34 @@ import { Routes } from '@angular/router';
 export const warehousesRoutes: Routes = [
   {
     path: 'warehouses',
-    data: { titleKey: 'nav.warehouses', icon: 'warehouse', permission: 'ORG_STRUCTURE:READ' },
+    data: {
+      navGroup: 'org',
+      titleKey: 'nav.warehouses',
+      icon: 'warehouse',
+      permission: 'ORG_STRUCTURE:READ',
+    },
     loadComponent: () => import('./warehouse-list.page').then((m) => m.WarehouseListPage),
   },
   {
     path: 'warehouses/new',
-    data: { permission: 'ORG_STRUCTURE:CREATE' },
+    data: {
+      navGroup: 'org',
+      listTitleKey: 'nav.warehouses',
+      listPath: '/warehouses',
+      crumbKey: 'breadcrumb.new.warehouse',
+      permission: 'ORG_STRUCTURE:CREATE',
+    },
     loadComponent: () => import('./warehouse-detail.page').then((m) => m.WarehouseDetailPage),
   },
   {
     path: 'warehouses/:id',
-    data: { permission: 'ORG_STRUCTURE:READ' },
+    data: {
+      navGroup: 'org',
+      listTitleKey: 'nav.warehouses',
+      listPath: '/warehouses',
+      detail: true,
+      permission: 'ORG_STRUCTURE:READ',
+    },
     loadComponent: () => import('./warehouse-detail.page').then((m) => m.WarehouseDetailPage),
   },
 ];

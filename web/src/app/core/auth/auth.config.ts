@@ -24,6 +24,9 @@ export const nexusAuthConfig: OpenIdConfiguration = {
   useRefreshToken: true,
   silentRenew: true,
   autoUserInfo: true,
+  // Where the library lands on a failed sign-in / expired session / 403 (see core/http routes).
+  unauthorizedRoute: '/unauthorized',
+  forbiddenRoute: '/forbidden',
 };
 
 /**

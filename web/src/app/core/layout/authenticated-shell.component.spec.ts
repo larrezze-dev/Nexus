@@ -1,17 +1,19 @@
 import { TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import { provideTransloco } from '@jsverse/transloco';
+import { OidcSecurityService } from 'angular-auth-oidc-client';
+import { of } from 'rxjs';
 import { AuthenticatedShellComponent } from './authenticated-shell.component';
 import { NavigationBuilderService } from './navigation-builder.service';
-import { ShellComponent } from './shell.component';
 
 describe('AuthenticatedShellComponent', () => {
-  it('passes a TemplateRef rendering the language selector as ShellComponent.userMenuExtra', () => {
+  it('hosts the application shell with the language selector and user menu in the top bar', () => {
     TestBed.configureTestingModule({
       imports: [AuthenticatedShellComponent],
       providers: [
         provideRouter([]),
-        { provide: NavigationBuilderService, useValue: { build: () => [] } },
+        { provide: NavigationBuilderService, useValue: { buildGrouped: () => [] } },
+        { provide: OidcSecurityService, useValue: { userData$: of({ userData: null }), logoff: () => of(null) } },
         ...provideTransloco({
           config: { availableLangs: ['de', 'en', 'fr', 'it', 'es'], defaultLang: 'de' },
         }),
@@ -21,15 +23,9 @@ describe('AuthenticatedShellComponent', () => {
     const fixture = TestBed.createComponent(AuthenticatedShellComponent);
     fixture.detectChanges();
 
-    const shell = fixture.debugElement.children[0].componentInstance as ShellComponent;
-    expect(shell.userMenuExtra).toBeTruthy();
-
-    // Render the projected template directly to confirm it is the language selector
-    // (mat-menu only attaches its panel content to the DOM once opened).
-    const view = shell.userMenuExtra!.createEmbeddedView(null);
-    view.detectChanges();
-    const host = document.createElement('div');
-    view.rootNodes.forEach((node) => host.appendChild(node as Node));
-    expect(host.querySelector('nx-language-selector')).toBeTruthy();
+    const element: HTMLElement = fixture.nativeElement;
+    expect(element.querySelector('app-shell')).toBeTruthy();
+    expect(element.querySelector('[data-testid="nx-shell-language-trigger"]')).toBeTruthy();
+    expect(element.querySelector('[data-testid="nx-shell-user-menu-trigger"]')).toBeTruthy();
   });
 });

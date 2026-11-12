@@ -3,13 +3,12 @@ import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { TranslocoModule, TranslocoService } from '@jsverse/transloco';
-import type { ColDef } from 'ag-grid-community';
 import { RoleListItem } from '../../../api/platform/models/role-list-item';
 import { NxI18nService } from '../../../core/i18n/nx-i18n.service';
 import { NxCanDirective } from '../../../shared/auth/can.directive';
-import { NxDataGridComponent } from '../../../shared/ui/nx-data-grid/nx-data-grid.component';
+import { NxColDef, NxDataGridComponent } from '../../../shared/ui/nx-data-grid/nx-data-grid.component';
 import { NxDataGridFetchFn } from '../../../shared/ui/page.model';
-import { resolveCaption } from '../../org/shared/caption.util';
+import { resolveCaption } from '../../../shared/ui/caption/caption.util';
 import { OrgActiveStatusCellComponent } from '../../org/shared/org-active-status-cell.component';
 import { RolesFacade } from './roles.facade';
 
@@ -60,24 +59,24 @@ export class RoleListPage {
   private readonly transloco = inject(TranslocoService);
   private readonly i18n = inject(NxI18nService);
 
-  protected readonly columns = computed<ColDef<RoleListItem>[]>(() => {
+  protected readonly columns = computed<NxColDef<RoleListItem>[]>(() => {
     this.i18n.activeLang();
     const language = this.i18n.getActiveLanguage();
 
     return [
-      { field: 'code', headerName: this.transloco.translate('access.roles.fields.code'), sortable: true },
+      { field: 'code', headerKey: 'access.roles.fields.code', sortable: true },
       {
-        headerName: this.transloco.translate('access.roles.fields.captionI18n'),
+        headerKey: 'access.roles.fields.captionI18n',
         valueGetter: (params) => resolveCaption(params.data?.captionI18n, language, params.data?.code ?? ''),
       },
       {
-        headerName: this.transloco.translate('access.roles.fields.isSystem'),
+        headerKey: 'access.roles.fields.isSystem',
         valueGetter: (params) =>
           params.data?.isSystem ? this.transloco.translate('common.yes') : this.transloco.translate('common.no'),
       },
       {
         field: 'isActive',
-        headerName: this.transloco.translate('access.roles.fields.isActive'),
+        headerKey: 'access.roles.fields.isActive',
         cellRenderer: OrgActiveStatusCellComponent,
         sortable: true,
       },
@@ -89,7 +88,7 @@ export class RoleListPage {
 
   protected onSelectionChanged(rows: RoleListItem[]): void {
     if (rows.length === 1) {
-      void this.router.navigate(['..', rows[0].id], { relativeTo: this.route });
+      void this.router.navigate([rows[0].id], { relativeTo: this.route });
     }
   }
 }

@@ -2,11 +2,10 @@ import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
-import { TranslocoModule, TranslocoService } from '@jsverse/transloco';
-import type { ColDef } from 'ag-grid-community';
+import { TranslocoModule } from '@jsverse/transloco';
 import { LegalEntityListItem } from '../../../api/platform/models/legal-entity-list-item';
 import { NxCanDirective } from '../../../shared/auth/can.directive';
-import { NxDataGridComponent } from '../../../shared/ui/nx-data-grid/nx-data-grid.component';
+import { NxColDef, NxDataGridComponent } from '../../../shared/ui/nx-data-grid/nx-data-grid.component';
 import { NxDataGridFetchFn } from '../../../shared/ui/page.model';
 import { OrgActiveStatusCellComponent } from '../shared/org-active-status-cell.component';
 import { LegalEntitiesFacade } from './legal-entities.facade';
@@ -55,23 +54,22 @@ export class LegalEntityListPage {
   protected readonly facade = inject(LegalEntitiesFacade);
   private readonly router = inject(Router);
   private readonly route = inject(ActivatedRoute);
-  private readonly transloco = inject(TranslocoService);
 
-  protected readonly columns: ColDef<LegalEntityListItem>[] = [
-    { field: 'code', headerName: this.transloco.translate('org.legalEntities.fields.code'), sortable: true },
+  protected readonly columns: NxColDef<LegalEntityListItem>[] = [
+    { field: 'code', headerKey: 'org.legalEntities.fields.code', sortable: true },
     {
       field: 'currencyCode',
-      headerName: this.transloco.translate('org.legalEntities.fields.currencyCode'),
+      headerKey: 'org.legalEntities.fields.currencyCode',
       sortable: true,
     },
     {
       field: 'countryCode',
-      headerName: this.transloco.translate('org.legalEntities.fields.countryCode'),
+      headerKey: 'org.legalEntities.fields.countryCode',
       sortable: true,
     },
     {
       field: 'isActive',
-      headerName: this.transloco.translate('org.legalEntities.fields.isActive'),
+      headerKey: 'org.legalEntities.fields.isActive',
       cellRenderer: OrgActiveStatusCellComponent,
       sortable: true,
     },
@@ -82,7 +80,7 @@ export class LegalEntityListPage {
 
   protected onSelectionChanged(rows: LegalEntityListItem[]): void {
     if (rows.length === 1) {
-      void this.router.navigate(['..', rows[0].id], { relativeTo: this.route });
+      void this.router.navigate([rows[0].id], { relativeTo: this.route });
     }
   }
 }

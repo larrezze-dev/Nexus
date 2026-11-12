@@ -24,31 +24,46 @@
     "ORG-R3": "Un warehouse con una business unit debe usar una business unit que pertenezca a la misma legal entity."
   },
   "shell": {
+    "skipToContent": "Saltar al contenido",
+    "topBar": {
+      "showMenu": "Mostrar menú",
+      "hideMenu": "Ocultar menú",
+      "homeAriaLabel": "NEXUS – Inicio"
+    },
     "nav": {
-      "home": "Inicio"
+      "ariaLabel": "Menú principal"
+    },
+    "language": {
+      "ariaLabel": "Idioma: {{language}}. Cambiar idioma"
     },
     "userMenu": {
-      "language": "Idioma"
-    },
-    "topBar": {
-      "searchPlaceholder": "Buscar",
-      "searchTooltip": "Próximamente",
-      "searchAriaLabel": "Búsqueda global (próximamente)",
-      "userMenuAriaLabel": "Menú de usuario"
+      "ariaLabel": "Menú de usuario",
+      "ariaLabelNamed": "Menú de usuario de {{name}}",
+      "logout": "Cerrar sesión"
     }
   },
   "httpPages": {
+    "goToAccount": "Ir a Mi cuenta",
     "forbidden": {
-      "title": "Acceso denegado",
-      "message": "No tienes permiso para ver esta página.",
-      "requiredPermission": "Permiso requerido: {{permission}}"
+      "title": "No tienes acceso a esta página",
+      "message": "Si lo necesitas, pídeselo a un administrador."
     },
     "notFound": {
-      "title": "Página no encontrada",
-      "message": "La página que buscas no existe o fue movida."
+      "title": "No encontramos esta página",
+      "message": "El enlace puede estar mal escrito o el registro ya no existe."
+    },
+    "unauthorized": {
+      "title": "No se ha podido iniciar sesión",
+      "message": "La sesión ha caducado o el acceso ha sido rechazado. Vuelve a entrar.",
+      "signIn": "Volver a entrar"
     }
   },
   "nav": {
+    "groups": {
+      "org": "Organización",
+      "people": "Personas y terceros",
+      "access": "Accesos"
+    },
     "account": "Mi cuenta",
     "users": "Usuarios",
     "parties": "Terceros",
@@ -58,7 +73,7 @@
     },
     "locations": "Ubicaciones",
     "warehouses": "Almacenes",
-    "orgTree": "Árbol de la organización",
+    "orgTree": "Estructura",
     "orgCurrencies": "Monedas",
     "access": {
       "roles": "Roles"
@@ -120,11 +135,79 @@
     }
   },
   "breadcrumb": {
-    "ariaLabel": "Migas de pan"
+    "ariaLabel": "Migas de pan",
+    "loading": "Cargando…",
+    "effectiveScope": "Qué ve este usuario",
+    "new": {
+      "legalEntity": "Nueva entidad legal",
+      "businessUnit": "Nueva unidad de negocio",
+      "location": "Nueva ubicación",
+      "warehouse": "Nuevo almacén",
+      "user": "Nuevo usuario",
+      "party": "Nuevo tercero",
+      "role": "Nuevo rol"
+    }
   },
   "shared": {
     "dataGrid": {
-      "empty": "No hay datos disponibles."
+      "empty": "No hay datos disponibles.",
+      "retry": "Reintentar"
+    },
+    "layout": {
+      "pageHeader": {
+        "count": "{{count}} registros",
+        "countOne": "1 registro"
+      },
+      "filterBar": {
+        "clear": "Limpiar filtros",
+        "ariaLabel": "Filtros"
+      },
+      "sectionIndex": {
+        "title": "En esta página"
+      },
+      "confirm": {
+        "confirm": "Confirmar"
+      }
+    },
+    "emptyState": {
+      "empty": {
+        "title": "Todavía no hay registros",
+        "message": "Cuando se creen, aparecerán aquí."
+      },
+      "noResults": {
+        "title": "Ningún registro coincide con la búsqueda",
+        "message": "Prueba con otro texto o quita filtros."
+      },
+      "error": {
+        "title": "No se han podido cargar los datos",
+        "message": "Comprueba la conexión e inténtalo de nuevo. Si el problema sigue, avisa a soporte."
+      },
+      "forbidden": {
+        "title": "No tienes acceso a esta página",
+        "message": "Tu usuario no tiene permiso para ver esta página. Si lo necesitas, pídeselo a un administrador."
+      },
+      "notFound": {
+        "title": "No encontramos esta página",
+        "message": "El enlace puede estar mal escrito o el registro ya no existe."
+      }
+    },
+    "grid": {
+      "loadingOoo": "Cargando…",
+      "noRowsToShow": "No hay datos disponibles",
+      "ariaSortableColumn": "Pulse Intro para ordenar",
+      "ariaRowSelectAll": "Pulse Espacio para alternar la selección de todas las filas",
+      "ariaSkeletonCellLoading": "Cargando los datos de la fila",
+      "ariaSkeletonCellLoadingFailed": "No se pudo cargar la fila",
+      "loadingError": "Error"
+    },
+    "paginator": {
+      "itemsPerPage": "Elementos por página",
+      "nextPage": "Página siguiente",
+      "previousPage": "Página anterior",
+      "firstPage": "Primera página",
+      "lastPage": "Última página",
+      "rangeLabel": "{{start}}–{{end}} de {{length}}",
+      "rangeLabelEmpty": "0 de 0"
     },
     "status": {
       "draft": "Borrador",
@@ -202,7 +285,8 @@
         "fullName": "Nombre completo",
         "email": "Correo electrónico",
         "preferredLanguage": "Idioma preferido",
-        "businessUnit": "Business unit"
+        "businessUnit": "Business unit",
+        "isActive": "Estado"
       }
     },
     "parties": {
@@ -234,7 +318,8 @@
         "displayName": "Nombre visible",
         "taxId": "NIF/CIF",
         "erpCompanyCode": "Código de sociedad ERP",
-        "isInternal": "Interno"
+        "isInternal": "Interno",
+        "isActive": "Estado"
       }
     },
     "legalEntities": {

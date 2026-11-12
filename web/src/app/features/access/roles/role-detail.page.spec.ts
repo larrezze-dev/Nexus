@@ -8,6 +8,7 @@ import { Role } from '../../../api/platform/models/role';
 import { NxI18nService } from '../../../core/i18n/nx-i18n.service';
 import { RoleDetailPage } from './role-detail.page';
 import { RolesFacade } from './roles.facade';
+import { NxBreadcrumbService } from '../../../core/layout/breadcrumb.service';
 
 const role: Role = {
   id: '018f1a3c-7e3b-7c5a-9c2e-6a2f8e9b0c40',
@@ -80,6 +81,7 @@ async function setupPage(paramMap: Record<string, string>, facade: ReturnType<ty
         useValue: { snapshot: { paramMap: convertToParamMap(paramMap) } },
       },
       { provide: Router, useValue: { navigate: vi.fn().mockResolvedValue(true) } },
+      { provide: NxBreadcrumbService, useValue: { setCurrentLabel: vi.fn() } },
     ],
   }).compileComponents();
 

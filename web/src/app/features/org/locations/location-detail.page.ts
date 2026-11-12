@@ -6,6 +6,7 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { TranslocoModule } from '@jsverse/transloco';
 import { LocationFacade } from './location.facade';
+import { NxBreadcrumbService } from '../../../core/layout/breadcrumb.service';
 
 /**
  * Location create/edit screen (ficha 0.4, track F): Reactive Form, `If-Match` on save
@@ -71,6 +72,7 @@ export class LocationDetailPage implements OnInit {
   protected readonly facade = inject(LocationFacade);
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
+  private readonly breadcrumb = inject(NxBreadcrumbService);
 
   protected readonly isNew = signal(true);
   private locationId: string | null = null;
@@ -102,6 +104,7 @@ export class LocationDetailPage implements OnInit {
   private async loadExisting(id: string): Promise<void> {
     await this.facade.load(id);
     const location = this.facade.selected();
+    this.breadcrumb.setCurrentLabel(location?.name ?? null);
     if (location) {
       this.form.patchValue(location);
     }

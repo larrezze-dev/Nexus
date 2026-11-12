@@ -2,7 +2,7 @@
  * NEXUS — clases genéricas reutilizables. Solo usan tokens --nx-* (ver tokens.css).
  */
 
-/* Cabecera de página: título + acciones en una fila. */
+/* Cabecera de página: título + acciones en una fila. (Antigua; las páginas nuevas usan nx-page-header.) */
 .nx-header-bar {
   display: flex;
   align-items: center;
@@ -10,7 +10,7 @@
   margin-bottom: var(--nx-space-4);
 }
 
-/* Tarjeta de contenido. */
+/* Tarjeta de contenido (radio 12, borde, fondo blanco). */
 .nx-card {
   background: var(--nx-color-surface-raised);
   border: 1px solid var(--nx-color-border);
@@ -18,7 +18,27 @@
   padding: var(--nx-space-4);
 }
 
-/* Estado vacío (sin datos). */
+/* Tarjeta sin relleno: la tarjeta de lista (nx-filter-bar + nx-data-grid). El contenido llega
+ * hasta el borde; overflow:hidden recorta las esquinas del grid. Por debajo de 600 px la lista
+ * pasa a tarjetas sueltas sobre el fondo de página, así que la tarjeta contenedora desaparece. */
+.nx-card--flush {
+  display: flex;
+  flex-direction: column;
+  padding: 0;
+  overflow: hidden;
+}
+
+@media (max-width: 599.98px) {
+  .nx-card--flush {
+    background: transparent;
+    border: 0;
+    border-radius: 0;
+    overflow: visible;
+  }
+}
+
+/* Estado vacío genérico para contenedores sin componente (p. ej. dentro de una tarjeta o grid).
+ * Las páginas completas usan el componente nx-empty-state. */
 .nx-empty-state {
   display: flex;
   flex-direction: column;
@@ -32,18 +52,66 @@
   text-align: center;
 }
 
-/* Aviso; la variante --error es la de errores. */
+/* Botón destructivo (Desactivar, Eliminar). Sobre mat-stroked-button: contorno y texto rojos;
+ * sobre mat-flat-button (confirmación en NxConfirm): relleno rojo; sobre mat-button: texto rojo. */
+.nx-btn--danger {
+  --mat-button-outlined-label-text-color: var(--nx-color-error);
+  --mat-button-outlined-outline-color: var(--nx-color-error);
+  --mat-button-outlined-state-layer-color: var(--nx-color-error);
+  --mat-button-outlined-ripple-color: color-mix(in srgb, var(--nx-color-error) 12%, transparent);
+  --mat-button-filled-container-color: var(--nx-color-error);
+  --mat-button-filled-label-text-color: var(--mat-sys-on-error);
+  --mat-button-text-label-text-color: var(--nx-color-error);
+  --mat-button-text-state-layer-color: var(--nx-color-error);
+}
+
+/*
+ * Aviso en línea (radio 8). Uso:
+ *   - --error: fallo al guardar o al cargar → role="alert".
+ *   - --warning: conflicto 409, registro de solo lectura → role="alert" si aparece tras una acción,
+ *     role="status" si se ve desde la carga.
+ *   - --info: explicación neutra → sin role (o role="status" si cambia en vivo).
+ *   - --success: confirmación persistente en la página → role="status".
+ * Estructura: <div class="nx-alert nx-alert--warning" role="alert"><mat-icon aria-hidden="true">…</mat-icon>
+ *   <span class="nx-alert__text">…</span><button mat-button>Recargar</button></div>
+ */
 .nx-alert {
   display: flex;
   align-items: center;
   gap: var(--nx-space-3);
   padding: var(--nx-space-3) var(--nx-space-4);
-  border-radius: var(--nx-radius-lg);
+  border-radius: var(--nx-radius-md);
+  font: var(--nx-text-body);
+}
+
+.nx-alert__text {
+  flex: 1 1 auto;
+  min-width: 0;
 }
 
 .nx-alert--error {
   background: var(--nx-alert-error-bg);
   color: var(--nx-alert-error-fg);
+}
+
+.nx-alert--warning {
+  background: var(--nx-alert-warning-bg);
+  color: var(--nx-alert-warning-fg);
+}
+
+.nx-alert--info {
+  background: var(--nx-alert-info-bg);
+  color: var(--nx-alert-info-fg);
+}
+
+.nx-alert--success {
+  background: var(--nx-alert-success-bg);
+  color: var(--nx-alert-success-fg);
+}
+
+/* Los botones de texto dentro de un aviso heredan su color (contraste con el fondo del aviso). */
+.nx-alert .mat-mdc-button {
+  --mat-button-text-label-text-color: currentColor;
 }
 
 /* Chip pequeño con borde (p. ej. "v3"). */
@@ -54,11 +122,12 @@
   border: 1px solid var(--nx-color-border);
   border-radius: var(--nx-radius-sm);
   color: var(--nx-color-text-muted);
-  font-size: 0.75rem;
-  line-height: 1.5rem;
+  font: var(--nx-text-label);
+  line-height: 24px;
 }
 
-/* Texto monoespaciado (ids, JSON). */
+/* Texto monoespaciado: códigos, ids, JSON (13 px). */
 .nx-mono {
   font-family: var(--nx-font-mono);
+  font-size: var(--nx-text-mono-size);
 }

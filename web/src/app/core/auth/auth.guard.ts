@@ -2,6 +2,7 @@ import { inject } from '@angular/core';
 import type { CanActivateFn } from '@angular/router';
 import { OidcSecurityService } from 'angular-auth-oidc-client';
 import { map } from 'rxjs';
+import { saveReturnUrl } from './return-url';
 
 /**
  * Guard for authenticated routes.
@@ -11,7 +12,7 @@ import { map } from 'rxjs';
  * unauthenticated navigation does not route anywhere internal — it starts
  * `OidcSecurityService.authorize()`, which redirects the browser to the IdP.
  */
-export const authGuard: CanActivateFn = () => {
+export const authGuard: CanActivateFn = (_route, state) => {
   const oidcSecurityService = inject(OidcSecurityService);
 
   return oidcSecurityService.isAuthenticated$.pipe(
@@ -20,6 +21,8 @@ export const authGuard: CanActivateFn = () => {
         return true;
       }
 
+      // Deep link: remember it so the post-login redirect (`postLoginRedirect`) can come back.
+      saveReturnUrl(state?.url);
       oidcSecurityService.authorize();
       return false;
     }),

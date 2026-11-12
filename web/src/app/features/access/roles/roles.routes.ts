@@ -15,23 +15,36 @@ import { Routes } from '@angular/router';
 export const accessRolesRoutes: Routes = [
   {
     path: 'roles',
-    data: {
-      titleKey: 'nav.access.roles',
-      icon: 'admin_panel_settings',
-      permission: 'ROLE:READ',
-    },
     children: [
       {
         path: '',
         pathMatch: 'full',
+        data: {
+          navGroup: 'access',
+          titleKey: 'nav.access.roles',
+          icon: 'admin_panel_settings',
+          permission: 'ROLE:READ',
+        },
         loadComponent: () => import('./role-list.page').then((m) => m.RoleListPage),
       },
       {
         path: 'new',
+        data: {
+          navGroup: 'access',
+          listTitleKey: 'nav.access.roles',
+          listPath: '/roles',
+          crumbKey: 'breadcrumb.new.role',
+        },
         loadComponent: () => import('./role-detail.page').then((m) => m.RoleDetailPage),
       },
       {
         path: ':id',
+        data: {
+          navGroup: 'access',
+          listTitleKey: 'nav.access.roles',
+          listPath: '/roles',
+          detail: true,
+        },
         loadComponent: () => import('./role-detail.page').then((m) => m.RoleDetailPage),
       },
     ],

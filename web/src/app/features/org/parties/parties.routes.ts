@@ -9,19 +9,36 @@ import { Routes } from '@angular/router';
 export const partiesRoutes: Routes = [
   {
     path: 'parties',
-    data: { titleKey: 'nav.parties', icon: 'business', permission: 'PARTY:READ' },
     children: [
       {
         path: '',
         pathMatch: 'full',
+        data: {
+          navGroup: 'people',
+          titleKey: 'nav.parties',
+          icon: 'business',
+          permission: 'PARTY:READ',
+        },
         loadComponent: () => import('./party-list.page').then((m) => m.PartyListPage),
       },
       {
         path: 'new',
+        data: {
+          navGroup: 'people',
+          listTitleKey: 'nav.parties',
+          listPath: '/parties',
+          crumbKey: 'breadcrumb.new.party',
+        },
         loadComponent: () => import('./party-detail.page').then((m) => m.PartyDetailPage),
       },
       {
         path: ':id',
+        data: {
+          navGroup: 'people',
+          listTitleKey: 'nav.parties',
+          listPath: '/parties',
+          detail: true,
+        },
         loadComponent: () => import('./party-detail.page').then((m) => m.PartyDetailPage),
       },
     ],

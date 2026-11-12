@@ -6,3 +6,4 @@ export * from './error.interceptor';
 export * from './http.routes';
 export * from './problem';
 export * from './provide-nexus-http';
+export * from './skip-error-navigation';
