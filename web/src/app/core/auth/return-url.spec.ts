@@ -42,6 +42,11 @@ describe('return-url', () => {
     expect(consumeReturnUrl(1_000 + 10 * 60 * 1000 + 1)).toBeNull();
   });
 
+  it('ignores a saved url dated in the future', () => {
+    saveReturnUrl('/warehouses', 5_000);
+    expect(consumeReturnUrl(4_999)).toBeNull();
+  });
+
   it('ignores a tampered storage value', () => {
     sessionStorage.setItem(
       'nx.auth.returnUrl',

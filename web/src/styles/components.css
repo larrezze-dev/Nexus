@@ -37,7 +37,8 @@
   }
 }
 
-/* Estado vacío genérico (sin componente). Las páginas usan nx-empty-state. */
+/* Estado vacío genérico para contenedores sin componente (p. ej. dentro de una tarjeta o grid).
+ * Las páginas completas usan el componente nx-empty-state. */
 .nx-empty-state {
   display: flex;
   flex-direction: column;

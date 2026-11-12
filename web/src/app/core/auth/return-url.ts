@@ -51,7 +51,7 @@ export function consumeReturnUrl(now: number = Date.now()): string | null {
       return null;
     }
     const { url, savedAt } = parsed as { url?: unknown; savedAt?: unknown };
-    if (typeof savedAt !== 'number' || now - savedAt > MAX_AGE_MS || !isSafeReturnUrl(url)) {
+    if (typeof savedAt !== 'number' || savedAt > now || now - savedAt > MAX_AGE_MS || !isSafeReturnUrl(url)) {
       return null;
     }
     return url;

@@ -15,6 +15,13 @@ export interface NxConfirmOptions {
   readonly destructive?: boolean;
 }
 
+/** Dialog data: the options plus the id of the message element (target of `aria-describedby`). */
+interface NxConfirmDialogData extends NxConfirmOptions {
+  readonly messageId: string;
+}
+
+let nextConfirmId = 0;
+
 /** Dialog body used by `NxConfirm`. Not meant to be opened directly. */
 @Component({
   selector: 'nx-confirm-dialog',
@@ -23,7 +30,7 @@ export interface NxConfirmOptions {
   template: `
     <h2 mat-dialog-title>{{ data.title }}</h2>
     <mat-dialog-content>
-      <p class="nx-confirm-dialog__message">{{ data.message }}</p>
+      <p class="nx-confirm-dialog__message" [id]="data.messageId">{{ data.message }}</p>
     </mat-dialog-content>
     <mat-dialog-actions align="end">
       <button mat-button type="button" [mat-dialog-close]="false" data-testid="nx-confirm-cancel">
@@ -50,7 +57,7 @@ export interface NxConfirmOptions {
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class NxConfirmDialogComponent {
-  protected readonly data = inject<NxConfirmOptions>(MAT_DIALOG_DATA);
+  protected readonly data = inject<NxConfirmDialogData>(MAT_DIALOG_DATA);
 }
 
 /**
@@ -67,10 +74,12 @@ export class NxConfirm {
   private readonly dialog = inject(MatDialog);
 
   async confirm(options: NxConfirmOptions): Promise<boolean> {
-    const ref = this.dialog.open<NxConfirmDialogComponent, NxConfirmOptions, boolean>(
+    const messageId = `nx-confirm-message-${nextConfirmId++}`;
+    const ref = this.dialog.open<NxConfirmDialogComponent, NxConfirmDialogData, boolean>(
       NxConfirmDialogComponent,
       {
-        data: options,
+        data: { ...options, messageId },
+        ariaDescribedBy: messageId,
         width: '480px',
         maxWidth: 'calc(100vw - 32px)',
         // Focus starts on Cancel (first button): Enter never confirms a destructive action by accident.

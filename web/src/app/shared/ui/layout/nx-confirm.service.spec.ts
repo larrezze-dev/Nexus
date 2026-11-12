@@ -40,6 +40,11 @@ describe('NxConfirm', () => {
         ?.getAttribute('role'),
     ).toBe('alertdialog');
 
+    const container = document.querySelector('mat-dialog-container, .mat-mdc-dialog-container') as HTMLElement;
+    const describedBy = container.getAttribute('aria-describedby');
+    expect(describedBy).toBeTruthy();
+    expect(document.getElementById(describedBy as string)?.textContent).toContain('Warehouse Barcelona 01');
+
     ok.click();
     await expect(result).resolves.toBe(true);
   });
