@@ -1,27 +1,42 @@
-import { ChangeDetectionStrategy, Component, OnInit, inject, signal } from '@angular/core';
-import { ActivatedRoute, Router } from '@angular/router';
+import { ChangeDetectionStrategy, Component, OnInit, computed, effect, inject, signal } from '@angular/core';
+import { toSignal } from '@angular/core/rxjs-interop';
 import { MatButtonModule } from '@angular/material/button';
+import { MatIconModule } from '@angular/material/icon';
+import { MatSnackBar } from '@angular/material/snack-bar';
 import { MatTabsModule } from '@angular/material/tabs';
+import { ActivatedRoute, Router } from '@angular/router';
 import { TranslocoModule, TranslocoService } from '@jsverse/transloco';
-import { Observable } from 'rxjs';
 import { isProblem } from '../../../core/http/problem';
 import { NxI18nService } from '../../../core/i18n/nx-i18n.service';
-import { NxCanDirective } from '../../../shared/auth/can.directive';
-import { NxAuditTrailComponent } from '../../../shared/platform/nx-audit-trail/nx-audit-trail.component';
-import { NxStatusBadgeComponent } from '../../../shared/ui/nx-status-badge/nx-status-badge.component';
-import { LegalEntityListItem } from '../../../api/platform/models/legal-entity-list-item';
-import { LegalEntitiesFacade } from '../legal-entities/legal-entities.facade';
-import { BusinessUnitFormComponent, BusinessUnitFormValue } from './business-unit-form.component';
-import { BusinessUnitsFacade } from './business-units.facade';
 import { NxBreadcrumbService } from '../../../core/layout/breadcrumb.service';
+import { NxCanDirective } from '../../../shared/auth/can.directive';
+import { PermissionsStore } from '../../../shared/auth/permissions.store';
+import { NxAuditTrailComponent } from '../../../shared/platform/nx-audit-trail/nx-audit-trail.component';
+import { resolveCaption } from '../../../shared/ui/caption/caption.util';
+import {
+  NxConfirm,
+  NxEmptyStateComponent,
+  NxPageComponent,
+  NxPageHeaderComponent,
+} from '../../../shared/ui/layout';
+import { NxStatusBadgeComponent } from '../../../shared/ui/nx-status-badge/nx-status-badge.component';
+import { BusinessUnitFormComponent, BusinessUnitFormValue } from './business-unit-form.component';
+import { BusinessUnitLegalEntityOption, BusinessUnitsFacade } from './business-units.facade';
+
+/** Dates are shown in this time zone. */
+const DISPLAY_TIME_ZONE = 'Europe/Zurich';
 
 /**
- * `BusinessUnit` detail/create page — same structure as
- * `LegalEntityDetailPage`. In edit mode, besides loading the `BusinessUnit`
- * itself, it also loads its linked `LegalEntity` (via
- * `LegalEntitiesFacade.load`) purely to show that legal entity's `code` as
- * the read-only `legalEntityDisplay` the form needs (`legalEntityId` is
- * immutable after creation, so the picker is only shown on create).
+ * Business-unit detail and create page (`conventions-frontend.md §4.5–§4.6`), same structure as
+ * the legal-entity page. No `id` route param (`business-units/new`) = create form template; an
+ * `id` = detail template: header with the name (`captionI18n` in the active language, also in
+ * the breadcrumb and following a language switch), «code · modified on …», status and
+ * «Deactivate», and the General · Audit tabs.
+ *
+ * Errors: `errorInterceptor` already handles 401/403/404 navigation and the 409 concurrency
+ * dialog; this page turns a 400 into per-field messages (`Problem.errors`) and a 422 into the
+ * translated business-rule message (`Problem.code`). The API has no reactivate endpoint, so an
+ * inactive unit offers no status action.
  */
 @Component({
   selector: 'nx-business-unit-detail-page',
@@ -29,9 +44,13 @@ import { NxBreadcrumbService } from '../../../core/layout/breadcrumb.service';
   imports: [
     TranslocoModule,
     MatButtonModule,
+    MatIconModule,
     MatTabsModule,
     NxCanDirective,
     NxAuditTrailComponent,
+    NxEmptyStateComponent,
+    NxPageComponent,
+    NxPageHeaderComponent,
     NxStatusBadgeComponent,
     BusinessUnitFormComponent,
   ],
@@ -40,54 +59,80 @@ import { NxBreadcrumbService } from '../../../core/layout/breadcrumb.service';
 })
 export class BusinessUnitDetailPage implements OnInit {
   protected readonly facade = inject(BusinessUnitsFacade);
-  private readonly legalEntitiesFacade = inject(LegalEntitiesFacade);
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
   private readonly i18n = inject(NxI18nService);
   private readonly transloco = inject(TranslocoService);
   private readonly breadcrumb = inject(NxBreadcrumbService);
+  private readonly confirm = inject(NxConfirm);
+  private readonly snackBar = inject(MatSnackBar);
+  private readonly permissions = inject(PermissionsStore);
+
+  /** Emits once the active language's file is loaded (and on every switch): texts built in TS follow it. */
+  private readonly translation = toSignal(this.transloco.selectTranslation());
 
   protected readonly mode = signal<'create' | 'edit'>('create');
   protected readonly saving = signal(false);
   protected readonly saveError = signal<string | null>(null);
   protected readonly fieldErrors = signal<Readonly<Record<string, readonly string[]>>>({});
-  protected readonly legalEntityDisplay = signal('');
+  protected readonly legalEntities = signal<readonly BusinessUnitLegalEntityOption[]>([]);
 
   protected readonly entity = this.facade.selected;
+  protected readonly party = this.facade.party;
   protected readonly loading = this.facade.loading;
+  protected readonly loadError = this.facade.error;
 
-  protected readonly legalEntitySearch = (query: string): Observable<LegalEntityListItem[]> =>
-    this.legalEntitiesFacade.search(query);
+  /** Record name: the caption in the active language (→ de → en → first), the code without one. */
+  protected readonly name = computed(() => {
+    const entity = this.entity();
+    return entity ? resolveCaption(entity.captionI18n, this.i18n.activeLang(), entity.code) : '';
+  });
 
-  /**
-   * Tracks `ngOnInit`'s fire-and-forget load chain (`facade.load` then,
-   * in edit mode, `legalEntitiesFacade.load`) so tests can `await` it
-   * directly instead of guessing how many microtask ticks `whenStable()`
-   * needs in this zoneless app (no `zone.js` dependency — plain
-   * `async`/`await` on a mocked promise isn't tracked as an Angular
-   * "pending task", so `ComponentFixture.whenStable()` can resolve before
-   * the chain actually finishes).
-   */
-  protected initialized: Promise<void> = Promise.resolve();
+  protected readonly canUpdate = computed(() => {
+    this.permissions.permissions(); // re-evaluate when permissions change
+    return this.permissions.has('ORG_STRUCTURE:UPDATE');
+  });
+
+  /** «BU-CH-EVENTS · modified on 11 Nov 2026», in the active language. */
+  protected readonly subtitle = computed(() => {
+    const entity = this.entity();
+    if (!entity) {
+      return '';
+    }
+    this.translation();
+    const lang = this.transloco.getActiveLang();
+    const date = new Intl.DateTimeFormat(lang === 'de' ? 'de-CH' : lang, {
+      dateStyle: 'medium',
+      timeZone: DISPLAY_TIME_ZONE,
+    }).format(new Date(entity.updatedAt));
+    return `${entity.code} · ${this.transloco.translate('org.businessUnits.detail.modified', { date }, lang)}`;
+  });
+
+  constructor() {
+    // The breadcrumb names the record and follows a language switch (the name is a caption).
+    effect(() => {
+      const name = this.name();
+      if (this.mode() === 'edit' && name) {
+        this.breadcrumb.setCurrentLabel(name);
+      }
+    });
+  }
 
   ngOnInit(): void {
     this.facade.reset();
     const id = this.route.snapshot.paramMap.get('id');
+    this.mode.set(id ? 'edit' : 'create');
     if (id) {
-      this.mode.set('edit');
-      this.initialized = this.loadForEdit(id);
-    } else {
-      this.mode.set('create');
+      void this.load();
     }
+    void this.loadOptions();
   }
 
-  private async loadForEdit(id: string): Promise<void> {
-    await this.facade.load(id);
-    this.breadcrumb.setCurrentLabel(this.entity()?.code ?? null);
-    const legalEntityId = this.entity()?.legalEntityId;
-    if (legalEntityId) {
-      await this.legalEntitiesFacade.load(legalEntityId);
-      this.legalEntityDisplay.set(this.legalEntitiesFacade.selected()?.code ?? '');
+  /** Loads the record (also the «Retry» of the error state). */
+  protected async load(): Promise<void> {
+    const id = this.route.snapshot.paramMap.get('id');
+    if (id) {
+      await this.facade.load(id);
     }
   }
 
@@ -106,6 +151,7 @@ export class BusinessUnitDetailPage implements OnInit {
           captionI18n: value.captionI18n,
           costCenterCode: value.costCenterCode || null,
         });
+        this.notify('org.businessUnits.created');
         void this.router.navigate(['..', created.id], { relativeTo: this.route });
       } else {
         const id = this.route.snapshot.paramMap.get('id');
@@ -115,6 +161,7 @@ export class BusinessUnitDetailPage implements OnInit {
             captionI18n: value.captionI18n,
             costCenterCode: value.costCenterCode || null,
           });
+          this.notify('org.businessUnits.saved');
         }
       }
     } catch (error: unknown) {
@@ -124,12 +171,25 @@ export class BusinessUnitDetailPage implements OnInit {
     }
   }
 
+  /** Cancel: back to the list, nothing is saved. */
+  protected onCancel(): void {
+    void this.router.navigate(['..'], { relativeTo: this.route });
+  }
+
   protected async onDeactivate(): Promise<void> {
     const entity = this.entity();
     if (!entity) {
       return;
     }
-    const confirmed = globalThis.confirm(this.transloco.translate('org.businessUnits.confirmDeactivate'));
+    const confirmed = await this.confirm.confirm({
+      title: this.transloco.translate('org.businessUnits.deactivateDialog.title'),
+      message: this.transloco.translate('org.businessUnits.deactivateDialog.message', {
+        name: this.name(),
+        code: entity.code,
+      }),
+      confirmLabel: this.transloco.translate('org.businessUnits.deactivate'),
+      destructive: true,
+    });
     if (!confirmed) {
       return;
     }
@@ -138,11 +198,25 @@ export class BusinessUnitDetailPage implements OnInit {
     this.saveError.set(null);
     try {
       await this.facade.deactivate(entity.id);
+      this.notify('org.businessUnits.deactivated');
     } catch (error: unknown) {
       this.handleSaveError(error);
     } finally {
       this.saving.set(false);
     }
+  }
+
+  /** Legal-entity choices; on failure the select stays empty (edit: the locked field is blank). */
+  private async loadOptions(): Promise<void> {
+    try {
+      this.legalEntities.set(await this.facade.legalEntityOptions());
+    } catch {
+      this.legalEntities.set([]);
+    }
+  }
+
+  private notify(key: string): void {
+    this.snackBar.open(this.transloco.translate(key), undefined, { duration: 4000 });
   }
 
   private handleSaveError(error: unknown): void {

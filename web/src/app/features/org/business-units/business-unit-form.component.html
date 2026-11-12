@@ -1,64 +1,151 @@
-<form class="nx-business-unit-form" [formGroup]="form" (ngSubmit)="onSubmit()">
-  @if (mode() === 'create') {
-    <mat-form-field subscriptSizing="dynamic">
-      <mat-label>{{ 'org.businessUnits.fields.legalName' | transloco }}</mat-label>
-      <input matInput type="text" data-testid="bu-form-legal-name" formControlName="legalName" required />
-      @for (message of errorsFor('legalName'); track message) {
-        <mat-error>{{ message }}</mat-error>
-      }
-    </mat-form-field>
-
-    <mat-form-field subscriptSizing="dynamic">
-      <mat-label>{{ 'org.businessUnits.fields.displayName' | transloco }}</mat-label>
-      <input matInput type="text" data-testid="bu-form-display-name" formControlName="displayName" />
-    </mat-form-field>
-
-    <div class="nx-business-unit-form__legal-entity" data-testid="bu-form-legal-entity-picker">
-      <nx-entity-picker
-        [search]="legalEntitySearch()"
-        [displayWith]="legalEntityDisplayWith"
-        placeholderKey="org.businessUnits.fields.legalEntitySearch"
-        (selected)="onLegalEntitySelected($event)"
-      />
-      @for (message of errorsFor('legalEntityId'); track message) {
-        <mat-error>{{ message }}</mat-error>
-      }
+@let isEdit = mode() === 'edit';
+<form class="nx-bu-form" [formGroup]="form" (ngSubmit)="onSubmit()" novalidate>
+  @if (invalidCount() > 0) {
+    <div class="nx-alert nx-alert--error" role="alert" data-testid="bu-form-invalid">
+      <mat-icon aria-hidden="true">error</mat-icon>
+      <span class="nx-alert__text">{{
+        invalidCount() === 1
+          ? ('shared.form.reviewFieldsOne' | transloco)
+          : ('shared.form.reviewFields' | transloco: { count: invalidCount() })
+      }}</span>
     </div>
-  } @else {
-    <mat-form-field subscriptSizing="dynamic">
-      <mat-label>{{ 'org.businessUnits.fields.legalEntityId' | transloco }}</mat-label>
-      <input
-        matInput
-        type="text"
-        data-testid="bu-form-legal-entity-display"
-        [value]="legalEntityDisplay()"
-        disabled
-      />
-    </mat-form-field>
   }
 
-  <mat-form-field subscriptSizing="dynamic">
-    <mat-label>{{ 'org.businessUnits.fields.code' | transloco }}</mat-label>
-    <input matInput type="text" data-testid="bu-form-code" formControlName="code" required />
-    @for (message of errorsFor('code'); track message) {
-      <mat-error>{{ message }}</mat-error>
-    }
-  </mat-form-field>
+  <nx-form-section [title]="'org.businessUnits.sections.identification' | transloco">
+    <nx-form-grid>
+      <mat-form-field nxSpan="s" subscriptSizing="dynamic">
+        <mat-label>{{ 'org.businessUnits.fields.code' | transloco }}</mat-label>
+        <input matInput class="nx-mono" formControlName="code" data-testid="bu-form-code" required autocomplete="off" />
+        @if (form.controls.code.hasError('required')) {
+          <mat-error>{{ 'shared.form.required' | transloco }}</mat-error>
+        }
+        @for (message of errorsFor('code'); track message) {
+          <mat-error>{{ message }}</mat-error>
+        }
+      </mat-form-field>
 
-  <nx-i18n-caption-editor formControlName="captionI18n" data-testid="bu-form-caption" />
+      <mat-form-field nxSpan="l" subscriptSizing="dynamic" [class.nx-field--locked]="isEdit">
+        <mat-label>{{ 'org.businessUnits.fields.legalEntityId' | transloco }}</mat-label>
+        <mat-select formControlName="legalEntityId" data-testid="bu-form-legal-entity" [required]="!isEdit">
+          <mat-select-trigger>
+            @if (legalEntityById(form.controls.legalEntityId.value); as legalEntity) {
+              <span class="nx-mono nx-bu-form__code">{{ legalEntity.code }}</span> {{ legalEntity.legalName }}
+            }
+          </mat-select-trigger>
+          @for (legalEntity of legalEntityChoices(); track legalEntity.id) {
+            <mat-option [value]="legalEntity.id">
+              <span class="nx-mono nx-bu-form__code">{{ legalEntity.code }}</span> {{ legalEntity.legalName }}
+            </mat-option>
+          }
+        </mat-select>
+        @if (isEdit) {
+          <mat-icon matSuffix class="nx-bu-form__lock" aria-hidden="true">lock</mat-icon>
+        }
+        @if (isEdit) {
+          <mat-hint>{{ 'org.businessUnits.hints.lockedAfterCreate' | transloco }}</mat-hint>
+        } @else {
+          <mat-hint>{{ 'org.businessUnits.hints.legalEntity' | transloco }}</mat-hint>
+        }
+        @if (form.controls.legalEntityId.hasError('required')) {
+          <mat-error>{{ 'shared.form.required' | transloco }}</mat-error>
+        }
+        @for (message of errorsFor('legalEntityId'); track message) {
+          <mat-error>{{ message }}</mat-error>
+        }
+      </mat-form-field>
 
-  <mat-form-field subscriptSizing="dynamic">
-    <mat-label>{{ 'org.businessUnits.fields.costCenterCode' | transloco }}</mat-label>
-    <input matInput type="text" data-testid="bu-form-cost-center" formControlName="costCenterCode" />
-  </mat-form-field>
+      <mat-form-field nxSpan="s" subscriptSizing="dynamic">
+        <mat-label>{{ 'org.businessUnits.fields.costCenterCode' | transloco }}</mat-label>
+        <input
+          matInput
+          class="nx-mono"
+          formControlName="costCenterCode"
+          data-testid="bu-form-cost-center"
+          autocomplete="off"
+        />
+        <mat-hint>{{ 'org.businessUnits.hints.costCenterCode' | transloco }}</mat-hint>
+        @for (message of errorsFor('costCenterCode'); track message) {
+          <mat-error>{{ message }}</mat-error>
+        }
+      </mat-form-field>
+    </nx-form-grid>
+  </nx-form-section>
 
-  <div class="nx-business-unit-form__actions">
-    <button mat-raised-button color="primary" type="submit" data-testid="bu-form-submit" [disabled]="saving()">
-      @if (saving()) {
-        <mat-progress-spinner diameter="18" mode="indeterminate" />
-      } @else {
-        {{ 'common.save' | transloco }}
+  <nx-form-section
+    [title]="'org.businessUnits.sections.names' | transloco"
+    [hint]="'org.businessUnits.sectionHints.names' | transloco"
+  >
+    <nx-form-grid>
+      <nx-i18n-caption-editor nxSpan="xl" formControlName="captionI18n" data-testid="bu-form-caption" />
+      @if (errorsFor('captionI18n').length > 0) {
+        <div class="nx-alert nx-alert--error" role="alert">
+          <mat-icon aria-hidden="true">error</mat-icon>
+          <span class="nx-alert__text">
+            @for (message of errorsFor('captionI18n'); track message) {
+              {{ message }}
+            }
+          </span>
+        </div>
       }
+    </nx-form-grid>
+  </nx-form-section>
+
+  @if (showPartySection()) {
+    <nx-form-section
+      [title]="'org.businessUnits.sections.party' | transloco"
+      [hint]="'org.businessUnits.sectionHints.party' | transloco"
+    >
+      <nx-form-grid>
+        <mat-form-field nxSpan="l" subscriptSizing="dynamic" [class.nx-field--locked]="isEdit">
+          <mat-label>{{ 'org.businessUnits.fields.legalName' | transloco }}</mat-label>
+          <input matInput formControlName="legalName" data-testid="bu-form-legal-name" [required]="!isEdit" />
+          @if (isEdit) {
+            <mat-icon matSuffix class="nx-bu-form__lock" aria-hidden="true">lock</mat-icon>
+          }
+          @if (isEdit) {
+            <mat-hint>{{ 'org.businessUnits.hints.lockedAfterCreate' | transloco }}</mat-hint>
+          }
+          @if (form.controls.legalName.hasError('required')) {
+            <mat-error>{{ 'shared.form.required' | transloco }}</mat-error>
+          }
+          @for (message of errorsFor('legalName'); track message) {
+            <mat-error>{{ message }}</mat-error>
+          }
+        </mat-form-field>
+
+        <mat-form-field nxSpan="m" subscriptSizing="dynamic" [class.nx-field--locked]="isEdit">
+          <mat-label>{{ 'org.businessUnits.fields.displayName' | transloco }}</mat-label>
+          <input matInput formControlName="displayName" data-testid="bu-form-display-name" />
+          @if (isEdit) {
+            <mat-icon matSuffix class="nx-bu-form__lock" aria-hidden="true">lock</mat-icon>
+          }
+          @if (isEdit) {
+            <mat-hint>{{ 'org.businessUnits.hints.lockedAfterCreate' | transloco }}</mat-hint>
+          } @else {
+            <mat-hint>{{ 'org.businessUnits.hints.displayName' | transloco }}</mat-hint>
+          }
+          @for (message of errorsFor('displayName'); track message) {
+            <mat-error>{{ message }}</mat-error>
+          }
+        </mat-form-field>
+      </nx-form-grid>
+    </nx-form-section>
+  }
+
+  <nx-action-bar>
+    <button mat-button type="button" data-testid="bu-form-cancel" (click)="cancel.emit()">
+      {{ 'common.cancel' | transloco }}
     </button>
-  </div>
+    <button
+      mat-flat-button
+      type="submit"
+      data-testid="bu-form-submit"
+      [disabled]="saving() || readOnly() || (isEdit && form.pristine)"
+    >
+      @if (saving()) {
+        <mat-progress-spinner diameter="18" mode="indeterminate" aria-hidden="true" />
+      }
+      {{ (isEdit ? 'common.saveChanges' : 'org.businessUnits.actions.create') | transloco }}
+    </button>
+  </nx-action-bar>
 </form>
