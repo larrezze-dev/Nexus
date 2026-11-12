@@ -1,4 +1,3 @@
-export * from './language-selector.component';
 export * from './nx-date-locale';
 export * from './nx-format.service';
 export * from './nx-i18n.service';
