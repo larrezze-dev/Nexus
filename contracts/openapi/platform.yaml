@@ -612,7 +612,9 @@ paths:
     get:
       operationId: listLegalEntities
       summary: Listar legal entities.
-      description: Listar legal entities.
+      description: >
+        Listar legal entities. `q` busca por `code` o `legalName` sin
+        distinguir mayúsculas; `sort` admite `code` y `legalName`.
       tags: [LegalEntities]
       x-permission: "ORG_STRUCTURE:READ"
       x-scope: none
@@ -620,6 +622,14 @@ paths:
         - $ref: '_shared/components.yaml#/components/parameters/Page'
         - $ref: '_shared/components.yaml#/components/parameters/PageSize'
         - $ref: '_shared/components.yaml#/components/parameters/Sort'
+        - $ref: '_shared/components.yaml#/components/parameters/Q'
+        - name: isActive
+          in: query
+          required: false
+          description: Filtra por estado activo/inactivo.
+          schema:
+            type: boolean
+          example: true
       responses:
         '200':
           description: Página de legal entities.
@@ -638,9 +648,11 @@ paths:
                 items:
                   - id: "018f1a3c-7e3b-7c5a-9c2e-6a2f8e9b0c40"
                     groupId: "018f1a3c-7e3b-7c5a-9c2e-6a2f8e9b0c30"
-                    code: "LE-CH"
-                    currencyCode: "CHF"
-                    countryCode: "CH"
+                    code: "LE-SSB"
+                    legalName: "SAPE smart bud S.L."
+                    displayName: "SAPE smart bud"
+                    currencyCode: "EUR"
+                    countryCode: "ES"
                     isActive: true
                 page: 1
                 pageSize: 50
@@ -2963,6 +2975,68 @@ paths:
                 status: 403
                 detail: "No existe un app_user activo para este token."
                 code: "user_not_provisioned"
+    patch:
+      operationId: updateMe
+      summary: Cambiar el idioma preferido del usuario autenticado.
+      description: >
+        Permite al usuario autenticado cambiar su propio
+        `preferredLanguage`. Sin `If-Match` por decisión [+] 2026-11-12
+        (Luciano): es una preferencia propia, idempotente, y gana la
+        última escritura. Emite `nexus.org.user.updated` cuando el valor
+        cambia. El usuario SYSTEM no puede cambiarlo (ORG-R6). Responde
+        con el mismo `Me` que `getMe`.
+      tags: [Me]
+      x-permission: "AUTHENTICATED"
+      x-scope: none
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateMeRequest'
+            example:
+              preferredLanguage: "es"
+      responses:
+        '200':
+          description: Usuario autenticado con el idioma actualizado.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Me'
+              example:
+                subject: "018f1a3c-7e3b-7c5a-9c2e-6a2f8e9b0c90"
+                oid: "00000000-0000-7000-8000-00000000a002"
+                displayName: "User A"
+                email: "usera@dev.nexus.local"
+                userId: "00000000-0000-7000-8000-0000000b0712"
+                partyId: "00000000-0000-7000-8000-0000000b0112"
+                businessUnitId: "00000000-0000-7000-8000-0000000b0401"
+                preferredLanguage: "es"
+                provisioned: true
+                permissions:
+                  - code: "ORG_STRUCTURE:READ"
+                    scopes:
+                      - scopeType: GLOBAL
+                        scopeEntityId: null
+        '400':
+          $ref: '_shared/components.yaml#/components/responses/BadRequest'
+        '401':
+          $ref: '_shared/components.yaml#/components/responses/Unauthorized'
+        '403':
+          description: >
+            El `oid` del token no tiene un `app_user` activo asociado.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '_shared/components.yaml#/components/schemas/Problem'
+              example:
+                type: "https://nexus.nussli.ch/problems/forbidden"
+                title: "Usuario no provisionado"
+                status: 403
+                detail: "No existe un app_user activo para este token."
+                code: "user_not_provisioned"
+        '422':
+          $ref: '_shared/components.yaml#/components/responses/UnprocessableEntity'
 
   # ---------------------------------------------------------------------
   # Auditoría (paso 0.8): operación compartida, única entrada a event_log
@@ -3276,6 +3350,12 @@ components:
           $ref: '_shared/components.yaml#/components/schemas/UuidV7'
         code:
           type: string
+        legalName:
+          type: string
+          description: Razón social (`org.party.legal_name`).
+        displayName:
+          type: [string, "null"]
+          description: Nombre comercial (`org.party.display_name`).
         currencyCode:
           type: string
           pattern: '^[A-Z]{3}$'
@@ -3284,7 +3364,7 @@ components:
           pattern: '^[A-Z]{2}$'
         isActive:
           type: boolean
-      required: [id, groupId, code, currencyCode, countryCode, isActive]
+      required: [id, groupId, code, legalName, currencyCode, countryCode, isActive]
 
     CreateLegalEntityRequest:
       type: object
@@ -3656,6 +3736,15 @@ components:
           type: [string, "null"]
           format: uuid
       required: [oid, fullName, preferredLanguage]
+
+    UpdateMeRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        preferredLanguage:
+          type: string
+          enum: [de, en, fr, it, es]
+      required: [preferredLanguage]
 
     UpdateUserRequest:
       type: object
