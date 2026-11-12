@@ -116,23 +116,7 @@ export class NxBreadcrumbService {
     };
   }
 
-  /**
-   * Called by `nx-page-header` when it renders the breadcrumb itself; returns the function that
-   * gives it back to the shell (call it on destroy). A counter, not a flag, so the old page's
-   * release and the new page's claim may happen in any order during a navigation.
-   */
-  claimForPage(): () => void {
-    this.pageOwners.update((owners) => owners + 1);
-    let released = false;
-    return () => {
-      if (!released) {
-        released = true;
-        this.pageOwners.update((owners) => Math.max(0, owners - 1));
-      }
-    };
-  }
-
-  /** Detail pages call this their record loaded (record name), `null` to clear it. */
+  /** Detail pages call this once their record loaded (record name), `null` to clear it. */
   setCurrentLabel(text: string | null): void {
     this.label.set(text && text.trim() ? text : null);
   }
