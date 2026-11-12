@@ -21,6 +21,8 @@ describe.each([
     fixture.detectChanges();
     const state = (fixture.nativeElement as HTMLElement).querySelector(`nx-empty-state[data-testid="${testId}"]`);
     expect(state?.getAttribute('data-kind')).toBe(kind);
+    expect(state?.querySelector('h1.nx-empty-state__title')).toBeTruthy();
+    expect(state?.querySelector('h2')).toBeNull();
     expect(state?.querySelector('a[href="/account"]')).toBeTruthy();
   });
 });

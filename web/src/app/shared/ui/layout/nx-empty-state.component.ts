@@ -37,9 +37,12 @@ const KEY_GROUP: Readonly<Record<NxEmptyStateKind, string>> = {
     <div class="nx-empty-state__icon" aria-hidden="true">
       <mat-icon>{{ resolvedIcon() }}</mat-icon>
     </div>
-    <h2 class="nx-empty-state__title">
-      {{ title() || ('shared.emptyState.' + keyGroup() + '.title' | transloco) }}
-    </h2>
+    @let heading = title() || ('shared.emptyState.' + keyGroup() + '.title' | transloco);
+    @if (headingLevel() === 1) {
+      <h1 class="nx-empty-state__title">{{ heading }}</h1>
+    } @else {
+      <h2 class="nx-empty-state__title">{{ heading }}</h2>
+    }
     @if (message() !== '') {
       <p class="nx-empty-state__message">
         {{ message() || ('shared.emptyState.' + keyGroup() + '.message' | transloco) }}
@@ -130,6 +133,9 @@ export class NxEmptyStateComponent {
 
   /** Material icon name overriding the kind's icon (e.g. `warehouse` for an empty warehouse list). */
   readonly icon = input<string | null | undefined>(undefined);
+
+  /** Heading level of the title: `1` when the state is the whole page (403/404), `2` inside a page. */
+  readonly headingLevel = input<1 | 2>(2);
 
   protected readonly resolvedIcon = computed(() => this.icon() || ICONS[this.kind()]);
   protected readonly keyGroup = computed(() => KEY_GROUP[this.kind()]);

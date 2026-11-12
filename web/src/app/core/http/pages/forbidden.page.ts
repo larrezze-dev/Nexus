@@ -13,6 +13,7 @@ import { NxEmptyStateComponent } from '../../../shared/ui/layout/nx-empty-state.
   imports: [TranslocoPipe, RouterLink, MatButtonModule, NxEmptyStateComponent],
   template: `
     <nx-empty-state
+      [headingLevel]="1"
       kind="forbidden"
       [title]="'httpPages.forbidden.title' | transloco"
       [message]="'httpPages.forbidden.message' | transloco"

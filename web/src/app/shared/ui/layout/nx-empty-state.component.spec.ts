@@ -8,12 +8,13 @@ import { layoutTransloco } from './testing';
   standalone: true,
   imports: [NxEmptyStateComponent],
   template: `
-    <nx-empty-state [kind]="kind()" [title]="title()" [message]="message()" [icon]="icon()">
+    <nx-empty-state [headingLevel]="level()" [kind]="kind()" [title]="title()" [message]="message()" [icon]="icon()">
       <button type="button" class="test-action">Retry</button>
     </nx-empty-state>
   `,
 })
 class HostComponent {
+  readonly level = signal<1 | 2>(2);
   readonly kind = signal<NxEmptyStateKind>('empty');
   readonly title = signal<string | undefined>(undefined);
   readonly message = signal<string | undefined>(undefined);
@@ -80,5 +81,16 @@ describe('NxEmptyStateComponent', () => {
     fixture.componentInstance.message.set('');
     fixture.detectChanges();
     expect(state().querySelector('.nx-empty-state__message')).toBeNull();
+  });
+
+  it('renders the title as h2 by default and as h1 with headingLevel 1, same class', () => {
+    const { fixture, state } = setup();
+    expect(state().querySelector('h2.nx-empty-state__title')).toBeTruthy();
+    expect(state().querySelector('h1')).toBeNull();
+
+    fixture.componentInstance.level.set(1);
+    fixture.detectChanges();
+    expect(state().querySelector('h1.nx-empty-state__title')).toBeTruthy();
+    expect(state().querySelector('h2')).toBeNull();
   });
 });

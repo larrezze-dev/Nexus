@@ -10,6 +10,7 @@ import { NxEmptyStateComponent } from '../../../shared/ui/layout/nx-empty-state.
   imports: [TranslocoPipe, RouterLink, MatButtonModule, NxEmptyStateComponent],
   template: `
     <nx-empty-state
+      [headingLevel]="1"
       kind="not-found"
       [title]="'httpPages.notFound.title' | transloco"
       [message]="'httpPages.notFound.message' | transloco"
