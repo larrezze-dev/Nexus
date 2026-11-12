@@ -150,3 +150,9 @@ GET /v1/role-assignments/{id} the endpoint no longer allows anonymous access and
 # .RequirePermission("AUDIT", Read)) only emits x-permission, not a standard `security` entry.
 # Reproduced locally against the real service document (nx-reviewer, step 0.8 track S).
 GET /v1/audit/{aggregateType}/{aggregateId} the endpoint no longer allows anonymous access and now only accepts `bearerAuth`
+
+# --- nexus-platform: PATCH /v1/me (UI contract, updateMe) --------------------------------
+# Same finding and root cause as GET /v1/me above: guarded at runtime by
+# .RequireAuthenticatedOnly(), documented only via `x-permission: AUTHENTICATED`, no standard
+# `security` entry in the service's generated document. Added pre-emptively, one line per endpoint.
+PATCH /v1/me the endpoint no longer allows anonymous access and now only accepts `bearerAuth`
