@@ -125,6 +125,18 @@ public sealed class AppUser : AggregateRoot<Guid>
     }
 
     /// <summary>
+    /// Changes only <see cref="PreferredLanguage"/> (<c>PATCH /v1/me</c>: the user's own
+    /// preference). It is <see cref="Update"/> with every other field passed through unchanged,
+    /// so it has exactly the same invariants (ORG-R6: SYSTEM is never edited, not even its
+    /// language), the same change detection and the same full-state <see cref="UserUpdated"/>
+    /// (EV-R4); by construction it cannot touch any other field, in particular
+    /// <see cref="ExternalSubject"/>, whose change is a privileged identity remap (ADR-0006).
+    /// Returns whether anything changed; raises the event only in that case.
+    /// </summary>
+    public Result<bool> ChangePreferredLanguage(string preferredLanguage) =>
+        Update(ExternalSubject, Email, preferredLanguage, BusinessUnitId);
+
+    /// <summary>
     /// Rule ORG-R6: fails for the SYSTEM user's id. Lets a use case reject an operation on
     /// SYSTEM before doing anything else (e.g. an idempotent create that reuses its id).
     /// </summary>
