@@ -298,35 +298,80 @@
     },
     "parties": {
       "title": "Terceros",
-      "actions": {
-        "new": "Nuevo tercero",
-        "deactivate": "Desactivar"
+      "new": "Nuevo tercero",
+      "newTitle": "Nuevo tercero",
+      "loading": "Cargando…",
+      "empty": "Todavía no hay terceros",
+      "emptyHint": "Da de alta clientes, proveedores y otras empresas o personas con las que trabaja el grupo.",
+      "noResults": "Ningún tercero coincide con los filtros",
+      "deactivate": "Desactivar",
+      "columns": {
+        "name": "Nombre"
       },
-      "filters": {
-        "search": "Buscar",
+      "fields": {
         "partyType": "Tipo",
-        "isInternal": "Interno",
-        "any": "Cualquiera",
+        "legalName": "Razón social",
+        "legalNamePerson": "Nombre completo",
+        "displayName": "Nombre corto",
+        "taxId": "NIF / UID",
+        "erpCompanyCode": "Código de sociedad ERP",
+        "isInternal": "Ámbito",
+        "isActive": "Estado"
+      },
+      "type": {
+        "ORGANIZATION": "Organización",
+        "PERSON": "Persona"
+      },
+      "scope": {
         "internal": "Interno",
         "external": "Externo"
       },
-      "partyType": {
-        "organization": "Organización",
-        "person": "Persona"
+      "filters": {
+        "q": "Buscar por nombre",
+        "partyType": "Tipo",
+        "partyTypeAll": "Todos",
+        "isInternal": "Ámbito",
+        "isInternalAll": "Todos",
+        "internal": "Internos",
+        "external": "Externos"
+      },
+      "sections": {
+        "identification": "Identificación",
+        "taxErp": "Datos fiscales y ERP"
+      },
+      "hints": {
+        "legalName": "Nombre oficial, tal como figura en el registro mercantil.",
+        "legalNamePerson": "Nombre y apellidos.",
+        "displayName": "Para listas y menús.",
+        "partyType": "Organización: empresa o institución. Persona: una persona física.",
+        "isInternal": "Interno: forma parte del grupo. Externo: cliente, proveedor u otro tercero.",
+        "taxId": "Número de identificación fiscal, p. ej. CHE-123.456.789.",
+        "erpCompanyCode": "Código de esta empresa en el ERP, si lo tiene.",
+        "lockedAfterCreate": "Se fija al crear el tercero."
+      },
+      "createSubtitle": "Un cliente, proveedor u otra empresa o persona con la que trabaja el grupo. Los campos con * son obligatorios.",
+      "actions": {
+        "new": "Nuevo tercero",
+        "deactivate": "Desactivar",
+        "create": "Crear tercero"
       },
       "detail": {
         "newTitle": "Nuevo tercero",
         "editTitle": "Editar tercero",
-        "loading": "Cargando…"
+        "loading": "Cargando…",
+        "modified": "modificado el {{date}}"
       },
-      "fields": {
-        "partyType": "Tipo de tercero",
-        "legalName": "Razón social",
-        "displayName": "Nombre visible",
-        "taxId": "NIF/CIF",
-        "erpCompanyCode": "Código de sociedad ERP",
-        "isInternal": "Interno",
-        "isActive": "Estado"
+      "deactivateDialog": {
+        "title": "¿Desactivar el tercero?",
+        "message": "«{{name}}» quedará desactivado. Esta acción no se puede deshacer."
+      },
+      "deactivated": "Tercero desactivado",
+      "saved": "Cambios guardados",
+      "created": "Tercero creado",
+      "readOnlyNotice": "Solo puedes consultar este tercero: no tienes permiso para modificarlo.",
+      "partyType": {
+        "organization": "Organización",
+        "person": "Persona"
       }
     },
     "legalEntities": {

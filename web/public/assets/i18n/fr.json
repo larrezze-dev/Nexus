@@ -298,35 +298,80 @@
     },
     "parties": {
       "title": "Partenaires",
-      "actions": {
-        "new": "Nouveau partenaire",
-        "deactivate": "Désactiver"
+      "new": "Nouveau partenaire",
+      "newTitle": "Nouveau partenaire",
+      "loading": "Chargement…",
+      "empty": "Aucun partenaire pour l'instant",
+      "emptyHint": "Ajoutez les clients, fournisseurs et autres entreprises ou personnes avec qui le groupe travaille.",
+      "noResults": "Aucun partenaire ne correspond aux filtres",
+      "deactivate": "Désactiver",
+      "columns": {
+        "name": "Nom"
       },
-      "filters": {
-        "search": "Rechercher",
+      "fields": {
         "partyType": "Type",
-        "isInternal": "Interne",
-        "any": "Tous",
+        "legalName": "Raison sociale",
+        "legalNamePerson": "Nom complet",
+        "displayName": "Nom court",
+        "taxId": "N° fiscal / IDE",
+        "erpCompanyCode": "Code société ERP",
+        "isInternal": "Appartenance",
+        "isActive": "Statut"
+      },
+      "type": {
+        "ORGANIZATION": "Organisation",
+        "PERSON": "Personne"
+      },
+      "scope": {
         "internal": "Interne",
         "external": "Externe"
       },
-      "partyType": {
-        "organization": "Organisation",
-        "person": "Personne"
+      "filters": {
+        "q": "Rechercher par nom",
+        "partyType": "Type",
+        "partyTypeAll": "Tous",
+        "isInternal": "Appartenance",
+        "isInternalAll": "Tous",
+        "internal": "Internes",
+        "external": "Externes"
+      },
+      "sections": {
+        "identification": "Identification",
+        "taxErp": "Fiscalité et ERP"
+      },
+      "hints": {
+        "legalName": "Nom officiel, tel qu'inscrit au registre du commerce.",
+        "legalNamePerson": "Prénom et nom.",
+        "displayName": "Pour les listes et les menus.",
+        "partyType": "Organisation : entreprise ou institution. Personne : une personne physique.",
+        "isInternal": "Interne : fait partie du groupe. Externe : client, fournisseur ou autre partenaire.",
+        "taxId": "Numéro d'identification fiscale, p. ex. CHE-123.456.789.",
+        "erpCompanyCode": "Code de cette entreprise dans l'ERP, s'il existe.",
+        "lockedAfterCreate": "Fixé à la création du partenaire."
+      },
+      "createSubtitle": "Un client, un fournisseur ou une autre entreprise ou personne avec qui le groupe travaille. Les champs marqués * sont obligatoires.",
+      "actions": {
+        "new": "Nouveau partenaire",
+        "deactivate": "Désactiver",
+        "create": "Créer le partenaire"
       },
       "detail": {
         "newTitle": "Nouveau partenaire",
         "editTitle": "Modifier le partenaire",
-        "loading": "Chargement…"
+        "loading": "Chargement…",
+        "modified": "modifié le {{date}}"
       },
-      "fields": {
-        "partyType": "Type de partenaire",
-        "legalName": "Raison sociale",
-        "displayName": "Nom affiché",
-        "taxId": "Numéro fiscal",
-        "erpCompanyCode": "Code société ERP",
-        "isInternal": "Interne",
-        "isActive": "Statut"
+      "deactivateDialog": {
+        "title": "Désactiver le partenaire ?",
+        "message": "« {{name}} » sera désactivé. Cette action est irréversible."
+      },
+      "deactivated": "Partenaire désactivé",
+      "saved": "Modifications enregistrées",
+      "created": "Partenaire créé",
+      "readOnlyNotice": "Vous pouvez seulement consulter ce partenaire : vous n'avez pas le droit de le modifier.",
+      "partyType": {
+        "organization": "Organisation",
+        "person": "Personne"
       }
     },
     "legalEntities": {

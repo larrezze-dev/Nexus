@@ -298,35 +298,80 @@
     },
     "parties": {
       "title": "Parties",
-      "actions": {
-        "new": "New party",
-        "deactivate": "Deactivate"
+      "new": "New party",
+      "newTitle": "New party",
+      "loading": "Loading…",
+      "empty": "No parties yet",
+      "emptyHint": "Add customers, suppliers and other companies or people the group works with.",
+      "noResults": "No party matches the filters",
+      "deactivate": "Deactivate",
+      "columns": {
+        "name": "Name"
       },
-      "filters": {
-        "search": "Search",
+      "fields": {
         "partyType": "Type",
-        "isInternal": "Internal",
-        "any": "Any",
+        "legalName": "Legal name",
+        "legalNamePerson": "Full name",
+        "displayName": "Short name",
+        "taxId": "Tax ID / UID",
+        "erpCompanyCode": "ERP company code",
+        "isInternal": "Scope",
+        "isActive": "Status"
+      },
+      "type": {
+        "ORGANIZATION": "Organization",
+        "PERSON": "Person"
+      },
+      "scope": {
         "internal": "Internal",
         "external": "External"
       },
-      "partyType": {
-        "organization": "Organization",
-        "person": "Person"
+      "filters": {
+        "q": "Search by name",
+        "partyType": "Type",
+        "partyTypeAll": "All",
+        "isInternal": "Scope",
+        "isInternalAll": "All",
+        "internal": "Internal",
+        "external": "External"
+      },
+      "sections": {
+        "identification": "Identification",
+        "taxErp": "Tax and ERP"
+      },
+      "hints": {
+        "legalName": "Official name, as in the commercial register.",
+        "legalNamePerson": "First and last name.",
+        "displayName": "For lists and menus.",
+        "partyType": "Organization: a company or institution. Person: an individual.",
+        "isInternal": "Internal: part of the group. External: customer, supplier or other party.",
+        "taxId": "Tax identification number, e.g. CHE-123.456.789.",
+        "erpCompanyCode": "Code of this company in the ERP, if it has one.",
+        "lockedAfterCreate": "Set when the party is created."
+      },
+      "createSubtitle": "A customer, supplier or other company or person the group works with. Fields marked * are required.",
+      "actions": {
+        "new": "New party",
+        "deactivate": "Deactivate",
+        "create": "Create party"
       },
       "detail": {
         "newTitle": "New party",
         "editTitle": "Edit party",
-        "loading": "Loading…"
+        "loading": "Loading…",
+        "modified": "modified on {{date}}"
       },
-      "fields": {
-        "partyType": "Party type",
-        "legalName": "Legal name",
-        "displayName": "Display name",
-        "taxId": "Tax ID",
-        "erpCompanyCode": "ERP company code",
-        "isInternal": "Internal",
-        "isActive": "Status"
+      "deactivateDialog": {
+        "title": "Deactivate the party?",
+        "message": "“{{name}}” will be deactivated. This cannot be undone."
+      },
+      "deactivated": "Party deactivated",
+      "saved": "Changes saved",
+      "created": "Party created",
+      "readOnlyNotice": "You can only view this party: you are not allowed to change it.",
+      "partyType": {
+        "organization": "Organization",
+        "person": "Person"
       }
     },
     "legalEntities": {
