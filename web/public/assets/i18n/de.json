@@ -38,17 +38,27 @@
     }
   },
   "httpPages": {
+    "goToAccount": "Zu Mein Konto",
     "forbidden": {
-      "title": "Zugriff verweigert",
-      "message": "Sie haben keine Berechtigung, diese Seite anzuzeigen.",
-      "requiredPermission": "Erforderliche Berechtigung: {{permission}}"
+      "title": "Sie haben keinen Zugriff auf diese Seite",
+      "message": "Bitte wenden Sie sich bei Bedarf an eine Administratorin oder einen Administrator."
     },
     "notFound": {
-      "title": "Seite nicht gefunden",
-      "message": "Die gesuchte Seite existiert nicht oder wurde verschoben."
+      "title": "Diese Seite wurde nicht gefunden",
+      "message": "Der Link ist möglicherweise falsch geschrieben oder der Eintrag existiert nicht mehr."
+    },
+    "unauthorized": {
+      "title": "Anmeldung fehlgeschlagen",
+      "message": "Die Sitzung ist abgelaufen oder der Zugriff wurde abgelehnt. Bitte melden Sie sich erneut an.",
+      "signIn": "Erneut anmelden"
     }
   },
   "nav": {
+    "groups": {
+      "org": "Organisation",
+      "people": "Personen und Partner",
+      "access": "Zugriff"
+    },
     "account": "Mein Konto",
     "users": "Benutzer",
     "parties": "Partner",
@@ -58,7 +68,7 @@
     },
     "locations": "Standorte",
     "warehouses": "Warehouses",
-    "orgTree": "Organisationsstruktur",
+    "orgTree": "Struktur",
     "orgCurrencies": "Währungen",
     "access": {
       "roles": "Rollen"
@@ -264,11 +274,79 @@
     }
   },
   "breadcrumb": {
-    "ariaLabel": "Brotkrumen"
+    "ariaLabel": "Brotkrumen",
+    "loading": "Wird geladen…",
+    "effectiveScope": "Was dieser Benutzer sieht",
+    "new": {
+      "legalEntity": "Neue Gesellschaft",
+      "businessUnit": "Neuer Geschäftsbereich",
+      "location": "Neuer Standort",
+      "warehouse": "Neues Lager",
+      "user": "Neuer Benutzer",
+      "party": "Neuer Partner",
+      "role": "Neue Rolle"
+    }
   },
   "shared": {
     "dataGrid": {
-      "empty": "Keine Daten vorhanden."
+      "empty": "Keine Daten vorhanden.",
+      "retry": "Erneut versuchen"
+    },
+    "layout": {
+      "pageHeader": {
+        "count": "{{count}} Einträge",
+        "countOne": "1 Eintrag"
+      },
+      "filterBar": {
+        "clear": "Filter zurücksetzen",
+        "ariaLabel": "Filter"
+      },
+      "sectionIndex": {
+        "title": "Auf dieser Seite"
+      },
+      "confirm": {
+        "confirm": "Bestätigen"
+      }
+    },
+    "emptyState": {
+      "empty": {
+        "title": "Noch keine Einträge",
+        "message": "Sobald Einträge angelegt sind, erscheinen sie hier."
+      },
+      "noResults": {
+        "title": "Kein Eintrag entspricht der Suche",
+        "message": "Versuchen Sie einen anderen Suchbegriff oder setzen Sie Filter zurück."
+      },
+      "error": {
+        "title": "Die Daten konnten nicht geladen werden",
+        "message": "Prüfen Sie die Verbindung und versuchen Sie es erneut. Besteht das Problem weiter, wenden Sie sich an den Support."
+      },
+      "forbidden": {
+        "title": "Kein Zugriff auf diese Seite",
+        "message": "Ihr Benutzer hat keine Berechtigung für diese Seite. Wenden Sie sich bei Bedarf an einen Administrator."
+      },
+      "notFound": {
+        "title": "Diese Seite wurde nicht gefunden",
+        "message": "Der Link ist möglicherweise falsch geschrieben oder der Eintrag existiert nicht mehr."
+      }
+    },
+    "grid": {
+      "loadingOoo": "Wird geladen …",
+      "noRowsToShow": "Keine Daten vorhanden",
+      "ariaSortableColumn": "Zum Sortieren die Eingabetaste drücken",
+      "ariaRowSelectAll": "Leertaste drücken, um die Auswahl aller Zeilen umzuschalten",
+      "ariaSkeletonCellLoading": "Zeilendaten werden geladen",
+      "ariaSkeletonCellLoadingFailed": "Zeile konnte nicht geladen werden",
+      "loadingError": "Fehler"
+    },
+    "paginator": {
+      "itemsPerPage": "Einträge pro Seite",
+      "nextPage": "Nächste Seite",
+      "previousPage": "Vorherige Seite",
+      "firstPage": "Erste Seite",
+      "lastPage": "Letzte Seite",
+      "rangeLabel": "{{start}}–{{end}} von {{length}}",
+      "rangeLabelEmpty": "0 von 0"
     },
     "status": {
       "draft": "Entwurf",

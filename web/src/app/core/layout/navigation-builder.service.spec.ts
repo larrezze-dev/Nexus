@@ -1,5 +1,6 @@
 import { TestBed } from '@angular/core/testing';
 import { Routes } from '@angular/router';
+import { routes as appRoutes } from '../../app.routes';
 import { NavigationBuilderService } from './navigation-builder.service';
 
 describe('NavigationBuilderService', () => {
@@ -70,5 +71,69 @@ describe('NavigationBuilderService', () => {
     const routes: Routes = [{ path: '**', data: {} }];
 
     expect(service.build(routes)).toEqual([]);
+  });
+
+  it('skips routes with data.nav === false even when they have a titleKey', () => {
+    const routes: Routes = [
+      { path: 'account', data: { titleKey: 'nav.account', icon: 'person', nav: false } },
+      { path: 'users', data: { titleKey: 'nav.users', navGroup: 'people' } },
+    ];
+
+    expect(service.build(routes).map((item) => item.path)).toEqual(['/users']);
+  });
+
+  it('lists a componentless parent once when titleKey lives on the list child only', () => {
+    const routes: Routes = [
+      {
+        path: 'users',
+        children: [
+          { path: '', pathMatch: 'full', data: { titleKey: 'nav.users', navGroup: 'people' } },
+          { path: 'new', data: { listTitleKey: 'nav.users', crumbKey: 'breadcrumb.new.user' } },
+          { path: ':id', data: { listTitleKey: 'nav.users', detail: true } },
+        ],
+      },
+    ];
+
+    expect(service.build(routes)).toEqual([
+      { titleKey: 'nav.users', path: '/users', icon: undefined, permission: undefined, navGroup: 'people' },
+    ]);
+  });
+
+  it('groups items by navGroup in display order and drops empty groups', () => {
+    const routes: Routes = [
+      { path: 'roles', data: { titleKey: 'nav.roles', navGroup: 'access' } },
+      { path: 'users', data: { titleKey: 'nav.users', navGroup: 'people' } },
+      { path: 'tree', data: { titleKey: 'nav.tree', navGroup: 'org' } },
+      { path: 'locations', data: { titleKey: 'nav.locations', navGroup: 'org' } },
+    ];
+
+    const groups = service.buildGrouped(routes);
+
+    expect(groups.map((g) => [g.navGroup, g.titleKey, g.items.map((i) => i.path)])).toEqual([
+      ['org', 'nav.groups.org', ['/tree', '/locations']],
+      ['people', 'nav.groups.people', ['/users']],
+      ['access', 'nav.groups.access', ['/roles']],
+    ]);
+  });
+
+  it('real app routes: one entry per section, in the approved order, without My account', () => {
+    const items = service.build(appRoutes);
+
+    expect(items.map((item) => item.path)).toEqual([
+      '/org/tree',
+      '/legal-entities',
+      '/business-units',
+      '/locations',
+      '/warehouses',
+      '/org/currencies',
+      '/users',
+      '/parties',
+      '/roles',
+    ]);
+    expect(service.buildGrouped(appRoutes).map((g) => [g.navGroup, g.items.length])).toEqual([
+      ['org', 6],
+      ['people', 2],
+      ['access', 1],
+    ]);
   });
 });

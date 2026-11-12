@@ -25,7 +25,7 @@ class CallerPage {
 }
 
 describe('provideNexusHttp() + provideNexusI18n() integration', () => {
-  it('a 403 Problem from a real request navigates through the real router to the real ForbiddenPage with the required permission', async () => {
+  it('a 403 Problem from a real request navigates through the real router to the real ForbiddenPage without exposing the permission code', async () => {
     TestBed.configureTestingModule({
       providers: [
         provideNexusHttp(),
@@ -65,13 +65,15 @@ describe('provideNexusHttp() + provideNexusI18n() integration', () => {
     // key this test needs, then let the pipe re-render with the real translated text.
     const translationRequest = controller.expectOne((r) => r.url.includes('/assets/i18n/'));
     translationRequest.flush({
-      httpPages: { forbidden: { requiredPermission: 'Required permission: {{permission}}' } },
+      httpPages: { forbidden: { title: 'No access to this page' } },
     });
     await harness.fixture.whenStable();
     harness.detectChanges();
 
     const text = harness.routeNativeElement?.textContent ?? '';
-    expect(text).toContain('ASSET_TYPE:CREATE');
+    expect(text).toContain('No access to this page');
+    // The technical permission code is deliberately not shown to end users.
+    expect(text).not.toContain('ASSET_TYPE:CREATE');
 
     controller.verify();
   });

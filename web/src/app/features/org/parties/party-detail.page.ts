@@ -9,6 +9,7 @@ import { MatSelectModule } from '@angular/material/select';
 import { TranslocoModule } from '@jsverse/transloco';
 import { NxCanDirective } from '../../../shared/auth/can.directive';
 import { PartiesFacade } from './parties.facade';
+import { NxBreadcrumbService } from '../../../core/layout/breadcrumb.service';
 
 interface PartyForm {
   partyType: FormControl<'ORGANIZATION' | 'PERSON'>;
@@ -51,6 +52,7 @@ export class PartyDetailPage implements OnInit {
   protected readonly facade = inject(PartiesFacade);
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
+  private readonly breadcrumb = inject(NxBreadcrumbService);
 
   protected readonly isNew = signal(true);
 
@@ -76,6 +78,7 @@ export class PartyDetailPage implements OnInit {
     await this.facade.load(id);
 
     const party = this.facade.selected();
+    this.breadcrumb.setCurrentLabel(party?.legalName ?? null);
     if (party) {
       this.form.setValue({
         partyType: party.partyType,

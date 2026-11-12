@@ -1,32 +1,21 @@
-import { Component, inject } from '@angular/core';
-import { ActivatedRoute } from '@angular/router';
-import { toSignal } from '@angular/core/rxjs-interop';
+import { Component } from '@angular/core';
+import { MatButtonModule } from '@angular/material/button';
+import { RouterLink } from '@angular/router';
 import { TranslocoPipe } from '@jsverse/transloco';
-import { map } from 'rxjs';
 
 /**
- * Shown when a request fails with 403 (ficha 0.5, track F point 2). `errorInterceptor`
- * navigates here with `?permission=<RESOURCE:ACTION>` when the `Problem` carries
- * `requiredPermission`, so a direct link stays shareable/testable without router state.
+ * Shown when a request fails with 403. `errorInterceptor` may append `?permission=...` to the
+ * URL; it is deliberately not displayed (technical wording, not for end users).
  */
 @Component({
   selector: 'nx-forbidden-page',
-  imports: [TranslocoPipe],
+  imports: [TranslocoPipe, RouterLink, MatButtonModule],
   template: `
-    <h1>{{ 'httpPages.forbidden.title' | transloco }}</h1>
-    <p>{{ 'httpPages.forbidden.message' | transloco }}</p>
-    @if (requiredPermission()) {
-      <p>
-        {{ 'httpPages.forbidden.requiredPermission' | transloco: { permission: requiredPermission() } }}
-      </p>
-    }
+    <section class="nx-empty-state" data-testid="nx-forbidden-page">
+      <h1>{{ 'httpPages.forbidden.title' | transloco }}</h1>
+      <p>{{ 'httpPages.forbidden.message' | transloco }}</p>
+      <a mat-flat-button routerLink="/account">{{ 'httpPages.goToAccount' | transloco }}</a>
+    </section>
   `,
 })
-export class ForbiddenPage {
-  private readonly route = inject(ActivatedRoute);
-
-  readonly requiredPermission = toSignal(
-    this.route.queryParamMap.pipe(map((params) => params.get('permission'))),
-    { initialValue: null },
-  );
-}
+export class ForbiddenPage {}

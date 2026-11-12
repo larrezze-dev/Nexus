@@ -4,7 +4,7 @@ import type { ColDef } from 'ag-grid-community';
 import { CurrencyListItem } from '../../../api/platform/models/currency-list-item';
 import { NxI18nService } from '../../../core/i18n/nx-i18n.service';
 import { NxDataGridComponent } from '../../../shared/ui/nx-data-grid/nx-data-grid.component';
-import { resolveCaption } from '../shared/caption.util';
+import { resolveCaption } from '../../../shared/ui/caption/caption.util';
 import { CurrencyActionCellComponent, CurrencyActionCellExtraParams } from './currency-action-cell.component';
 import { CurrenciesFacade } from './currencies.facade';
 import { CurrencyStatusCellComponent } from './currency-status-cell.component';

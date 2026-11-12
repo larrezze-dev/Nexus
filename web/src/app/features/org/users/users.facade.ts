@@ -8,6 +8,7 @@ import { deactivateUser } from '../../../api/platform/fn/users/deactivate-user';
 import { getUser } from '../../../api/platform/fn/users/get-user';
 import { listUsers, type ListUsers$Params } from '../../../api/platform/fn/users/list-users';
 import { updateUser } from '../../../api/platform/fn/users/update-user';
+import type { I18NText } from '../../../api/platform/models/i-18-n-text';
 import type { BusinessUnitListItem } from '../../../api/platform/models/business-unit-list-item';
 import type { CreateUserRequest } from '../../../api/platform/models/create-user-request';
 import type { UpdateUserRequest } from '../../../api/platform/models/update-user-request';
@@ -15,6 +16,7 @@ import type { User } from '../../../api/platform/models/user';
 import type { UserListItem } from '../../../api/platform/models/user-list-item';
 import { isProblem, type Problem } from '../../../core/http/problem';
 import { NxI18nService } from '../../../core/i18n/nx-i18n.service';
+import { resolveCaption } from '../../../shared/ui/caption/caption.util';
 import type { NxSortModel, Page } from '../../../shared/ui/page.model';
 
 /**
@@ -178,7 +180,7 @@ export class UsersFacade {
           return items;
         }
         return items.filter(
-          (bu) => bu.code.toLowerCase().includes(needle) || bu.captionI18n.de.toLowerCase().includes(needle),
+          (bu) => bu.code.toLowerCase().includes(needle) || this.caption(bu).toLowerCase().includes(needle),
         );
       }),
     );
@@ -190,8 +192,12 @@ export class UsersFacade {
     return this.formatBusinessUnit(bu);
   }
 
-  formatBusinessUnit(bu: { code: string; captionI18n: { de: string } }): string {
-    return `${bu.code} — ${bu.captionI18n.de}`;
+  formatBusinessUnit(bu: { code: string; captionI18n: I18NText }): string {
+    return `${bu.code} — ${this.caption(bu)}`;
+  }
+
+  private caption(bu: { code: string; captionI18n: I18NText }): string {
+    return resolveCaption(bu.captionI18n, this.i18n.getActiveLanguage(), bu.code);
   }
 
   private applyError(error: unknown): void {

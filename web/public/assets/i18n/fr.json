@@ -38,17 +38,27 @@
     }
   },
   "httpPages": {
+    "goToAccount": "Aller à Mon compte",
     "forbidden": {
-      "title": "Accès refusé",
-      "message": "Vous n'avez pas la permission de voir cette page.",
-      "requiredPermission": "Permission requise : {{permission}}"
+      "title": "Vous n'avez pas accès à cette page",
+      "message": "Si nécessaire, demandez l'accès à un administrateur."
     },
     "notFound": {
-      "title": "Page introuvable",
-      "message": "La page que vous recherchez n'existe pas ou a été déplacée."
+      "title": "Cette page est introuvable",
+      "message": "Le lien est peut-être mal saisi ou l'élément n'existe plus."
+    },
+    "unauthorized": {
+      "title": "Échec de la connexion",
+      "message": "La session a expiré ou l'accès a été refusé. Veuillez vous reconnecter.",
+      "signIn": "Se reconnecter"
     }
   },
   "nav": {
+    "groups": {
+      "org": "Organisation",
+      "people": "Personnes et tiers",
+      "access": "Accès"
+    },
     "account": "Mon compte",
     "users": "Utilisateurs",
     "parties": "Partenaires",
@@ -58,7 +68,7 @@
     },
     "locations": "Sites",
     "warehouses": "Entrepôts",
-    "orgTree": "Arborescence de l'organisation",
+    "orgTree": "Structure",
     "orgCurrencies": "Devises",
     "access": {
       "roles": "Rôles"
@@ -120,11 +130,79 @@
     }
   },
   "breadcrumb": {
-    "ariaLabel": "Fil d'Ariane"
+    "ariaLabel": "Fil d'Ariane",
+    "loading": "Chargement…",
+    "effectiveScope": "Ce que voit cet utilisateur",
+    "new": {
+      "legalEntity": "Nouvelle entité juridique",
+      "businessUnit": "Nouvelle unité d'affaires",
+      "location": "Nouveau site",
+      "warehouse": "Nouvel entrepôt",
+      "user": "Nouvel utilisateur",
+      "party": "Nouveau partenaire",
+      "role": "Nouveau rôle"
+    }
   },
   "shared": {
     "dataGrid": {
-      "empty": "Aucune donnée disponible."
+      "empty": "Aucune donnée disponible.",
+      "retry": "Réessayer"
+    },
+    "layout": {
+      "pageHeader": {
+        "count": "{{count}} enregistrements",
+        "countOne": "1 enregistrement"
+      },
+      "filterBar": {
+        "clear": "Effacer les filtres",
+        "ariaLabel": "Filtres"
+      },
+      "sectionIndex": {
+        "title": "Sur cette page"
+      },
+      "confirm": {
+        "confirm": "Confirmer"
+      }
+    },
+    "emptyState": {
+      "empty": {
+        "title": "Aucun enregistrement pour l'instant",
+        "message": "Les enregistrements apparaîtront ici dès qu'ils seront créés."
+      },
+      "noResults": {
+        "title": "Aucun enregistrement ne correspond à la recherche",
+        "message": "Essayez un autre texte ou retirez des filtres."
+      },
+      "error": {
+        "title": "Impossible de charger les données",
+        "message": "Vérifiez la connexion et réessayez. Si le problème persiste, contactez le support."
+      },
+      "forbidden": {
+        "title": "Vous n'avez pas accès à cette page",
+        "message": "Votre utilisateur n'est pas autorisé à voir cette page. Si nécessaire, demandez l'accès à un administrateur."
+      },
+      "notFound": {
+        "title": "Page introuvable",
+        "message": "Le lien est peut-être erroné ou l'enregistrement n'existe plus."
+      }
+    },
+    "grid": {
+      "loadingOoo": "Chargement…",
+      "noRowsToShow": "Aucune donnée disponible",
+      "ariaSortableColumn": "Appuyez sur Entrée pour trier",
+      "ariaRowSelectAll": "Appuyez sur Espace pour basculer la sélection de toutes les lignes",
+      "ariaSkeletonCellLoading": "Les données de la ligne sont en cours de chargement",
+      "ariaSkeletonCellLoadingFailed": "Échec du chargement de la ligne",
+      "loadingError": "Erreur"
+    },
+    "paginator": {
+      "itemsPerPage": "Éléments par page",
+      "nextPage": "Page suivante",
+      "previousPage": "Page précédente",
+      "firstPage": "Première page",
+      "lastPage": "Dernière page",
+      "rangeLabel": "{{start}}–{{end}} sur {{length}}",
+      "rangeLabelEmpty": "0 sur 0"
     },
     "status": {
       "draft": "Brouillon",

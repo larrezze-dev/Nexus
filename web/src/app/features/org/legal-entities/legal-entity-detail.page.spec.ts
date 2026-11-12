@@ -8,6 +8,7 @@ import { NxI18nService } from '../../../core/i18n/nx-i18n.service';
 import { LegalEntitiesFacade } from './legal-entities.facade';
 import { LegalEntityDetailPage } from './legal-entity-detail.page';
 import { denyAuditRead, findAuditTab, selectAuditTab, stubAuditTrail } from '../audit-tab.testing';
+import { NxBreadcrumbService } from '../../../core/layout/breadcrumb.service';
 
 const legalEntity: LegalEntity = {
   id: '018f1a3c-7e3b-7c5a-9c2e-6a2f8e9b0c40',
@@ -67,6 +68,7 @@ async function setupPage(paramMap: Record<string, string>, facade: ReturnType<ty
         useValue: { snapshot: { paramMap: convertToParamMap(paramMap) } },
       },
       { provide: Router, useValue: { navigate: vi.fn().mockResolvedValue(true) } },
+      { provide: NxBreadcrumbService, useValue: { setCurrentLabel: vi.fn() } },
     ],
   }).compileComponents();
 

@@ -20,8 +20,9 @@ import type { RoleAssignmentListItem } from '../../../api/platform/models/role-a
 import type { RoleListItem } from '../../../api/platform/models/role-list-item';
 import type { WarehouseListItem } from '../../../api/platform/models/warehouse-list-item';
 import { RoleAssignmentsFacade } from '../../access/role-assignments/role-assignments.facade';
-import { resolveCaption } from '../shared/caption.util';
+import { resolveCaption } from '../../../shared/ui/caption/caption.util';
 import { SYSTEM_USER_ID, UsersFacade } from './users.facade';
+import { NxBreadcrumbService } from '../../../core/layout/breadcrumb.service';
 
 interface UserForm {
   oid: FormControl<string>;
@@ -78,6 +79,7 @@ interface GrantForm {
 })
 export class UserDetailPage implements OnInit {
   protected readonly facade = inject(UsersFacade);
+  private readonly breadcrumb = inject(NxBreadcrumbService);
   protected readonly assignmentsFacade = inject(RoleAssignmentsFacade);
   private readonly i18n = inject(NxI18nService);
   private readonly transloco = inject(TranslocoService);
@@ -153,6 +155,7 @@ export class UserDetailPage implements OnInit {
     await this.facade.load(id);
 
     const user = this.facade.selected();
+    this.breadcrumb.setCurrentLabel(user?.fullName ?? null);
     if (user) {
       this.form.setValue({
         oid: user.oid ?? '',

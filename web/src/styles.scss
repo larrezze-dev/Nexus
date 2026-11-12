@@ -1,13 +1,49 @@
-/* You can add global styles to this file, and also import other style files */
+/* Estilos globales: fuentes autoalojadas, tema Material y base del documento. */
 @use './styles/theme';
+
+/* Roboto autoalojada (@fontsource, OFL-1.1): sin dependencia de Google Fonts.
+ * Solo los pesos del sistema de diseño: 400 (texto), 500 (títulos, botones), 700 (énfasis);
+ * Roboto Mono 400 para códigos. Cada fichero declara todos los subconjuntos con
+ * unicode-range, así el navegador descarga solo el latín que usamos. */
+@import '@fontsource/roboto/400.css';
+@import '@fontsource/roboto/500.css';
+@import '@fontsource/roboto/700.css';
+@import '@fontsource/roboto-mono/400.css';
 
 html,
 body {
   height: 100%;
 }
 
+/* Texto base 14/20 sobre el fondo neutro de página. */
 body {
   margin: 0;
-  font-family: var(--nx-font-family);
+  font: var(--nx-text-body);
+  color: var(--nx-color-text);
+  background: var(--nx-color-surface);
 }
 
+/* Los controles nativos no heredan la fuente por defecto del navegador. */
+button,
+input,
+select,
+textarea {
+  font-family: inherit;
+}
+
+/* Escala tipográfica del sistema de diseño: h1 = título de página, h2 = título de sección.
+ * Sin esto heredarían el interlineado de 20px del body y un título en dos líneas se solaparía. */
+h1 {
+  font: var(--nx-text-page-title);
+}
+
+h2 {
+  font: var(--nx-text-section-title);
+}
+
+h3,
+h4,
+h5,
+h6 {
+  line-height: normal;
+}

@@ -9,7 +9,7 @@ import { NxI18nService } from '../../../core/i18n/nx-i18n.service';
 import { NxCanDirective } from '../../../shared/auth/can.directive';
 import { NxDataGridComponent } from '../../../shared/ui/nx-data-grid/nx-data-grid.component';
 import { NxDataGridFetchFn } from '../../../shared/ui/page.model';
-import { resolveCaption } from '../../org/shared/caption.util';
+import { resolveCaption } from '../../../shared/ui/caption/caption.util';
 import { OrgActiveStatusCellComponent } from '../../org/shared/org-active-status-cell.component';
 import { RolesFacade } from './roles.facade';
 

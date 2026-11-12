@@ -1,39 +1,211 @@
+// nx-data-grid — only --nx-* tokens (src/styles/tokens.css). Canvas boards 2 (list), 5 (states), 7 (mobile).
+
+// Standalone the grid is its own card; inside an .nx-card (list template: .nx-card--flush with
+// nx-filter-bar on top) it is flush with that card.
 :host {
-  display: flex;
-  flex-direction: column;
-  height: 100%;
-  min-height: 0;
+  display: block;
+  min-width: 0;
+  background: var(--nx-color-surface-raised);
+  border: 1px solid var(--nx-color-border);
+  border-radius: var(--nx-radius-lg);
+  overflow: hidden;
+}
+
+:host-context(.nx-card) {
+  border: 0;
+  border-radius: 0;
 }
 
 .nx-data-grid {
   display: flex;
   flex-direction: column;
-  height: 100%;
-  min-height: 0;
+  min-width: 0;
 }
 
-.nx-data-grid__viewport {
-  position: relative;
-  flex: 1 1 auto;
-  min-height: 240px;
+.nx-data-grid__table--hidden {
+  display: none;
 }
 
-// El viewport solo tiene min-height (altura de porcentaje = auto), así que
-// height:100% resolvía a 0. Posicionamiento absoluto: la rejilla ocupa siempre
-// todo el viewport. Los overlays (empty/loading) van después en el DOM y quedan encima.
 .nx-data-grid__grid {
   display: block;
-  position: absolute;
-  inset: 0;
+  width: 100%;
 }
 
-.nx-data-grid__empty,
-.nx-data-grid__loading {
-  position: absolute;
-  inset: 0;
+// The whole row opens the record.
+:host ::ng-deep .nx-data-grid__row {
+  cursor: pointer;
+}
+
+// ---------- Paginator: under the rows, right-aligned, inside the card ----------
+.nx-data-grid__paginator {
+  --mat-paginator-container-background-color: var(--nx-color-surface-raised);
+  --mat-paginator-container-text-color: var(--nx-color-text-muted);
+  --mat-paginator-container-text-font: var(--nx-font-family);
+  border-top: 1px solid var(--nx-color-row-divider);
+}
+
+// ---------- Cards (< 600 px) ----------
+.nx-data-grid__cards {
+  display: none;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.nx-data-grid__card {
   display: flex;
   align-items: center;
-  justify-content: center;
-  background: var(--mat-sys-surface, #fff);
-  color: var(--mat-sys-on-surface-variant, rgba(0, 0, 0, 0.6));
+  gap: var(--nx-space-3);
+  width: 100%;
+  min-height: 64px;
+  padding: var(--nx-space-3) var(--nx-space-4);
+  box-sizing: border-box;
+  background: var(--nx-color-surface-raised);
+  border: 1px solid var(--nx-color-border);
+  border-radius: var(--nx-radius-lg);
+  color: var(--nx-color-text);
+  font: var(--nx-text-body);
+  text-align: left;
+  cursor: pointer;
+}
+
+button.nx-data-grid__card:hover {
+  background: var(--nx-color-row-hover);
+}
+
+button.nx-data-grid__card:focus-visible {
+  outline: 2px solid var(--nx-color-primary);
+  outline-offset: 2px;
+}
+
+.nx-data-grid__card-text {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: var(--nx-space-1);
+  min-width: 0;
+}
+
+.nx-data-grid__card-title {
+  font-weight: 500;
+  overflow-wrap: anywhere;
+}
+
+.nx-data-grid__card-subtitle {
+  font: var(--nx-text-label);
+  color: var(--nx-color-text-muted);
+  overflow-wrap: anywhere;
+}
+
+.nx-data-grid__card-subtitle.nx-mono {
+  font-family: var(--nx-font-mono);
+}
+
+.nx-data-grid__card-status {
+  flex: 0 0 auto;
+}
+
+.nx-data-grid__card-chevron {
+  flex: 0 0 auto;
+  color: var(--nx-color-text-muted);
+}
+
+// ---------- Skeleton ----------
+.nx-data-grid__sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.nx-data-grid__skeleton-head,
+.nx-data-grid__skeleton-row {
+  display: flex;
+  align-items: center;
+}
+
+.nx-data-grid__skeleton-head {
+  height: 44px;
+  border-bottom: 1px solid var(--nx-color-border);
+  font: var(--nx-text-label);
+  font-weight: 500;
+  color: var(--nx-color-text-muted);
+}
+
+.nx-data-grid__skeleton-row {
+  height: 52px;
+  border-bottom: 1px solid var(--nx-color-row-divider);
+}
+
+.nx-data-grid__skeleton-cell {
+  flex: 1 1 0;
+  min-width: 0;
+  padding: 0 var(--nx-space-4);
+  box-sizing: border-box;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.nx-data-grid__skeleton-bar {
+  display: block;
+  height: 12px;
+  border-radius: 6px;
+  background: var(--nx-color-skeleton);
+  animation: nx-skeleton-pulse 1.4s ease-in-out infinite;
+}
+
+.nx-data-grid__skeleton-bar--thin {
+  height: 10px;
+}
+
+.nx-data-grid__skeleton-bar--pill {
+  width: 64px;
+  height: 20px;
+  border-radius: 10px;
+}
+
+.nx-data-grid__skeleton-cards {
+  display: none;
+}
+
+@keyframes nx-skeleton-pulse {
+  50% {
+    opacity: 0.55;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .nx-data-grid__skeleton-bar {
+    animation: none;
+  }
+}
+
+// ---------- < 600 px: cards instead of the table, on the page background ----------
+@media (max-width: 599.98px) {
+  :host {
+    background: transparent;
+    border: 0;
+    border-radius: 0;
+    overflow: visible;
+  }
+
+  .nx-data-grid__table,
+  .nx-data-grid__skeleton-table {
+    display: none;
+  }
+
+  .nx-data-grid__cards,
+  .nx-data-grid__skeleton-cards {
+    display: flex;
+    flex-direction: column;
+    gap: var(--nx-space-2);
+  }
+
+  .nx-data-grid__paginator {
+    --mat-paginator-container-background-color: transparent;
+    border-top: 0;
+  }
 }

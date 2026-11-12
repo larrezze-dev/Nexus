@@ -16,6 +16,7 @@ import { I18nText, emptyI18nText } from '../../../shared/ui/i18n-text.model';
 import { NxI18nCaptionEditorComponent } from '../../../shared/ui/nx-i18n-caption-editor/nx-i18n-caption-editor.component';
 import { NxStatusBadgeComponent } from '../../../shared/ui/nx-status-badge/nx-status-badge.component';
 import { RolesFacade } from './roles.facade';
+import { NxBreadcrumbService } from '../../../core/layout/breadcrumb.service';
 
 /** One row of the permission matrix: a `resourceType` and its `Permission` per `action`. */
 export interface PermissionMatrixRow {
@@ -72,6 +73,7 @@ export interface PermissionMatrixRow {
 export class RoleDetailPage implements OnInit {
   protected readonly facade = inject(RolesFacade);
   private readonly route = inject(ActivatedRoute);
+  private readonly breadcrumb = inject(NxBreadcrumbService);
   private readonly router = inject(Router);
   private readonly i18n = inject(NxI18nService);
   private readonly transloco = inject(TranslocoService);
@@ -162,6 +164,7 @@ export class RoleDetailPage implements OnInit {
 
   private async initEdit(id: string): Promise<void> {
     await this.facade.load(id);
+    this.breadcrumb.setCurrentLabel(this.entity()?.code ?? null);
     await Promise.all([this.loadPermissionCatalog(), this.loadPermissionHistory()]);
   }
 

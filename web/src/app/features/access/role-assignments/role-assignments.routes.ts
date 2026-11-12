@@ -13,7 +13,13 @@ import { Routes } from '@angular/router';
 export const accessRoleAssignmentsRoutes: Routes = [
   {
     path: 'access/users/:id/effective-scope',
-    data: { permission: 'ROLE_ASSIGNMENT:READ' },
+    data: {
+      navGroup: 'people',
+      listTitleKey: 'nav.users',
+      listPath: '/users',
+      crumbKey: 'breadcrumb.effectiveScope',
+      permission: 'ROLE_ASSIGNMENT:READ',
+    },
     loadComponent: () => import('./effective-scope.page').then((m) => m.EffectiveScopePage),
   },
 ];

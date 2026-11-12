@@ -10,7 +10,7 @@ import { LegalEntityListItem } from '../../../api/platform/models/legal-entity-l
 import { WarehouseListItem } from '../../../api/platform/models/warehouse-list-item';
 import { isProblem } from '../../../core/http/problem';
 import { NxI18nService } from '../../../core/i18n/nx-i18n.service';
-import { resolveCaption } from '../shared/caption.util';
+import { resolveCaption } from '../../../shared/ui/caption/caption.util';
 import { OrgTreeNode } from './org-tree.model';
 
 /** Max `pageSize` the contract allows (`_shared/components.yaml`); minimizes the number of

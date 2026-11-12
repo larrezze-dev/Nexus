@@ -20,25 +20,38 @@ import { Routes } from '@angular/router';
 export const orgRoutes: Routes = [
   {
     path: 'legal-entities',
-    data: {
-      titleKey: 'nav.org.legalEntities',
-      icon: 'apartment',
-      permission: 'ORG_STRUCTURE:READ',
-    },
     children: [
       {
         path: '',
         pathMatch: 'full',
+        data: {
+          navGroup: 'org',
+          titleKey: 'nav.org.legalEntities',
+          icon: 'apartment',
+          permission: 'ORG_STRUCTURE:READ',
+        },
         loadComponent: () =>
           import('./legal-entities/legal-entity-list.page').then((m) => m.LegalEntityListPage),
       },
       {
         path: 'new',
+        data: {
+          navGroup: 'org',
+          listTitleKey: 'nav.org.legalEntities',
+          listPath: '/legal-entities',
+          crumbKey: 'breadcrumb.new.legalEntity',
+        },
         loadComponent: () =>
           import('./legal-entities/legal-entity-detail.page').then((m) => m.LegalEntityDetailPage),
       },
       {
         path: ':id',
+        data: {
+          navGroup: 'org',
+          listTitleKey: 'nav.org.legalEntities',
+          listPath: '/legal-entities',
+          detail: true,
+        },
         loadComponent: () =>
           import('./legal-entities/legal-entity-detail.page').then((m) => m.LegalEntityDetailPage),
       },
@@ -46,25 +59,38 @@ export const orgRoutes: Routes = [
   },
   {
     path: 'business-units',
-    data: {
-      titleKey: 'nav.org.businessUnits',
-      icon: 'store',
-      permission: 'ORG_STRUCTURE:READ',
-    },
     children: [
       {
         path: '',
         pathMatch: 'full',
+        data: {
+          navGroup: 'org',
+          titleKey: 'nav.org.businessUnits',
+          icon: 'store',
+          permission: 'ORG_STRUCTURE:READ',
+        },
         loadComponent: () =>
           import('./business-units/business-unit-list.page').then((m) => m.BusinessUnitListPage),
       },
       {
         path: 'new',
+        data: {
+          navGroup: 'org',
+          listTitleKey: 'nav.org.businessUnits',
+          listPath: '/business-units',
+          crumbKey: 'breadcrumb.new.businessUnit',
+        },
         loadComponent: () =>
           import('./business-units/business-unit-detail.page').then((m) => m.BusinessUnitDetailPage),
       },
       {
         path: ':id',
+        data: {
+          navGroup: 'org',
+          listTitleKey: 'nav.org.businessUnits',
+          listPath: '/business-units',
+          detail: true,
+        },
         loadComponent: () =>
           import('./business-units/business-unit-detail.page').then((m) => m.BusinessUnitDetailPage),
       },

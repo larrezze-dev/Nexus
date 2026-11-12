@@ -1,7 +1,7 @@
 import { TestBed } from '@angular/core/testing';
 import { TranslocoService, provideTransloco } from '@jsverse/transloco';
-import { afterEach, describe, expect, it } from 'vitest';
-import { NxI18nService } from './nx-i18n.service';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { LANGUAGE_STORAGE_KEY, NX_LANGUAGE_PREFERENCE_SAVER, NxI18nService } from './nx-i18n.service';
 
 describe('NxI18nService', () => {
   const originalLanguage = navigator.language;
@@ -10,9 +10,10 @@ describe('NxI18nService', () => {
     Object.defineProperty(navigator, 'language', { value: language, configurable: true });
   }
 
-  function setup(): NxI18nService {
+  function setup(extraProviders: unknown[] = []): NxI18nService {
     TestBed.configureTestingModule({
       providers: [
+        ...(extraProviders as []),
         ...provideTransloco({
           config: { availableLangs: ['de', 'en', 'fr', 'it', 'es'], defaultLang: 'de' },
         }),
@@ -21,7 +22,14 @@ describe('NxI18nService', () => {
     return TestBed.inject(NxI18nService);
   }
 
+  beforeEach(() => {
+    localStorage.clear();
+    document.documentElement.lang = '';
+  });
+
   afterEach(() => {
+    vi.restoreAllMocks();
+    localStorage.clear();
     Object.defineProperty(navigator, 'language', { value: originalLanguage, configurable: true });
   });
 
@@ -74,5 +82,67 @@ describe('NxI18nService', () => {
     transloco.setActiveLang('de');
     transloco.setTranslation({ errors: { generic: 'Generic fallback' } }, 'de');
     expect(service.translateErrorCode('UNKNOWN-R9')).toBe('Generic fallback');
+  });
+
+  it('an explicit stored choice beats /me.preferredLanguage and the browser language', () => {
+    stubBrowserLanguage('fr-FR');
+    localStorage.setItem(LANGUAGE_STORAGE_KEY, 'it');
+    const service = setup();
+    expect(service.getActiveLanguage()).toBe('it');
+    service.setInitialLanguage('es');
+    expect(service.getActiveLanguage()).toBe('it');
+  });
+
+  it('ignores an unsupported stored value and falls through to /me', () => {
+    localStorage.setItem(LANGUAGE_STORAGE_KEY, 'pt');
+    const service = setup();
+    service.setInitialLanguage('es');
+    expect(service.getActiveLanguage()).toBe('es');
+  });
+
+  it('resolves without throwing when localStorage access throws', () => {
+    stubBrowserLanguage('fr-FR');
+    vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
+      throw new Error('denied');
+    });
+    vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+      throw new Error('denied');
+    });
+    const service = setup();
+    expect(service.getActiveLanguage()).toBe('fr');
+    service.setInitialLanguage('es');
+    expect(service.getActiveLanguage()).toBe('es');
+    expect(() => service.setLanguage('en')).not.toThrow();
+    expect(service.getActiveLanguage()).toBe('en');
+  });
+
+  it('setLanguage stores the choice and calls the preference saver', () => {
+    const saver = vi.fn();
+    const service = setup([{ provide: NX_LANGUAGE_PREFERENCE_SAVER, useValue: saver }]);
+    service.setLanguage('es');
+    expect(localStorage.getItem(LANGUAGE_STORAGE_KEY)).toBe('es');
+    expect(saver).toHaveBeenCalledWith('es');
+  });
+
+  it('a failing (sync or async) preference saver never breaks the switch', async () => {
+    const service = setup([
+      {
+        provide: NX_LANGUAGE_PREFERENCE_SAVER,
+        useValue: () => Promise.reject(new Error('offline')),
+      },
+    ]);
+    service.setLanguage('fr');
+    await Promise.resolve();
+    expect(service.getActiveLanguage()).toBe('fr');
+  });
+
+  it('keeps <html lang> equal to the active language on every change', () => {
+    stubBrowserLanguage('fr-FR');
+    const service = setup();
+    expect(document.documentElement.lang).toBe('fr');
+    service.setLanguage('es');
+    expect(document.documentElement.lang).toBe('es');
+    service.setInitialLanguage('de');
+    expect(document.documentElement.lang).toBe('es'); // stored explicit choice wins
   });
 });

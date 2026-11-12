@@ -13,6 +13,7 @@ import { Observable, debounceTime } from 'rxjs';
 import { BusinessUnitListItem } from '../../../api/platform/models/business-unit-list-item';
 import { LegalEntityListItem } from '../../../api/platform/models/legal-entity-list-item';
 import { WarehouseListItem } from '../../../api/platform/models/warehouse-list-item';
+import { resolveCaption } from '../../../shared/ui/caption/caption.util';
 import { NxDataGridComponent } from '../../../shared/ui/nx-data-grid/nx-data-grid.component';
 import { NxEntityPickerComponent } from '../../../shared/ui/nx-entity-picker/nx-entity-picker.component';
 import { NxSortModel, Page } from '../../../shared/ui/page.model';
@@ -145,11 +146,8 @@ export class WarehouseListPage {
     {
       headerName: this.transloco.translate('warehouses.list.columns.caption'),
       flex: 2,
-      valueGetter: (params) => {
-        const captionI18n = params.data?.captionI18n;
-        const lang = this.transloco.getActiveLang();
-        return (captionI18n && (captionI18n as unknown as Record<string, string>)[lang]) || captionI18n?.de || '';
-      },
+      valueGetter: (params) =>
+        resolveCaption(params.data?.captionI18n, this.transloco.getActiveLang(), params.data?.code ?? ''),
     },
     {
       field: 'isActive',

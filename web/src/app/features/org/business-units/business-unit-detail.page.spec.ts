@@ -10,6 +10,7 @@ import { LegalEntitiesFacade } from '../legal-entities/legal-entities.facade';
 import { BusinessUnitsFacade } from './business-units.facade';
 import { BusinessUnitDetailPage } from './business-unit-detail.page';
 import { denyAuditRead, findAuditTab, selectAuditTab, stubAuditTrail } from '../audit-tab.testing';
+import { NxBreadcrumbService } from '../../../core/layout/breadcrumb.service';
 
 const legalEntity: LegalEntity = {
   id: '018f1a3c-7e3b-7c5a-9c2e-6a2f8e9b0c40',
@@ -99,6 +100,7 @@ async function setupPage(
       { provide: NxI18nService, useValue: { translateErrorCode: (code: string | null | undefined) => code ?? 'generic' } },
       { provide: ActivatedRoute, useValue: { snapshot: { paramMap: convertToParamMap(paramMap) } } },
       { provide: Router, useValue: { navigate: vi.fn().mockResolvedValue(true) } },
+      { provide: NxBreadcrumbService, useValue: { setCurrentLabel: vi.fn() } },
     ],
   }).compileComponents();
 

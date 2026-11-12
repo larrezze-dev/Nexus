@@ -1,13 +1,16 @@
-<nav class="nx-breadcrumb" [attr.aria-label]="'breadcrumb.ariaLabel' | transloco">
-  @for (crumb of crumbs(); track crumb.path; let last = $last) {
-    <a
-      class="nx-breadcrumb__item"
-      [routerLink]="crumb.path"
-      [attr.aria-current]="last ? 'page' : null"
-      >{{ crumb.titleKey | transloco }}</a
-    >
-    @if (!last) {
-      <span class="nx-breadcrumb__separator" aria-hidden="true">/</span>
+@if (crumbs().length > 0) {
+  <nav class="nx-breadcrumb" [attr.aria-label]="'breadcrumb.ariaLabel' | transloco">
+    @for (crumb of crumbs(); track $index; let last = $last) {
+      @if (crumb.path) {
+        <a class="nx-breadcrumb__item" [routerLink]="crumb.path">{{ crumb.key! | transloco }}</a>
+      } @else {
+        <span class="nx-breadcrumb__item" [attr.aria-current]="last ? 'page' : null">{{
+          crumb.text ?? (crumb.key! | transloco)
+        }}</span>
+      }
+      @if (!last) {
+        <span class="nx-breadcrumb__separator" aria-hidden="true">›</span>
+      }
     }
-  }
-</nav>
+  </nav>
+}

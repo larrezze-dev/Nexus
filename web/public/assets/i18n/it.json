@@ -38,17 +38,27 @@
     }
   },
   "httpPages": {
+    "goToAccount": "Vai a Il mio account",
     "forbidden": {
-      "title": "Accesso negato",
-      "message": "Non hai il permesso di visualizzare questa pagina.",
-      "requiredPermission": "Permesso richiesto: {{permission}}"
+      "title": "Non hai accesso a questa pagina",
+      "message": "Se ti serve, chiedilo a un amministratore."
     },
     "notFound": {
-      "title": "Pagina non trovata",
-      "message": "La pagina che stai cercando non esiste o è stata spostata."
+      "title": "Non troviamo questa pagina",
+      "message": "Il link potrebbe essere errato oppure l'elemento non esiste più."
+    },
+    "unauthorized": {
+      "title": "Accesso non riuscito",
+      "message": "La sessione è scaduta o l'accesso è stato rifiutato. Accedi di nuovo.",
+      "signIn": "Accedi di nuovo"
     }
   },
   "nav": {
+    "groups": {
+      "org": "Organizzazione",
+      "people": "Persone e terzi",
+      "access": "Accesso"
+    },
     "account": "Il mio account",
     "users": "Utenti",
     "parties": "Partner",
@@ -58,7 +68,7 @@
     },
     "locations": "Sedi",
     "warehouses": "Magazzini",
-    "orgTree": "Struttura organizzativa",
+    "orgTree": "Struttura",
     "orgCurrencies": "Valute",
     "access": {
       "roles": "Ruoli"
@@ -120,11 +130,79 @@
     }
   },
   "breadcrumb": {
-    "ariaLabel": "Briciole di pane"
+    "ariaLabel": "Briciole di pane",
+    "loading": "Caricamento…",
+    "effectiveScope": "Cosa vede questo utente",
+    "new": {
+      "legalEntity": "Nuova entità legale",
+      "businessUnit": "Nuova unità di business",
+      "location": "Nuova sede",
+      "warehouse": "Nuovo magazzino",
+      "user": "Nuovo utente",
+      "party": "Nuovo partner",
+      "role": "Nuovo ruolo"
+    }
   },
   "shared": {
     "dataGrid": {
-      "empty": "Nessun dato disponibile."
+      "empty": "Nessun dato disponibile.",
+      "retry": "Riprova"
+    },
+    "layout": {
+      "pageHeader": {
+        "count": "{{count}} voci",
+        "countOne": "1 voce"
+      },
+      "filterBar": {
+        "clear": "Cancella filtri",
+        "ariaLabel": "Filtri"
+      },
+      "sectionIndex": {
+        "title": "In questa pagina"
+      },
+      "confirm": {
+        "confirm": "Conferma"
+      }
+    },
+    "emptyState": {
+      "empty": {
+        "title": "Non ci sono ancora voci",
+        "message": "Le voci appariranno qui non appena verranno create."
+      },
+      "noResults": {
+        "title": "Nessuna voce corrisponde alla ricerca",
+        "message": "Prova con un altro testo o rimuovi alcuni filtri."
+      },
+      "error": {
+        "title": "Impossibile caricare i dati",
+        "message": "Controlla la connessione e riprova. Se il problema persiste, contatta l'assistenza."
+      },
+      "forbidden": {
+        "title": "Non hai accesso a questa pagina",
+        "message": "Il tuo utente non è autorizzato a vedere questa pagina. Se ti serve, chiedi l'accesso a un amministratore."
+      },
+      "notFound": {
+        "title": "Pagina non trovata",
+        "message": "Il link potrebbe essere errato oppure la voce non esiste più."
+      }
+    },
+    "grid": {
+      "loadingOoo": "Caricamento…",
+      "noRowsToShow": "Nessun dato disponibile",
+      "ariaSortableColumn": "Premere Invio per ordinare",
+      "ariaRowSelectAll": "Premere Spazio per attivare o disattivare la selezione di tutte le righe",
+      "ariaSkeletonCellLoading": "I dati della riga sono in caricamento",
+      "ariaSkeletonCellLoadingFailed": "Caricamento della riga non riuscito",
+      "loadingError": "Errore"
+    },
+    "paginator": {
+      "itemsPerPage": "Elementi per pagina",
+      "nextPage": "Pagina successiva",
+      "previousPage": "Pagina precedente",
+      "firstPage": "Prima pagina",
+      "lastPage": "Ultima pagina",
+      "rangeLabel": "{{start}}–{{end}} di {{length}}",
+      "rangeLabelEmpty": "0 di 0"
     },
     "status": {
       "draft": "Bozza",

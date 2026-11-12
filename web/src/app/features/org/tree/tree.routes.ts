@@ -9,7 +9,12 @@ import { Routes } from '@angular/router';
 export const orgTreeRoutes: Routes = [
   {
     path: 'org/tree',
-    data: { titleKey: 'nav.orgTree', icon: 'account_tree', permission: 'ORG_STRUCTURE:READ' },
+    data: {
+      navGroup: 'org',
+      titleKey: 'nav.orgTree',
+      icon: 'account_tree',
+      permission: 'ORG_STRUCTURE:READ',
+    },
     loadComponent: () => import('./org-tree.page').then((m) => m.OrgTreePage),
   },
 ];

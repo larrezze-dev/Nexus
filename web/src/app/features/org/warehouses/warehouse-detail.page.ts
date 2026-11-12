@@ -17,6 +17,9 @@ import { NxEntityPickerComponent } from '../../../shared/ui/nx-entity-picker/nx-
 import { NxI18nCaptionEditorComponent } from '../../../shared/ui/nx-i18n-caption-editor/nx-i18n-caption-editor.component';
 import { NxStatusBadgeComponent } from '../../../shared/ui/nx-status-badge/nx-status-badge.component';
 import { WarehouseFacade } from './warehouse.facade';
+import { NxI18nService } from '../../../core/i18n/nx-i18n.service';
+import { resolveCaption } from '../../../shared/ui/caption/caption.util';
+import { NxBreadcrumbService } from '../../../core/layout/breadcrumb.service';
 
 /**
  * Warehouse create/edit screen (ficha 0.4, track F): `nx-entity-picker` for
@@ -214,6 +217,8 @@ import { WarehouseFacade } from './warehouse.facade';
 export class WarehouseDetailPage implements OnInit {
   protected readonly facade = inject(WarehouseFacade);
   private readonly route = inject(ActivatedRoute);
+  private readonly breadcrumb = inject(NxBreadcrumbService);
+  private readonly i18n = inject(NxI18nService);
   private readonly router = inject(Router);
 
   protected readonly isNew = signal(true);
@@ -255,6 +260,11 @@ export class WarehouseDetailPage implements OnInit {
   private async loadExisting(id: string): Promise<void> {
     await this.facade.load(id);
     const warehouse = this.facade.selected();
+    this.breadcrumb.setCurrentLabel(
+      warehouse
+        ? resolveCaption(warehouse.captionI18n, this.i18n.getActiveLanguage(), warehouse.code)
+        : null,
+    );
     if (!warehouse) {
       return;
     }

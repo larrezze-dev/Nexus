@@ -8,6 +8,7 @@ import { Warehouse } from '../../../api/platform/models/warehouse';
 import { auditTrailInstances, clickTab, denyAuditRead, findAuditTab, selectAuditTab, stubAuditTrail } from '../audit-tab.testing';
 import { WarehouseDetailPage } from './warehouse-detail.page';
 import { WarehouseFacade } from './warehouse.facade';
+import { NxBreadcrumbService } from '../../../core/layout/breadcrumb.service';
 
 const warehouse = {
   id: '018f1a3c-7e3b-7c5a-9c2e-6a2f8e9b0c60',
@@ -54,6 +55,7 @@ async function setupPage(paramMap: Record<string, string>, facade: ReturnType<ty
       { provide: WarehouseFacade, useValue: facade },
       { provide: ActivatedRoute, useValue: { snapshot: { paramMap: convertToParamMap(paramMap) } } },
       { provide: Router, useValue: { navigateByUrl: vi.fn().mockResolvedValue(true) } },
+      { provide: NxBreadcrumbService, useValue: { setCurrentLabel: vi.fn() } },
     ],
   }).compileComponents();
 

@@ -7,7 +7,12 @@ import { Routes } from '@angular/router';
 export const orgCurrenciesRoutes: Routes = [
   {
     path: 'org/currencies',
-    data: { titleKey: 'nav.orgCurrencies', icon: 'payments', permission: 'CURRENCY:READ' },
+    data: {
+      navGroup: 'org',
+      titleKey: 'nav.orgCurrencies',
+      icon: 'payments',
+      permission: 'CURRENCY:READ',
+    },
     loadComponent: () => import('./currency-list.page').then((m) => m.CurrencyListPage),
   },
 ];
