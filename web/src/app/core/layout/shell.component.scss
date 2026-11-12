@@ -135,7 +135,7 @@
   outline: none;
 }
 
-.nx-shell__content ::ng-deep > :not(router-outlet) {
+.nx-shell__content ::ng-deep > :not(router-outlet):not(app-breadcrumb) {
   flex: 1 0 auto;
   min-width: 0;
 }

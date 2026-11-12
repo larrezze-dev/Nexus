@@ -20,7 +20,10 @@ import { BreadcrumbComponent } from '../../../core/layout/breadcrumb.component';
   standalone: true,
   imports: [BreadcrumbComponent, TranslocoPipe],
   template: `
-    <app-breadcrumb />
+    <!-- TODO(PR-5): the shell renders the breadcrumb for now; pages pass [breadcrumb]="true" and the shell drops it. -->
+    @if (breadcrumb()) {
+      <app-breadcrumb />
+    }
     <div class="nx-page-header__row">
       <div class="nx-page-header__heading">
         <div class="nx-page-header__title-line">
@@ -106,6 +109,12 @@ import { BreadcrumbComponent } from '../../../core/layout/breadcrumb.component';
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class NxPageHeaderComponent {
+  /**
+   * Renders the breadcrumb inside the header. `false` for now because the shell renders it
+   * (TODO(PR-5): flip the default to `true` when the pages migrate and remove it from the shell).
+   */
+  readonly breadcrumb = input(false);
+
   /** Page title (already translated): list name, record name or «New X». */
   readonly title = input.required<string>();
 

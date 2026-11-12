@@ -47,7 +47,8 @@
             <div class="nx-shell__nav-group-title" [id]="'nx-nav-group-' + group.navGroup">
               {{ group.titleKey | transloco }}
             </div>
-            <mat-nav-list class="nx-shell__nav-list">
+            <!-- mat-nav-list puts role="navigation" on its host; the labelled <nav> above is the only landmark. -->
+            <mat-nav-list class="nx-shell__nav-list" [attr.role]="'presentation'">
               @for (item of group.items; track item.path) {
                 <a
                   mat-list-item
@@ -57,7 +58,6 @@
                   #rla="routerLinkActive"
                   [activated]="rla.isActive"
                   [attr.aria-current]="rla.isActive ? 'page' : null"
-                  *nxCan="item.permission"
                 >
                   @if (item.icon) {
                     <mat-icon matListItemIcon aria-hidden="true">{{ item.icon }}</mat-icon>
@@ -73,6 +73,8 @@
 
     <mat-sidenav-content class="nx-shell__content-area">
       <main #main id="nx-main" class="nx-shell__content" tabindex="-1">
+        <!-- TODO(PR-5): remove once every page renders its breadcrumb through nx-page-header [breadcrumb]. -->
+        <app-breadcrumb />
         <router-outlet />
       </main>
     </mat-sidenav-content>

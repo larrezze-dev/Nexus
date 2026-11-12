@@ -11,7 +11,7 @@ import { layoutTransloco } from './testing';
   imports: [NxPageComponent, NxPageHeaderComponent],
   template: `
     <nx-page [width]="width()">
-      <nx-page-header [title]="title()" [subtitle]="subtitle()" [count]="count()">
+      <nx-page-header [title]="title()" [subtitle]="subtitle()" [count]="count()" [breadcrumb]="breadcrumb()">
         <span nxHeaderStatus class="test-status">Active</span>
         <button nxHeaderActions type="button" class="test-action">New</button>
       </nx-page-header>
@@ -23,6 +23,7 @@ class HostComponent {
   readonly title = signal('Warehouses');
   readonly subtitle = signal<string | undefined>(undefined);
   readonly count = signal<number | undefined>(undefined);
+  readonly breadcrumb = signal(true);
 }
 
 describe('NxPageComponent + NxPageHeaderComponent', () => {
@@ -38,6 +39,13 @@ describe('NxPageComponent + NxPageHeaderComponent', () => {
     fixture.detectChanges();
     return { fixture, root: fixture.nativeElement as HTMLElement };
   }
+
+  it('does not render the breadcrumb by default (the shell does, until PR-5)', () => {
+    const { fixture, root } = setup();
+    fixture.componentInstance.breadcrumb.set(false);
+    fixture.detectChanges();
+    expect(root.querySelector('nx-page-header app-breadcrumb')).toBeNull();
+  });
 
   it('renders the breadcrumb above a single h1 with the title, the status slot next to it and the actions slot', () => {
     const { root } = setup();
