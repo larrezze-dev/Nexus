@@ -191,5 +191,5 @@
 
 .mat-mdc-form-field.nx-field--locked .mat-mdc-text-field-wrapper {
   background: var(--nx-color-surface-muted);
-  border-radius: var(--mat-sys-corner-extra-small, 4px);
+  border-radius: var(--nx-radius-sm);
 }
