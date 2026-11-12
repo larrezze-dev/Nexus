@@ -77,8 +77,14 @@ export class NxBreadcrumbService {
 
   private readonly routeData = signal<Data>(leafRouteData(this.router));
   private readonly label = signal<string | null>(null);
+  private readonly pageOwners = signal(0);
 
   readonly currentLabel = this.label.asReadonly();
+  /**
+   * `true` while a page renders the trail itself (`<nx-page-header [breadcrumb]="true">`); the
+   * shell then does not render its own copy, so there is never a double breadcrumb.
+   */
+  readonly ownedByPage = computed(() => this.pageOwners() > 0);
   readonly trail = computed(() => buildTrail(this.routeData(), this.label()));
   readonly pageTitle = computed(() => pageTitleSource(this.routeData(), this.label()));
 
@@ -94,7 +100,39 @@ export class NxBreadcrumbService {
       });
   }
 
-  /** Detail pages call this once their record loaded (record name), `null` to clear it. */
+  /**
+   * Called by `nx-page-header` when it renders the breadcrumb. Returns the release function to
+   * call when it stops (destroy, or `[breadcrumb]` flips to `false`). A counter, not a flag: on a
+   * navigation the next page's header may claim before the previous one releases.
+   */
+  claimForPage(): () => void {
+    this.pageOwners.update((count) => count + 1);
+    let released = false;
+    return () => {
+      if (!released) {
+        released = true;
+        this.pageOwners.update((count) => Math.max(0, count - 1));
+      }
+    };
+  }
+
+  /**
+   * Called by `nx-page-header` when it renders the breadcrumb itself; returns the function that
+   * gives it back to the shell (call it on destroy). A counter, not a flag, so the old page's
+   * release and the new page's claim may happen in any order during a navigation.
+   */
+  claimForPage(): () => void {
+    this.pageOwners.update((owners) => owners + 1);
+    let released = false;
+    return () => {
+      if (!released) {
+        released = true;
+        this.pageOwners.update((owners) => Math.max(0, owners - 1));
+      }
+    };
+  }
+
+  /** Detail pages call this their record loaded (record name), `null` to clear it. */
   setCurrentLabel(text: string | null): void {
     this.label.set(text && text.trim() ? text : null);
   }

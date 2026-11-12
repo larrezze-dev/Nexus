@@ -1,6 +1,7 @@
 import { Component, signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
+import { NxBreadcrumbService } from '../../../core/layout/breadcrumb.service';
 import { NxPageHeaderComponent } from './nx-page-header.component';
 import { NxPageComponent } from './nx-page.component';
 import { layoutTransloco } from './testing';
@@ -39,6 +40,23 @@ describe('NxPageComponent + NxPageHeaderComponent', () => {
     fixture.detectChanges();
     return { fixture, root: fixture.nativeElement as HTMLElement };
   }
+
+  it('owns the breadcrumb while it renders it, so the shell drops its own copy', () => {
+    const { fixture } = setup();
+    const service = TestBed.inject(NxBreadcrumbService);
+    expect(service.ownedByPage()).toBe(true);
+
+    fixture.componentInstance.breadcrumb.set(false);
+    fixture.detectChanges();
+    expect(service.ownedByPage()).toBe(false);
+
+    fixture.componentInstance.breadcrumb.set(true);
+    fixture.detectChanges();
+    expect(service.ownedByPage()).toBe(true);
+
+    fixture.destroy();
+    expect(service.ownedByPage()).toBe(false);
+  });
 
   it('does not render the breadcrumb by default (the shell does, until PR-5)', () => {
     const { fixture, root } = setup();

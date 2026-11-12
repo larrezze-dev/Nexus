@@ -10,6 +10,7 @@ import { TranslocoPipe } from '@jsverse/transloco';
 import { filter, map } from 'rxjs';
 import { PermissionsStore } from '../../shared/auth/permissions.store';
 import { BreadcrumbComponent } from './breadcrumb.component';
+import { NxBreadcrumbService } from './breadcrumb.service';
 import { LanguageMenuComponent } from './language-menu.component';
 import { NavigationBuilderService } from './navigation-builder.service';
 import { NxNavGroup } from './nav-item.model';
@@ -32,7 +33,8 @@ export const SIDENAV_EXPANDED_QUERY = '(min-width: 1280px)';
  * - < 1280 px: `over`, closed on entry; ☰ opens it above the content; it closes on navigation,
  *   on the backdrop and on Esc.
  *
- * Breadcrumbs: TODO(PR-5) rendered here temporarily; pages will render them through `nx-page-header`.
+ * Breadcrumbs: TODO(PR-5) rendered here temporarily, except while the page renders them itself
+ * through `<nx-page-header [breadcrumb]="true">` (`NxBreadcrumbService.ownedByPage`).
  * The approvals bell is not rendered at all (ficha 0.5: hidden until 0.9).
  */
 @Component({
@@ -59,6 +61,9 @@ export class ShellComponent {
   private readonly router = inject(Router);
 
   private readonly permissions = inject(PermissionsStore);
+
+  /** The routed page renders the breadcrumb in its header: the shell must not render a second one. */
+  protected readonly breadcrumbOwnedByPage = inject(NxBreadcrumbService).ownedByPage;
   private readonly allGroups = signal<NxNavGroup[]>(this.navigationBuilder.buildGrouped());
 
   /** Groups with only the items the user may see; a group left without items is dropped with its heading. */

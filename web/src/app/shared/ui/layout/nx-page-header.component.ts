@@ -1,12 +1,17 @@
-import { ChangeDetectionStrategy, Component, input } from '@angular/core';
+import { ChangeDetectionStrategy, Component, effect, inject, input } from '@angular/core';
 import { TranslocoPipe } from '@jsverse/transloco';
 import { BreadcrumbComponent } from '../../../core/layout/breadcrumb.component';
+import { NxBreadcrumbService } from '../../../core/layout/breadcrumb.service';
 
 /**
- * Page header (`conventions-frontend.md §4.4–§4.6`): breadcrumb, then one row with the page
+ * Page header (`conventions-frontend.md §4.4–§4.6`): breadcrumb (with `[breadcrumb]="true"`), then one row with the page
  * title (`h1`, 28/36 500), an optional status chip (`[nxHeaderStatus]` slot) and record count,
  * the subtitle underneath (muted 14 — e.g. code · last modified) and the actions on the right
  * (`[nxHeaderActions]` slot). Wraps below the title on narrow screens.
+ *
+ * Breadcrumb ownership: with `[breadcrumb]="true"` the header renders the trail and tells
+ * `NxBreadcrumbService` (`claimForPage()`), so the shell stops rendering its own copy while this
+ * header lives. Pages not yet migrated keep `false` and the shell's breadcrumb.
  *
  * ```html
  * <nx-page-header [title]="name()" [subtitle]="code()">
@@ -20,7 +25,6 @@ import { BreadcrumbComponent } from '../../../core/layout/breadcrumb.component';
   standalone: true,
   imports: [BreadcrumbComponent, TranslocoPipe],
   template: `
-    <!-- TODO(PR-5): the shell renders the breadcrumb for now; pages pass [breadcrumb]="true" and the shell drops it. -->
     @if (breadcrumb()) {
       <app-breadcrumb />
     }
@@ -110,8 +114,8 @@ import { BreadcrumbComponent } from '../../../core/layout/breadcrumb.component';
 })
 export class NxPageHeaderComponent {
   /**
-   * Renders the breadcrumb inside the header. `false` for now because the shell renders it
-   * (TODO(PR-5): flip the default to `true` when the pages migrate and remove it from the shell).
+   * Renders the breadcrumb inside the header and hides the shell's one. `false` by default while
+   * pages migrate (TODO(PR-5): flip to `true` and drop the shell's breadcrumb once all have).
    */
   readonly breadcrumb = input(false);
 
@@ -123,4 +127,13 @@ export class NxPageHeaderComponent {
 
   /** Total number of records on list pages; shown as «4 records» next to the title. */
   readonly count = input<number | null | undefined>(undefined);
+
+  constructor() {
+    const breadcrumbs = inject(NxBreadcrumbService);
+    effect((onCleanup) => {
+      if (this.breadcrumb()) {
+        onCleanup(breadcrumbs.claimForPage());
+      }
+    });
+  }
 }
