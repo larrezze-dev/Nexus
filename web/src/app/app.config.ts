@@ -4,6 +4,7 @@ import { provideNexusAuth } from './core/auth/auth.config';
 import { provideNexusHttp } from './core/http/provide-nexus-http';
 import { provideNexusI18n } from './core/i18n/provide-nexus-i18n';
 import { provideNexusMaterialI18n } from './core/i18n/provide-nexus-material-i18n';
+import { provideMeLanguageSaver } from './shared/auth/me-language-saver';
 import { provideNexusTitleStrategy } from './core/layout/page-title.strategy';
 import { provideMeLanguageSync } from './shared/auth/me-language-sync';
 import { routes } from './app.routes';
@@ -26,6 +27,7 @@ export const appConfig: ApplicationConfig = {
     provideNexusTitleStrategy(),
     provideNexusAuth(),
     provideNexusI18n(),
+    provideMeLanguageSaver(),
     provideNexusMaterialI18n(),
     provideNexusHttp(),
     // Last: waits for login, loads /me once and applies preferredLanguage (non-blocking).
