@@ -98,6 +98,9 @@
 | `PUT /v1/roles/{id}/permissions` exige `If-Match` (428/409) | 2026-11-11, `domain/access.md §8` | C → B ∥ F | Gate D de 0.9 (siguiente paso que toca `platform.yaml`) |
 | Vinculación del `app_user` sin `oid` en el primer login (solo miembros del tenant, solo en `nexus-platform`) | 2026-11-11, ADR-0006 | B | 7.2 (ETL de usuarios) |
 | Deuda menor del shell (PR #14): listener de 401 sin conectar, posible bucle de redirección con SSO silencioso, accesibilidad (`<html lang>`, `MatPaginatorIntl`, `aria-live`), ruta comodín `**`, estado de error explícito en `nx-data-grid` | 2026-11-11, aprobación de 0.5 | F | 1.3 (primer paso con pantallas de catálogo) |
+| Interfaz web coherente: sistema de diseño (`conventions-frontend.md §4`) aplicado a todas las pantallas existentes; cierra también la accesibilidad, `**` y `MatPaginatorIntl` de la fila anterior | 2026-11-12, canvas aprobado por Luciano | F | 1.3 |
+| Lista de entidades legales con `legalName`, `displayName`, `q` e `isActive` | 2026-11-12, `domain/org.md §5` | C → B ∥ F | Cierre de la interfaz coherente |
+| `PATCH /v1/me` para guardar el idioma elegido (sin `If-Match`) | 2026-11-12, `conventions-api.md §5` | C → B ∥ F | Cierre de la interfaz coherente |
 
 ## Hitos
 

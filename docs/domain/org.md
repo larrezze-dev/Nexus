@@ -202,13 +202,14 @@ CREATE TABLE org.party_relationship (
 | `GET/POST /v1/warehouses`, `GET/PUT /v1/warehouses/{id}`, `POST .../deactivate` | `ORG_STRUCTURE:*` | 0.4 |
 | `GET/POST /v1/users`, `GET/PUT /v1/users/{id}`, `POST .../deactivate` | `USER:READ/CREATE/UPDATE` | 0.4 |
 | `GET /v1/me` | autenticado | 0.5 |
+| `PATCH /v1/me` (`application/json` `{preferredLanguage}`, sin `If-Match`, `conventions-api.md §5`; emite `user.updated` si cambia; el usuario SYSTEM no se modifica, ORG-R6) `[+]` | autenticado | UI 2026-11 |
 | `GET /v1/currencies`, `PUT /v1/currencies/{code}` | `CURRENCY:READ/UPDATE` | 0.4 |
 | `GET/POST /v1/exchange-rates` (`GET` con `from`, `to`, `on` devuelve el aplicable) | `CURRENCY:READ/CREATE` | 1.1 |
 | `POST /v1/currencies/convert` | `CURRENCY:READ` | 1.1 |
 | `GET/POST/DELETE /v1/parties/{id}/locations` | `PARTY:UPDATE` | 1.1 |
 | `GET/POST /v1/parties/{id}/relationships` | `PARTY:UPDATE` | 1.1 |
 
-Listados: `GET /v1/warehouses?legalEntityId=&businessUnitId=&isActive=&q=`, `GET /v1/parties?partyType=&isInternal=&q=`.
+Listados: `GET /v1/warehouses?legalEntityId=&businessUnitId=&isActive=&q=`, `GET /v1/parties?partyType=&isInternal=&q=`, `GET /v1/legal-entities?isActive=&q=` `[+]` (`q` sobre código y razón social; cada elemento incluye `legalName` y `displayName` de su `Party`).
 
 ## §6 Eventos
 
