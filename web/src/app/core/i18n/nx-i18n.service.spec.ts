@@ -84,13 +84,50 @@ describe('NxI18nService', () => {
     expect(service.translateErrorCode('UNKNOWN-R9')).toBe('Generic fallback');
   });
 
-  it('an explicit stored choice beats /me.preferredLanguage and the browser language', () => {
+  it('nx.lang paints the first frame, then /me.preferredLanguage wins and is written to nx.lang', () => {
     stubBrowserLanguage('fr-FR');
     localStorage.setItem(LANGUAGE_STORAGE_KEY, 'it');
     const service = setup();
     expect(service.getActiveLanguage()).toBe('it');
     service.setInitialLanguage('es');
+    expect(service.getActiveLanguage()).toBe('es');
+    expect(localStorage.getItem(LANGUAGE_STORAGE_KEY)).toBe('es');
+  });
+
+  it('setInitialLanguage never calls the saver', () => {
+    const saver = vi.fn();
+    const service = setup([{ provide: NX_LANGUAGE_PREFERENCE_SAVER, useValue: saver }]);
+    service.setInitialLanguage('es');
+    service.setInitialLanguage(null);
+    service.setInitialLanguage('pt');
+    expect(saver).not.toHaveBeenCalled();
+  });
+
+  it('a language picked in the selector before /me arrives is respected', () => {
+    const service = setup();
+    service.setLanguage('fr');
+    service.setInitialLanguage('es');
+    expect(service.getActiveLanguage()).toBe('fr');
+    expect(localStorage.getItem(LANGUAGE_STORAGE_KEY)).toBe('fr');
+  });
+
+  it('an unusable preference keeps the stored language and does not overwrite nx.lang', () => {
+    localStorage.setItem(LANGUAGE_STORAGE_KEY, 'it');
+    const service = setup();
+    service.setInitialLanguage('pt');
     expect(service.getActiveLanguage()).toBe('it');
+    expect(localStorage.getItem(LANGUAGE_STORAGE_KEY)).toBe('it');
+  });
+
+  it('clearStoredLanguage removes nx.lang and tolerates a throwing storage', () => {
+    localStorage.setItem(LANGUAGE_STORAGE_KEY, 'it');
+    const service = setup();
+    service.clearStoredLanguage();
+    expect(localStorage.getItem(LANGUAGE_STORAGE_KEY)).toBeNull();
+    vi.spyOn(Storage.prototype, 'removeItem').mockImplementation(() => {
+      throw new Error('denied');
+    });
+    expect(() => service.clearStoredLanguage()).not.toThrow();
   });
 
   it('ignores an unsupported stored value and falls through to /me', () => {
@@ -122,6 +159,20 @@ describe('NxI18nService', () => {
     service.setLanguage('es');
     expect(localStorage.getItem(LANGUAGE_STORAGE_KEY)).toBe('es');
     expect(saver).toHaveBeenCalledWith('es');
+  });
+
+  it('a saver that throws synchronously never breaks the switch', () => {
+    const service = setup([
+      {
+        provide: NX_LANGUAGE_PREFERENCE_SAVER,
+        useValue: () => {
+          throw new Error('boom');
+        },
+      },
+    ]);
+    expect(() => service.setLanguage('fr')).not.toThrow();
+    expect(service.getActiveLanguage()).toBe('fr');
+    expect(localStorage.getItem(LANGUAGE_STORAGE_KEY)).toBe('fr');
   });
 
   it('a failing (sync or async) preference saver never breaks the switch', async () => {

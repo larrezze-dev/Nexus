@@ -4,9 +4,12 @@ import { provideTransloco } from '@jsverse/transloco';
 import { OidcSecurityService } from 'angular-auth-oidc-client';
 import { of } from 'rxjs';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { LANGUAGE_STORAGE_KEY } from '../i18n/nx-i18n.service';
 import { UserMenuComponent } from './user-menu.component';
 
 describe('UserMenuComponent', () => {
+  afterEach(() => localStorage.removeItem(LANGUAGE_STORAGE_KEY));
+
   let fixture: ComponentFixture<UserMenuComponent>;
 
   function setup(userData: Record<string, string> | null) {
@@ -61,6 +64,15 @@ describe('UserMenuComponent', () => {
     open();
     expect(document.querySelector('[data-testid="nx-shell-account-link"]')?.getAttribute('href')).toBe('/account');
     (document.querySelector('[data-testid="nx-shell-logout"]') as HTMLButtonElement).click();
+    expect(logoff).toHaveBeenCalledTimes(1);
+  });
+
+  it('clears the remembered language (nx.lang) when signing out', () => {
+    localStorage.setItem(LANGUAGE_STORAGE_KEY, 'fr');
+    const { logoff } = setup({ name: 'Ana Pérez' });
+    open();
+    (document.querySelector('[data-testid="nx-shell-logout"]') as HTMLButtonElement).click();
+    expect(localStorage.getItem(LANGUAGE_STORAGE_KEY)).toBeNull();
     expect(logoff).toHaveBeenCalledTimes(1);
   });
 });

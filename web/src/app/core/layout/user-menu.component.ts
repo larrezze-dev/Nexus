@@ -8,6 +8,7 @@ import { RouterLink } from '@angular/router';
 import { TranslocoPipe } from '@jsverse/transloco';
 import { OidcSecurityService } from 'angular-auth-oidc-client';
 import { map } from 'rxjs';
+import { NxI18nService } from '../i18n/nx-i18n.service';
 
 interface NxUserClaims {
   readonly name?: string;
@@ -126,6 +127,7 @@ function toShellUser(claims: NxUserClaims | null | undefined): NxShellUser {
 })
 export class UserMenuComponent {
   private readonly oidc = inject(OidcSecurityService);
+  private readonly i18n = inject(NxI18nService);
 
   private readonly claims = toSignal(this.oidc.userData$.pipe(map((result) => result?.userData as NxUserClaims | null)), {
     initialValue: null,
@@ -134,6 +136,7 @@ export class UserMenuComponent {
   protected readonly user = computed(() => toShellUser(this.claims()));
 
   protected logout(): void {
+    this.i18n.clearStoredLanguage();
     this.oidc.logoff().subscribe();
   }
 }

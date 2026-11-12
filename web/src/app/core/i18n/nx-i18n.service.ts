@@ -26,14 +26,13 @@ export const NX_LANGUAGE_PREFERENCE_SAVER = new InjectionToken<LanguagePreferenc
 /**
  * Resolves and holds the active UI language.
  *
- * Resolution order (highest priority first):
- *   1. The language the user explicitly chose (`localStorage['nx.lang']`).
- *   2. `preferredLanguage` from `GET /v1/me`, fed in through `setInitialLanguage()`.
- *   3. The browser's language (`navigator.language`), if supported.
- *   4. `de`.
- *
- * At construction only 1, 3 and 4 are known; `setInitialLanguage(preferredLanguage)` re-runs
- * the whole chain once `/me` is known. `<html lang>` always mirrors the active language.
+ * Resolution (conventions-frontend.md §4.2): the user's preference from `GET /v1/me` rules once it
+ * arrives. `localStorage['nx.lang']` only exists to paint the first frame in the right language
+ * before `/me` is known; `setInitialLanguage()` applies `preferredLanguage` (without calling the
+ * saver) and rewrites `nx.lang` with it. If the user already picked a language in the selector
+ * in this session, that choice stands (it was already saved through the saver). Without a
+ * usable preference the order is: stored value, browser language (`navigator.language`), `de`.
+ * `<html lang>` always mirrors the active language. Logging out clears `nx.lang`.
  */
 @Injectable({ providedIn: 'root' })
 export class NxI18nService {
@@ -44,6 +43,9 @@ export class NxI18nService {
   /** Signal that reflects the currently active language (re-exported from Transloco for convenience). */
   readonly activeLang: Signal<string> = this.transloco.activeLang;
 
+  /** `true` once the user picked a language in the selector during this session. */
+  private chosenThisSession = false;
+
   constructor() {
     this.transloco.langChanges$.subscribe((lang) => {
       this.document.documentElement.lang = lang;
@@ -52,21 +54,42 @@ export class NxI18nService {
   }
 
   /**
-   * Re-resolves the initial language now that `preferredLanguage` (from `/me`) is known.
-   * An explicit choice stored in `localStorage` still wins over it.
+   * Applies `preferredLanguage` (from `/me`) as the active language and remembers it in
+   * `nx.lang`. Never calls the saver: the value already comes from the server. Ignored when the
+   * user has picked a language in the selector in this session. An unusable preference leaves
+   * the language resolved at construction.
    */
   setInitialLanguage(preferredLanguage: string | null | undefined): void {
-    this.transloco.setActiveLang(this.resolve(preferredLanguage));
+    if (this.chosenThisSession) {
+      return;
+    }
+    const preferred = normalizeToSupportedLanguage(preferredLanguage);
+    if (preferred === null) {
+      this.transloco.setActiveLang(this.resolve(null));
+      return;
+    }
+    this.transloco.setActiveLang(preferred);
+    this.writeStoredLanguage(preferred);
   }
 
   /** Sets the active language from an explicit user choice: remembered locally and handed to the saver hook. */
   setLanguage(lang: SupportedLanguage): void {
+    this.chosenThisSession = true;
     this.transloco.setActiveLang(lang);
     this.writeStoredLanguage(lang);
     try {
       void Promise.resolve(this.saver(lang)).catch(() => undefined);
     } catch {
       // The preference is a convenience: a failing saver never blocks the language switch.
+    }
+  }
+
+  /** Forgets the remembered language (on sign-out) so the next user on this browser does not inherit it. */
+  clearStoredLanguage(): void {
+    try {
+      localStorage.removeItem(LANGUAGE_STORAGE_KEY);
+    } catch {
+      // Storage unavailable: nothing to clear.
     }
   }
 
