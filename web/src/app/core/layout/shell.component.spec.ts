@@ -8,6 +8,7 @@ import { provideTransloco } from '@jsverse/transloco';
 import { OidcSecurityService } from 'angular-auth-oidc-client';
 import { of } from 'rxjs';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { PermissionsStore } from '../../shared/auth/permissions.store';
 import { NxI18nService } from '../i18n/nx-i18n.service';
 import { NavigationBuilderService } from './navigation-builder.service';
 import { NxNavGroup } from './nav-item.model';
@@ -32,7 +33,10 @@ const fakeGroups: NxNavGroup[] = [
   },
 ];
 
-function setup(expanded: boolean): ComponentFixture<ShellComponent> {
+function setup(
+  expanded: boolean,
+  options: { groups?: NxNavGroup[]; permissions?: string[] } = {},
+): ComponentFixture<ShellComponent> {
   TestBed.configureTestingModule({
     imports: [ShellComponent],
     providers: [
@@ -42,12 +46,13 @@ function setup(expanded: boolean): ComponentFixture<ShellComponent> {
         { path: 'roles', component: DummyPage },
       ]),
       provideTransloco({ config: { availableLangs: ['de', 'en', 'fr', 'it', 'es'], defaultLang: 'de' } }),
-      { provide: NavigationBuilderService, useValue: { buildGrouped: () => fakeGroups } },
+      { provide: NavigationBuilderService, useValue: { buildGrouped: () => options.groups ?? fakeGroups } },
       { provide: BreakpointObserver, useValue: { observe: () => of({ matches: expanded, breakpoints: {} }) } },
       { provide: OidcSecurityService, useValue: { userData$: of({ userData: { name: 'Ana Pérez' } }), logoff: () => of(null) } },
       { provide: NxI18nService, useValue: { activeLang: signal('de'), setLanguage: vi.fn() } },
     ],
   });
+  TestBed.inject(PermissionsStore).setPermissions((options.permissions ?? []).map((code) => ({ code, scopes: [] }) as never));
   const fixture = TestBed.createComponent(ShellComponent);
   fixture.detectChanges();
   return fixture;
@@ -67,7 +72,10 @@ function toggle(fixture: ComponentFixture<ShellComponent>): HTMLButtonElement {
 
 describe('ShellComponent', () => {
   beforeEach(() => localStorage.removeItem(SIDENAV_STORAGE_KEY));
-  afterEach(() => localStorage.removeItem(SIDENAV_STORAGE_KEY));
+  afterEach(() => {
+    vi.restoreAllMocks();
+    localStorage.removeItem(SIDENAV_STORAGE_KEY);
+  });
 
   describe('top bar', () => {
     it('shows the menu button, the NEXUS brand, the language selector and the user menu — no global search', () => {
@@ -80,10 +88,11 @@ describe('ShellComponent', () => {
       expect(root.querySelector('input')).toBeNull();
     });
 
-    it('does not render an approvals bell nor the breadcrumbs (pages render them in nx-page-header)', () => {
+    it('does not render an approvals bell, and renders the breadcrumb above the routed page (temporary, TODO PR-5)', () => {
       const fixture = setup(true);
       expect(el(fixture).textContent).not.toContain('notifications');
-      expect(el(fixture).querySelector('app-breadcrumb')).toBeNull();
+      const main = el(fixture).querySelector('main#nx-main') as HTMLElement;
+      expect(main.firstElementChild?.tagName.toLowerCase()).toBe('app-breadcrumb');
     });
 
     it('offers a skip link to the main content', () => {
@@ -107,6 +116,29 @@ describe('ShellComponent', () => {
       expect(groups[0].querySelectorAll('a').length).toBe(2);
       expect(groups[1].textContent).toContain('nav.groups.access');
       expect(groups[1].getAttribute('aria-labelledby')).toBe('nx-nav-group-access');
+    });
+
+    it('hides items without permission and a group left with no visible items, heading included', () => {
+      const groups: NxNavGroup[] = [
+        { navGroup: 'org', titleKey: 'nav.groups.org', items: [{ titleKey: 'nav.warehouses', path: '/warehouses', navGroup: 'org', permission: 'WAREHOUSE:READ' }] },
+        {
+          navGroup: 'access',
+          titleKey: 'nav.groups.access',
+          items: [{ titleKey: 'nav.access.roles', path: '/roles', navGroup: 'access', permission: 'ROLE:READ' }],
+        },
+      ];
+      const fixture = setup(true, { groups, permissions: ['WAREHOUSE:READ'] });
+      const root = el(fixture);
+      expect(root.querySelectorAll('[role="group"]').length).toBe(1);
+      expect(root.textContent).toContain('nav.groups.org');
+      expect(root.textContent).not.toContain('nav.groups.access');
+      expect(root.querySelectorAll('.nx-shell__nav a').length).toBe(1);
+    });
+
+    it('exposes a single navigation landmark (mat-nav-list does not add a nested one)', () => {
+      const fixture = setup(true);
+      const root = el(fixture);
+      expect(root.querySelectorAll('nav, [role="navigation"]').length).toBe(1);
     });
 
     it('marks the entry of the current route as active', async () => {
@@ -140,6 +172,20 @@ describe('ShellComponent', () => {
     it('starts hidden when the user hid it last time', () => {
       localStorage.setItem(SIDENAV_STORAGE_KEY, 'closed');
       const fixture = setup(true);
+      expect(sidenav(fixture).opened).toBe(false);
+    });
+
+    it('still opens when reading localStorage throws', () => {
+      vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
+        throw new Error('denied');
+      });
+      vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+        throw new Error('denied');
+      });
+      const fixture = setup(true);
+      expect(sidenav(fixture).opened).toBe(true);
+      expect(() => toggle(fixture).click()).not.toThrow();
+      fixture.detectChanges();
       expect(sidenav(fixture).opened).toBe(false);
     });
 

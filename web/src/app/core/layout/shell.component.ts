@@ -8,7 +8,8 @@ import { MatSidenavModule } from '@angular/material/sidenav';
 import { NavigationEnd, Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { TranslocoPipe } from '@jsverse/transloco';
 import { filter, map } from 'rxjs';
-import { NxCanDirective } from '../../shared/auth/can.directive';
+import { PermissionsStore } from '../../shared/auth/permissions.store';
+import { BreadcrumbComponent } from './breadcrumb.component';
 import { LanguageMenuComponent } from './language-menu.component';
 import { NavigationBuilderService } from './navigation-builder.service';
 import { NxNavGroup } from './nav-item.model';
@@ -31,7 +32,7 @@ export const SIDENAV_EXPANDED_QUERY = '(min-width: 1280px)';
  * - < 1280 px: `over`, closed on entry; ☰ opens it above the content; it closes on navigation,
  *   on the backdrop and on Esc.
  *
- * Breadcrumbs are not rendered here: each page renders them through `nx-page-header`.
+ * Breadcrumbs: TODO(PR-5) rendered here temporarily; pages will render them through `nx-page-header`.
  * The approvals bell is not rendered at all (ficha 0.5: hidden until 0.9).
  */
 @Component({
@@ -46,7 +47,7 @@ export const SIDENAV_EXPANDED_QUERY = '(min-width: 1280px)';
     MatIconModule,
     MatButtonModule,
     TranslocoPipe,
-    NxCanDirective,
+    BreadcrumbComponent,
     LanguageMenuComponent,
     UserMenuComponent,
   ],
@@ -57,7 +58,19 @@ export class ShellComponent {
   private readonly navigationBuilder = inject(NavigationBuilderService);
   private readonly router = inject(Router);
 
-  protected readonly navGroups = signal<NxNavGroup[]>(this.navigationBuilder.buildGrouped());
+  private readonly permissions = inject(PermissionsStore);
+  private readonly allGroups = signal<NxNavGroup[]>(this.navigationBuilder.buildGrouped());
+
+  /** Groups with only the items the user may see; a group left without items is dropped with its heading. */
+  protected readonly navGroups = computed<NxNavGroup[]>(() => {
+    this.permissions.permissions(); // re-evaluate when permissions change
+    return this.allGroups()
+      .map((group) => ({
+        ...group,
+        items: group.items.filter((item) => !item.permission || this.permissions.has(item.permission)),
+      }))
+      .filter((group) => group.items.length > 0);
+  });
 
   /** `true` at ≥ 1280 px. */
   protected readonly expanded = toSignal(
