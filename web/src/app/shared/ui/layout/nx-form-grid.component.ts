@@ -1,4 +1,10 @@
-import { ChangeDetectionStrategy, Component, Directive, ViewEncapsulation, input } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  Directive,
+  ViewEncapsulation,
+  input,
+} from '@angular/core';
 
 /** Field width in the 12-column form grid: S = 3, M = 4, L = 6, XL = 12 columns. */
 export type NxSpan = 's' | 'm' | 'l' | 'xl';

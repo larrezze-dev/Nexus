@@ -24,7 +24,9 @@ class HostComponent {
 
 describe('NxSectionIndexComponent', () => {
   beforeEach(async () => {
-    await TestBed.configureTestingModule({ imports: [HostComponent, layoutTransloco()] }).compileComponents();
+    await TestBed.configureTestingModule({
+      imports: [HostComponent, layoutTransloco()],
+    }).compileComponents();
   });
 
   it('lists the sections as in-page links in a labelled nav next to the projected form', async () => {

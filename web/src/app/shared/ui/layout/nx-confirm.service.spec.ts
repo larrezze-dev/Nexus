@@ -8,7 +8,9 @@ describe('NxConfirm', () => {
   });
 
   afterEach(() => {
-    document.querySelectorAll('.cdk-overlay-container').forEach((container) => (container.innerHTML = ''));
+    document
+      .querySelectorAll('.cdk-overlay-container')
+      .forEach((container) => (container.innerHTML = ''));
   });
 
   async function open(destructive: boolean, confirmLabel?: string) {
@@ -32,7 +34,11 @@ describe('NxConfirm', () => {
     const ok = dialog.querySelector('[data-testid="nx-confirm-ok"]') as HTMLButtonElement;
     expect(ok.textContent?.trim()).toBe('Deactivate');
     expect(ok.classList).toContain('nx-btn--danger');
-    expect(document.querySelector('mat-dialog-container, .mat-mdc-dialog-container')?.getAttribute('role')).toBe('alertdialog');
+    expect(
+      document
+        .querySelector('mat-dialog-container, .mat-mdc-dialog-container')
+        ?.getAttribute('role'),
+    ).toBe('alertdialog');
 
     ok.click();
     await expect(result).resolves.toBe(true);

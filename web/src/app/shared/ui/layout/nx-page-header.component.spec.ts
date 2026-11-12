@@ -59,15 +59,21 @@ describe('NxPageComponent + NxPageHeaderComponent', () => {
     fixture.componentInstance.count.set(4);
     fixture.detectChanges();
     expect(root.querySelector('.nx-page-header__subtitle')?.textContent).toContain('WH-BCN-01');
-    expect(root.querySelector('[data-testid="nx-page-header-count"]')?.textContent?.trim()).toBe('4 records');
+    expect(root.querySelector('[data-testid="nx-page-header-count"]')?.textContent?.trim()).toBe(
+      '4 records',
+    );
 
     fixture.componentInstance.count.set(1);
     fixture.detectChanges();
-    expect(root.querySelector('[data-testid="nx-page-header-count"]')?.textContent?.trim()).toBe('1 record');
+    expect(root.querySelector('[data-testid="nx-page-header-count"]')?.textContent?.trim()).toBe(
+      '1 record',
+    );
 
     fixture.componentInstance.count.set(0);
     fixture.detectChanges();
-    expect(root.querySelector('[data-testid="nx-page-header-count"]')?.textContent?.trim()).toBe('0 records');
+    expect(root.querySelector('[data-testid="nx-page-header-count"]')?.textContent?.trim()).toBe(
+      '0 records',
+    );
   });
 
   it('switches the page between full width and the form width', () => {

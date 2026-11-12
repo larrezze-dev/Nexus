@@ -28,8 +28,10 @@ import { BreadcrumbComponent } from '../../../core/layout/breadcrumb.component';
           <ng-content select="[nxHeaderStatus]" />
           @if (count() !== null && count() !== undefined) {
             <span class="nx-page-header__count" data-testid="nx-page-header-count">{{
-              (count() === 1 ? 'shared.layout.pageHeader.countOne' : 'shared.layout.pageHeader.count')
-                | transloco: { count: count() }
+              (count() === 1
+                ? 'shared.layout.pageHeader.countOne'
+                : 'shared.layout.pageHeader.count'
+              ) | transloco: { count: count() }
             }}</span>
           }
         </div>

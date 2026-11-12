@@ -22,13 +22,16 @@ class HostComponent {
 
 describe('NxEmptyStateComponent', () => {
   beforeEach(async () => {
-    await TestBed.configureTestingModule({ imports: [HostComponent, layoutTransloco()] }).compileComponents();
+    await TestBed.configureTestingModule({
+      imports: [HostComponent, layoutTransloco()],
+    }).compileComponents();
   });
 
   function setup() {
     const fixture = TestBed.createComponent(HostComponent);
     fixture.detectChanges();
-    const state = () => (fixture.nativeElement as HTMLElement).querySelector('nx-empty-state') as HTMLElement;
+    const state = () =>
+      (fixture.nativeElement as HTMLElement).querySelector('nx-empty-state') as HTMLElement;
     return { fixture, state };
   }
 
@@ -44,7 +47,9 @@ describe('NxEmptyStateComponent', () => {
     fixture.detectChanges();
 
     expect(state().querySelector('mat-icon')?.textContent?.trim()).toBe(icon);
-    expect(state().querySelector('.nx-empty-state__icon')?.getAttribute('aria-hidden')).toBe('true');
+    expect(state().querySelector('.nx-empty-state__icon')?.getAttribute('aria-hidden')).toBe(
+      'true',
+    );
     expect(state().querySelector('h2')?.textContent?.trim()).toBe(title);
     expect(state().classList).toContain(`nx-empty-state--${kind}`);
   });
@@ -66,7 +71,9 @@ describe('NxEmptyStateComponent', () => {
     fixture.detectChanges();
 
     expect(state().querySelector('h2')?.textContent?.trim()).toBe('No warehouses yet');
-    expect(state().querySelector('.nx-empty-state__message')?.textContent?.trim()).toBe('Create the first one.');
+    expect(state().querySelector('.nx-empty-state__message')?.textContent?.trim()).toBe(
+      'Create the first one.',
+    );
     expect(state().querySelector('mat-icon')?.textContent?.trim()).toBe('warehouse');
     expect(state().querySelector('.nx-empty-state__actions .test-action')).toBeTruthy();
 

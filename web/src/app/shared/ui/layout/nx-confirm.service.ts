@@ -67,15 +67,18 @@ export class NxConfirm {
   private readonly dialog = inject(MatDialog);
 
   async confirm(options: NxConfirmOptions): Promise<boolean> {
-    const ref = this.dialog.open<NxConfirmDialogComponent, NxConfirmOptions, boolean>(NxConfirmDialogComponent, {
-      data: options,
-      width: '480px',
-      maxWidth: 'calc(100vw - 32px)',
-      // Focus starts on Cancel (first button): Enter never confirms a destructive action by accident.
-      autoFocus: 'first-tabbable',
-      restoreFocus: true,
-      role: options.destructive ? 'alertdialog' : 'dialog',
-    });
+    const ref = this.dialog.open<NxConfirmDialogComponent, NxConfirmOptions, boolean>(
+      NxConfirmDialogComponent,
+      {
+        data: options,
+        width: '480px',
+        maxWidth: 'calc(100vw - 32px)',
+        // Focus starts on Cancel (first button): Enter never confirms a destructive action by accident.
+        autoFocus: 'first-tabbable',
+        restoreFocus: true,
+        role: options.destructive ? 'alertdialog' : 'dialog',
+      },
+    );
     return (await firstValueFrom(ref.afterClosed())) === true;
   }
 }

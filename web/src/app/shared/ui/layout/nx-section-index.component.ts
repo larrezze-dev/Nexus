@@ -37,8 +37,13 @@ export interface NxSectionIndexItem {
     <div class="nx-section-index__content">
       <ng-content />
     </div>
-    <nav class="nx-section-index__nav" [attr.aria-label]="'shared.layout.sectionIndex.title' | transloco">
-      <span class="nx-section-index__title" aria-hidden="true">{{ 'shared.layout.sectionIndex.title' | transloco }}</span>
+    <nav
+      class="nx-section-index__nav"
+      [attr.aria-label]="'shared.layout.sectionIndex.title' | transloco"
+    >
+      <span class="nx-section-index__title" aria-hidden="true">{{
+        'shared.layout.sectionIndex.title' | transloco
+      }}</span>
       @for (section of sections(); track section.id) {
         <a
           class="nx-section-index__link"

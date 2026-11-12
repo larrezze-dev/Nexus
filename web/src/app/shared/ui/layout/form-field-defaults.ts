@@ -1,5 +1,8 @@
 import { Provider } from '@angular/core';
-import { MAT_FORM_FIELD_DEFAULT_OPTIONS, MatFormFieldDefaultOptions } from '@angular/material/form-field';
+import {
+  MAT_FORM_FIELD_DEFAULT_OPTIONS,
+  MatFormFieldDefaultOptions,
+} from '@angular/material/form-field';
 
 /** App-wide `mat-form-field` defaults (`conventions-frontend.md §4.1`): outline, label inside the field. */
 export const NEXUS_FORM_FIELD_DEFAULTS: MatFormFieldDefaultOptions = {

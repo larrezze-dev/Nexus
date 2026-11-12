@@ -37,7 +37,9 @@ const KEY_GROUP: Readonly<Record<NxEmptyStateKind, string>> = {
     <div class="nx-empty-state__icon" aria-hidden="true">
       <mat-icon>{{ resolvedIcon() }}</mat-icon>
     </div>
-    <h2 class="nx-empty-state__title">{{ title() || ('shared.emptyState.' + keyGroup() + '.title' | transloco) }}</h2>
+    <h2 class="nx-empty-state__title">
+      {{ title() || ('shared.emptyState.' + keyGroup() + '.title' | transloco) }}
+    </h2>
     @if (message() !== '') {
       <p class="nx-empty-state__message">
         {{ message() || ('shared.emptyState.' + keyGroup() + '.message' | transloco) }}

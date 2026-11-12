@@ -9,7 +9,11 @@ import { NxFormSectionComponent } from './nx-form-section.component';
   standalone: true,
   imports: [NxFormSectionComponent, NxFormGridComponent, NxSpanDirective, NxActionBarComponent],
   template: `
-    <nx-form-section id="identification" title="Identification" hint="The code cannot be changed later.">
+    <nx-form-section
+      id="identification"
+      title="Identification"
+      hint="The code cannot be changed later."
+    >
       <nx-form-grid>
         <div nxSpan="s" class="f-s">code</div>
         <div nxSpan="m" class="f-m">country</div>
@@ -31,10 +35,14 @@ describe('NxFormSectionComponent + NxFormGridComponent + NxSpanDirective', () =>
   it('renders the section title as h2 with its hint', () => {
     const fixture = TestBed.createComponent(HostComponent);
     fixture.detectChanges();
-    const section = (fixture.nativeElement as HTMLElement).querySelector('nx-form-section') as HTMLElement;
+    const section = (fixture.nativeElement as HTMLElement).querySelector(
+      'nx-form-section',
+    ) as HTMLElement;
 
     expect(section.querySelector('h2')?.textContent?.trim()).toBe('Identification');
-    expect(section.querySelector('.nx-form-section__hint')?.textContent).toContain('cannot be changed');
+    expect(section.querySelector('.nx-form-section__hint')?.textContent).toContain(
+      'cannot be changed',
+    );
     expect(section.id).toBe('identification');
   });
 
@@ -73,7 +81,9 @@ describe('NxFormSectionComponent + NxFormGridComponent + NxSpanDirective', () =>
   it('projects the action bar buttons', () => {
     const fixture = TestBed.createComponent(HostComponent);
     fixture.detectChanges();
-    const bar = (fixture.nativeElement as HTMLElement).querySelector('nx-action-bar') as HTMLElement;
+    const bar = (fixture.nativeElement as HTMLElement).querySelector(
+      'nx-action-bar',
+    ) as HTMLElement;
 
     expect(bar.classList).toContain('nx-action-bar');
     expect(bar.querySelector('button')?.textContent).toBe('Save');

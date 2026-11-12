@@ -20,13 +20,17 @@ class HostComponent {
 
 describe('NxFilterBarComponent', () => {
   beforeEach(async () => {
-    await TestBed.configureTestingModule({ imports: [HostComponent, layoutTransloco()] }).compileComponents();
+    await TestBed.configureTestingModule({
+      imports: [HostComponent, layoutTransloco()],
+    }).compileComponents();
   });
 
   it('is a labelled search landmark with the projected filters and a translated «Clear filters» that emits clear', () => {
     const fixture = TestBed.createComponent(HostComponent);
     fixture.detectChanges();
-    const bar = (fixture.nativeElement as HTMLElement).querySelector('nx-filter-bar') as HTMLElement;
+    const bar = (fixture.nativeElement as HTMLElement).querySelector(
+      'nx-filter-bar',
+    ) as HTMLElement;
 
     expect(bar.getAttribute('role')).toBe('search');
     expect(bar.getAttribute('aria-label')).toBe('Filters');
@@ -43,6 +47,8 @@ describe('NxFilterBarComponent', () => {
     fixture.componentInstance.showClear.set(false);
     fixture.detectChanges();
 
-    expect((fixture.nativeElement as HTMLElement).querySelector('[data-testid="nx-filter-bar-clear"]')).toBeNull();
+    expect(
+      (fixture.nativeElement as HTMLElement).querySelector('[data-testid="nx-filter-bar-clear"]'),
+    ).toBeNull();
   });
 });
