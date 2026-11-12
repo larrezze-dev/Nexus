@@ -23,6 +23,7 @@ internal sealed class LegalEntityReadDb : ILegalEntityReadDb
     private static readonly Dictionary<string, string> SortColumns = new(StringComparer.Ordinal)
     {
         [LegalEntitySortFields.Code] = "le.code",
+        [LegalEntitySortFields.LegalName] = "p.legal_name",
         [LegalEntitySortFields.CurrencyCode] = "le.currency_code",
         [LegalEntitySortFields.CountryCode] = "le.country_code",
         [LegalEntitySortFields.IsActive] = "le.is_active",
@@ -49,25 +50,45 @@ internal sealed class LegalEntityReadDb : ILegalEntityReadDb
 
     public async Task<IReadOnlyList<LegalEntityListItem>> ListAllAsync(
         IReadOnlyList<SortField> sort,
+        LegalEntityFilter filter,
         CancellationToken cancellationToken)
     {
         var orderBy = sort.Count == 0
             ? SortColumns[LegalEntitySortFields.Code]
             : string.Join(", ", sort.Select(f => SortColumns[f.Field] + (f.Descending ? " DESC" : " ASC")));
 
+        var clauses = new List<string>();
+        var parameters = new DynamicParameters();
+        if (!string.IsNullOrWhiteSpace(filter.Q))
+        {
+            clauses.Add("(le.code ILIKE @q OR p.legal_name ILIKE @q)");
+            parameters.Add("q", "%" + filter.Q + "%");
+        }
+
+        if (filter.IsActive is { } isActive)
+        {
+            clauses.Add("le.is_active = @isActive");
+            parameters.Add("isActive", isActive);
+        }
+
+        var where = clauses.Count == 0 ? string.Empty : "WHERE " + string.Join(" AND ", clauses);
+
         // No LIMIT/OFFSET: the handler filters by scope coverage first (see ILegalEntityReadDb.ListAllAsync).
         var rows = await _unitOfWork.Connection.QueryAsync<ListRow>(Command(
             $"""
-             SELECT le.id AS Id, le.group_id AS GroupId, le.code AS Code, le.currency_code AS CurrencyCode,
+             SELECT le.id AS Id, le.group_id AS GroupId, le.code AS Code, p.legal_name AS LegalName,
+                    p.display_name AS DisplayName, le.currency_code AS CurrencyCode,
                     le.country_code AS CountryCode, le.is_active AS IsActive
              FROM org.legal_entity le
+             JOIN org.party p ON p.id = le.party_id
+             {where}
              ORDER BY {orderBy}, le.id
              """,
-            null,
+            parameters,
             cancellationToken));
 
         return rows
-            .Select(r => new LegalEntityListItem(r.Id, r.GroupId, r.Code, r.CurrencyCode, r.CountryCode, r.IsActive))
+            .Select(r => new LegalEntityListItem(r.Id, r.GroupId, r.Code, r.LegalName, r.DisplayName, r.CurrencyCode, r.CountryCode, r.IsActive))
             .ToList();
     }
 
@@ -120,6 +141,10 @@ internal sealed class LegalEntityReadDb : ILegalEntityReadDb
         public Guid GroupId { get; set; }
 
         public string Code { get; set; } = string.Empty;
+
+        public string LegalName { get; set; } = string.Empty;
+
+        public string? DisplayName { get; set; }
 
         public string CurrencyCode { get; set; } = string.Empty;
 

@@ -8,12 +8,6 @@ namespace Nexus.Platform.Api.Session;
 /// <summary>Handler for `GET /v1/me` (`x-permission: AUTHENTICATED`, conventions-api.md §3).</summary>
 public static class GetMe
 {
-    /// <summary>JWT claim carrying the display name (Keycloak/Entra ID standard claim).</summary>
-    private const string NameClaim = "name";
-
-    /// <summary>JWT claim carrying the email (Keycloak/Entra ID standard claim).</summary>
-    private const string EmailClaim = "email";
-
     /// <summary>
     /// Builds the <see cref="MeResponse"/> (contract version 0.4):
     /// <list type="bullet">
@@ -55,26 +49,6 @@ public static class GetMe
             return NexusProblems.UserNotProvisioned();
         }
 
-        var principal = httpContext.User;
-        var subject = currentUser.Subject ?? string.Empty;
-        var me = profile.Value;
-
-        var permissions = me.Permissions
-            .Select(p => new MePermissionResponse(
-                p.Code,
-                p.Scopes.Select(s => new MePermissionScopeResponse(s.ScopeType, s.ScopeEntityId)).ToList()))
-            .ToList();
-
-        return TypedResults.Ok(new MeResponse(
-            Subject: subject,
-            Oid: currentUser.Oid ?? string.Empty,
-            DisplayName: principal.FindFirst(NameClaim)?.Value ?? subject,
-            Email: principal.FindFirst(EmailClaim)?.Value,
-            UserId: me.UserId,
-            PartyId: me.PartyId,
-            BusinessUnitId: me.BusinessUnitId,
-            PreferredLanguage: me.PreferredLanguage,
-            Provisioned: true,
-            Permissions: permissions));
+        return TypedResults.Ok(MeResponse.From(httpContext, currentUser, profile.Value));
     }
 }

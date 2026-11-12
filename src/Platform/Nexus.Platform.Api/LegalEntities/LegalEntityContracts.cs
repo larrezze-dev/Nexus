@@ -58,4 +58,5 @@ public sealed record LegalEntityResponse(
 }
 
 /// <summary><c>LegalEntityListItem</c>.</summary>
-public sealed record LegalEntityListItemResponse(Guid Id, Guid GroupId, string Code, string CurrencyCode, string CountryCode, bool IsActive);
+public sealed record LegalEntityListItemResponse(
+    Guid Id, Guid GroupId, string Code, string LegalName, string? DisplayName, string CurrencyCode, string CountryCode, bool IsActive);

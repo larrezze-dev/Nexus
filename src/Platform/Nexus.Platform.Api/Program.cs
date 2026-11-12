@@ -20,6 +20,7 @@ using Nexus.Platform.Api.Roles;
 using Nexus.Platform.Api.Session;
 using Nexus.Platform.Api.Users;
 using Nexus.Platform.Api.Warehouses;
+using Nexus.Platform.Application.Session.UpdateMe;
 using Nexus.Platform.Application.Users.CreateUser;
 using Nexus.Platform.Infrastructure;
 using Nexus.Platform.Infrastructure.RoleAssignments;
@@ -78,6 +79,13 @@ app.MapGet("/health", () => Results.Ok(new { status = "up" }))
 
 app.MapGet("/v1/me", GetMe.Handle)
     .WithName("getMe")
+    .RequireAuthenticatedOnly()
+    .WithScope("none");
+
+// The caller's own preferences: no If-Match, last write wins (conventions-api.md §5 exception).
+app.MapPatch("/v1/me", UpdateMe.Handle)
+    .WithName("updateMe")
+    .ValidatedBy<UpdateMeCommand>()
     .RequireAuthenticatedOnly()
     .WithScope("none");
 

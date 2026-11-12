@@ -9,7 +9,8 @@ namespace Nexus.Platform.Application.LegalEntities.GetLegalEntities;
 /// <summary>
 /// <c>GET /v1/legal-entities</c> (<c>listLegalEntities</c>): offset pagination
 /// (conventions-api.md §4) with the contract's <c>page</c>, <c>pageSize</c> (max 200) and
-/// <c>sort</c> (<see cref="LegalEntitySortFields.Allowed"/>).
+/// <c>sort</c> (<see cref="LegalEntitySortFields.Allowed"/>), free-text <c>q</c> (code or legal name)
+/// and the <c>isActive</c> filter (both applied in SQL, before the coverage filter).
 /// <para>
 /// Scope (ACC-R10): <c>x-scope: none</c> only checks <c>ORG_STRUCTURE:READ</c> in <i>some</i>
 /// scope and <c>org</c> has no RLS, so the handler loads every legal entity, keeps those whose
@@ -18,7 +19,7 @@ namespace Nexus.Platform.Application.LegalEntities.GetLegalEntities;
 /// caller can see.
 /// </para>
 /// </summary>
-public sealed record GetLegalEntitiesQuery(int Page, int PageSize, string? Sort) : IQuery<PagedResult<LegalEntityListItem>>;
+public sealed record GetLegalEntitiesQuery(int Page, int PageSize, string? Sort, string? Q, bool? IsActive) : IQuery<PagedResult<LegalEntityListItem>>;
 
 internal sealed class GetLegalEntitiesValidator : AbstractValidator<GetLegalEntitiesQuery>
 {
@@ -58,7 +59,7 @@ internal sealed class GetLegalEntitiesHandler : IQueryHandler<GetLegalEntitiesQu
 
         await _transaction.BeginAsync(cancellationToken);
 
-        var candidates = await _readDb.ListAllAsync(sort, cancellationToken);
+        var candidates = await _readDb.ListAllAsync(sort, new LegalEntityFilter(query.Q, query.IsActive), cancellationToken);
 
         var scope = new OrgListScopeFilter(_scopeChecker, ReadPermission);
         var visible = new List<LegalEntityListItem>(candidates.Count);
