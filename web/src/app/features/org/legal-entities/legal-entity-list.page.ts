@@ -73,7 +73,7 @@ export const LEGAL_ENTITY_SEARCH_DEBOUNCE_MS = 300;
         </a>
       </nx-page-header>
       <!-- Below 600 px «New» is an extended FAB (components.css .nx-create--*). -->
-      <a mat-fab extended class="nx-create--fab" routerLink="new" *nxCan="'ORG_STRUCTURE:CREATE'">
+      <a mat-flat-button class="nx-create--fab" routerLink="new" *nxCan="'ORG_STRUCTURE:CREATE'">
         <mat-icon aria-hidden="true">add</mat-icon>
         {{ 'org.legalEntities.new' | transloco }}
       </a>

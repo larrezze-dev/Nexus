@@ -8,7 +8,9 @@
     "tabs": {
       "general": "General",
       "audit": "Auditoría"
-    }
+    },
+    "saveChanges": "Guardar cambios",
+    "retry": "Reintentar"
   },
   "errors": {
     "generic": "Algo salió mal. Inténtalo de nuevo.",
@@ -231,6 +233,11 @@
     "entityPicker": {
       "placeholder": "Buscar…",
       "noResults": "Sin resultados"
+    },
+    "form": {
+      "required": "Campo obligatorio",
+      "reviewFields": "Revisa los {{count}} campos marcados.",
+      "reviewFieldsOne": "Revisa el campo marcado."
     }
   },
   "org": {
@@ -329,10 +336,9 @@
       "loading": "Cargando…",
       "empty": "Todavía no hay entidades legales",
       "deactivate": "Desactivar",
-      "confirmDeactivate": "¿Desactivar esta entidad legal? Esta acción no se puede deshacer.",
       "fields": {
         "legalName": "Razón social",
-        "displayName": "Nombre visible",
+        "displayName": "Nombre corto",
         "groupId": "Grupo",
         "code": "Código",
         "currencyCode": "Moneda",
@@ -347,7 +353,31 @@
         "statusInactive": "Inactivas"
       },
       "emptyHint": "Crea la primera para asignarle almacenes y personal.",
-      "noResults": "Ninguna entidad legal coincide con los filtros"
+      "noResults": "Ninguna entidad legal coincide con los filtros",
+      "sections": {
+        "company": "Empresa",
+        "countryCurrency": "País y moneda"
+      },
+      "hints": {
+        "legalName": "Nombre oficial, tal como figura en el registro mercantil.",
+        "displayName": "Para listas y menús.",
+        "lockedAfterCreate": "Se fija al crear la entidad legal."
+      },
+      "createSubtitle": "Una empresa del grupo: factura y tiene almacenes y personal propios. Los campos con * son obligatorios.",
+      "actions": {
+        "create": "Crear entidad legal"
+      },
+      "detail": {
+        "modified": "modificada el {{date}}"
+      },
+      "deactivateDialog": {
+        "title": "¿Desactivar la entidad legal?",
+        "message": "«{{name}}» ({{code}}) quedará desactivada. Esta acción no se puede deshacer."
+      },
+      "deactivated": "Entidad legal desactivada",
+      "saved": "Cambios guardados",
+      "created": "Entidad legal creada",
+      "readOnlyNotice": "Solo puedes consultar esta entidad legal: no tienes permiso para modificarla."
     },
     "businessUnits": {
       "title": "Unidades de negocio",

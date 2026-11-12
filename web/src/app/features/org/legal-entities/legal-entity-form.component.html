@@ -1,58 +1,154 @@
-<form class="nx-legal-entity-form" [formGroup]="form" (ngSubmit)="onSubmit()">
-  @if (mode() === 'create') {
-    <mat-form-field subscriptSizing="dynamic">
-      <mat-label>{{ 'org.legalEntities.fields.legalName' | transloco }}</mat-label>
-      <input matInput type="text" data-testid="le-form-legal-name" formControlName="legalName" required />
-      @for (message of errorsFor('legalName'); track message) {
-        <mat-error>{{ message }}</mat-error>
-      }
-    </mat-form-field>
-
-    <mat-form-field subscriptSizing="dynamic">
-      <mat-label>{{ 'org.legalEntities.fields.displayName' | transloco }}</mat-label>
-      <input matInput type="text" data-testid="le-form-display-name" formControlName="displayName" />
-    </mat-form-field>
-
-    <mat-form-field subscriptSizing="dynamic">
-      <mat-label>{{ 'org.legalEntities.fields.groupId' | transloco }}</mat-label>
-      <input matInput type="text" data-testid="le-form-group-id" formControlName="groupId" required />
-      @for (message of errorsFor('groupId'); track message) {
-        <mat-error>{{ message }}</mat-error>
-      }
-    </mat-form-field>
+@let isEdit = mode() === 'edit';
+<form class="nx-le-form" [formGroup]="form" (ngSubmit)="onSubmit()" novalidate>
+  @if (invalidCount() > 0) {
+    <div class="nx-alert nx-alert--error" role="alert" data-testid="le-form-invalid">
+      <mat-icon aria-hidden="true">error</mat-icon>
+      <span class="nx-alert__text">{{
+        invalidCount() === 1
+          ? ('shared.form.reviewFieldsOne' | transloco)
+          : ('shared.form.reviewFields' | transloco: { count: invalidCount() })
+      }}</span>
+    </div>
   }
 
-  <mat-form-field subscriptSizing="dynamic">
-    <mat-label>{{ 'org.legalEntities.fields.code' | transloco }}</mat-label>
-    <input matInput type="text" data-testid="le-form-code" formControlName="code" required />
-    @for (message of errorsFor('code'); track message) {
-      <mat-error>{{ message }}</mat-error>
-    }
-  </mat-form-field>
+  <nx-form-section [title]="'org.legalEntities.sections.company' | transloco">
+    <nx-form-grid>
+      <mat-form-field nxSpan="l" subscriptSizing="dynamic" [class.nx-field--locked]="isEdit">
+        <mat-label>{{ 'org.legalEntities.fields.legalName' | transloco }}</mat-label>
+        <input matInput formControlName="legalName" data-testid="le-form-legal-name" [required]="!isEdit" />
+        @if (isEdit) {
+          <mat-icon matSuffix class="nx-le-form__lock" aria-hidden="true">lock</mat-icon>
+        }
+        @if (isEdit) {
+          <mat-hint>{{ 'org.legalEntities.hints.lockedAfterCreate' | transloco }}</mat-hint>
+        } @else {
+          <mat-hint>{{ 'org.legalEntities.hints.legalName' | transloco }}</mat-hint>
+        }
+        @if (form.controls.legalName.hasError('required')) {
+          <mat-error>{{ 'shared.form.required' | transloco }}</mat-error>
+        }
+        @for (message of errorsFor('legalName'); track message) {
+          <mat-error>{{ message }}</mat-error>
+        }
+      </mat-form-field>
 
-  <mat-form-field subscriptSizing="dynamic">
-    <mat-label>{{ 'org.legalEntities.fields.currencyCode' | transloco }}</mat-label>
-    <input matInput type="text" data-testid="le-form-currency-code" formControlName="currencyCode" required />
-    @for (message of errorsFor('currencyCode'); track message) {
-      <mat-error>{{ message }}</mat-error>
-    }
-  </mat-form-field>
+      <mat-form-field nxSpan="m" subscriptSizing="dynamic" [class.nx-field--locked]="isEdit">
+        <mat-label>{{ 'org.legalEntities.fields.displayName' | transloco }}</mat-label>
+        <input matInput formControlName="displayName" data-testid="le-form-display-name" />
+        @if (isEdit) {
+          <mat-icon matSuffix class="nx-le-form__lock" aria-hidden="true">lock</mat-icon>
+        }
+        @if (isEdit) {
+          <mat-hint>{{ 'org.legalEntities.hints.lockedAfterCreate' | transloco }}</mat-hint>
+        } @else {
+          <mat-hint>{{ 'org.legalEntities.hints.displayName' | transloco }}</mat-hint>
+        }
+        @for (message of errorsFor('displayName'); track message) {
+          <mat-error>{{ message }}</mat-error>
+        }
+      </mat-form-field>
 
-  <mat-form-field subscriptSizing="dynamic">
-    <mat-label>{{ 'org.legalEntities.fields.countryCode' | transloco }}</mat-label>
-    <input matInput type="text" data-testid="le-form-country-code" formControlName="countryCode" required />
-    @for (message of errorsFor('countryCode'); track message) {
-      <mat-error>{{ message }}</mat-error>
-    }
-  </mat-form-field>
+      <mat-form-field nxSpan="s" subscriptSizing="dynamic">
+        <mat-label>{{ 'org.legalEntities.fields.code' | transloco }}</mat-label>
+        <input matInput class="nx-mono" formControlName="code" data-testid="le-form-code" required autocomplete="off" />
+        @if (form.controls.code.hasError('required')) {
+          <mat-error>{{ 'shared.form.required' | transloco }}</mat-error>
+        }
+        @for (message of errorsFor('code'); track message) {
+          <mat-error>{{ message }}</mat-error>
+        }
+      </mat-form-field>
 
-  <div class="nx-legal-entity-form__actions">
-    <button mat-raised-button color="primary" type="submit" data-testid="le-form-submit" [disabled]="saving()">
-      @if (saving()) {
-        <mat-progress-spinner diameter="18" mode="indeterminate" />
-      } @else {
-        {{ 'common.save' | transloco }}
-      }
+      <mat-form-field nxSpan="m" subscriptSizing="dynamic" [class.nx-field--locked]="isEdit">
+        <mat-label>{{ 'org.legalEntities.fields.groupId' | transloco }}</mat-label>
+        <mat-select formControlName="groupId" data-testid="le-form-group" [required]="!isEdit">
+          <mat-select-trigger>
+            @if (selectedGroup(); as group) {
+              <span class="nx-mono nx-le-form__code">{{ group.code }}</span> {{ group.name }}
+            }
+          </mat-select-trigger>
+          @for (group of groups(); track group.id) {
+            <mat-option [value]="group.id">
+              <span class="nx-mono nx-le-form__code">{{ group.code }}</span> {{ group.name }}
+            </mat-option>
+          }
+        </mat-select>
+        @if (isEdit) {
+          <mat-icon matSuffix class="nx-le-form__lock" aria-hidden="true">lock</mat-icon>
+        }
+        @if (isEdit) {
+          <mat-hint>{{ 'org.legalEntities.hints.lockedAfterCreate' | transloco }}</mat-hint>
+        }
+        @if (form.controls.groupId.hasError('required')) {
+          <mat-error>{{ 'shared.form.required' | transloco }}</mat-error>
+        }
+        @for (message of errorsFor('groupId'); track message) {
+          <mat-error>{{ message }}</mat-error>
+        }
+      </mat-form-field>
+    </nx-form-grid>
+  </nx-form-section>
+
+  <nx-form-section [title]="'org.legalEntities.sections.countryCurrency' | transloco">
+    <nx-form-grid>
+      <mat-form-field nxSpan="m" subscriptSizing="dynamic">
+        <mat-label>{{ 'org.legalEntities.fields.countryCode' | transloco }}</mat-label>
+        <mat-select formControlName="countryCode" data-testid="le-form-country" required>
+          <mat-select-trigger>
+            @if (form.controls.countryCode.value; as code) {
+              {{ countryLabel(code) }} ({{ code }})
+            }
+          </mat-select-trigger>
+          @for (country of countries(); track country.code) {
+            <mat-option [value]="country.code">{{ country.name }} ({{ country.code }})</mat-option>
+          }
+        </mat-select>
+        @if (form.controls.countryCode.hasError('required')) {
+          <mat-error>{{ 'shared.form.required' | transloco }}</mat-error>
+        }
+        @for (message of errorsFor('countryCode'); track message) {
+          <mat-error>{{ message }}</mat-error>
+        }
+      </mat-form-field>
+
+      <mat-form-field nxSpan="m" subscriptSizing="dynamic">
+        <mat-label>{{ 'org.legalEntities.fields.currencyCode' | transloco }}</mat-label>
+        <mat-select formControlName="currencyCode" data-testid="le-form-currency" required>
+          <mat-select-trigger>
+            @if (form.controls.currencyCode.value; as code) {
+              <span class="nx-mono nx-le-form__code">{{ code }}</span> {{ currencyLabel(currencyByCode(code)) }}
+            }
+          </mat-select-trigger>
+          @for (currency of currencyChoices(); track currency.code) {
+            <mat-option [value]="currency.code">
+              <span class="nx-mono nx-le-form__code">{{ currency.code }}</span> {{ currencyLabel(currency) }}
+            </mat-option>
+          }
+        </mat-select>
+        @if (form.controls.currencyCode.hasError('required')) {
+          <mat-error>{{ 'shared.form.required' | transloco }}</mat-error>
+        }
+        @for (message of errorsFor('currencyCode'); track message) {
+          <mat-error>{{ message }}</mat-error>
+        }
+      </mat-form-field>
+    </nx-form-grid>
+  </nx-form-section>
+
+  <nx-action-bar>
+    <button mat-button type="button" data-testid="le-form-cancel" (click)="cancel.emit()">
+      {{ 'common.cancel' | transloco }}
     </button>
-  </div>
+    <button
+      mat-flat-button
+      type="submit"
+      data-testid="le-form-submit"
+      [disabled]="saving() || readOnly() || (isEdit && form.pristine)"
+    >
+      @if (saving()) {
+        <mat-progress-spinner diameter="18" mode="indeterminate" aria-hidden="true" />
+      }
+      {{ (isEdit ? 'common.saveChanges' : 'org.legalEntities.actions.create') | transloco }}
+    </button>
+  </nx-action-bar>
 </form>

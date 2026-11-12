@@ -8,7 +8,9 @@
     "tabs": {
       "general": "Allgemein",
       "audit": "Audit"
-    }
+    },
+    "saveChanges": "Änderungen speichern",
+    "retry": "Erneut versuchen"
   },
   "errors": {
     "generic": "Etwas ist schiefgelaufen. Bitte versuchen Sie es erneut.",
@@ -87,10 +89,9 @@
       "loading": "Wird geladen…",
       "empty": "Noch keine Gesellschaften",
       "deactivate": "Deaktivieren",
-      "confirmDeactivate": "Diese Gesellschaft deaktivieren? Dies kann nicht widerrufen werden.",
       "fields": {
         "legalName": "Rechtsname",
-        "displayName": "Anzeigename",
+        "displayName": "Kurzname",
         "groupId": "Gruppe",
         "code": "Code",
         "currencyCode": "Währung",
@@ -105,7 +106,31 @@
         "statusInactive": "Inaktive"
       },
       "emptyHint": "Legen Sie die erste Gesellschaft an, um ihr Lager und Personal zuzuordnen.",
-      "noResults": "Keine Gesellschaft entspricht den Filtern"
+      "noResults": "Keine Gesellschaft entspricht den Filtern",
+      "sections": {
+        "company": "Unternehmen",
+        "countryCurrency": "Land und Währung"
+      },
+      "hints": {
+        "legalName": "Offizieller Name laut Handelsregister.",
+        "displayName": "Für Listen und Menüs.",
+        "lockedAfterCreate": "Wird beim Anlegen der Gesellschaft festgelegt."
+      },
+      "createSubtitle": "Ein Unternehmen der Gruppe: stellt Rechnungen und hat eigene Lager und eigenes Personal. Felder mit * sind Pflichtfelder.",
+      "actions": {
+        "create": "Gesellschaft anlegen"
+      },
+      "detail": {
+        "modified": "geändert am {{date}}"
+      },
+      "deactivateDialog": {
+        "title": "Gesellschaft deaktivieren?",
+        "message": "«{{name}}» ({{code}}) wird deaktiviert. Dies kann nicht rückgängig gemacht werden."
+      },
+      "deactivated": "Gesellschaft deaktiviert",
+      "saved": "Änderungen gespeichert",
+      "created": "Gesellschaft angelegt",
+      "readOnlyNotice": "Sie können diese Gesellschaft nur ansehen: Ihnen fehlt die Berechtigung zum Ändern."
     },
     "businessUnits": {
       "title": "Geschäftsbereiche",
@@ -386,6 +411,11 @@
     "entityPicker": {
       "placeholder": "Suchen…",
       "noResults": "Keine Ergebnisse"
+    },
+    "form": {
+      "required": "Pflichtfeld",
+      "reviewFields": "Bitte prüfen Sie die {{count}} markierten Felder.",
+      "reviewFieldsOne": "Bitte prüfen Sie das markierte Feld."
     }
   },
   "locations": {

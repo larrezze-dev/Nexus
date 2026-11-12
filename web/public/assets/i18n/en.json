@@ -8,7 +8,9 @@
     "tabs": {
       "general": "General",
       "audit": "Audit"
-    }
+    },
+    "saveChanges": "Save changes",
+    "retry": "Retry"
   },
   "errors": {
     "generic": "Something went wrong. Please try again.",
@@ -231,6 +233,11 @@
     "entityPicker": {
       "placeholder": "Search…",
       "noResults": "No results"
+    },
+    "form": {
+      "required": "Required field",
+      "reviewFields": "Check the {{count}} highlighted fields.",
+      "reviewFieldsOne": "Check the highlighted field."
     }
   },
   "org": {
@@ -329,10 +336,9 @@
       "loading": "Loading…",
       "empty": "No legal entities yet",
       "deactivate": "Deactivate",
-      "confirmDeactivate": "Deactivate this legal entity? This cannot be undone.",
       "fields": {
         "legalName": "Legal name",
-        "displayName": "Display name",
+        "displayName": "Short name",
         "groupId": "Group",
         "code": "Code",
         "currencyCode": "Currency",
@@ -347,7 +353,31 @@
         "statusInactive": "Inactive"
       },
       "emptyHint": "Create the first one to assign warehouses and staff to it.",
-      "noResults": "No legal entity matches the filters"
+      "noResults": "No legal entity matches the filters",
+      "sections": {
+        "company": "Company",
+        "countryCurrency": "Country and currency"
+      },
+      "hints": {
+        "legalName": "Official name, as in the commercial register.",
+        "displayName": "For lists and menus.",
+        "lockedAfterCreate": "Set when the legal entity is created."
+      },
+      "createSubtitle": "A company of the group: it invoices and has its own warehouses and staff. Fields marked * are required.",
+      "actions": {
+        "create": "Create legal entity"
+      },
+      "detail": {
+        "modified": "modified on {{date}}"
+      },
+      "deactivateDialog": {
+        "title": "Deactivate the legal entity?",
+        "message": "“{{name}}” ({{code}}) will be deactivated. This cannot be undone."
+      },
+      "deactivated": "Legal entity deactivated",
+      "saved": "Changes saved",
+      "created": "Legal entity created",
+      "readOnlyNotice": "You can only view this legal entity: you are not allowed to change it."
     },
     "businessUnits": {
       "title": "Business units",

@@ -8,7 +8,9 @@
     "tabs": {
       "general": "Generale",
       "audit": "Audit"
-    }
+    },
+    "saveChanges": "Salva modifiche",
+    "retry": "Riprova"
   },
   "errors": {
     "generic": "Qualcosa è andato storto. Riprova.",
@@ -231,6 +233,11 @@
     "entityPicker": {
       "placeholder": "Cerca…",
       "noResults": "Nessun risultato"
+    },
+    "form": {
+      "required": "Campo obbligatorio",
+      "reviewFields": "Controlla i {{count}} campi evidenziati.",
+      "reviewFieldsOne": "Controlla il campo evidenziato."
     }
   },
   "org": {
@@ -329,10 +336,9 @@
       "loading": "Caricamento…",
       "empty": "Ancora nessuna entità legale",
       "deactivate": "Disattiva",
-      "confirmDeactivate": "Disattivare questa entità legale? L'operazione non può essere annullata.",
       "fields": {
         "legalName": "Ragione sociale",
-        "displayName": "Nome visualizzato",
+        "displayName": "Nome breve",
         "groupId": "Gruppo",
         "code": "Codice",
         "currencyCode": "Valuta",
@@ -347,7 +353,31 @@
         "statusInactive": "Inattive"
       },
       "emptyHint": "Crea la prima per assegnarle magazzini e personale.",
-      "noResults": "Nessuna entità legale corrisponde ai filtri"
+      "noResults": "Nessuna entità legale corrisponde ai filtri",
+      "sections": {
+        "company": "Azienda",
+        "countryCurrency": "Paese e valuta"
+      },
+      "hints": {
+        "legalName": "Nome ufficiale, come nel registro delle imprese.",
+        "displayName": "Per elenchi e menu.",
+        "lockedAfterCreate": "Fissato alla creazione dell'entità legale."
+      },
+      "createSubtitle": "Un'azienda del gruppo: fattura e ha magazzini e personale propri. I campi con * sono obbligatori.",
+      "actions": {
+        "create": "Crea entità legale"
+      },
+      "detail": {
+        "modified": "modificata il {{date}}"
+      },
+      "deactivateDialog": {
+        "title": "Disattivare l'entità legale?",
+        "message": "«{{name}}» ({{code}}) verrà disattivata. L'operazione non può essere annullata."
+      },
+      "deactivated": "Entità legale disattivata",
+      "saved": "Modifiche salvate",
+      "created": "Entità legale creata",
+      "readOnlyNotice": "Puoi solo consultare questa entità legale: non hai l'autorizzazione per modificarla."
     },
     "businessUnits": {
       "title": "Unità di business",

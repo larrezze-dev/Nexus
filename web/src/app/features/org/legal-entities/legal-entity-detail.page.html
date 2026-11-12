@@ -1,54 +1,100 @@
-<div class="nx-legal-entity-detail-page">
-  @if (mode() === 'create') {
-    <header class="nx-legal-entity-detail-page__header">
-      <h1>{{ 'org.legalEntities.newTitle' | transloco }}</h1>
-    </header>
-  } @else if (loading()) {
-    <p>{{ 'org.legalEntities.loading' | transloco }}</p>
-  } @else if (entity(); as current) {
-    <header class="nx-legal-entity-detail-page__header">
-      <h1>{{ current.code }}</h1>
-      <nx-status-badge [status]="current.isActive ? 'active' : 'inactive'" />
-      @if (current.isActive) {
+@if (mode() === 'create') {
+  <nx-page width="form">
+    <nx-page-header
+      [breadcrumb]="true"
+      [title]="'org.legalEntities.newTitle' | transloco"
+      [subtitle]="'org.legalEntities.createSubtitle' | transloco"
+    />
+    @if (saveError()) {
+      <div class="nx-alert nx-alert--error" role="alert" data-testid="le-detail-save-error">
+        <mat-icon aria-hidden="true">error</mat-icon>
+        <span class="nx-alert__text">{{ saveError() }}</span>
+      </div>
+    }
+    <nx-legal-entity-form
+      mode="create"
+      [groups]="groups()"
+      [currencies]="currencies()"
+      [saving]="saving()"
+      [fieldErrors]="fieldErrors()"
+      (save)="onSave($event)"
+      (cancel)="onCancel()"
+    />
+  </nx-page>
+} @else if (entity(); as current) {
+  <nx-page width="form">
+    <nx-page-header [breadcrumb]="true" [title]="name()" [subtitle]="subtitle()">
+      <nx-status-badge nxHeaderStatus [status]="current.isActive ? 'active' : 'inactive'" />
+      @if (current.isActive && canUpdate()) {
         <button
+          nxHeaderActions
           mat-stroked-button
           type="button"
+          class="nx-btn--danger"
           data-testid="le-detail-deactivate"
-          *nxCan="'ORG_STRUCTURE:UPDATE'"
           [disabled]="saving()"
           (click)="onDeactivate()"
         >
+          <mat-icon aria-hidden="true">block</mat-icon>
           {{ 'org.legalEntities.deactivate' | transloco }}
         </button>
       }
-    </header>
-  }
+    </nx-page-header>
 
-  @if (saveError()) {
-    <p role="alert" data-testid="le-detail-save-error">{{ saveError() }}</p>
-  }
+    @if (!canUpdate()) {
+      <div class="nx-alert nx-alert--info" role="status" data-testid="le-detail-read-only">
+        <mat-icon aria-hidden="true">visibility</mat-icon>
+        <span class="nx-alert__text">{{ 'org.legalEntities.readOnlyNotice' | transloco }}</span>
+      </div>
+    }
+    @if (saveError()) {
+      <div class="nx-alert nx-alert--error" role="alert" data-testid="le-detail-save-error">
+        <mat-icon aria-hidden="true">error</mat-icon>
+        <span class="nx-alert__text">{{ saveError() }}</span>
+      </div>
+    }
 
-  @if (mode() === 'create' || entity()) {
-    <mat-tab-group mat-stretch-tabs="false" mat-align-tabs="start">
+    <mat-tab-group mat-stretch-tabs="false" animationDuration="0ms">
       <mat-tab [label]="'common.tabs.general' | transloco">
-        <nx-legal-entity-form
-          [mode]="mode()"
-          [initial]="entity()"
-          [saving]="saving()"
-          [fieldErrors]="fieldErrors()"
-          (save)="onSave($event)"
-        />
+        <div class="nx-tab-panel">
+          <nx-legal-entity-form
+            mode="edit"
+            [initial]="current"
+            [party]="party()"
+            [groups]="groups()"
+            [currencies]="currencies()"
+            [saving]="saving()"
+            [readOnly]="!canUpdate()"
+            [fieldErrors]="fieldErrors()"
+            (save)="onSave($event)"
+            (cancel)="onCancel()"
+          />
+        </div>
       </mat-tab>
 
-      @if (mode() === 'edit' && entity(); as current) {
-        <ng-container *nxCan="'AUDIT:READ'">
-          <mat-tab [label]="'common.tabs.audit' | transloco">
-            <ng-template matTabContent>
+      <ng-container *nxCan="'AUDIT:READ'">
+        <mat-tab [label]="'common.tabs.audit' | transloco">
+          <ng-template matTabContent>
+            <div class="nx-tab-panel">
               <nx-audit-trail data-testid="audit-tab" aggregateType="legal-entity" [aggregateId]="current.id" />
-            </ng-template>
-          </mat-tab>
-        </ng-container>
-      }
+            </div>
+          </ng-template>
+        </mat-tab>
+      </ng-container>
     </mat-tab-group>
-  }
-</div>
+  </nx-page>
+} @else if (loadError()) {
+  <nx-page width="form">
+    <nx-page-header [breadcrumb]="true" [title]="'org.legalEntities.title' | transloco" />
+    <nx-empty-state kind="error" class="nx-card" data-testid="le-detail-load-error">
+      <button mat-stroked-button type="button" (click)="load()">
+        <mat-icon aria-hidden="true">refresh</mat-icon>
+        {{ 'common.retry' | transloco }}
+      </button>
+    </nx-empty-state>
+  </nx-page>
+} @else {
+  <nx-page width="form">
+    <nx-page-header [breadcrumb]="true" [title]="'org.legalEntities.loading' | transloco" />
+  </nx-page>
+}

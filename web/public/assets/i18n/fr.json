@@ -8,7 +8,9 @@
     "tabs": {
       "general": "Général",
       "audit": "Audit"
-    }
+    },
+    "saveChanges": "Enregistrer les modifications",
+    "retry": "Réessayer"
   },
   "errors": {
     "generic": "Une erreur est survenue. Veuillez réessayer.",
@@ -231,6 +233,11 @@
     "entityPicker": {
       "placeholder": "Rechercher…",
       "noResults": "Aucun résultat"
+    },
+    "form": {
+      "required": "Champ obligatoire",
+      "reviewFields": "Vérifiez les {{count}} champs signalés.",
+      "reviewFieldsOne": "Vérifiez le champ signalé."
     }
   },
   "org": {
@@ -329,10 +336,9 @@
       "loading": "Chargement…",
       "empty": "Aucune entité juridique pour l'instant",
       "deactivate": "Désactiver",
-      "confirmDeactivate": "Désactiver cette entité juridique ? Cette action est irréversible.",
       "fields": {
         "legalName": "Raison sociale",
-        "displayName": "Nom affiché",
+        "displayName": "Nom court",
         "groupId": "Groupe",
         "code": "Code",
         "currencyCode": "Devise",
@@ -347,7 +353,31 @@
         "statusInactive": "Inactives"
       },
       "emptyHint": "Créez la première pour y rattacher des entrepôts et du personnel.",
-      "noResults": "Aucune entité juridique ne correspond aux filtres"
+      "noResults": "Aucune entité juridique ne correspond aux filtres",
+      "sections": {
+        "company": "Entreprise",
+        "countryCurrency": "Pays et devise"
+      },
+      "hints": {
+        "legalName": "Nom officiel, tel qu'inscrit au registre du commerce.",
+        "displayName": "Pour les listes et les menus.",
+        "lockedAfterCreate": "Fixé à la création de l'entité juridique."
+      },
+      "createSubtitle": "Une société du groupe : elle facture et possède ses propres entrepôts et son personnel. Les champs marqués * sont obligatoires.",
+      "actions": {
+        "create": "Créer l'entité juridique"
+      },
+      "detail": {
+        "modified": "modifiée le {{date}}"
+      },
+      "deactivateDialog": {
+        "title": "Désactiver l'entité juridique ?",
+        "message": "« {{name}} » ({{code}}) sera désactivée. Cette action est irréversible."
+      },
+      "deactivated": "Entité juridique désactivée",
+      "saved": "Modifications enregistrées",
+      "created": "Entité juridique créée",
+      "readOnlyNotice": "Vous pouvez seulement consulter cette entité juridique : vous n'avez pas le droit de la modifier."
     },
     "businessUnits": {
       "title": "Unités d'affaires",
