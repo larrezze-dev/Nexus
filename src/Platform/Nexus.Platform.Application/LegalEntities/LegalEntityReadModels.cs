@@ -42,4 +42,5 @@ public sealed record LegalEntityDetails(
 }
 
 /// <summary>List read model of a legal entity (<c>LegalEntityListItem</c> schema).</summary>
-public sealed record LegalEntityListItem(Guid Id, Guid GroupId, string Code, string CurrencyCode, string CountryCode, bool IsActive);
+public sealed record LegalEntityListItem(
+    Guid Id, Guid GroupId, string Code, string LegalName, string? DisplayName, string CurrencyCode, string CountryCode, bool IsActive);

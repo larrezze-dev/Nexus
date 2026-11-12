@@ -22,7 +22,8 @@ public interface ILegalEntityReadDb
     /// holds tens of rows.
     /// </para>
     /// </summary>
-    Task<IReadOnlyList<LegalEntityListItem>> ListAllAsync(IReadOnlyList<SortField> sort, CancellationToken cancellationToken);
+    Task<IReadOnlyList<LegalEntityListItem>> ListAllAsync(
+        IReadOnlyList<SortField> sort, LegalEntityFilter filter, CancellationToken cancellationToken);
 
     /// <summary>
     /// Rule ORG-R5: <see langword="true"/> if <paramref name="legalEntityId"/> has at least one
@@ -31,10 +32,14 @@ public interface ILegalEntityReadDb
     Task<bool> HasActiveChildrenAsync(Guid legalEntityId, CancellationToken cancellationToken);
 }
 
+/// <summary><c>GET /v1/legal-entities</c> query parameters (<c>q</c>: code or legal name, <c>isActive</c>).</summary>
+public sealed record LegalEntityFilter(string? Q, bool? IsActive);
+
 /// <summary>Sortable fields of <c>GET /v1/legal-entities</c> (API names).</summary>
 public static class LegalEntitySortFields
 {
     public const string Code = "code";
+    public const string LegalName = "legalName";
     public const string CurrencyCode = "currencyCode";
     public const string CountryCode = "countryCode";
     public const string IsActive = "isActive";
@@ -42,6 +47,6 @@ public static class LegalEntitySortFields
     public const string UpdatedAt = "updatedAt";
 
     public static IReadOnlySet<string> Allowed { get; } = new HashSet<string>(
-        [Code, CurrencyCode, CountryCode, IsActive, CreatedAt, UpdatedAt],
+        [Code, LegalName, CurrencyCode, CountryCode, IsActive, CreatedAt, UpdatedAt],
         StringComparer.Ordinal);
 }

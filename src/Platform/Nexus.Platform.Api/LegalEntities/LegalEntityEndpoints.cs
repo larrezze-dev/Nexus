@@ -69,9 +69,11 @@ public static class LegalEntityEndpoints
         CancellationToken cancellationToken,
         int page = PageLimits.DefaultPage,
         int pageSize = PageLimits.DefaultPageSize,
-        string? sort = null)
+        string? sort = null,
+        string? q = null,
+        bool? isActive = null)
     {
-        var result = await dispatcher.Send(new GetLegalEntitiesQuery(page, pageSize, sort), cancellationToken);
+        var result = await dispatcher.Send(new GetLegalEntitiesQuery(page, pageSize, sort, q, isActive), cancellationToken);
         if (result.IsFailure)
         {
             return result.Error!.ToProblem();
@@ -80,7 +82,7 @@ public static class LegalEntityEndpoints
         var value = result.Value;
         return TypedResults.Ok(new PageResponse<LegalEntityListItemResponse>(
             value.Items
-                .Select(le => new LegalEntityListItemResponse(le.Id, le.GroupId, le.Code, le.CurrencyCode, le.CountryCode, le.IsActive))
+                .Select(le => new LegalEntityListItemResponse(le.Id, le.GroupId, le.Code, le.LegalName, le.DisplayName, le.CurrencyCode, le.CountryCode, le.IsActive))
                 .ToList(),
             value.Page,
             value.PageSize,

@@ -153,6 +153,92 @@ public sealed class LegalEntityApiTests : IClassFixture<PlatformApiFixture>
         page1.Ids.Concat(page2.Ids).ShouldBe([Org.LegalEntityA.Id, Org.LegalEntityB.Id], ignoreOrder: true);
     }
 
+    [Fact(DisplayName = "UI-LE-LIST: list items include legalName and displayName from the party")]
+    public async Task List_legal_entities_items_include_party_names()
+    {
+        using var admin = _fixture.CreateClientFor(Org.Admin.Oid);
+        var request = NewLegalEntity() with { DisplayName = "Shown " + Guid.NewGuid().ToString("N")[..8] };
+        var created = await CreateAsync(admin, request);
+        var plain = await CreateAsync(admin, NewLegalEntity());
+
+        var items = await ListItemsAsync(admin, "pageSize=200");
+
+        var item = items.Single(e => e.GetProperty("id").GetGuid() == created.Id);
+        item.GetProperty("legalName").GetString().ShouldBe(request.LegalName);
+        item.GetProperty("displayName").GetString().ShouldBe(request.DisplayName);
+        items.Single(e => e.GetProperty("id").GetGuid() == plain.Id)
+            .GetProperty("displayName").ValueKind.ShouldBe(JsonValueKind.Null);
+    }
+
+    [Fact(DisplayName = "UI-LE-LIST: q matches code or legal name, case-insensitively")]
+    public async Task List_legal_entities_q_matches_code_or_legal_name_case_insensitively()
+    {
+        using var admin = _fixture.CreateClientFor(Org.Admin.Oid);
+        var tag = Guid.NewGuid().ToString("N")[..12].ToUpperInvariant();
+        var byCode = await CreateAsync(admin, NewLegalEntity() with { Code = "ZQC-" + tag });
+        var byName = await CreateAsync(admin, NewLegalEntity() with { LegalName = "Zqn Holding " + tag });
+        var other = await CreateAsync(admin, NewLegalEntity());
+
+        var codeHit = await ListAsync(admin, "pageSize=200&q=" + ("zqc-" + tag).ToLowerInvariant());
+        codeHit.Ids.ShouldBe([byCode.Id]);
+
+        var nameHit = await ListAsync(admin, "pageSize=200&q=" + ("ZQN HOLDING " + tag).ToUpperInvariant());
+        nameHit.Ids.ShouldBe([byName.Id]);
+
+        var none = await ListAsync(admin, "pageSize=200&q=zq-no-such-" + tag);
+        none.Ids.ShouldBeEmpty();
+        none.Total.ShouldBe(0);
+        (await ListAsync(admin, "pageSize=200")).Ids.ShouldContain(other.Id);
+    }
+
+    [Fact(DisplayName = "UI-LE-LIST: isActive=false returns only inactive legal entities and isActive=true only active ones")]
+    public async Task List_legal_entities_filters_by_is_active()
+    {
+        using var admin = _fixture.CreateClientFor(Org.Admin.Oid);
+        var toDeactivate = await CreateAsync(admin, NewLegalEntity());
+        var active = await CreateAsync(admin, NewLegalEntity());
+        (await DeactivateAsync(admin, toDeactivate.Id, toDeactivate.ETag)).StatusCode.ShouldBe(HttpStatusCode.OK);
+
+        var inactive = await ListItemsAsync(admin, "pageSize=200&isActive=false");
+        inactive.ShouldNotBeEmpty();
+        inactive.ShouldAllBe(e => !e.GetProperty("isActive").GetBoolean());
+        inactive.Select(e => e.GetProperty("id").GetGuid()).ShouldContain(toDeactivate.Id);
+        inactive.Select(e => e.GetProperty("id").GetGuid()).ShouldNotContain(active.Id);
+
+        var actives = await ListItemsAsync(admin, "pageSize=200&isActive=true");
+        actives.ShouldAllBe(e => e.GetProperty("isActive").GetBoolean());
+        actives.Select(e => e.GetProperty("id").GetGuid()).ShouldContain(active.Id);
+        actives.Select(e => e.GetProperty("id").GetGuid()).ShouldNotContain(toDeactivate.Id);
+    }
+
+    [Fact(DisplayName = "UI-LE-LIST: sort=legalName orders by legal name ascending and -legalName descending")]
+    public async Task List_legal_entities_sorts_by_legal_name()
+    {
+        using var admin = _fixture.CreateClientFor(Org.Admin.Oid);
+        var tag = Guid.NewGuid().ToString("N")[..12].ToUpperInvariant();
+        var b = await CreateAsync(admin, NewLegalEntity() with { LegalName = "Zsort B " + tag });
+        var c = await CreateAsync(admin, NewLegalEntity() with { LegalName = "Zsort C " + tag });
+        var a = await CreateAsync(admin, NewLegalEntity() with { LegalName = "Zsort A " + tag });
+
+        (await ListAsync(admin, "pageSize=200&q=" + tag + "&sort=legalName")).Ids.ShouldBe([a.Id, b.Id, c.Id]);
+        (await ListAsync(admin, "pageSize=200&q=" + tag + "&sort=-legalName")).Ids.ShouldBe([c.Id, b.Id, a.Id]);
+    }
+
+    [Fact(DisplayName = "UI-LE-LIST + ACC-R10: q does not leak a matching legal entity the caller's scope does not cover")]
+    public async Task List_legal_entities_q_still_applies_coverage_filtering()
+    {
+        using var admin = _fixture.CreateClientFor(Org.Admin.Oid);
+        using var userA = _fixture.CreateClientFor(Org.UserA.Oid);
+        var tag = Guid.NewGuid().ToString("N")[..12].ToUpperInvariant();
+        var hidden = await CreateAsync(admin, NewLegalEntity() with { LegalName = "Zcov Hidden " + tag });
+
+        (await ListAsync(admin, "q=" + tag)).Ids.ShouldBe([hidden.Id]);
+
+        var asA = await ListAsync(userA, "q=" + tag);
+        asA.Ids.ShouldBeEmpty();
+        asA.Total.ShouldBe(0);
+    }
+
     // --- helpers ---------------------------------------------------------------------------
 
     private static async Task<ListPage> ListAsync(HttpClient client, string query)
@@ -189,6 +275,13 @@ public sealed class LegalEntityApiTests : IClassFixture<PlatformApiFixture>
         }
 
         return oid;
+    }
+
+    private static async Task<List<JsonElement>> ListItemsAsync(HttpClient client, string query)
+    {
+        var response = await client.GetAsync(new Uri("/v1/legal-entities?" + query, UriKind.Relative), Ct);
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
+        return (await ReadAsync(response)).GetProperty("items").EnumerateArray().Select(e => e.Clone()).ToList();
     }
 
     private sealed record ListPage(long Total, IReadOnlyList<Guid> Ids);
