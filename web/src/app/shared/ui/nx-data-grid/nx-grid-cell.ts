@@ -10,7 +10,12 @@ import {
   reflectComponentType,
 } from '@angular/core';
 import type { ICellRendererAngularComp } from 'ag-grid-angular';
-import type { ColDef, ICellRendererParams, ValueFormatterParams, ValueGetterParams } from 'ag-grid-community';
+import type {
+  ColDef,
+  ICellRendererParams,
+  ValueFormatterParams,
+  ValueGetterParams,
+} from 'ag-grid-community';
 
 /** Stable id of a column: `colId`, else `field`. */
 export function columnId<T>(column: ColDef<T>): string | undefined {
@@ -27,21 +32,29 @@ export function cellValue<T>(column: ColDef<T>, row: T): unknown {
   }
   return String(column.field)
     .split('.')
-    .reduce<unknown>((value, key) => (value == null ? value : (value as Record<string, unknown>)[key]), row);
+    .reduce<unknown>(
+      (value, key) => (value == null ? value : (value as Record<string, unknown>)[key]),
+      row,
+    );
 }
 
 /** Display text of a cell outside AG Grid: `valueFormatter` function, else the value as text. */
 export function cellText<T>(column: ColDef<T>, row: T): string {
   const value = cellValue(column, row);
   if (typeof column.valueFormatter === 'function') {
-    return column.valueFormatter({ value, data: row, colDef: column } as ValueFormatterParams<T>) ?? '';
+    return (
+      column.valueFormatter({ value, data: row, colDef: column } as ValueFormatterParams<T>) ?? ''
+    );
   }
   return value == null ? '' : String(value);
 }
 
 /** True when the column renders its cells with an Angular component (e.g. a status badge). */
 export function hasComponentRenderer<T>(column: ColDef<T>): boolean {
-  return typeof column.cellRenderer === 'function' && reflectComponentType(column.cellRenderer as Type<unknown>) !== null;
+  return (
+    typeof column.cellRenderer === 'function' &&
+    reflectComponentType(column.cellRenderer as Type<unknown>) !== null
+  );
 }
 
 /** True when the column's `cellClass` asks for monospace text (codes). */
@@ -78,12 +91,18 @@ export class NxGridCellDirective<T> implements OnChanges, OnDestroy {
       data: row,
       colDef: column,
     } as unknown as ICellRendererParams<T>;
-    if (this.componentRef && this.rendererType === column.cellRenderer && this.componentRef.instance.refresh(params)) {
+    if (
+      this.componentRef &&
+      this.rendererType === column.cellRenderer &&
+      this.componentRef.instance.refresh(params)
+    ) {
       return;
     }
     this.viewContainer.clear();
     this.rendererType = column.cellRenderer;
-    this.componentRef = this.viewContainer.createComponent(column.cellRenderer as Type<ICellRendererAngularComp>);
+    this.componentRef = this.viewContainer.createComponent(
+      column.cellRenderer as Type<ICellRendererAngularComp>,
+    );
     this.componentRef.instance.agInit(params);
   }
 

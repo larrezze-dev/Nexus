@@ -9,9 +9,15 @@ import {
   provideTransloco,
 } from '@jsverse/transloco';
 import { AgGridAngular, type ICellRendererAngularComp } from 'ag-grid-angular';
-import type { CellKeyDownEvent, ColDef, ICellRendererParams, RowClickedEvent, SortChangedEvent } from 'ag-grid-community';
+import type {
+  CellKeyDownEvent,
+  ColDef,
+  ICellRendererParams,
+  RowClickedEvent,
+  SortChangedEvent,
+} from 'ag-grid-community';
 import { Observable, Subject, of, throwError } from 'rxjs';
-import { NxDataGridComponent } from './nx-data-grid.component';
+import { NxColDef, NxDataGridComponent } from './nx-data-grid.component';
 import { Page } from '../page.model';
 
 interface Row {
@@ -81,7 +87,10 @@ describe('NxDataGridComponent', () => {
     }).compileComponents();
   });
 
-  function create(fetch: unknown, extra: Record<string, unknown> = {}): ComponentFixture<NxDataGridComponent<Row>> {
+  function create(
+    fetch: unknown,
+    extra: Record<string, unknown> = {},
+  ): ComponentFixture<NxDataGridComponent<Row>> {
     const fixture = TestBed.createComponent(NxDataGridComponent<Row>);
     fixture.componentRef.setInput('columns', columns);
     fixture.componentRef.setInput('fetch', fetch);
@@ -119,7 +128,12 @@ describe('NxDataGridComponent', () => {
     await fixture.whenStable();
     fetchSpy.mockClear();
 
-    fixture.componentInstance.onPage({ pageIndex: 2, pageSize: 50, length: 0, previousPageIndex: 0 });
+    fixture.componentInstance.onPage({
+      pageIndex: 2,
+      pageSize: 50,
+      length: 0,
+      previousPageIndex: 0,
+    });
     await fixture.whenStable();
 
     expect(fetchSpy).toHaveBeenCalledWith(2, 50, null, {});
@@ -131,7 +145,12 @@ describe('NxDataGridComponent', () => {
     await settle(fixture);
     fetchSpy.mockClear();
 
-    fixture.componentInstance.onPage({ pageIndex: 2, pageSize: 25, length: 100, previousPageIndex: 0 });
+    fixture.componentInstance.onPage({
+      pageIndex: 2,
+      pageSize: 25,
+      length: 100,
+      previousPageIndex: 0,
+    });
     await settle(fixture);
 
     expect(fetchSpy.mock.calls).toEqual([[2, 25, null, {}]]);
@@ -141,7 +160,12 @@ describe('NxDataGridComponent', () => {
     const fetchSpy = vi.fn(() => page([]));
     const fixture = create(fetchSpy);
     await fixture.whenStable();
-    fixture.componentInstance.onPage({ pageIndex: 3, pageSize: 25, length: 0, previousPageIndex: 0 });
+    fixture.componentInstance.onPage({
+      pageIndex: 3,
+      pageSize: 25,
+      length: 0,
+      previousPageIndex: 0,
+    });
     await fixture.whenStable();
     fetchSpy.mockClear();
 
@@ -158,7 +182,9 @@ describe('NxDataGridComponent', () => {
     const fetchSpy = vi.fn(() => page([]));
     const fixture = create(fetchSpy);
     await fixture.whenStable();
-    const sortEvent = { api: { getColumnState: () => [{ colId: 'name', sort: 'asc' }] } } as unknown as SortChangedEvent<Row>;
+    const sortEvent = {
+      api: { getColumnState: () => [{ colId: 'name', sort: 'asc' }] },
+    } as unknown as SortChangedEvent<Row>;
     fixture.componentInstance.onSortChanged(sortEvent);
     await fixture.whenStable();
     fetchSpy.mockClear();
@@ -189,7 +215,10 @@ describe('NxDataGridComponent', () => {
       fixture.componentInstance.rowOpen.subscribe((row) => opened.push(row));
 
       const key = (k: string) =>
-        ({ data: ROW_B, event: new KeyboardEvent('keydown', { key: k }) }) as unknown as CellKeyDownEvent<Row>;
+        ({
+          data: ROW_B,
+          event: new KeyboardEvent('keydown', { key: k }),
+        }) as unknown as CellKeyDownEvent<Row>;
       fixture.componentInstance.onCellKeyDown(key('ArrowDown'));
       fixture.componentInstance.onCellKeyDown(key('Enter'));
 
@@ -203,7 +232,9 @@ describe('NxDataGridComponent', () => {
       const fixture = create(() => subject.asObservable());
       await settle(fixture);
 
-      const skeleton = el(fixture).querySelector('[data-testid="nx-data-grid-loading"]') as HTMLElement;
+      const skeleton = el(fixture).querySelector(
+        '[data-testid="nx-data-grid-loading"]',
+      ) as HTMLElement;
       expect(skeleton).toBeTruthy();
       expect(skeleton.getAttribute('role')).toBe('status');
       expect(skeleton.querySelectorAll('.nx-data-grid__skeleton-row').length).toBe(5);
@@ -220,7 +251,10 @@ describe('NxDataGridComponent', () => {
     });
 
     it('shows the empty state with the caller texts when there are no records and no filters', async () => {
-      const fixture = create(() => page([]), { emptyMessageKey: 'custom.empty', emptyHintKey: 'custom.hint' });
+      const fixture = create(() => page([]), {
+        emptyMessageKey: 'custom.empty',
+        emptyHintKey: 'custom.hint',
+      });
       await settle(fixture);
 
       const empty = el(fixture).querySelector('[data-testid="nx-data-grid-empty"]') as HTMLElement;
@@ -235,14 +269,18 @@ describe('NxDataGridComponent', () => {
       const fixture = create(() => page([]));
       await settle(fixture);
 
-      expect(el(fixture).querySelector('[data-testid="nx-data-grid-empty"]')?.textContent).toContain('No rows');
+      expect(
+        el(fixture).querySelector('[data-testid="nx-data-grid-empty"]')?.textContent,
+      ).toContain('No rows');
     });
 
     it('shows «no results» instead of «empty» when a filter is set', async () => {
       const fixture = create(() => page([]), { filters: { q: 'basel', status: undefined } });
       await settle(fixture);
 
-      const noResults = el(fixture).querySelector('[data-testid="nx-data-grid-no-results"]') as HTMLElement;
+      const noResults = el(fixture).querySelector(
+        '[data-testid="nx-data-grid-no-results"]',
+      ) as HTMLElement;
       expect(noResults.textContent).toContain('Nothing matches');
       expect(el(fixture).querySelector('[data-testid="nx-data-grid-empty"]')).toBeNull();
       // Nobody listens to (clearFilters): no button.
@@ -290,7 +328,8 @@ describe('NxDataGridComponent', () => {
   describe('layout', () => {
     it('gives columns without width/flex flex:1 so the table fills the width, and keeps fixed widths', () => {
       const fixture = create(() => page([]));
-      const grid = fixture.debugElement.query(By.directive(AgGridAngular)).componentInstance as AgGridAngular<Row>;
+      const grid = fixture.debugElement.query(By.directive(AgGridAngular))
+        .componentInstance as AgGridAngular<Row>;
       const defs = grid.columnDefs as ColDef<Row>[];
 
       expect(defs[0].flex).toBe(1);
@@ -301,7 +340,8 @@ describe('NxDataGridComponent', () => {
 
     it('renders the table with autoHeight (the page of rows is never cut off)', () => {
       const fixture = create(() => page([]));
-      const grid = fixture.debugElement.query(By.directive(AgGridAngular)).componentInstance as AgGridAngular<Row>;
+      const grid = fixture.debugElement.query(By.directive(AgGridAngular))
+        .componentInstance as AgGridAngular<Row>;
 
       expect(grid.domLayout).toBe('autoHeight');
     });
@@ -312,10 +352,14 @@ describe('NxDataGridComponent', () => {
       const opened: Row[] = [];
       fixture.componentInstance.rowOpen.subscribe((row) => opened.push(row));
 
-      const cards = el(fixture).querySelectorAll<HTMLButtonElement>('[data-testid="nx-data-grid-cards"] button');
+      const cards = el(fixture).querySelectorAll<HTMLButtonElement>(
+        '[data-testid="nx-data-grid-cards"] button',
+      );
       expect(cards.length).toBe(2);
       expect(cards[0].querySelector('.nx-data-grid__card-title')?.textContent).toContain('LE-A');
-      expect(cards[0].querySelector('.nx-data-grid__card-subtitle')?.textContent).toContain('Alpha AG');
+      expect(cards[0].querySelector('.nx-data-grid__card-subtitle')?.textContent).toContain(
+        'Alpha AG',
+      );
       expect(cards[0].querySelector('.test-status')?.textContent).toBe('ON');
       expect(cards[1].querySelector('.test-status')?.textContent).toBe('OFF');
 
@@ -324,10 +368,14 @@ describe('NxDataGridComponent', () => {
     });
 
     it('lets the caller pick the card columns', async () => {
-      const fixture = create(() => page([ROW_A]), { cardFields: { title: 'name', subtitle: 'code', status: null } });
+      const fixture = create(() => page([ROW_A]), {
+        cardFields: { title: 'name', subtitle: 'code', status: null },
+      });
       await settle(fixture);
 
-      const card = el(fixture).querySelector('[data-testid="nx-data-grid-cards"] button') as HTMLElement;
+      const card = el(fixture).querySelector(
+        '[data-testid="nx-data-grid-cards"] button',
+      ) as HTMLElement;
       expect(card.querySelector('.nx-data-grid__card-title')?.textContent).toContain('Alpha AG');
       expect(card.querySelector('.nx-data-grid__card-subtitle')?.textContent).toContain('LE-A');
       expect(card.querySelector('.test-status')).toBeNull();
@@ -340,7 +388,12 @@ describe('NxDataGridComponent', () => {
   standalone: true,
   imports: [NxDataGridComponent],
   template: `
-    <nx-data-grid [columns]="columns" [fetch]="fetch" [filters]="{ q: 'x' }" (clearFilters)="cleared = cleared + 1">
+    <nx-data-grid
+      [columns]="columns"
+      [fetch]="fetch"
+      [filters]="{ q: 'x' }"
+      (clearFilters)="cleared = cleared + 1"
+    >
       <button nxEmptyAction type="button">New</button>
     </nx-data-grid>
   `,
@@ -356,7 +409,10 @@ describe('NxDataGridComponent «Clear filters»', () => {
     await TestBed.configureTestingModule({
       imports: [
         ClearFiltersHostComponent,
-        TranslocoTestingModule.forRoot({ langs: { en: EN }, translocoConfig: { availableLangs: ['en'], defaultLang: 'en' } }),
+        TranslocoTestingModule.forRoot({
+          langs: { en: EN },
+          translocoConfig: { availableLangs: ['en'], defaultLang: 'en' },
+        }),
       ],
     }).compileComponents();
     const fixture = TestBed.createComponent(ClearFiltersHostComponent);
@@ -364,7 +420,9 @@ describe('NxDataGridComponent «Clear filters»', () => {
     await fixture.whenStable();
     fixture.detectChanges();
 
-    const button = el(fixture).querySelector('[data-testid="nx-data-grid-clear-filters"]') as HTMLButtonElement;
+    const button = el(fixture).querySelector(
+      '[data-testid="nx-data-grid-clear-filters"]',
+    ) as HTMLButtonElement;
     expect(button.textContent).toContain('Clear filters');
     button.click();
     expect(fixture.componentInstance.cleared).toBe(1);
@@ -373,7 +431,8 @@ describe('NxDataGridComponent «Clear filters»', () => {
 
 describe('NxDataGridComponent i18n', () => {
   function gridOf(fixture: ComponentFixture<unknown>): AgGridAngular<Row> {
-    return fixture.debugElement.query(By.directive(AgGridAngular)).componentInstance as AgGridAngular<Row>;
+    return fixture.debugElement.query(By.directive(AgGridAngular))
+      .componentInstance as AgGridAngular<Row>;
   }
 
   it('re-creates the grid on language change with the new localeText, keeping sort and page without refetching', async () => {
@@ -390,7 +449,9 @@ describe('NxDataGridComponent i18n', () => {
       ],
     }).compileComponents();
 
-    const fetchSpy = vi.fn((pageIndex: number) => of<Page<Row>>({ items: [ROW_A, ROW_B], page: pageIndex, pageSize: 25, total: 60 }));
+    const fetchSpy = vi.fn((pageIndex: number) =>
+      of<Page<Row>>({ items: [ROW_A, ROW_B], page: pageIndex, pageSize: 25, total: 60 }),
+    );
     const fixture = TestBed.createComponent(NxDataGridComponent<Row>);
     fixture.componentRef.setInput('columns', columns);
     fixture.componentRef.setInput('fetch', fetchSpy);
@@ -402,9 +463,19 @@ describe('NxDataGridComponent i18n', () => {
 
     // The user sorts by name (desc) and goes to page 2.
     const firstApi = fixture.componentInstance.api!;
-    firstApi.applyColumnState({ state: [{ colId: 'name', sort: 'desc' }], defaultState: { sort: null } });
-    await vi.waitFor(() => expect(fetchSpy).toHaveBeenLastCalledWith(0, 25, { colId: 'name', direction: 'desc' }, {}));
-    fixture.componentInstance.onPage({ pageIndex: 1, pageSize: 25, length: 60, previousPageIndex: 0 });
+    firstApi.applyColumnState({
+      state: [{ colId: 'name', sort: 'desc' }],
+      defaultState: { sort: null },
+    });
+    await vi.waitFor(() =>
+      expect(fetchSpy).toHaveBeenLastCalledWith(0, 25, { colId: 'name', direction: 'desc' }, {}),
+    );
+    fixture.componentInstance.onPage({
+      pageIndex: 1,
+      pageSize: 25,
+      length: 60,
+      previousPageIndex: 0,
+    });
     await fixture.whenStable();
     fetchSpy.mockClear();
 
@@ -422,6 +493,62 @@ describe('NxDataGridComponent i18n', () => {
     expect(fetchSpy).not.toHaveBeenCalled();
     expect(fixture.debugElement.query(By.css('mat-paginator')).componentInstance.pageIndex).toBe(1);
   });
+
+  it('translates headerKey columns and re-translates them on language change', async () => {
+    await TestBed.configureTestingModule({
+      imports: [
+        NxDataGridComponent,
+        TranslocoTestingModule.forRoot({
+          langs: {
+            de: {
+              cols: { code: 'Code', name: 'Bezeichnung' },
+              shared: { grid: { loadingOoo: 'Lädt' } },
+            },
+            es: {
+              cols: { code: 'Código', name: 'Nombre' },
+              shared: { grid: { loadingOoo: 'Cargando' } },
+            },
+          },
+          translocoConfig: { availableLangs: ['de', 'es'], defaultLang: 'de' },
+        }),
+      ],
+    }).compileComponents();
+    const keyed: NxColDef<Row>[] = [
+      { field: 'code', headerKey: 'cols.code', sortable: true },
+      { field: 'name', headerKey: 'cols.name', sortable: true },
+    ];
+    const fixture = TestBed.createComponent(NxDataGridComponent<Row>);
+    fixture.componentRef.setInput('columns', keyed);
+    fixture.componentRef.setInput('fetch', () => page([ROW_A]));
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    const headers = () =>
+      (gridOf(fixture).columnDefs as ColDef<Row>[]).map((column) => column.headerName);
+    expect(headers()).toEqual(['Code', 'Bezeichnung']);
+    // headerKey is a NEXUS extension: it never reaches AG Grid.
+    expect(
+      (gridOf(fixture).columnDefs as Record<string, unknown>[])[0]['headerKey'],
+    ).toBeUndefined();
+    await vi.waitFor(() =>
+      expect(el(fixture).querySelector('.ag-header-cell-text')?.textContent).toBe('Code'),
+    );
+
+    TestBed.inject(TranslocoService).setActiveLang('es');
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    expect(headers()).toEqual(['Código', 'Nombre']);
+    await vi.waitFor(() =>
+      expect(
+        Array.from(el(fixture).querySelectorAll('.ag-header-cell-text')).map(
+          (cell) => cell.textContent,
+        ),
+      ).toEqual(['Código', 'Nombre']),
+    );
+  });
 });
 
 class DelayedLoader implements TranslocoLoader {
@@ -429,7 +556,10 @@ class DelayedLoader implements TranslocoLoader {
   getTranslation(): Observable<Translation> {
     return new Observable<Translation>((subscriber) => {
       const sub = DelayedLoader.release.subscribe(() => {
-        subscriber.next({ shared: { grid: { loadingOoo: 'Wird geladen …' } } });
+        subscriber.next({
+          shared: { grid: { loadingOoo: 'Wird geladen …' } },
+          cols: { code: 'Code', name: 'Bezeichnung' },
+        });
         subscriber.complete();
       });
       return () => sub.unsubscribe();
@@ -438,29 +568,50 @@ class DelayedLoader implements TranslocoLoader {
 }
 
 describe('NxDataGridComponent first load', () => {
-  it('gives AG Grid the translated localeText once the translation file arrives (no raw keys)', async () => {
+  it('mounts AG Grid only once the translation file arrives, with translated localeText and headers (no raw keys)', async () => {
     await TestBed.configureTestingModule({
       imports: [NxDataGridComponent],
       providers: [
         provideTransloco({
-          config: { availableLangs: ['de'], defaultLang: 'de', missingHandler: { logMissingKey: false } },
+          config: {
+            availableLangs: ['de'],
+            defaultLang: 'de',
+            missingHandler: { logMissingKey: false },
+          },
           loader: DelayedLoader,
         }),
       ],
     }).compileComponents();
 
+    const keyed: NxColDef<Row>[] = [
+      { field: 'code', headerKey: 'cols.code' },
+      { field: 'name', headerKey: 'cols.name' },
+    ];
     const fixture = TestBed.createComponent(NxDataGridComponent<Row>);
-    fixture.componentRef.setInput('columns', columns);
-    fixture.componentRef.setInput('fetch', () => new Subject<Page<Row>>());
+    fixture.componentRef.setInput('columns', keyed);
+    fixture.componentRef.setInput('fetch', () => page([ROW_A]));
     fixture.detectChanges();
-    const firstGrid = el(fixture).querySelector('ag-grid-angular');
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    // Before the file arrives: no grid (it would freeze raw keys into its localeText) and no
+    // raw key anywhere in the DOM.
+    expect(el(fixture).querySelector('ag-grid-angular')).toBeNull();
+    expect(el(fixture).textContent).not.toMatch(/shared\.|cols\./);
 
     DelayedLoader.release.next();
     await fixture.whenStable();
     fixture.detectChanges();
 
-    const grid = fixture.debugElement.query(By.directive(AgGridAngular)).componentInstance as AgGridAngular<Row>;
+    const grid = fixture.debugElement.query(By.directive(AgGridAngular))
+      .componentInstance as AgGridAngular<Row>;
     expect(grid.localeText?.['loadingOoo']).toBe('Wird geladen …');
-    expect(el(fixture).querySelector('ag-grid-angular')).not.toBe(firstGrid);
+    // A key missing from the file is left out (AG Grid's own text), never the raw key.
+    expect(grid.localeText?.['noRowsToShow']).toBeUndefined();
+    expect((grid.columnDefs as ColDef<Row>[]).map((column) => column.headerName)).toEqual([
+      'Code',
+      'Bezeichnung',
+    ]);
+    expect(el(fixture).textContent).not.toMatch(/shared\.|cols\./);
   });
 });

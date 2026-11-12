@@ -33,7 +33,13 @@ import {
 import { Subject, catchError, map, of, switchMap } from 'rxjs';
 import { NxEmptyStateComponent } from '../layout/nx-empty-state.component';
 import { NxDataGridFetchFn, NxSortModel, Page } from '../page.model';
-import { NxGridCellDirective, cellText, columnId, hasComponentRenderer, isMonoColumn } from './nx-grid-cell';
+import {
+  NxGridCellDirective,
+  cellText,
+  columnId,
+  hasComponentRenderer,
+  isMonoColumn,
+} from './nx-grid-cell';
 import { NxGridLocale } from './nx-grid-locale';
 
 // AG Grid Community requires modules to be registered explicitly (tree-shaking).
@@ -53,6 +59,14 @@ export const NX_GRID_MAX_VISIBLE_ROWS = 25;
 
 /** What the grid area shows. */
 export type NxDataGridState = 'loading' | 'error' | 'empty' | 'no-results' | 'rows';
+
+/**
+ * A column of `nx-data-grid`: an AG Grid `ColDef<T>` plus `headerKey`, the i18n key of its
+ * header. The grid translates it in the active language and re-translates it on every language
+ * switch, so pages can declare their columns once (no `translate()` at construction, no raw
+ * keys on first load). A column with `headerName` instead keeps that text as is.
+ */
+export type NxColDef<T> = ColDef<T> & { readonly headerKey?: string };
 
 /** Which columns the card view (< 600 px) uses; values are column ids (`colId` or `field`). */
 export interface NxDataGridCardFields {
@@ -129,8 +143,11 @@ const SKELETON_BAR_WIDTHS = [72, 54, 86, 62, 78, 48];
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class NxDataGridComponent<T> {
-  /** Column definitions, passed straight through to AG Grid's `ColDef<T>`. May change (e.g. on language switch). */
-  readonly columns = input.required<ColDef<T>[]>();
+  /**
+   * Column definitions (AG Grid `ColDef<T>` + `headerKey`, see {@link NxColDef}). May change at
+   * any time; prefer `headerKey` to a translated `headerName`.
+   */
+  readonly columns = input.required<NxColDef<T>[]>();
 
   /** Called on init and on every page/sort/filters change to load one page of rows. */
   readonly fetch = input.required<NxDataGridFetchFn<T>>();
@@ -180,13 +197,16 @@ export class NxDataGridComponent<T> {
   protected readonly defaultColDef: ColDef<T> = { minWidth: 120, suppressMovable: true };
 
   private readonly gridLocale = inject(NxGridLocale);
-  protected readonly localeText = this.gridLocale.localeText;
   /**
-   * Single-item list keyed by the `localeText` object. AG Grid reads `localeText` at init only,
-   * so the grid is re-created when the translations load (no raw keys on first load) and on
-   * every language switch. Sort and page live in this component and are re-applied.
+   * Zero or one item, keyed by the `localeText` object. AG Grid reads `localeText` at init only,
+   * so the grid is mounted only once the active language's file has loaded (no raw keys on first
+   * load) and re-created on every language switch. Sort and page live in this component and are
+   * re-applied to the new instance.
    */
-  protected readonly gridInstances = computed(() => [this.localeText()]);
+  protected readonly gridInstances = computed(() => {
+    const localeText = this.gridLocale.localeText();
+    return localeText ? [localeText] : [];
+  });
 
   protected readonly loading = signal(false);
   protected readonly failed = signal(false);
@@ -204,13 +224,21 @@ export class NxDataGridComponent<T> {
   private readonly reload$ = new Subject<void>();
   private gridApi: GridApi<T> | null = null;
 
-  /** Flexible columns fill the width: a column without its own `width`/`flex` gets `flex: 1`. */
+  /**
+   * Columns handed to AG Grid: `headerKey` translated into `headerName` (re-computed on every
+   * language switch), and flexible columns fill the width — a column without its own
+   * `width`/`flex` gets `flex: 1`.
+   */
   protected readonly gridColumns = computed<ColDef<T>[]>(() =>
-    this.columns().map((column) =>
-      column.flex !== undefined || column.width !== undefined || column.initialWidth !== undefined
-        ? column
-        : { ...column, flex: 1 },
-    ),
+    this.columns().map(({ headerKey, ...column }) => {
+      const def: ColDef<T> =
+        headerKey !== undefined
+          ? { ...column, headerName: this.gridLocale.text(headerKey) }
+          : column;
+      return def.flex !== undefined || def.width !== undefined || def.initialWidth !== undefined
+        ? def
+        : { ...def, flex: 1 };
+    }),
   );
 
   protected readonly filtersActive = computed(() => {
@@ -219,7 +247,11 @@ export class NxDataGridComponent<T> {
       return explicit;
     }
     return Object.values(this.filters()).some(
-      (value) => value !== undefined && value !== null && value !== '' && !(Array.isArray(value) && value.length === 0),
+      (value) =>
+        value !== undefined &&
+        value !== null &&
+        value !== '' &&
+        !(Array.isArray(value) && value.length === 0),
     );
   });
 
@@ -272,7 +304,9 @@ export class NxDataGridComponent<T> {
         ? byId(fields.status)
         : [...columns]
             .reverse()
-            .find((column) => hasComponentRenderer(column) && column !== title && column !== subtitle);
+            .find(
+              (column) => hasComponentRenderer(column) && column !== title && column !== subtitle,
+            );
     return { title, subtitle, status };
   });
 
@@ -299,11 +333,21 @@ export class NxDataGridComponent<T> {
       .pipe(
         switchMap(() => {
           this.loading.set(true);
-          return this.fetch()(this.pageIndex(), this.pageSizeState(), this.sort(), this.filters()).pipe(
+          return this.fetch()(
+            this.pageIndex(),
+            this.pageSizeState(),
+            this.sort(),
+            this.filters(),
+          ).pipe(
             map((page) => ({ page, failed: false })),
             catchError(() =>
               of({
-                page: { items: [], page: this.pageIndex(), pageSize: this.pageSizeState(), total: 0 } as Page<T>,
+                page: {
+                  items: [],
+                  page: this.pageIndex(),
+                  pageSize: this.pageSizeState(),
+                  total: 0,
+                } as Page<T>,
                 failed: true,
               }),
             ),
@@ -329,13 +373,18 @@ export class NxDataGridComponent<T> {
     // A re-created grid (language switch, translations loaded) gets the sort indicator back.
     const sort = this.sort();
     if (sort) {
-      event.api.applyColumnState({ state: [{ colId: sort.colId, sort: sort.direction }], defaultState: { sort: null } });
+      event.api.applyColumnState({
+        state: [{ colId: sort.colId, sort: sort.direction }],
+        defaultState: { sort: null },
+      });
     }
   }
 
   onSortChanged(event: SortChangedEvent<T>): void {
     const sorted = event.api.getColumnState().find((state) => state.sort);
-    const next: NxSortModel | null = sorted ? { colId: sorted.colId, direction: sorted.sort as 'asc' | 'desc' } : null;
+    const next: NxSortModel | null = sorted
+      ? { colId: sorted.colId, direction: sorted.sort as 'asc' | 'desc' }
+      : null;
     const current = this.sort();
     if (next?.colId === current?.colId && next?.direction === current?.direction) {
       return; // re-applied after a grid re-creation: nothing changed, no refetch
