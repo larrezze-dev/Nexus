@@ -351,14 +351,9 @@
       },
       "createSubtitle": "Un client, un fournisseur ou une autre entreprise ou personne avec qui le groupe travaille. Les champs marqués * sont obligatoires.",
       "actions": {
-        "new": "Nouveau partenaire",
-        "deactivate": "Désactiver",
         "create": "Créer le partenaire"
       },
       "detail": {
-        "newTitle": "Nouveau partenaire",
-        "editTitle": "Modifier le partenaire",
-        "loading": "Chargement…",
         "modified": "modifié le {{date}}"
       },
       "deactivateDialog": {
@@ -368,11 +363,7 @@
       "deactivated": "Partenaire désactivé",
       "saved": "Modifications enregistrées",
       "created": "Partenaire créé",
-      "readOnlyNotice": "Vous pouvez seulement consulter ce partenaire : vous n'avez pas le droit de le modifier.",
-      "partyType": {
-        "organization": "Organisation",
-        "person": "Personne"
-      }
+      "readOnlyNotice": "Vous pouvez seulement consulter ce partenaire : vous n'avez pas le droit de le modifier."
     },
     "legalEntities": {
       "title": "Entités juridiques",

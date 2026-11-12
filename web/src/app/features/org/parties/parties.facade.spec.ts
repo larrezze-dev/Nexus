@@ -104,4 +104,26 @@ describe('PartiesFacade', () => {
     const result = await deactivate;
     expect(result?.isActive).toBe(false);
   });
+
+  it('create() lets the HTTP error reach the caller (the page maps 400/422)', async () => {
+    const { facade, httpMock } = setup();
+
+    const create = facade.create({ partyType: 'ORGANIZATION', legalName: '' });
+    httpMock
+      .expectOne('/api/platform/v1/parties')
+      .flush({ status: 400, errors: { legalName: ['Required'] } }, { status: 400, statusText: 'Bad Request' });
+
+    await expect(create).rejects.toMatchObject({ status: 400 });
+  });
+
+  it('load() clears the record and sets error when the GET fails (retry state)', async () => {
+    const { facade, httpMock } = setup();
+
+    const load = facade.load(party.id);
+    httpMock.expectOne(`/api/platform/v1/parties/${party.id}`).flush(null, { status: 500, statusText: 'Server Error' });
+    await load;
+
+    expect(facade.selected()).toBeNull();
+    expect(facade.error()).toBeTruthy();
+  });
 });

@@ -25,6 +25,7 @@ import { NxSortModel, Page } from '../../../shared/ui/page.model';
 import { LegalEntityNameCellComponent } from '../legal-entities/legal-entity-name-cell.component';
 import { OrgActiveStatusCellComponent } from '../shared/org-active-status-cell.component';
 import { PartiesFacade, PartyFilters } from './parties.facade';
+import { partyScopeKey, partyTypeKey } from './party-labels';
 
 /** Party type filter: all, or one `partyType` value. */
 export type PartyTypeFilter = 'all' | PartyListItem['partyType'];
@@ -34,16 +35,6 @@ export type PartyScopeFilter = 'all' | 'internal' | 'external';
 
 /** Debounce of the search box before the list reloads. */
 export const PARTY_SEARCH_DEBOUNCE_MS = 300;
-
-/** i18n key of a party type («Organization», «Person»); never the API literal on screen. */
-export function partyTypeKey(type: PartyListItem['partyType'] | null | undefined): string {
-  return type === 'PERSON' ? 'org.parties.type.PERSON' : 'org.parties.type.ORGANIZATION';
-}
-
-/** i18n key of the scope of a party («Internal» / «External»); never `true`/`false` on screen. */
-export function partyScopeKey(isInternal: boolean | null | undefined): string {
-  return isInternal ? 'org.parties.scope.internal' : 'org.parties.scope.external';
-}
 
 /**
  * Parties directory list (`conventions-frontend.md §4.4`, list template): header with the

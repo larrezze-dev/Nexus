@@ -290,14 +290,9 @@
       },
       "createSubtitle": "Ein Kunde, Lieferant oder eine andere Firma oder Person, mit der die Gruppe zusammenarbeitet. Felder mit * sind Pflichtfelder.",
       "actions": {
-        "new": "Neuer Partner",
-        "deactivate": "Deaktivieren",
         "create": "Partner anlegen"
       },
       "detail": {
-        "newTitle": "Neuer Partner",
-        "editTitle": "Partner bearbeiten",
-        "loading": "Wird geladen…",
         "modified": "geändert am {{date}}"
       },
       "deactivateDialog": {
@@ -307,11 +302,7 @@
       "deactivated": "Partner deaktiviert",
       "saved": "Änderungen gespeichert",
       "created": "Partner angelegt",
-      "readOnlyNotice": "Sie können diesen Partner nur ansehen: Ihnen fehlt die Berechtigung zum Ändern.",
-      "partyType": {
-        "organization": "Organisation",
-        "person": "Person"
-      }
+      "readOnlyNotice": "Sie können diesen Partner nur ansehen: Ihnen fehlt die Berechtigung zum Ändern."
     },
     "tree": {
       "title": "Organisationsstruktur",

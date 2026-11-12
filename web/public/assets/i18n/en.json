@@ -351,14 +351,9 @@
       },
       "createSubtitle": "A customer, supplier or other company or person the group works with. Fields marked * are required.",
       "actions": {
-        "new": "New party",
-        "deactivate": "Deactivate",
         "create": "Create party"
       },
       "detail": {
-        "newTitle": "New party",
-        "editTitle": "Edit party",
-        "loading": "Loading…",
         "modified": "modified on {{date}}"
       },
       "deactivateDialog": {
@@ -368,11 +363,7 @@
       "deactivated": "Party deactivated",
       "saved": "Changes saved",
       "created": "Party created",
-      "readOnlyNotice": "You can only view this party: you are not allowed to change it.",
-      "partyType": {
-        "organization": "Organization",
-        "person": "Person"
-      }
+      "readOnlyNotice": "You can only view this party: you are not allowed to change it."
     },
     "legalEntities": {
       "title": "Legal entities",

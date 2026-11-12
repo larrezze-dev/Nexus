@@ -351,14 +351,9 @@
       },
       "createSubtitle": "Un cliente, proveedor u otra empresa o persona con la que trabaja el grupo. Los campos con * son obligatorios.",
       "actions": {
-        "new": "Nuevo tercero",
-        "deactivate": "Desactivar",
         "create": "Crear tercero"
       },
       "detail": {
-        "newTitle": "Nuevo tercero",
-        "editTitle": "Editar tercero",
-        "loading": "Cargando…",
         "modified": "modificado el {{date}}"
       },
       "deactivateDialog": {
@@ -368,11 +363,7 @@
       "deactivated": "Tercero desactivado",
       "saved": "Cambios guardados",
       "created": "Tercero creado",
-      "readOnlyNotice": "Solo puedes consultar este tercero: no tienes permiso para modificarlo.",
-      "partyType": {
-        "organization": "Organización",
-        "person": "Persona"
-      }
+      "readOnlyNotice": "Solo puedes consultar este tercero: no tienes permiso para modificarlo."
     },
     "legalEntities": {
       "title": "Entidades legales",

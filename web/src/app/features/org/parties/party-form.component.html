@@ -1,0 +1,121 @@
+@let isEdit = mode() === 'edit';
+<form class="nx-party-form" [formGroup]="form" (ngSubmit)="onSubmit()" novalidate>
+  @if (invalidCount() > 0) {
+    <div class="nx-alert nx-alert--error" role="alert" data-testid="party-form-invalid">
+      <mat-icon aria-hidden="true">error</mat-icon>
+      <span class="nx-alert__text">{{
+        invalidCount() === 1
+          ? ('shared.form.reviewFieldsOne' | transloco)
+          : ('shared.form.reviewFields' | transloco: { count: invalidCount() })
+      }}</span>
+    </div>
+  }
+
+  <nx-form-section [title]="'org.parties.sections.identification' | transloco">
+    <nx-form-grid>
+      <mat-form-field nxSpan="l" subscriptSizing="dynamic" [class.nx-field--locked]="isEdit">
+        <mat-label>{{ 'org.parties.fields.partyType' | transloco }}</mat-label>
+        <mat-select formControlName="partyType" data-testid="party-form-type" [required]="!isEdit">
+          <mat-select-trigger>{{ typeKey(form.controls.partyType.value) | transloco }}</mat-select-trigger>
+          @for (option of typeOptions; track option) {
+            <mat-option [value]="option">{{ typeKey(option) | transloco }}</mat-option>
+          }
+        </mat-select>
+        <!-- One element per @if: content projection only routes a block's single root to matSuffix/mat-hint. -->
+        @if (isEdit) {
+          <mat-icon matSuffix class="nx-party-form__lock" aria-hidden="true">lock</mat-icon>
+        }
+        @if (isEdit) {
+          <mat-hint>{{ 'org.parties.hints.lockedAfterCreate' | transloco }}</mat-hint>
+        } @else {
+          <mat-hint>{{ 'org.parties.hints.partyType' | transloco }}</mat-hint>
+        }
+        @for (message of errorsFor('partyType'); track message) {
+          <mat-error>{{ message }}</mat-error>
+        }
+      </mat-form-field>
+
+      <mat-form-field nxSpan="l" subscriptSizing="dynamic" [class.nx-field--locked]="isEdit">
+        <mat-label>{{ 'org.parties.fields.isInternal' | transloco }}</mat-label>
+        <mat-select formControlName="isInternal" data-testid="party-form-scope">
+          <mat-select-trigger>{{ scopeKey(form.controls.isInternal.value) | transloco }}</mat-select-trigger>
+          @for (option of scopeOptions; track option) {
+            <mat-option [value]="option">{{ scopeKey(option) | transloco }}</mat-option>
+          }
+        </mat-select>
+        <!-- One element per @if: content projection only routes a block's single root to matSuffix/mat-hint. -->
+        @if (isEdit) {
+          <mat-icon matSuffix class="nx-party-form__lock" aria-hidden="true">lock</mat-icon>
+        }
+        @if (isEdit) {
+          <mat-hint>{{ 'org.parties.hints.lockedAfterCreate' | transloco }}</mat-hint>
+        } @else {
+          <mat-hint>{{ 'org.parties.hints.isInternal' | transloco }}</mat-hint>
+        }
+        @for (message of errorsFor('isInternal'); track message) {
+          <mat-error>{{ message }}</mat-error>
+        }
+      </mat-form-field>
+
+      <mat-form-field nxSpan="l" subscriptSizing="dynamic">
+        <mat-label>{{ (isPerson() ? 'org.parties.fields.legalNamePerson' : 'org.parties.fields.legalName') | transloco }}</mat-label>
+        <input matInput formControlName="legalName" data-testid="party-form-legal-name" required autocomplete="off" />
+        <mat-hint>{{ (isPerson() ? 'org.parties.hints.legalNamePerson' : 'org.parties.hints.legalName') | transloco }}</mat-hint>
+        @if (form.controls.legalName.hasError('required')) {
+          <mat-error>{{ 'shared.form.required' | transloco }}</mat-error>
+        }
+        @for (message of errorsFor('legalName'); track message) {
+          <mat-error>{{ message }}</mat-error>
+        }
+      </mat-form-field>
+
+      <mat-form-field nxSpan="m" subscriptSizing="dynamic">
+        <mat-label>{{ 'org.parties.fields.displayName' | transloco }}</mat-label>
+        <input matInput formControlName="displayName" data-testid="party-form-display-name" autocomplete="off" />
+        <mat-hint>{{ 'org.parties.hints.displayName' | transloco }}</mat-hint>
+        @for (message of errorsFor('displayName'); track message) {
+          <mat-error>{{ message }}</mat-error>
+        }
+      </mat-form-field>
+    </nx-form-grid>
+  </nx-form-section>
+
+  <nx-form-section [title]="'org.parties.sections.taxErp' | transloco">
+    <nx-form-grid>
+      <mat-form-field nxSpan="l" subscriptSizing="dynamic">
+        <mat-label>{{ 'org.parties.fields.taxId' | transloco }}</mat-label>
+        <input matInput formControlName="taxId" data-testid="party-form-tax-id" autocomplete="off" />
+        <mat-hint>{{ 'org.parties.hints.taxId' | transloco }}</mat-hint>
+        @for (message of errorsFor('taxId'); track message) {
+          <mat-error>{{ message }}</mat-error>
+        }
+      </mat-form-field>
+
+      <mat-form-field nxSpan="m" subscriptSizing="dynamic">
+        <mat-label>{{ 'org.parties.fields.erpCompanyCode' | transloco }}</mat-label>
+        <input matInput class="nx-mono" formControlName="erpCompanyCode" data-testid="party-form-erp-code" autocomplete="off" />
+        <mat-hint>{{ 'org.parties.hints.erpCompanyCode' | transloco }}</mat-hint>
+        @for (message of errorsFor('erpCompanyCode'); track message) {
+          <mat-error>{{ message }}</mat-error>
+        }
+      </mat-form-field>
+    </nx-form-grid>
+  </nx-form-section>
+
+  <nx-action-bar>
+    <button mat-button type="button" data-testid="party-form-cancel" (click)="cancel.emit()">
+      {{ 'common.cancel' | transloco }}
+    </button>
+    <button
+      mat-flat-button
+      type="submit"
+      data-testid="party-form-submit"
+      [disabled]="saving() || readOnly() || (isEdit && form.pristine)"
+    >
+      @if (saving()) {
+        <mat-progress-spinner diameter="18" mode="indeterminate" aria-hidden="true" />
+      }
+      {{ (isEdit ? 'common.saveChanges' : 'org.parties.actions.create') | transloco }}
+    </button>
+  </nx-action-bar>
+</form>

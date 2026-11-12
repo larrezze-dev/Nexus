@@ -1,71 +1,80 @@
-<div class="nx-party-detail-page">
-  <h1>
-    @if (isNew()) {
-      {{ 'org.parties.detail.newTitle' | transloco }}
-    } @else {
-      {{ 'org.parties.detail.editTitle' | transloco }}
-    }
-  </h1>
-
-  @if (facade.loading()) {
-    <p>{{ 'org.parties.detail.loading' | transloco }}</p>
-  } @else {
-    @if (facade.error()) {
-      <p role="alert">{{ facade.error() }}</p>
-    }
-
-    <form [formGroup]="form" (ngSubmit)="save()">
-      <mat-form-field>
-        <mat-label>{{ 'org.parties.fields.partyType' | transloco }}</mat-label>
-        <mat-select formControlName="partyType" data-testid="party-type-select">
-          <mat-option value="ORGANIZATION">{{ 'org.parties.partyType.organization' | transloco }}</mat-option>
-          <mat-option value="PERSON">{{ 'org.parties.partyType.person' | transloco }}</mat-option>
-        </mat-select>
-      </mat-form-field>
-
-      <mat-form-field>
-        <mat-label>{{ 'org.parties.fields.legalName' | transloco }}</mat-label>
-        <input matInput formControlName="legalName" data-testid="party-legal-name-input" />
-      </mat-form-field>
-
-      <mat-form-field>
-        <mat-label>{{ 'org.parties.fields.displayName' | transloco }}</mat-label>
-        <input matInput formControlName="displayName" data-testid="party-display-name-input" />
-      </mat-form-field>
-
-      <mat-form-field>
-        <mat-label>{{ 'org.parties.fields.taxId' | transloco }}</mat-label>
-        <input matInput formControlName="taxId" data-testid="party-tax-id-input" />
-      </mat-form-field>
-
-      <mat-form-field>
-        <mat-label>{{ 'org.parties.fields.erpCompanyCode' | transloco }}</mat-label>
-        <input matInput formControlName="erpCompanyCode" data-testid="party-erp-company-code-input" />
-      </mat-form-field>
-
-      <mat-checkbox formControlName="isInternal" data-testid="party-is-internal-checkbox">
-        {{ 'org.parties.fields.isInternal' | transloco }}
-      </mat-checkbox>
-
-      <div class="nx-party-detail-page__actions">
-        <button mat-flat-button color="primary" type="submit" [disabled]="facade.saving()" data-testid="party-save-button">
-          {{ 'common.save' | transloco }}
-        </button>
-        <a mat-button routerLink="..">{{ 'common.cancel' | transloco }}</a>
-
-        @if (!isNew()) {
-          <button
-            mat-button
-            type="button"
-            color="warn"
-            *nxCan="'PARTY:DEACTIVATE'"
-            (click)="deactivate()"
-            data-testid="party-deactivate-button"
-          >
-            {{ 'org.parties.actions.deactivate' | transloco }}
-          </button>
-        }
+@if (mode() === 'create') {
+  <nx-page width="form">
+    <nx-page-header
+      [breadcrumb]="true"
+      [title]="'org.parties.newTitle' | transloco"
+      [subtitle]="'org.parties.createSubtitle' | transloco"
+    />
+    @if (saveError()) {
+      <div class="nx-alert nx-alert--error" role="alert" data-testid="party-detail-save-error">
+        <mat-icon aria-hidden="true">error</mat-icon>
+        <span class="nx-alert__text">{{ saveError() }}</span>
       </div>
-    </form>
-  }
-</div>
+    }
+    <nx-party-form
+      mode="create"
+      [saving]="saving()"
+      [fieldErrors]="fieldErrors()"
+      (save)="onSave($event)"
+      (cancel)="onCancel()"
+    />
+  </nx-page>
+} @else if (party(); as current) {
+  <nx-page width="form">
+    <nx-page-header [breadcrumb]="true" [title]="current.legalName" [subtitle]="subtitle()">
+      <nx-status-badge nxHeaderStatus [status]="current.isActive ? 'active' : 'inactive'" />
+      @if (current.isActive && canUpdate()) {
+        <button
+          nxHeaderActions
+          mat-stroked-button
+          type="button"
+          class="nx-btn--danger"
+          data-testid="party-detail-deactivate"
+          [disabled]="saving()"
+          (click)="onDeactivate()"
+        >
+          <mat-icon aria-hidden="true">block</mat-icon>
+          {{ 'org.parties.deactivate' | transloco }}
+        </button>
+      }
+    </nx-page-header>
+
+    @if (!canUpdate()) {
+      <div class="nx-alert nx-alert--info" role="status" data-testid="party-detail-read-only">
+        <mat-icon aria-hidden="true">visibility</mat-icon>
+        <span class="nx-alert__text">{{ 'org.parties.readOnlyNotice' | transloco }}</span>
+      </div>
+    }
+    @if (saveError()) {
+      <div class="nx-alert nx-alert--error" role="alert" data-testid="party-detail-save-error">
+        <mat-icon aria-hidden="true">error</mat-icon>
+        <span class="nx-alert__text">{{ saveError() }}</span>
+      </div>
+    }
+
+    <!-- One content area only: parties have no audit projection yet, so no General · Audit tabs. -->
+    <nx-party-form
+      mode="edit"
+      [initial]="current"
+      [saving]="saving()"
+      [readOnly]="!canUpdate()"
+      [fieldErrors]="fieldErrors()"
+      (save)="onSave($event)"
+      (cancel)="onCancel()"
+    />
+  </nx-page>
+} @else if (loadError()) {
+  <nx-page width="form">
+    <nx-page-header [breadcrumb]="true" [title]="'org.parties.title' | transloco" />
+    <nx-empty-state kind="error" class="nx-card" data-testid="party-detail-load-error">
+      <button mat-stroked-button type="button" (click)="load()">
+        <mat-icon aria-hidden="true">refresh</mat-icon>
+        {{ 'common.retry' | transloco }}
+      </button>
+    </nx-empty-state>
+  </nx-page>
+} @else {
+  <nx-page width="form">
+    <nx-page-header [breadcrumb]="true" [title]="'org.parties.loading' | transloco" />
+  </nx-page>
+}

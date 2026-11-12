@@ -24,6 +24,12 @@ export interface PartyFilters {
 /**
  * Facade for the Parties directory screens (`FE-R1`): the list/detail pages never call
  * `HttpClient` or the generated API functions directly, only this facade.
+ *
+ * Like `LegalEntitiesFacade`, `create()`/`update()`/`deactivate()` do NOT catch errors: the raw
+ * `HttpErrorResponse` reaches the detail page, which turns a 400 into per-field messages
+ * (`Problem.errors`) and a 422 into the translated business-rule message (`Problem.code`).
+ * `errorInterceptor` already handles 401/403/404 and the 409 concurrency dialog. `load()` keeps
+ * catching: a failed load shows the page's error state with «Retry».
  */
 @Injectable({ providedIn: 'root' })
 export class PartiesFacade {
@@ -32,12 +38,10 @@ export class PartiesFacade {
 
   private readonly selectedSignal = signal<Party | null>(null);
   private readonly loadingSignal = signal(false);
-  private readonly savingSignal = signal(false);
   private readonly errorSignal = signal<string | null>(null);
 
   readonly selected = this.selectedSignal.asReadonly();
   readonly loading = this.loadingSignal.asReadonly();
-  readonly saving = this.savingSignal.asReadonly();
   readonly error = this.errorSignal.asReadonly();
 
   private selectedETag: string | null = null;
@@ -74,6 +78,7 @@ export class PartiesFacade {
     this.errorSignal.set(null);
   }
 
+  /** Loads the party and its ETag; on failure `error` is set and `selected` cleared (retry state). */
   async load(id: string): Promise<void> {
     this.loadingSignal.set(true);
     this.errorSignal.set(null);
@@ -82,65 +87,43 @@ export class PartiesFacade {
       this.selectedSignal.set(response.body);
       this.selectedETag = response.headers.get('ETag');
     } catch (error: unknown) {
+      this.selectedSignal.set(null);
+      this.selectedETag = null;
       this.applyError(error);
     } finally {
       this.loadingSignal.set(false);
     }
   }
 
-  async create(request: CreatePartyRequest): Promise<Party | null> {
-    this.savingSignal.set(true);
-    this.errorSignal.set(null);
-    try {
-      const response = await this.api.invoke$Response(createParty, { body: request });
-      this.selectedSignal.set(response.body);
-      this.selectedETag = response.headers.get('ETag');
-      return response.body;
-    } catch (error: unknown) {
-      this.applyError(error);
-      return null;
-    } finally {
-      this.savingSignal.set(false);
-    }
+  /** Creates a party. Errors propagate (the page maps 400 to fields and 422 to a message). */
+  async create(request: CreatePartyRequest): Promise<Party> {
+    const response = await this.api.invoke$Response(createParty, { body: request });
+    this.selectedSignal.set(response.body);
+    this.selectedETag = response.headers.get('ETag');
+    return response.body;
   }
 
-  async update(id: string, request: UpdatePartyRequest): Promise<Party | null> {
-    this.savingSignal.set(true);
-    this.errorSignal.set(null);
-    try {
-      const response = await this.api.invoke$Response(updateParty, {
-        id,
-        'If-Match': this.selectedETag ?? undefined,
-        body: request,
-      });
-      this.selectedSignal.set(response.body);
-      this.selectedETag = response.headers.get('ETag');
-      return response.body;
-    } catch (error: unknown) {
-      this.applyError(error);
-      return null;
-    } finally {
-      this.savingSignal.set(false);
-    }
+  /** Saves a party with `If-Match` = the last known ETag. Errors propagate. */
+  async update(id: string, request: UpdatePartyRequest): Promise<Party> {
+    const response = await this.api.invoke$Response(updateParty, {
+      id,
+      'If-Match': this.selectedETag ?? undefined,
+      body: request,
+    });
+    this.selectedSignal.set(response.body);
+    this.selectedETag = response.headers.get('ETag');
+    return response.body;
   }
 
-  async deactivate(id: string): Promise<Party | null> {
-    this.savingSignal.set(true);
-    this.errorSignal.set(null);
-    try {
-      const response = await this.api.invoke$Response(deactivateParty, {
-        id,
-        'If-Match': this.selectedETag ?? undefined,
-      });
-      this.selectedSignal.set(response.body);
-      this.selectedETag = response.headers.get('ETag');
-      return response.body;
-    } catch (error: unknown) {
-      this.applyError(error);
-      return null;
-    } finally {
-      this.savingSignal.set(false);
-    }
+  /** Deactivates a party with `If-Match` = the last known ETag. Errors propagate. */
+  async deactivate(id: string): Promise<Party> {
+    const response = await this.api.invoke$Response(deactivateParty, {
+      id,
+      'If-Match': this.selectedETag ?? undefined,
+    });
+    this.selectedSignal.set(response.body);
+    this.selectedETag = response.headers.get('ETag');
+    return response.body;
   }
 
   private applyError(error: unknown): void {
