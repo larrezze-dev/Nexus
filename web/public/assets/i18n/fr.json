@@ -429,19 +429,48 @@
       "new": "Nouvelle unité d'affaires",
       "newTitle": "Nouvelle unité d'affaires",
       "loading": "Chargement…",
-      "empty": "Aucune unité d'affaires trouvée.",
+      "empty": "Aucune unité d'affaires pour l'instant",
       "deactivate": "Désactiver",
-      "confirmDeactivate": "Désactiver cette unité d'affaires ? Cette action est irréversible.",
       "fields": {
         "legalName": "Raison sociale",
-        "displayName": "Nom affiché",
+        "displayName": "Nom court",
         "legalEntityId": "Entité juridique",
-        "legalEntitySearch": "Rechercher une entité juridique…",
         "code": "Code",
-        "caption": "Libellé",
+        "caption": "Nom",
         "costCenterCode": "Centre de coûts",
         "isActive": "Statut"
-      }
+      },
+      "emptyHint": "Créez la première pour y rattacher des entrepôts et du personnel.",
+      "sections": {
+        "identification": "Identification",
+        "names": "Nom dans chaque langue",
+        "party": "Fiche partenaire"
+      },
+      "sectionHints": {
+        "names": "L'allemand est obligatoire. Si une langue manque, le nom allemand est affiché.",
+        "party": "L'unité d'affaires figure aussi comme partenaire interne sous ces noms."
+      },
+      "hints": {
+        "legalEntity": "Entité juridique à laquelle appartient l'unité.",
+        "costCenterCode": "Pour imputer les coûts en comptabilité.",
+        "displayName": "Pour les listes et les menus.",
+        "lockedAfterCreate": "Fixé à la création de l'unité d'affaires."
+      },
+      "createSubtitle": "Un domaine d'activité d'une entité juridique (p. ex. événements ou location) qui regroupe entrepôts et personnel. Les champs marqués * sont obligatoires.",
+      "actions": {
+        "create": "Créer l'unité d'affaires"
+      },
+      "detail": {
+        "modified": "modifiée le {{date}}"
+      },
+      "deactivateDialog": {
+        "title": "Désactiver l'unité d'affaires ?",
+        "message": "« {{name}} » ({{code}}) sera désactivée. Cette action est irréversible."
+      },
+      "deactivated": "Unité d'affaires désactivée",
+      "saved": "Modifications enregistrées",
+      "created": "Unité d'affaires créée",
+      "readOnlyNotice": "Vous pouvez seulement consulter cette unité d'affaires : vous n'avez pas le droit de la modifier."
     },
     "tree": {
       "title": "Arborescence de l'organisation",

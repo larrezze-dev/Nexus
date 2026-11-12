@@ -429,19 +429,48 @@
       "new": "Nueva unidad de negocio",
       "newTitle": "Nueva unidad de negocio",
       "loading": "Cargando…",
-      "empty": "No se encontraron unidades de negocio.",
+      "empty": "Todavía no hay unidades de negocio",
       "deactivate": "Desactivar",
-      "confirmDeactivate": "¿Desactivar esta unidad de negocio? Esta acción no se puede deshacer.",
       "fields": {
         "legalName": "Razón social",
-        "displayName": "Nombre visible",
+        "displayName": "Nombre corto",
         "legalEntityId": "Entidad legal",
-        "legalEntitySearch": "Buscar entidad legal…",
         "code": "Código",
-        "caption": "Etiqueta",
-        "costCenterCode": "Centro de costo",
+        "caption": "Nombre",
+        "costCenterCode": "Centro de coste",
         "isActive": "Estado"
-      }
+      },
+      "emptyHint": "Crea la primera para asignarle almacenes y personal.",
+      "sections": {
+        "identification": "Identificación",
+        "names": "Nombre en cada idioma",
+        "party": "Ficha de tercero"
+      },
+      "sectionHints": {
+        "names": "El alemán es obligatorio. Si falta un idioma, se muestra el nombre en alemán.",
+        "party": "La unidad de negocio figura también como tercero interno, con estos nombres."
+      },
+      "hints": {
+        "legalEntity": "Entidad legal a la que pertenece la unidad.",
+        "costCenterCode": "Para imputar costes en contabilidad.",
+        "displayName": "Para listas y menús.",
+        "lockedAfterCreate": "Se fija al crear la unidad de negocio."
+      },
+      "createSubtitle": "Un área de negocio de una entidad legal (p. ej. eventos o alquiler) que agrupa almacenes y personal. Los campos con * son obligatorios.",
+      "actions": {
+        "create": "Crear unidad de negocio"
+      },
+      "detail": {
+        "modified": "modificada el {{date}}"
+      },
+      "deactivateDialog": {
+        "title": "¿Desactivar la unidad de negocio?",
+        "message": "«{{name}}» ({{code}}) quedará desactivada. Esta acción no se puede deshacer."
+      },
+      "deactivated": "Unidad de negocio desactivada",
+      "saved": "Cambios guardados",
+      "created": "Unidad de negocio creada",
+      "readOnlyNotice": "Solo puedes consultar esta unidad de negocio: no tienes permiso para modificarla."
     },
     "tree": {
       "title": "Árbol de la organización",

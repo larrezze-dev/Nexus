@@ -429,19 +429,48 @@
       "new": "New business unit",
       "newTitle": "New business unit",
       "loading": "Loading…",
-      "empty": "No business units found.",
+      "empty": "No business units yet",
       "deactivate": "Deactivate",
-      "confirmDeactivate": "Deactivate this business unit? This cannot be undone.",
       "fields": {
         "legalName": "Legal name",
-        "displayName": "Display name",
+        "displayName": "Short name",
         "legalEntityId": "Legal entity",
-        "legalEntitySearch": "Search legal entity…",
         "code": "Code",
-        "caption": "Caption",
+        "caption": "Name",
         "costCenterCode": "Cost center",
         "isActive": "Status"
-      }
+      },
+      "emptyHint": "Create the first one to assign warehouses and staff to it.",
+      "sections": {
+        "identification": "Identification",
+        "names": "Name in each language",
+        "party": "Party record"
+      },
+      "sectionHints": {
+        "names": "German is required. If a language is missing, the German name is shown.",
+        "party": "The business unit is also listed as an internal party under these names."
+      },
+      "hints": {
+        "legalEntity": "Legal entity the unit belongs to.",
+        "costCenterCode": "For allocating costs in accounting.",
+        "displayName": "For lists and menus.",
+        "lockedAfterCreate": "Set when the business unit is created."
+      },
+      "createSubtitle": "A line of business of a legal entity (e.g. events or rental) that groups warehouses and staff. Fields marked * are required.",
+      "actions": {
+        "create": "Create business unit"
+      },
+      "detail": {
+        "modified": "modified on {{date}}"
+      },
+      "deactivateDialog": {
+        "title": "Deactivate the business unit?",
+        "message": "“{{name}}” ({{code}}) will be deactivated. This cannot be undone."
+      },
+      "deactivated": "Business unit deactivated",
+      "saved": "Changes saved",
+      "created": "Business unit created",
+      "readOnlyNotice": "You can only view this business unit: you are not allowed to change it."
     },
     "tree": {
       "title": "Organization tree",

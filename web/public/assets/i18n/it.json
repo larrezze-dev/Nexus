@@ -429,19 +429,48 @@
       "new": "Nuova unità di business",
       "newTitle": "Nuova unità di business",
       "loading": "Caricamento…",
-      "empty": "Nessuna unità di business trovata.",
+      "empty": "Ancora nessuna unità di business",
       "deactivate": "Disattiva",
-      "confirmDeactivate": "Disattivare questa unità di business? L'operazione non può essere annullata.",
       "fields": {
         "legalName": "Ragione sociale",
-        "displayName": "Nome visualizzato",
+        "displayName": "Nome breve",
         "legalEntityId": "Entità legale",
-        "legalEntitySearch": "Cerca entità legale…",
         "code": "Codice",
-        "caption": "Etichetta",
+        "caption": "Nome",
         "costCenterCode": "Centro di costo",
         "isActive": "Stato"
-      }
+      },
+      "emptyHint": "Crea la prima per assegnarle magazzini e personale.",
+      "sections": {
+        "identification": "Identificazione",
+        "names": "Nome in ogni lingua",
+        "party": "Scheda partner"
+      },
+      "sectionHints": {
+        "names": "Il tedesco è obbligatorio. Se manca una lingua, viene mostrato il nome tedesco.",
+        "party": "L'unità di business figura anche come partner interno con questi nomi."
+      },
+      "hints": {
+        "legalEntity": "Entità legale a cui appartiene l'unità.",
+        "costCenterCode": "Per imputare i costi in contabilità.",
+        "displayName": "Per elenchi e menu.",
+        "lockedAfterCreate": "Fissato alla creazione dell'unità di business."
+      },
+      "createSubtitle": "Un'area di business di un'entità legale (ad es. eventi o noleggio) che raggruppa magazzini e personale. I campi con * sono obbligatori.",
+      "actions": {
+        "create": "Crea unità di business"
+      },
+      "detail": {
+        "modified": "modificata il {{date}}"
+      },
+      "deactivateDialog": {
+        "title": "Disattivare l'unità di business?",
+        "message": "«{{name}}» ({{code}}) verrà disattivata. L'operazione non può essere annullata."
+      },
+      "deactivated": "Unità di business disattivata",
+      "saved": "Modifiche salvate",
+      "created": "Unità di business creata",
+      "readOnlyNotice": "Puoi solo consultare questa unità di business: non hai l'autorizzazione per modificarla."
     },
     "tree": {
       "title": "Struttura organizzativa",

@@ -137,19 +137,48 @@
       "new": "Neuer Geschäftsbereich",
       "newTitle": "Neuer Geschäftsbereich",
       "loading": "Wird geladen…",
-      "empty": "Keine Geschäftsbereiche gefunden.",
+      "empty": "Noch keine Geschäftsbereiche",
       "deactivate": "Deaktivieren",
-      "confirmDeactivate": "Diesen Geschäftsbereich deaktivieren? Dies kann nicht widerrufen werden.",
       "fields": {
         "legalName": "Rechtsname",
-        "displayName": "Anzeigename",
+        "displayName": "Kurzname",
         "legalEntityId": "Gesellschaft",
-        "legalEntitySearch": "Gesellschaft suchen…",
         "code": "Code",
         "caption": "Bezeichnung",
         "costCenterCode": "Kostenstelle",
         "isActive": "Status"
-      }
+      },
+      "emptyHint": "Legen Sie den ersten Geschäftsbereich an, um ihm Lager und Personal zuzuordnen.",
+      "sections": {
+        "identification": "Identifikation",
+        "names": "Bezeichnung in jeder Sprache",
+        "party": "Partnerdaten"
+      },
+      "sectionHints": {
+        "names": "Deutsch ist Pflicht. Fehlt eine Sprache, wird die deutsche Bezeichnung angezeigt.",
+        "party": "Der Geschäftsbereich ist auch als interner Partner mit diesen Namen erfasst."
+      },
+      "hints": {
+        "legalEntity": "Gesellschaft, zu der der Geschäftsbereich gehört.",
+        "costCenterCode": "Für die Kostenzuordnung in der Buchhaltung.",
+        "displayName": "Für Listen und Menüs.",
+        "lockedAfterCreate": "Wird beim Anlegen des Geschäftsbereichs festgelegt."
+      },
+      "createSubtitle": "Ein Geschäftsbereich einer Gesellschaft (z. B. Events oder Vermietung), der Lager und Personal zusammenfasst. Felder mit * sind Pflichtfelder.",
+      "actions": {
+        "create": "Geschäftsbereich anlegen"
+      },
+      "detail": {
+        "modified": "geändert am {{date}}"
+      },
+      "deactivateDialog": {
+        "title": "Geschäftsbereich deaktivieren?",
+        "message": "«{{name}}» ({{code}}) wird deaktiviert. Dies kann nicht rückgängig gemacht werden."
+      },
+      "deactivated": "Geschäftsbereich deaktiviert",
+      "saved": "Änderungen gespeichert",
+      "created": "Geschäftsbereich angelegt",
+      "readOnlyNotice": "Sie können diesen Geschäftsbereich nur ansehen: Ihnen fehlt die Berechtigung zum Ändern."
     },
     "users": {
       "title": "Benutzer",

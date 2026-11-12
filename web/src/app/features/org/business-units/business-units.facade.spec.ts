@@ -4,6 +4,7 @@ import { TestBed } from '@angular/core/testing';
 import { firstValueFrom } from 'rxjs';
 import { BusinessUnit } from '../../../api/platform/models/business-unit';
 import { BusinessUnitListItem } from '../../../api/platform/models/business-unit-list-item';
+import { Party } from '../../../api/platform/models/party';
 import { BusinessUnitsFacade } from './business-units.facade';
 
 const businessUnit: BusinessUnit = {
@@ -26,6 +27,39 @@ const listItem: BusinessUnitListItem = {
   isActive: true,
 };
 
+const party: Party = {
+  id: businessUnit.partyId,
+  partyType: 'ORGANIZATION',
+  legalName: 'SAPE smart bud Rental',
+  displayName: 'SSB Rental',
+  taxId: null,
+  erpCompanyCode: null,
+  isInternal: true,
+  isActive: true,
+  createdAt: businessUnit.createdAt,
+  updatedAt: businessUnit.updatedAt,
+};
+
+const legalEntityItem = {
+  id: businessUnit.legalEntityId,
+  groupId: '018f1a3c-7e3b-7c5a-9c2e-6a2f8e9b0c30',
+  code: 'LE-SSB',
+  legalName: 'SAPE smart bud AG',
+  displayName: null,
+  currencyCode: 'CHF',
+  countryCode: 'CH',
+  isActive: true,
+};
+
+/** Answers the GET of `load()` and then the GET of its party (sent once the unit arrived). */
+async function flushLoad(httpMock: HttpTestingController, etag: string): Promise<void> {
+  httpMock
+    .expectOne(`/api/platform/v1/business-units/${businessUnit.id}`)
+    .flush(businessUnit, { headers: { ETag: etag } });
+  await new Promise((resolve) => setTimeout(resolve));
+  httpMock.expectOne(`/api/platform/v1/parties/${businessUnit.partyId}`).flush(party);
+}
+
 describe('BusinessUnitsFacade', () => {
   function setup() {
     TestBed.configureTestingModule({
@@ -41,28 +75,53 @@ describe('BusinessUnitsFacade', () => {
     TestBed.inject(HttpTestingController).verify();
   });
 
-  it('list() converts the 0-based grid page to the 1-based API page and back', async () => {
+  it('list() converts the 0-based grid page to the 1-based API page and adds each legal entity', async () => {
+    const { facade, httpMock } = setup();
+
+    const result = firstValueFrom(facade.list(1, 25, { colId: 'isActive', direction: 'desc' }));
+    const req = httpMock.expectOne(
+      (r) => r.url === '/api/platform/v1/business-units' && r.params.get('page') === '2',
+    );
+    expect(req.request.params.get('sort')).toBe('-isActive');
+    req.flush({ items: [listItem, { ...listItem, id: 'other', legalEntityId: 'unknown' }], page: 2, pageSize: 25, total: 27 });
+    await new Promise((resolve) => setTimeout(resolve));
+    httpMock
+      .expectOne((r) => r.url === '/api/platform/v1/legal-entities')
+      .flush({ items: [legalEntityItem], page: 1, pageSize: 200, total: 1 });
+
+    expect(await result).toEqual({
+      items: [
+        { ...listItem, legalEntity: { id: legalEntityItem.id, code: 'LE-SSB', legalName: 'SAPE smart bud AG', isActive: true } },
+        { ...listItem, id: 'other', legalEntityId: 'unknown', legalEntity: null },
+      ],
+      page: 1,
+      pageSize: 25,
+      total: 27,
+    });
+  });
+
+  it('list() still returns the rows when the legal entities cannot be read', async () => {
     const { facade, httpMock } = setup();
 
     const result = firstValueFrom(facade.list(0, 25, null));
-    const req = httpMock.expectOne(
-      (r) => r.url === '/api/platform/v1/business-units' && r.params.get('page') === '1',
-    );
-    req.flush({ items: [listItem], page: 1, pageSize: 25, total: 1 });
+    httpMock.expectOne((r) => r.url === '/api/platform/v1/business-units').flush({ items: [listItem], page: 1, pageSize: 25, total: 1 });
+    await new Promise((resolve) => setTimeout(resolve));
+    httpMock
+      .expectOne((r) => r.url === '/api/platform/v1/legal-entities')
+      .flush(null, { status: 403, statusText: 'Forbidden' });
 
-    expect(await result).toEqual({ items: [listItem], page: 0, pageSize: 25, total: 1 });
+    expect((await result).items).toEqual([{ ...listItem, legalEntity: null }]);
   });
 
-  it('load() stores the entity and the response ETag', async () => {
+  it('load() stores the unit, the response ETag and its party', async () => {
     const { facade, httpMock } = setup();
 
     const load = facade.load(businessUnit.id);
-    httpMock
-      .expectOne(`/api/platform/v1/business-units/${businessUnit.id}`)
-      .flush(businessUnit, { headers: { ETag: '"1"' } });
+    await flushLoad(httpMock, '"1"');
     await load;
 
     expect(facade.selected()).toEqual(businessUnit);
+    expect(facade.party()).toEqual(party);
   });
 
   it('create() posts the request and stores the created entity', async () => {
@@ -86,9 +145,7 @@ describe('BusinessUnitsFacade', () => {
     const { facade, httpMock } = setup();
 
     const load = facade.load(businessUnit.id);
-    httpMock
-      .expectOne(`/api/platform/v1/business-units/${businessUnit.id}`)
-      .flush(businessUnit, { headers: { ETag: '"7"' } });
+    await flushLoad(httpMock, '"7"');
     await load;
 
     const update = facade.update(businessUnit.id, {
@@ -107,9 +164,7 @@ describe('BusinessUnitsFacade', () => {
     const { facade, httpMock } = setup();
 
     const load = facade.load(businessUnit.id);
-    httpMock
-      .expectOne(`/api/platform/v1/business-units/${businessUnit.id}`)
-      .flush(businessUnit, { headers: { ETag: '"1"' } });
+    await flushLoad(httpMock, '"1"');
     await load;
 
     const deactivate = facade.deactivate(businessUnit.id);
