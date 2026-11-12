@@ -327,7 +327,7 @@
       "new": "Nuova entità legale",
       "newTitle": "Nuova entità legale",
       "loading": "Caricamento…",
-      "empty": "Nessuna entità legale trovata.",
+      "empty": "Ancora nessuna entità legale",
       "deactivate": "Disattiva",
       "confirmDeactivate": "Disattivare questa entità legale? L'operazione non può essere annullata.",
       "fields": {
@@ -338,7 +338,16 @@
         "currencyCode": "Valuta",
         "countryCode": "Paese",
         "isActive": "Stato"
-      }
+      },
+      "filters": {
+        "q": "Cerca codice o nome",
+        "status": "Stato",
+        "statusAll": "Tutte",
+        "statusActive": "Attive",
+        "statusInactive": "Inattive"
+      },
+      "emptyHint": "Crea la prima per assegnarle magazzini e personale.",
+      "noResults": "Nessuna entità legale corrisponde ai filtri"
     },
     "businessUnits": {
       "title": "Unità di business",

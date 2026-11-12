@@ -28,6 +28,28 @@ const listItem: LegalEntityListItem = {
   isActive: true,
 };
 
+const party = {
+  id: legalEntity.partyId,
+  partyType: 'ORGANIZATION',
+  legalName: 'SAPE smart bud AG',
+  displayName: 'SSB Schweiz',
+  taxId: null,
+  erpCompanyCode: null,
+  isInternal: true,
+  isActive: true,
+  createdAt: '2026-10-18T16:20:00Z',
+  updatedAt: '2026-10-18T16:20:00Z',
+};
+
+/** Answers the GET of `load()` and then the GET of its party (sent once the entity arrived). */
+async function flushLoad(httpMock: HttpTestingController, etag: string): Promise<void> {
+  httpMock
+    .expectOne(`/api/platform/v1/legal-entities/${legalEntity.id}`)
+    .flush(legalEntity, { headers: { ETag: etag } });
+  await new Promise((resolve) => setTimeout(resolve));
+  httpMock.expectOne(`/api/platform/v1/parties/${legalEntity.partyId}`).flush(party);
+}
+
 describe('LegalEntitiesFacade', () => {
   function setup() {
     TestBed.configureTestingModule({
@@ -58,6 +80,41 @@ describe('LegalEntitiesFacade', () => {
     expect(page).toEqual({ items: [listItem], page: 2, pageSize: 25, total: 1 });
   });
 
+  it('list() sends the search text and the status filter', async () => {
+    const { facade, httpMock } = setup();
+
+    const result = firstValueFrom(facade.list(0, 25, null, { q: '  sape ', isActive: false }));
+    const req = httpMock.expectOne((r) => r.url === '/api/platform/v1/legal-entities');
+    expect(req.request.params.get('q')).toBe('sape');
+    expect(req.request.params.get('isActive')).toBe('false');
+    req.flush({ items: [], page: 1, pageSize: 25, total: 0 });
+    await result;
+  });
+
+  it('list() leaves out an empty search and an unset status', async () => {
+    const { facade, httpMock } = setup();
+
+    const result = firstValueFrom(facade.list(0, 25, null, { q: '  ' }));
+    const req = httpMock.expectOne((r) => r.url === '/api/platform/v1/legal-entities');
+    expect(req.request.params.has('q')).toBe(false);
+    expect(req.request.params.has('isActive')).toBe(false);
+    req.flush({ items: [], page: 1, pageSize: 25, total: 0 });
+    await result;
+  });
+
+  it('groupOptions() lists the groups with the legal name of their party', async () => {
+    const { facade, httpMock } = setup();
+
+    const result = facade.groupOptions();
+    httpMock
+      .expectOne((r) => r.url === '/api/platform/v1/groups')
+      .flush({ items: [{ id: 'g1', code: 'SAPE', partyId: legalEntity.partyId, reportingCurrencyCode: 'CHF' }], page: 1, pageSize: 200, total: 1 });
+    await new Promise((resolve) => setTimeout(resolve));
+    httpMock.expectOne(`/api/platform/v1/parties/${legalEntity.partyId}`).flush(party);
+
+    expect(await result).toEqual([{ id: 'g1', code: 'SAPE', name: 'SAPE smart bud AG' }]);
+  });
+
   it('search() filters the fetched page by a case-insensitive code substring', async () => {
     const { facade, httpMock } = setup();
 
@@ -77,12 +134,11 @@ describe('LegalEntitiesFacade', () => {
     const { facade, httpMock } = setup();
 
     const load = facade.load(legalEntity.id);
-    httpMock
-      .expectOne(`/api/platform/v1/legal-entities/${legalEntity.id}`)
-      .flush(legalEntity, { headers: { ETag: '"1"' } });
+    await flushLoad(httpMock, '"1"');
     await load;
 
     expect(facade.selected()).toEqual(legalEntity);
+    expect(facade.party()?.legalName).toBe('SAPE smart bud AG');
     expect(facade.loading()).toBe(false);
     expect(facade.error()).toBeNull();
   });
@@ -122,9 +178,7 @@ describe('LegalEntitiesFacade', () => {
     const { facade, httpMock } = setup();
 
     const load = facade.load(legalEntity.id);
-    httpMock
-      .expectOne(`/api/platform/v1/legal-entities/${legalEntity.id}`)
-      .flush(legalEntity, { headers: { ETag: '"7"' } });
+    await flushLoad(httpMock, '"7"');
     await load;
 
     const update = facade.update(legalEntity.id, {
@@ -145,9 +199,7 @@ describe('LegalEntitiesFacade', () => {
     const { facade, httpMock } = setup();
 
     const load = facade.load(legalEntity.id);
-    httpMock
-      .expectOne(`/api/platform/v1/legal-entities/${legalEntity.id}`)
-      .flush(legalEntity, { headers: { ETag: '"1"' } });
+    await flushLoad(httpMock, '"1"');
     await load;
 
     const deactivate = facade.deactivate(legalEntity.id);
@@ -164,9 +216,7 @@ describe('LegalEntitiesFacade', () => {
     const { facade, httpMock } = setup();
 
     const load = facade.load(legalEntity.id);
-    httpMock
-      .expectOne(`/api/platform/v1/legal-entities/${legalEntity.id}`)
-      .flush(legalEntity, { headers: { ETag: '"1"' } });
+    await flushLoad(httpMock, '"1"');
     await load;
 
     facade.reset();

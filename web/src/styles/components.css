@@ -131,3 +131,34 @@
   font-family: var(--nx-font-mono);
   font-size: var(--nx-text-mono-size);
 }
+
+/*
+ * «New X» on list pages (`nx-ui-page-templates`, Móvil): the header button (`.nx-create--header`)
+ * becomes an extended FAB (`<a mat-fab extended class="nx-create--fab">`) fixed at the bottom
+ * right below 600 px. The page keeps room under its last row so the FAB never hides it.
+ */
+.nx-page .nx-create--fab {
+  display: none;
+}
+
+@media (max-width: 599.98px) {
+  /* Scoped to .nx-page to win over Material's own `display` on buttons. */
+  .nx-page .nx-create--header {
+    display: none;
+  }
+
+  .nx-page .nx-create--fab {
+    --mat-fab-container-color: var(--nx-color-primary);
+    --mat-fab-foreground-color: var(--nx-color-on-primary);
+    --mat-fab-state-layer-color: var(--nx-color-on-primary);
+    display: inline-flex;
+    position: fixed;
+    right: var(--nx-space-4);
+    bottom: var(--nx-space-4);
+    z-index: 4;
+  }
+
+  .nx-page:has(.nx-create--fab) {
+    padding-bottom: calc(2 * var(--nx-space-6) + var(--nx-space-5)); /* FAB 56 + margin */
+  }
+}

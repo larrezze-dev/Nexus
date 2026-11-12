@@ -6,7 +6,7 @@ Todo el aspecto de la interfaz se adapta editando solo CSS. Los valores vienen d
 |---|---|
 | `tokens.css` | **Fuente única de los valores**: tokens semánticos NEXUS (`--nx-*`) de color, estados, tipos de evento, diff, radios, espaciado, tipografía y layout. |
 | `theme.scss` | Tema Angular Material M3: paleta generadora (primary/tertiary), tipografía, densidad y la redirección de los tokens de sistema `--mat-sys-*` hacia los `--nx-*`. |
-| `components.css` | Clases genéricas (`.nx-header-bar`, `.nx-card`, `.nx-empty-state`, `.nx-alert`, `.nx-chip-outline`, `.nx-mono`) que solo usan tokens. |
+| `components.css` | Clases genéricas (`.nx-header-bar`, `.nx-card`, `.nx-empty-state`, `.nx-alert`, `.nx-chip-outline`, `.nx-mono`, `.nx-create--header`/`.nx-create--fab` —botón «Nuevo» que pasa a FAB extendido < 600 px—) que solo usan tokens. |
 | `../styles.scss` | Carga las fuentes, importa el tema y fija la base del documento (fondo, texto, `h1`/`h2`). |
 
 Orden de carga (`angular.json` → `styles`): `styles.scss`, `tokens.css`, `components.css`.

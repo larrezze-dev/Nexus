@@ -327,7 +327,7 @@
       "new": "New legal entity",
       "newTitle": "New legal entity",
       "loading": "Loading…",
-      "empty": "No legal entities found.",
+      "empty": "No legal entities yet",
       "deactivate": "Deactivate",
       "confirmDeactivate": "Deactivate this legal entity? This cannot be undone.",
       "fields": {
@@ -338,7 +338,16 @@
         "currencyCode": "Currency",
         "countryCode": "Country",
         "isActive": "Status"
-      }
+      },
+      "filters": {
+        "q": "Search code or name",
+        "status": "Status",
+        "statusAll": "All",
+        "statusActive": "Active",
+        "statusInactive": "Inactive"
+      },
+      "emptyHint": "Create the first one to assign warehouses and staff to it.",
+      "noResults": "No legal entity matches the filters"
     },
     "businessUnits": {
       "title": "Business units",

@@ -327,7 +327,7 @@
       "new": "Nueva entidad legal",
       "newTitle": "Nueva entidad legal",
       "loading": "Cargando…",
-      "empty": "No se encontraron entidades legales.",
+      "empty": "Todavía no hay entidades legales",
       "deactivate": "Desactivar",
       "confirmDeactivate": "¿Desactivar esta entidad legal? Esta acción no se puede deshacer.",
       "fields": {
@@ -338,7 +338,16 @@
         "currencyCode": "Moneda",
         "countryCode": "País",
         "isActive": "Estado"
-      }
+      },
+      "filters": {
+        "q": "Buscar por código o nombre",
+        "status": "Estado",
+        "statusAll": "Todas",
+        "statusActive": "Activas",
+        "statusInactive": "Inactivas"
+      },
+      "emptyHint": "Crea la primera para asignarle almacenes y personal.",
+      "noResults": "Ninguna entidad legal coincide con los filtros"
     },
     "businessUnits": {
       "title": "Unidades de negocio",

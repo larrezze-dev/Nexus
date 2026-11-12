@@ -327,7 +327,7 @@
       "new": "Nouvelle entité juridique",
       "newTitle": "Nouvelle entité juridique",
       "loading": "Chargement…",
-      "empty": "Aucune entité juridique trouvée.",
+      "empty": "Aucune entité juridique pour l'instant",
       "deactivate": "Désactiver",
       "confirmDeactivate": "Désactiver cette entité juridique ? Cette action est irréversible.",
       "fields": {
@@ -338,7 +338,16 @@
         "currencyCode": "Devise",
         "countryCode": "Pays",
         "isActive": "Statut"
-      }
+      },
+      "filters": {
+        "q": "Rechercher code ou nom",
+        "status": "Statut",
+        "statusAll": "Toutes",
+        "statusActive": "Actives",
+        "statusInactive": "Inactives"
+      },
+      "emptyHint": "Créez la première pour y rattacher des entrepôts et du personnel.",
+      "noResults": "Aucune entité juridique ne correspond aux filtres"
     },
     "businessUnits": {
       "title": "Unités d'affaires",

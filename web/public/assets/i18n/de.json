@@ -85,7 +85,7 @@
       "new": "Neue Gesellschaft",
       "newTitle": "Neue Gesellschaft",
       "loading": "Wird geladen…",
-      "empty": "Keine Gesellschaften gefunden.",
+      "empty": "Noch keine Gesellschaften",
       "deactivate": "Deaktivieren",
       "confirmDeactivate": "Diese Gesellschaft deaktivieren? Dies kann nicht widerrufen werden.",
       "fields": {
@@ -96,7 +96,16 @@
         "currencyCode": "Währung",
         "countryCode": "Land",
         "isActive": "Status"
-      }
+      },
+      "filters": {
+        "q": "Code oder Name suchen",
+        "status": "Status",
+        "statusAll": "Alle",
+        "statusActive": "Aktive",
+        "statusInactive": "Inaktive"
+      },
+      "emptyHint": "Legen Sie die erste Gesellschaft an, um ihr Lager und Personal zuzuordnen.",
+      "noResults": "Keine Gesellschaft entspricht den Filtern"
     },
     "businessUnits": {
       "title": "Geschäftsbereiche",
