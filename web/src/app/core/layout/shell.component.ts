@@ -1,67 +1,120 @@
-import { NgTemplateOutlet } from '@angular/common';
-import { Component, Input, TemplateRef, inject, signal } from '@angular/core';
+import { BreakpointObserver } from '@angular/cdk/layout';
+import { Component, DestroyRef, computed, inject, signal } from '@angular/core';
+import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
 import { MatButtonModule } from '@angular/material/button';
-import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
-import { MatInputModule } from '@angular/material/input';
 import { MatListModule } from '@angular/material/list';
-import { MatMenuModule } from '@angular/material/menu';
 import { MatSidenavModule } from '@angular/material/sidenav';
-import { MatToolbarModule } from '@angular/material/toolbar';
-import { RouterLink, RouterOutlet } from '@angular/router';
+import { NavigationEnd, Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { TranslocoPipe } from '@jsverse/transloco';
+import { filter, map } from 'rxjs';
 import { NxCanDirective } from '../../shared/auth/can.directive';
-import { BreadcrumbComponent } from './breadcrumb.component';
+import { LanguageMenuComponent } from './language-menu.component';
 import { NavigationBuilderService } from './navigation-builder.service';
-import { NxNavItem } from './nav-item.model';
+import { NxNavGroup } from './nav-item.model';
+import { UserMenuComponent } from './user-menu.component';
+
+/** `localStorage` key remembering whether the side menu is shown at ≥ 1280 px (`'open'`/`'closed'`). */
+export const SIDENAV_STORAGE_KEY = 'nx.sidenav';
+
+/** From this width on the side menu sits beside the content (`side`) instead of over it (`over`). */
+export const SIDENAV_EXPANDED_QUERY = '(min-width: 1280px)';
 
 /**
- * Application shell: top bar (logo, disabled global search, hidden
- * approvals bell, user menu) + side nav (built dynamically from the route
- * config by `NavigationBuilderService`) + breadcrumbs + `<router-outlet>`.
+ * Application shell (`conventions-frontend.md §4.2`): white 56 px top bar (☰, NEXUS, language
+ * menu, user menu), a grouped 248 px side menu built from the route config by
+ * `NavigationBuilderService.buildGrouped()`, and a full-height `<main>` hosting the page.
  *
- * Extension points left for other tracks / the final integration (F5):
+ * Side menu behaviour:
+ * - ≥ 1280 px: `side`, open by default; ☰ hides/shows it entirely and the choice is remembered
+ *   in `localStorage['nx.sidenav']`.
+ * - < 1280 px: `over`, closed on entry; ☰ opens it above the content; it closes on navigation,
+ *   on the backdrop and on Esc.
  *
- * - `userMenuExtra` (`@Input() userMenuExtra?: TemplateRef<unknown>`):
- *   rendered inside the user `mat-menu` panel via `*ngTemplateOutlet`. F5
- *   wires the `language-selector` (from `core/i18n`) here, e.g.:
- *   ```html
- *   <app-shell [userMenuExtra]="extra">
- *     <ng-template #extra><app-language-selector /></ng-template>
- *   </app-shell>
- *   ```
- * - Nav items are wrapped with `*nxCan="item.permission"` (`shared/auth`),
- *   wired by F5 once `shared/auth` was merged into this worktree.
- * - The approvals bell is not rendered at all (ficha 0.5: hidden until
- *   0.9). 0.9 adds it back, it does not just toggle a flag.
+ * Breadcrumbs are not rendered here: each page renders them through `nx-page-header`.
+ * The approvals bell is not rendered at all (ficha 0.5: hidden until 0.9).
  */
 @Component({
   selector: 'app-shell',
   standalone: true,
   imports: [
     RouterLink,
+    RouterLinkActive,
     RouterOutlet,
-    NgTemplateOutlet,
-    MatToolbarModule,
     MatSidenavModule,
     MatListModule,
     MatIconModule,
-    MatMenuModule,
     MatButtonModule,
-    MatFormFieldModule,
-    MatInputModule,
     TranslocoPipe,
-    BreadcrumbComponent,
     NxCanDirective,
+    LanguageMenuComponent,
+    UserMenuComponent,
   ],
   templateUrl: './shell.component.html',
   styleUrl: './shell.component.scss',
 })
 export class ShellComponent {
   private readonly navigationBuilder = inject(NavigationBuilderService);
+  private readonly router = inject(Router);
 
-  /** Projected into the user menu panel. See class doc for the F5 contract. */
-  @Input() userMenuExtra?: TemplateRef<unknown>;
+  protected readonly navGroups = signal<NxNavGroup[]>(this.navigationBuilder.buildGrouped());
 
-  protected readonly navItems = signal<NxNavItem[]>(this.navigationBuilder.build());
+  /** `true` at ≥ 1280 px. */
+  protected readonly expanded = toSignal(
+    inject(BreakpointObserver)
+      .observe(SIDENAV_EXPANDED_QUERY)
+      .pipe(map((state) => state.matches)),
+    { initialValue: false },
+  );
+
+  private readonly expandedOpen = signal(readStoredSidenavOpen());
+  private readonly compactOpen = signal(false);
+
+  protected readonly mode = computed(() => (this.expanded() ? 'side' : 'over'));
+  protected readonly opened = computed(() => (this.expanded() ? this.expandedOpen() : this.compactOpen()));
+
+  constructor() {
+    this.router.events
+      .pipe(
+        filter((event) => event instanceof NavigationEnd),
+        takeUntilDestroyed(inject(DestroyRef)),
+      )
+      .subscribe(() => this.compactOpen.set(false));
+  }
+
+  protected toggle(): void {
+    this.setOpened(!this.opened());
+  }
+
+  /** Mirrors opens/closes made by the sidenav itself (backdrop click, Esc) into our state. */
+  protected onOpenedChange(open: boolean): void {
+    if (open !== this.opened()) {
+      this.setOpened(open);
+    }
+  }
+
+  private setOpened(open: boolean): void {
+    if (this.expanded()) {
+      this.expandedOpen.set(open);
+      writeStoredSidenavOpen(open);
+    } else {
+      this.compactOpen.set(open);
+    }
+  }
+}
+
+function readStoredSidenavOpen(): boolean {
+  try {
+    return localStorage.getItem(SIDENAV_STORAGE_KEY) !== 'closed';
+  } catch {
+    return true;
+  }
+}
+
+function writeStoredSidenavOpen(open: boolean): void {
+  try {
+    localStorage.setItem(SIDENAV_STORAGE_KEY, open ? 'open' : 'closed');
+  } catch {
+    // Storage unavailable (private mode, quota): the choice just won't survive a reload.
+  }
 }

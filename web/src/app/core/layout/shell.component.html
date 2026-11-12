@@ -1,63 +1,80 @@
-<mat-sidenav-container class="nx-shell">
-  <mat-sidenav class="nx-shell__sidenav" mode="side" [opened]="true">
-    <mat-nav-list>
-      @for (item of navItems(); track item.path) {
-        <a mat-list-item [routerLink]="item.path" *nxCan="item.permission">
-          @if (item.icon) {
-            <mat-icon matListItemIcon>{{ item.icon }}</mat-icon>
-          }
-          <span matListItemTitle>{{ item.titleKey | transloco }}</span>
-        </a>
-      }
-    </mat-nav-list>
-  </mat-sidenav>
+<a
+  class="nx-shell__skip-link"
+  href="#nx-main"
+  (click)="$event.preventDefault(); main.focus()"
+  data-testid="nx-shell-skip-link"
+  >{{ 'shell.skipToContent' | transloco }}</a>
 
-  <mat-sidenav-content class="nx-shell__content-area">
-    <mat-toolbar class="nx-shell__toolbar" color="primary">
-      <span class="nx-shell__logo">NEXUS</span>
+<div class="nx-shell">
+  <header class="nx-shell__toolbar">
+    <button
+      mat-icon-button
+      type="button"
+      class="nx-shell__menu-toggle"
+      (click)="toggle()"
+      aria-controls="nx-shell-sidenav"
+      [attr.aria-expanded]="opened()"
+      [attr.aria-label]="(opened() ? 'shell.topBar.hideMenu' : 'shell.topBar.showMenu') | transloco"
+      data-testid="nx-shell-menu-toggle"
+    >
+      <mat-icon aria-hidden="true">menu</mat-icon>
+    </button>
 
-      <mat-form-field class="nx-shell__search" appearance="outline" subscriptSizing="dynamic">
-        <input
-          matInput
-          disabled
-          [placeholder]="'shell.topBar.searchPlaceholder' | transloco"
-          [title]="'shell.topBar.searchTooltip' | transloco"
-          [attr.aria-label]="'shell.topBar.searchAriaLabel' | transloco"
-          data-testid="nx-shell-search"
-        />
-      </mat-form-field>
+    <a class="nx-shell__brand" routerLink="/" [attr.aria-label]="'shell.topBar.homeAriaLabel' | transloco">NEXUS</a>
 
-      <span class="nx-shell__spacer"></span>
+    <span class="nx-shell__spacer"></span>
 
-      <!--
-        Campana de aprobaciones: oculta hasta 0.9 (ficha 0.5 §4, track F
-        punto 4). No se renderiza en absoluto; 0.9 la añade, no solo la
-        muestra.
-      -->
+    <!--
+      Campana de aprobaciones: oculta hasta 0.9 (ficha 0.5 §4, track F punto 4). No se
+      renderiza en absoluto; 0.9 la añade, no solo la muestra.
+    -->
+    <nx-shell-language-menu />
+    <nx-shell-user-menu />
+  </header>
 
-      <button
-        mat-icon-button
-        [matMenuTriggerFor]="userMenu"
-        [attr.aria-label]="'shell.topBar.userMenuAriaLabel' | transloco"
-        data-testid="nx-shell-user-menu-trigger"
-      >
-        <mat-icon>account_circle</mat-icon>
-      </button>
-      <mat-menu #userMenu="matMenu">
-        @if (userMenuExtra) {
-          <ng-container *ngTemplateOutlet="userMenuExtra"></ng-container>
+  <mat-sidenav-container class="nx-shell__body" autosize>
+    <mat-sidenav
+      id="nx-shell-sidenav"
+      class="nx-shell__sidenav"
+      [mode]="mode()"
+      [opened]="opened()"
+      (openedChange)="onOpenedChange($event)"
+      data-testid="nx-shell-sidenav"
+    >
+      <nav class="nx-shell__nav" [attr.aria-label]="'shell.nav.ariaLabel' | transloco">
+        @for (group of navGroups(); track group.navGroup) {
+          <div class="nx-shell__nav-group" role="group" [attr.aria-labelledby]="'nx-nav-group-' + group.navGroup">
+            <div class="nx-shell__nav-group-title" [id]="'nx-nav-group-' + group.navGroup">
+              {{ group.titleKey | transloco }}
+            </div>
+            <mat-nav-list class="nx-shell__nav-list">
+              @for (item of group.items; track item.path) {
+                <a
+                  mat-list-item
+                  class="nx-shell__nav-item"
+                  [routerLink]="item.path"
+                  routerLinkActive
+                  #rla="routerLinkActive"
+                  [activated]="rla.isActive"
+                  [attr.aria-current]="rla.isActive ? 'page' : null"
+                  *nxCan="item.permission"
+                >
+                  @if (item.icon) {
+                    <mat-icon matListItemIcon aria-hidden="true">{{ item.icon }}</mat-icon>
+                  }
+                  <span matListItemTitle>{{ item.titleKey | transloco }}</span>
+                </a>
+              }
+            </mat-nav-list>
+          </div>
         }
-        <a mat-menu-item routerLink="/account">
-          <mat-icon>person</mat-icon>
-          <span>{{ 'nav.account' | transloco }}</span>
-        </a>
-      </mat-menu>
-    </mat-toolbar>
+      </nav>
+    </mat-sidenav>
 
-    <app-breadcrumb />
-
-    <main class="nx-shell__content">
-      <router-outlet />
-    </main>
-  </mat-sidenav-content>
-</mat-sidenav-container>
+    <mat-sidenav-content class="nx-shell__content-area">
+      <main #main id="nx-main" class="nx-shell__content" tabindex="-1">
+        <router-outlet />
+      </main>
+    </mat-sidenav-content>
+  </mat-sidenav-container>
+</div>

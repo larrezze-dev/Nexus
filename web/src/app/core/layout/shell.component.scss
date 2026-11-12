@@ -1,33 +1,141 @@
+// Shell (conventions-frontend.md §4.2) — only --nx-* tokens (src/styles/tokens.css).
+
+// Skip link: off-screen until focused with the keyboard (WCAG 2.4.1).
+.nx-shell__skip-link {
+  position: absolute;
+  top: var(--nx-space-2);
+  left: var(--nx-space-2);
+  z-index: 1000;
+  padding: var(--nx-space-2) var(--nx-space-4);
+  border-radius: var(--nx-radius-sm);
+  background: var(--nx-color-surface-raised);
+  color: var(--nx-color-primary);
+  font-weight: 500;
+  text-decoration: none;
+  transform: translateY(calc(-100% - var(--nx-space-4)));
+
+  &:focus-visible {
+    transform: none;
+    outline: 2px solid var(--nx-color-primary);
+    outline-offset: 2px;
+  }
+}
+
+// Top bar on top, side menu + content below; the whole shell is exactly one viewport tall so
+// the content area (mat-sidenav-content) is the only scroll container.
 .nx-shell {
+  display: flex;
+  flex-direction: column;
   height: 100dvh;
 }
 
-.nx-shell__sidenav {
-  width: var(--nx-sidenav-width);
-}
-
 .nx-shell__toolbar {
+  position: relative;
+  z-index: 3; // above the sidenav backdrop and an `over` sidenav
+  flex: 0 0 var(--nx-toolbar-height);
   display: flex;
   align-items: center;
-  gap: 1rem;
-  position: sticky;
-  top: 0;
-  z-index: 1;
+  gap: var(--nx-space-2);
+  box-sizing: border-box;
+  height: var(--nx-toolbar-height);
+  min-width: 0;
+  padding: 0 var(--nx-space-4) 0 var(--nx-space-2);
+  background: var(--nx-color-surface-raised);
+  border-bottom: 1px solid var(--nx-color-border);
+  color: var(--nx-color-text);
 }
 
-.nx-shell__logo {
+.nx-shell__brand {
+  font: var(--nx-text-section-title);
   font-weight: 700;
-  letter-spacing: 0.05em;
-}
+  letter-spacing: 0.06em;
+  color: var(--nx-color-text);
+  text-decoration: none;
+  white-space: nowrap;
 
-.nx-shell__search {
-  width: 280px;
+  &:focus-visible {
+    outline: 2px solid var(--nx-color-primary);
+    outline-offset: 2px;
+    border-radius: var(--nx-radius-sm);
+  }
 }
 
 .nx-shell__spacer {
   flex: 1 1 auto;
+  min-width: 0;
 }
 
+.nx-shell__body {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.nx-shell__sidenav {
+  --mat-sidenav-container-width: var(--nx-sidenav-width);
+  --mat-sidenav-container-shape: 0;
+  --mat-sidenav-container-background-color: var(--nx-color-surface-raised);
+  --mat-sidenav-container-divider-color: var(--nx-color-border);
+  --mat-list-active-indicator-color: var(--nx-color-primary-container);
+  --mat-list-active-indicator-shape: var(--nx-radius-md);
+  --mat-list-list-item-label-text-size: var(--nx-text-body-size);
+  --mat-list-list-item-label-text-line-height: var(--nx-text-body-line);
+  --mat-list-list-item-label-text-tracking: normal;
+
+  width: var(--nx-sidenav-width);
+}
+
+.nx-shell__nav {
+  padding: var(--nx-space-2) 0 var(--nx-space-4);
+}
+
+.nx-shell__nav-group + .nx-shell__nav-group {
+  margin-top: var(--nx-space-2);
+}
+
+.nx-shell__nav-group-title {
+  padding: var(--nx-space-4) var(--nx-space-5) var(--nx-space-1);
+  font: var(--nx-text-label);
+  font-weight: 500;
+  color: var(--nx-color-text-muted);
+}
+
+.nx-shell__nav-list {
+  padding: 0 var(--nx-space-2);
+}
+
+.nx-shell__nav-item {
+  border-radius: var(--nx-radius-md);
+}
+
+// Active entry: tinted background + primary text and icon, plus a heavier label so the state
+// does not rely on colour alone.
+.nx-shell__nav-item.mdc-list-item--activated {
+  --mat-list-list-item-label-text-color: var(--nx-color-primary);
+  --mat-list-list-item-hover-label-text-color: var(--nx-color-primary);
+  --mat-list-list-item-focus-label-text-color: var(--nx-color-primary);
+  --mat-list-list-item-leading-icon-color: var(--nx-color-primary);
+  --mat-list-list-item-hover-leading-icon-color: var(--nx-color-primary);
+  --mat-list-list-item-label-text-weight: 500;
+}
+
+.nx-shell__content-area {
+  display: flex;
+  flex-direction: column;
+}
+
+// Full-height content: the routed page gets at least the whole visible height, so a list page
+// can let its grid fill the remaining space instead of using a fixed height.
 .nx-shell__content {
+  flex: 1 0 auto;
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+  min-width: 0;
   padding: var(--nx-content-padding);
+  outline: none;
+}
+
+.nx-shell__content ::ng-deep > :not(router-outlet) {
+  flex: 1 0 auto;
+  min-width: 0;
 }

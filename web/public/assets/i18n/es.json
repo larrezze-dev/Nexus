@@ -24,17 +24,22 @@
     "ORG-R3": "Un warehouse con una business unit debe usar una business unit que pertenezca a la misma legal entity."
   },
   "shell": {
+    "skipToContent": "Saltar al contenido",
+    "topBar": {
+      "showMenu": "Mostrar menú",
+      "hideMenu": "Ocultar menú",
+      "homeAriaLabel": "NEXUS – Inicio"
+    },
     "nav": {
-      "home": "Inicio"
+      "ariaLabel": "Menú principal"
+    },
+    "language": {
+      "ariaLabel": "Idioma: {{language}}. Cambiar idioma"
     },
     "userMenu": {
-      "language": "Idioma"
-    },
-    "topBar": {
-      "searchPlaceholder": "Buscar",
-      "searchTooltip": "Próximamente",
-      "searchAriaLabel": "Búsqueda global (próximamente)",
-      "userMenuAriaLabel": "Menú de usuario"
+      "ariaLabel": "Menú de usuario",
+      "ariaLabelNamed": "Menú de usuario de {{name}}",
+      "logout": "Cerrar sesión"
     }
   },
   "httpPages": {

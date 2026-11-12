@@ -24,17 +24,22 @@
     "ORG-R3": "Un magazzino con una business unit deve usare una business unit che appartiene alla stessa legal entity."
   },
   "shell": {
+    "skipToContent": "Vai al contenuto",
+    "topBar": {
+      "showMenu": "Mostra menu",
+      "hideMenu": "Nascondi menu",
+      "homeAriaLabel": "NEXUS – Pagina iniziale"
+    },
     "nav": {
-      "home": "Home"
+      "ariaLabel": "Menu principale"
+    },
+    "language": {
+      "ariaLabel": "Lingua: {{language}}. Cambia lingua"
     },
     "userMenu": {
-      "language": "Lingua"
-    },
-    "topBar": {
-      "searchPlaceholder": "Cerca",
-      "searchTooltip": "Prossimamente",
-      "searchAriaLabel": "Ricerca globale (prossimamente)",
-      "userMenuAriaLabel": "Menu utente"
+      "ariaLabel": "Menu utente",
+      "ariaLabelNamed": "Menu utente di {{name}}",
+      "logout": "Esci"
     }
   },
   "httpPages": {

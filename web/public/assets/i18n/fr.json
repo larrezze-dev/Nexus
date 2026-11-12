@@ -24,17 +24,22 @@
     "ORG-R3": "Un entrepôt avec une unité d'affaires doit utiliser une unité d'affaires qui appartient à la même entité juridique."
   },
   "shell": {
+    "skipToContent": "Aller au contenu",
+    "topBar": {
+      "showMenu": "Afficher le menu",
+      "hideMenu": "Masquer le menu",
+      "homeAriaLabel": "NEXUS – Accueil"
+    },
     "nav": {
-      "home": "Accueil"
+      "ariaLabel": "Menu principal"
+    },
+    "language": {
+      "ariaLabel": "Langue : {{language}}. Changer de langue"
     },
     "userMenu": {
-      "language": "Langue"
-    },
-    "topBar": {
-      "searchPlaceholder": "Rechercher",
-      "searchTooltip": "Bientôt disponible",
-      "searchAriaLabel": "Recherche globale (bientôt disponible)",
-      "userMenuAriaLabel": "Menu utilisateur"
+      "ariaLabel": "Menu utilisateur",
+      "ariaLabelNamed": "Menu utilisateur de {{name}}",
+      "logout": "Se déconnecter"
     }
   },
   "httpPages": {
