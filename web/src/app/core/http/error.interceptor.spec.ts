@@ -1,9 +1,10 @@
-import { HttpClient, HttpErrorResponse, provideHttpClient, withInterceptors } from '@angular/common/http';
+import { HttpClient, HttpContext, HttpErrorResponse, provideHttpClient, withInterceptors } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';
 import { Router } from '@angular/router';
 import { describe, expect, it, vi } from 'vitest';
 import { ConcurrencyDialogService } from './concurrency-dialog.service';
+import { NX_SKIP_ERROR_NAVIGATION } from './skip-error-navigation';
 import { NEXUS_UNAUTHORIZED_EVENT, errorInterceptor } from './error.interceptor';
 import type { Problem } from './problem';
 
@@ -40,6 +41,29 @@ describe('errorInterceptor', () => {
     expect((captured?.error as Problem).errors?.['code']).toEqual(['required']);
     expect(router.navigate).not.toHaveBeenCalled();
     expect(router.navigateByUrl).not.toHaveBeenCalled();
+  });
+
+  it.each([403, 404])('does not navigate on %s when NX_SKIP_ERROR_NAVIGATION is set, but still propagates the error', (status) => {
+    const { http, controller, router } = setup();
+    let captured: HttpErrorResponse | undefined;
+
+    http
+      .get('/api/v1/me', { context: new HttpContext().set(NX_SKIP_ERROR_NAVIGATION, true) })
+      .subscribe({ error: (err) => (captured = err) });
+    controller.expectOne('/api/v1/me').flush({ type: 'x', status }, { status, statusText: 'x' });
+
+    expect(captured?.status).toBe(status);
+    expect(router.navigate).not.toHaveBeenCalled();
+    expect(router.navigateByUrl).not.toHaveBeenCalled();
+  });
+
+  it('still navigates to /login on 401 even with NX_SKIP_ERROR_NAVIGATION', () => {
+    const { http, controller, router } = setup();
+    http
+      .get('/api/v1/me', { context: new HttpContext().set(NX_SKIP_ERROR_NAVIGATION, true) })
+      .subscribe({ error: () => undefined });
+    controller.expectOne('/api/v1/me').flush({}, { status: 401, statusText: 'Unauthorized' });
+    expect(router.navigateByUrl).toHaveBeenCalledWith('/login');
   });
 
   it('navigates to /login and dispatches NEXUS_UNAUTHORIZED_EVENT on 401', () => {

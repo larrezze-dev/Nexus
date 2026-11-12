@@ -1,8 +1,10 @@
+import { HttpContext } from '@angular/common/http';
 import { EnvironmentProviders, Injectable, inject, provideAppInitializer } from '@angular/core';
 import { OidcSecurityService } from 'angular-auth-oidc-client';
 import { filter, firstValueFrom } from 'rxjs';
 import { Api } from '../../api/platform/api';
 import { getMe } from '../../api/platform/fn/me/get-me';
+import { NX_SKIP_ERROR_NAVIGATION } from '../../core/http/skip-error-navigation';
 import { NxI18nService } from '../../core/i18n/nx-i18n.service';
 
 /**
@@ -32,7 +34,7 @@ export class MeLanguageSync {
   private async run(): Promise<void> {
     try {
       await firstValueFrom(this.oidc.isAuthenticated$.pipe(filter(({ isAuthenticated }) => isAuthenticated)));
-      const me = await this.api.invoke(getMe);
+      const me = await this.api.invoke(getMe, undefined, new HttpContext().set(NX_SKIP_ERROR_NAVIGATION, true));
       this.i18n.setInitialLanguage(me.preferredLanguage);
     } catch {
       // Keep the browser/default language.

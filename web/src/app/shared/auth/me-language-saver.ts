@@ -1,6 +1,8 @@
+import { HttpContext } from '@angular/common/http';
 import { Provider, inject } from '@angular/core';
 import { Api } from '../../api/platform/api';
 import { updateMe } from '../../api/platform/fn/me/update-me';
+import { NX_SKIP_ERROR_NAVIGATION } from '../../core/http/skip-error-navigation';
 import { LanguagePreferenceSaver, NX_LANGUAGE_PREFERENCE_SAVER } from '../../core/i18n/nx-i18n.service';
 
 /**
@@ -13,7 +15,11 @@ import { LanguagePreferenceSaver, NX_LANGUAGE_PREFERENCE_SAVER } from '../../cor
  */
 export function meLanguagePreferenceSaver(api: Api): LanguagePreferenceSaver {
   return async (language) => {
-    await api.invoke(updateMe, { body: { preferredLanguage: language } });
+    await api.invoke(
+      updateMe,
+      { body: { preferredLanguage: language } },
+      new HttpContext().set(NX_SKIP_ERROR_NAVIGATION, true),
+    );
   };
 }
 

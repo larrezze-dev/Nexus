@@ -4,6 +4,7 @@ import { Router } from '@angular/router';
 import { catchError, throwError } from 'rxjs';
 import { ConcurrencyDialogService } from './concurrency-dialog.service';
 import { isProblem } from './problem';
+import { NX_SKIP_ERROR_NAVIGATION } from './skip-error-navigation';
 
 /**
  * Event dispatched on `window` when a request fails with 401, in addition to navigating to
@@ -33,12 +34,15 @@ export const NEXUS_UNAUTHORIZED_EVENT = 'nexus:auth:unauthorized';
  * - 422 (`business_rule`): not handled here. Re-thrown as-is; the caller translates
  *   `Problem.code` via `NxI18nService.translateErrorCode()` (`errors.<code>`, generic fallback).
  *
+ * Requests carrying `NX_SKIP_ERROR_NAVIGATION` (background calls) skip the 403/404 navigation.
+ *
  * In every case the original error is re-thrown after the side effect, so callers that need
  * to react themselves (e.g. a form clearing its "saving" state) still can.
  */
 export const errorInterceptor: HttpInterceptorFn = (req, next) => {
   const router = inject(Router);
   const concurrencyDialog = inject(ConcurrencyDialogService);
+  const skipNavigation = req.context.get(NX_SKIP_ERROR_NAVIGATION);
 
   return next(req).pipe(
     catchError((error: unknown) => {
@@ -55,12 +59,18 @@ export const errorInterceptor: HttpInterceptorFn = (req, next) => {
             break;
           }
           case 403: {
+            if (skipNavigation) {
+              break;
+            }
             void router.navigate(['/forbidden'], {
               queryParams: { permission: problem?.requiredPermission ?? null },
             });
             break;
           }
           case 404: {
+            if (skipNavigation) {
+              break;
+            }
             void router.navigateByUrl('/not-found');
             break;
           }

@@ -2,6 +2,7 @@ import { Component } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { RouterLink } from '@angular/router';
 import { TranslocoPipe } from '@jsverse/transloco';
+import { NxEmptyStateComponent } from '../../../shared/ui/layout/nx-empty-state.component';
 
 /**
  * Shown when a request fails with 403. `errorInterceptor` may append `?permission=...` to the
@@ -9,13 +10,16 @@ import { TranslocoPipe } from '@jsverse/transloco';
  */
 @Component({
   selector: 'nx-forbidden-page',
-  imports: [TranslocoPipe, RouterLink, MatButtonModule],
+  imports: [TranslocoPipe, RouterLink, MatButtonModule, NxEmptyStateComponent],
   template: `
-    <section class="nx-empty-state" data-testid="nx-forbidden-page">
-      <h1>{{ 'httpPages.forbidden.title' | transloco }}</h1>
-      <p>{{ 'httpPages.forbidden.message' | transloco }}</p>
+    <nx-empty-state
+      kind="forbidden"
+      [title]="'httpPages.forbidden.title' | transloco"
+      [message]="'httpPages.forbidden.message' | transloco"
+      data-testid="nx-forbidden-page"
+    >
       <a mat-flat-button routerLink="/account">{{ 'httpPages.goToAccount' | transloco }}</a>
-    </section>
+    </nx-empty-state>
   `,
 })
 export class ForbiddenPage {}
