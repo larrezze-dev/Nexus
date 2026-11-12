@@ -62,7 +62,7 @@
     "groups": {
       "org": "Organización",
       "people": "Personas y terceros",
-      "access": "Acceso"
+      "access": "Accesos"
     },
     "account": "Mi cuenta",
     "users": "Usuarios",
@@ -285,7 +285,8 @@
         "fullName": "Nombre completo",
         "email": "Correo electrónico",
         "preferredLanguage": "Idioma preferido",
-        "businessUnit": "Business unit"
+        "businessUnit": "Business unit",
+        "isActive": "Estado"
       }
     },
     "parties": {
@@ -317,7 +318,8 @@
         "displayName": "Nombre visible",
         "taxId": "NIF/CIF",
         "erpCompanyCode": "Código de sociedad ERP",
-        "isInternal": "Interno"
+        "isInternal": "Interno",
+        "isActive": "Estado"
       }
     },
     "legalEntities": {

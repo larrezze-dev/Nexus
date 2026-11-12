@@ -8,9 +8,8 @@ import { MatInputModule } from '@angular/material/input';
 import { MatSelectModule } from '@angular/material/select';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { TranslocoModule } from '@jsverse/transloco';
-import type { ColDef } from 'ag-grid-community';
 import { NxCanDirective } from '../../../shared/auth/can.directive';
-import { NxDataGridComponent } from '../../../shared/ui/nx-data-grid/nx-data-grid.component';
+import { NxColDef, NxDataGridComponent } from '../../../shared/ui/nx-data-grid/nx-data-grid.component';
 import type { NxDataGridFetchFn } from '../../../shared/ui/page.model';
 import type { PartyListItem } from '../../../api/platform/models/party-list-item';
 import { PartyStatusCellRendererComponent } from './party-status-cell-renderer.component';
@@ -70,14 +69,14 @@ export class PartyListPage {
 
   protected readonly filters = computed(() => this.filtersSignal());
 
-  protected readonly columns: ColDef<PartyListItem>[] = [
-    { field: 'legalName', headerName: 'Legal name', sortable: true, flex: 2 },
-    { field: 'displayName', headerName: 'Display name', sortable: true, flex: 2 },
-    { field: 'partyType', headerName: 'Type', sortable: true, flex: 1 },
-    { field: 'isInternal', headerName: 'Internal', sortable: false, flex: 1 },
+  protected readonly columns: NxColDef<PartyListItem>[] = [
+    { field: 'legalName', headerKey: 'org.parties.fields.legalName', sortable: true, flex: 2 },
+    { field: 'displayName', headerKey: 'org.parties.fields.displayName', sortable: true, flex: 2 },
+    { field: 'partyType', headerKey: 'org.parties.fields.partyType', sortable: true, flex: 1 },
+    { field: 'isInternal', headerKey: 'org.parties.fields.isInternal', sortable: false, flex: 1 },
     {
       field: 'isActive',
-      headerName: 'Status',
+      headerKey: 'org.parties.fields.isActive',
       sortable: false,
       flex: 1,
       cellRenderer: PartyStatusCellRendererComponent,

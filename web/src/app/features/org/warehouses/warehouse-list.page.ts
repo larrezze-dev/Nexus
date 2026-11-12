@@ -8,13 +8,12 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
 import { MatSelectModule } from '@angular/material/select';
 import { TranslocoModule, TranslocoService } from '@jsverse/transloco';
-import type { ColDef } from 'ag-grid-community';
 import { Observable, debounceTime } from 'rxjs';
 import { BusinessUnitListItem } from '../../../api/platform/models/business-unit-list-item';
 import { LegalEntityListItem } from '../../../api/platform/models/legal-entity-list-item';
 import { WarehouseListItem } from '../../../api/platform/models/warehouse-list-item';
 import { resolveCaption } from '../../../shared/ui/caption/caption.util';
-import { NxDataGridComponent } from '../../../shared/ui/nx-data-grid/nx-data-grid.component';
+import { NxColDef, NxDataGridComponent } from '../../../shared/ui/nx-data-grid/nx-data-grid.component';
 import { NxEntityPickerComponent } from '../../../shared/ui/nx-entity-picker/nx-entity-picker.component';
 import { NxSortModel, Page } from '../../../shared/ui/page.model';
 import { WarehouseActiveCellComponent } from './warehouse-active-cell.component';
@@ -141,17 +140,17 @@ export class WarehouseListPage {
     q: this.qFilter() || undefined,
   }));
 
-  protected readonly columns: ColDef<WarehouseListItem>[] = [
-    { field: 'code', headerName: this.transloco.translate('warehouses.list.columns.code'), flex: 1 },
+  protected readonly columns: NxColDef<WarehouseListItem>[] = [
+    { field: 'code', headerKey: 'warehouses.list.columns.code', flex: 1 },
     {
-      headerName: this.transloco.translate('warehouses.list.columns.caption'),
+      headerKey: 'warehouses.list.columns.caption',
       flex: 2,
       valueGetter: (params) =>
         resolveCaption(params.data?.captionI18n, this.transloco.getActiveLang(), params.data?.code ?? ''),
     },
     {
       field: 'isActive',
-      headerName: this.transloco.translate('warehouses.list.columns.isActive'),
+      headerKey: 'warehouses.list.columns.isActive',
       flex: 1,
       cellRenderer: WarehouseActiveCellComponent,
     },

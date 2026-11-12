@@ -285,7 +285,8 @@
         "fullName": "Nom complet",
         "email": "E-mail",
         "preferredLanguage": "Langue préférée",
-        "businessUnit": "Business unit"
+        "businessUnit": "Business unit",
+        "isActive": "Statut"
       }
     },
     "parties": {
@@ -317,7 +318,8 @@
         "displayName": "Nom affiché",
         "taxId": "Numéro fiscal",
         "erpCompanyCode": "Code société ERP",
-        "isInternal": "Interne"
+        "isInternal": "Interne",
+        "isActive": "Statut"
       }
     },
     "legalEntities": {

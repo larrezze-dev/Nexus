@@ -62,7 +62,7 @@
     "groups": {
       "org": "Organizzazione",
       "people": "Persone e terzi",
-      "access": "Accesso"
+      "access": "Accessi"
     },
     "account": "Il mio account",
     "users": "Utenti",
@@ -285,7 +285,8 @@
         "fullName": "Nome completo",
         "email": "Email",
         "preferredLanguage": "Lingua preferita",
-        "businessUnit": "Business unit"
+        "businessUnit": "Business unit",
+        "isActive": "Stato"
       }
     },
     "parties": {
@@ -317,7 +318,8 @@
         "displayName": "Nome visualizzato",
         "taxId": "Partita IVA",
         "erpCompanyCode": "Codice azienda ERP",
-        "isInternal": "Interno"
+        "isInternal": "Interno",
+        "isActive": "Stato"
       }
     },
     "legalEntities": {

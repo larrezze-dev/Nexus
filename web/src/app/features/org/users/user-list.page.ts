@@ -3,9 +3,8 @@ import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { TranslocoModule } from '@jsverse/transloco';
-import type { ColDef } from 'ag-grid-community';
 import { NxCanDirective } from '../../../shared/auth/can.directive';
-import { NxDataGridComponent } from '../../../shared/ui/nx-data-grid/nx-data-grid.component';
+import { NxColDef, NxDataGridComponent } from '../../../shared/ui/nx-data-grid/nx-data-grid.component';
 import type { NxDataGridFetchFn } from '../../../shared/ui/page.model';
 import type { UserListItem } from '../../../api/platform/models/user-list-item';
 import { UserStatusCellRendererComponent } from './user-status-cell-renderer.component';
@@ -51,13 +50,13 @@ export class UserListPage {
   private readonly router = inject(Router);
   private readonly route = inject(ActivatedRoute);
 
-  protected readonly columns: ColDef<UserListItem>[] = [
-    { field: 'fullName', headerName: 'Full name', sortable: true, flex: 2 },
-    { field: 'email', headerName: 'Email', sortable: true, flex: 2 },
-    { field: 'preferredLanguage', headerName: 'Language', sortable: false, flex: 1 },
+  protected readonly columns: NxColDef<UserListItem>[] = [
+    { field: 'fullName', headerKey: 'org.users.fields.fullName', sortable: true, flex: 2 },
+    { field: 'email', headerKey: 'org.users.fields.email', sortable: true, flex: 2 },
+    { field: 'preferredLanguage', headerKey: 'org.users.fields.preferredLanguage', sortable: false, flex: 1 },
     {
       field: 'isActive',
-      headerName: 'Status',
+      headerKey: 'org.users.fields.isActive',
       sortable: false,
       flex: 1,
       cellRenderer: UserStatusCellRendererComponent,

@@ -62,7 +62,7 @@
     "groups": {
       "org": "Organisation",
       "people": "Personen und Partner",
-      "access": "Zugriff"
+      "access": "Zugriffe"
     },
     "account": "Mein Konto",
     "users": "Benutzer",
@@ -72,7 +72,7 @@
       "businessUnits": "Geschäftsbereiche"
     },
     "locations": "Standorte",
-    "warehouses": "Warehouses",
+    "warehouses": "Lager",
     "orgTree": "Struktur",
     "orgCurrencies": "Währungen",
     "access": {
@@ -168,7 +168,8 @@
         "fullName": "Vollständiger Name",
         "email": "E-Mail",
         "preferredLanguage": "Bevorzugte Sprache",
-        "businessUnit": "Business Unit"
+        "businessUnit": "Business Unit",
+        "isActive": "Status"
       }
     },
     "parties": {
@@ -200,7 +201,8 @@
         "displayName": "Anzeigename",
         "taxId": "Steuernummer",
         "erpCompanyCode": "ERP-Firmencode",
-        "isInternal": "Intern"
+        "isInternal": "Intern",
+        "isActive": "Status"
       }
     },
     "tree": {

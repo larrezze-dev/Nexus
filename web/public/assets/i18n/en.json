@@ -285,7 +285,8 @@
         "fullName": "Full name",
         "email": "Email",
         "preferredLanguage": "Preferred language",
-        "businessUnit": "Business unit"
+        "businessUnit": "Business unit",
+        "isActive": "Status"
       }
     },
     "parties": {
@@ -317,7 +318,8 @@
         "displayName": "Display name",
         "taxId": "Tax ID",
         "erpCompanyCode": "ERP company code",
-        "isInternal": "Internal"
+        "isInternal": "Internal",
+        "isActive": "Status"
       }
     },
     "legalEntities": {
