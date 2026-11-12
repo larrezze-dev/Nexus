@@ -3,6 +3,7 @@
 - **Estado:** Aceptado
 - **Fecha:** 2026-10-18
 - **Afecta a:** `conventions-frontend.md`, 0.5 y todos los tracks F
+- **Modificado:** 2026-11-12, Luciano aprueba Roboto autoalojada (`conventions-frontend.md §4.1`)
 
 ## Contexto
 D5 fija Angular. Un back-office con mucha master data y listados grandes necesita una librería de componentes y una tabla de datos con paginación de servidor. Hay que elegir antes de 0.5 para no mezclar estilos.
@@ -18,6 +19,7 @@ D5 fija Angular. Un back-office con mucha master data y listados grandes necesit
 | Gráficos (ATP, P&L, Gantt complejos) | Apache ECharts + `ngx-echarts` | Apache 2.0 |
 | Mock de API | Prism (Stoplight) | Apache 2.0 |
 | e2e | Playwright | Apache 2.0 |
+| Tipografía `[+]` (2026-11-12) | `@fontsource/roboto`, `@fontsource/roboto-mono` (Roboto autoalojada, sin peticiones a Google) | OFL-1.1 |
 
 AG Grid Enterprise (agrupación, pivot, exportación Excel avanzada) **no** se usa sin ADR.
 

@@ -14,6 +14,7 @@
 | Crear | `POST /v1/x` | 201 + `Location` + cuerpo |
 | Modificar | `PUT /v1/x/{id}` con `If-Match` | 200 + nuevo `ETag` |
 | Transición | `POST /v1/x/{id}/<verbo>` con `If-Match` | 200 |
+| Preferencias propias `[+]` | `PATCH /v1/me` sin `If-Match` (única excepción, §5) | 200 |
 | Desactivar | `POST /v1/x/{id}/deactivate` | 200. **No hay `DELETE`** en master data |
 
 ## §2 Contratos OpenAPI
@@ -65,6 +66,7 @@ Los filtros son parámetros explícitos declarados en el contrato. No hay lengua
 | Nombres de propiedad | camelCase |
 
 - **Concurrencia:** `GET` devuelve `ETag: "<xmin>"`. `PUT` y transiciones exigen `If-Match`; sin él → 428, distinto → 409.
+- `[+]` **Excepción (2026-11-12, Luciano):** `PATCH /v1/me` cambia solo preferencias del propio usuario (hoy `preferredLanguage`). No exige `If-Match`: es idempotente y gana el último cambio. Es el único `PATCH` permitido; cualquier otro recurso sigue la regla general.
 - **Idempotencia en altas:** los `POST` de alta aceptan un `id` opcional generado por el cliente (UUIDv7). Si ya existe con el mismo contenido → 200 con el recurso; si existe con contenido distinto → 409. La app móvil siempre envía `id` (sincronización idempotente, A3).
 
 ## §6 Errores
