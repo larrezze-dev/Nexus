@@ -37,6 +37,13 @@ public sealed class OpenApiConformanceTests : IClassFixture<WebAppFixture<Progra
         paths.GetProperty("/v1/me").GetProperty("get").GetProperty("x-permission").GetString()
             .ShouldBe("AUTHENTICATED");
 
+        // PATCH /v1/me (updateMe): same session-only permission and scope as the GET; its body
+        // carries the validator's language enum (ADR-0014) and the contract's required field.
+        var updateMe = paths.GetProperty("/v1/me").GetProperty("patch");
+        updateMe.GetProperty("operationId").GetString().ShouldBe("updateMe");
+        updateMe.GetProperty("x-permission").GetString().ShouldBe("AUTHENTICATED");
+        updateMe.GetProperty("x-scope").GetString().ShouldBe("none");
+
         // The test-only diagnostics endpoint must never leak into the generated document.
         paths.TryGetProperty("/v1/_diagnostics/business-rule-error", out _).ShouldBeFalse();
     }
