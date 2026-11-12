@@ -5,6 +5,7 @@ import { filter, firstValueFrom } from 'rxjs';
 import { Api } from '../../api/platform/api';
 import { getMe } from '../../api/platform/fn/me/get-me';
 import { NX_SKIP_ERROR_NAVIGATION } from '../../core/http/skip-error-navigation';
+import { PermissionsStore } from './permissions.store';
 import { NxI18nService } from '../../core/i18n/nx-i18n.service';
 
 /**
@@ -19,10 +20,12 @@ export class MeLanguageSync {
   private readonly oidc = inject(OidcSecurityService);
   private readonly api = inject(Api);
   private readonly i18n = inject(NxI18nService);
+  private readonly permissions = inject(PermissionsStore);
 
   private started = false;
 
-  /** Waits (in the background) for the first authenticated state, loads `/me` once and applies its language. */
+  /** Waits (in the background) for the first authenticated state, loads `/me` once and applies its language and its permissions
+   * (so the side menu and `*nxCan` work on a deep-link entry too). */
   start(): void {
     if (this.started) {
       return;
@@ -35,6 +38,7 @@ export class MeLanguageSync {
     try {
       await firstValueFrom(this.oidc.isAuthenticated$.pipe(filter(({ isAuthenticated }) => isAuthenticated)));
       const me = await this.api.invoke(getMe, undefined, new HttpContext().set(NX_SKIP_ERROR_NAVIGATION, true));
+      this.permissions.setPermissions(me.permissions);
       this.i18n.setInitialLanguage(me.preferredLanguage);
     } catch {
       // Keep the browser/default language.
