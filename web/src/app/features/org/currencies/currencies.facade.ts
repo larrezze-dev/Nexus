@@ -4,6 +4,7 @@ import { Api } from '../../../api/platform/api';
 import { getCurrency } from '../../../api/platform/fn/currencies/get-currency';
 import { listCurrencies } from '../../../api/platform/fn/currencies/list-currencies';
 import { updateCurrency } from '../../../api/platform/fn/currencies/update-currency';
+import { Currency } from '../../../api/platform/models/currency';
 import { CurrencyListItem } from '../../../api/platform/models/currency-list-item';
 import { isProblem } from '../../../core/http/problem';
 import { NxI18nService } from '../../../core/i18n/nx-i18n.service';
@@ -12,6 +13,8 @@ import { NxDataGridFetchFn, NxSortModel, Page } from '../../../shared/ui/page.mo
 export interface CurrencyToggleError {
   readonly code: string;
   readonly message: string;
+  /** `Problem.code` of the failure (e.g. `ORG-R7`), so the page can show its own translated text. */
+  readonly problemCode?: string;
 }
 
 /**
@@ -30,6 +33,11 @@ export class CurrenciesFacade {
   /** `nx-data-grid` fetch function (`FE-R1`: the page never calls the generated API directly). */
   readonly fetchPage: NxDataGridFetchFn<CurrencyListItem> = (page, pageSize, sort) =>
     from(this.fetchCurrenciesPage(page, pageSize, sort));
+
+  /** One currency (`GET /v1/currencies/{code}`), for the detail page. */
+  get(code: string): Promise<Currency> {
+    return this.api.invoke(getCurrency, { code });
+  }
 
   clearToggleError(): void {
     this.toggleErrorSignal.set(null);
@@ -67,7 +75,11 @@ export class CurrenciesFacade {
     sort: NxSortModel | null,
   ): Promise<Page<CurrencyListItem>> {
     const sortParam = sort ? `${sort.direction === 'desc' ? '-' : ''}${sort.colId}` : undefined;
-    const response = await this.api.invoke(listCurrencies, { page: page + 1, pageSize, sort: sortParam });
+    const response = await this.api.invoke(listCurrencies, {
+      page: page + 1,
+      pageSize,
+      sort: sortParam,
+    });
     return {
       items: response.items ?? [],
       page: response.page - 1,
@@ -83,7 +95,7 @@ export class CurrenciesFacade {
         : undefined;
     if (isProblem(body)) {
       const message = body.detail ?? this.i18n.translateErrorCode(body.code);
-      return { code, message };
+      return { code, message, problemCode: body.code };
     }
     return { code, message: this.i18n.translateErrorCode(undefined) };
   }

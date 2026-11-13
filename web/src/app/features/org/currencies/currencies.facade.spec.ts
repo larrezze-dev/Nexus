@@ -13,7 +13,9 @@ describe('CurrenciesFacade', () => {
         provideHttpClientTesting(),
         {
           provide: NxI18nService,
-          useValue: { translateErrorCode: (code?: string) => (code ? `translated:${code}` : 'generic') },
+          useValue: {
+            translateErrorCode: (code?: string) => (code ? `translated:${code}` : 'generic'),
+          },
         },
       ],
     });
@@ -96,7 +98,27 @@ describe('CurrenciesFacade', () => {
     );
 
     expect(await togglePromise).toBe(false);
-    expect(facade.toggleError()).toEqual({ code: 'CHF', message: 'CHF está en uso por LE-CH (activa).' });
+    expect(facade.toggleError()).toEqual({
+      code: 'CHF',
+      message: 'CHF está en uso por LE-CH (activa).',
+      problemCode: 'ORG-R7',
+    });
+  });
+
+  it('get reads one currency for the detail page', async () => {
+    const { facade, httpMock } = setup();
+
+    const promise = facade.get('EUR');
+    const req = httpMock.expectOne('/api/platform/v1/currencies/EUR');
+    expect(req.request.method).toBe('GET');
+    req.flush({ code: 'EUR', captionI18n: { de: 'Euro' }, minorUnits: 2, isActive: true });
+
+    expect(await promise).toEqual({
+      code: 'EUR',
+      captionI18n: { de: 'Euro' },
+      minorUnits: 2,
+      isActive: true,
+    });
   });
 
   it('clearToggleError resets the toggle error', async () => {
@@ -107,7 +129,9 @@ describe('CurrenciesFacade', () => {
       .expectOne('/api/platform/v1/currencies/CHF')
       .flush({ code: 'CHF', captionI18n: { de: 'Franken' }, minorUnits: 2, isActive: true });
     await new Promise((resolve) => setTimeout(resolve, 0));
-    httpMock.expectOne('/api/platform/v1/currencies/CHF').flush({}, { status: 500, statusText: 'Server Error' });
+    httpMock
+      .expectOne('/api/platform/v1/currencies/CHF')
+      .flush({}, { status: 500, statusText: 'Server Error' });
     await togglePromise;
 
     expect(facade.toggleError()).not.toBeNull();

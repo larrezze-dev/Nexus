@@ -469,16 +469,30 @@
     "currencies": {
       "title": "Devises",
       "empty": "Aucune devise disponible.",
-      "columns": {
+      "loading": "Chargement…",
+      "fields": {
         "code": "Code",
         "caption": "Nom",
         "minorUnits": "Décimales",
-        "status": "Statut",
-        "action": "Action"
+        "isActive": "Statut"
       },
-      "actions": {
-        "activate": "Activer",
-        "deactivate": "Désactiver"
+      "sections": {
+        "currency": "Devise"
+      },
+      "hints": {
+        "fixed": "Les devises sont prédéfinies dans NEXUS : vous pouvez seulement les activer ou les désactiver.",
+        "minorUnits": "Nombre de décimales des montants dans cette devise."
+      },
+      "activate": "Activer",
+      "deactivate": "Désactiver",
+      "deactivateDialog": {
+        "title": "Désactiver la devise ?",
+        "message": "«{{name}}» ({{code}}) ne pourra plus être choisie comme devise d'une entité juridique ou d'un groupe. Vous pouvez la réactiver à tout moment."
+      },
+      "activated": "Devise activée",
+      "deactivated": "Devise désactivée",
+      "errors": {
+        "inUse": "Impossible de désactiver «{{name}}» : au moins une entité juridique ou un groupe actif utilise cette devise."
       }
     },
     "locations": {

@@ -469,16 +469,30 @@
     "currencies": {
       "title": "Valute",
       "empty": "Nessuna valuta disponibile.",
-      "columns": {
+      "loading": "Caricamento…",
+      "fields": {
         "code": "Codice",
         "caption": "Nome",
         "minorUnits": "Decimali",
-        "status": "Stato",
-        "action": "Azione"
+        "isActive": "Stato"
       },
-      "actions": {
-        "activate": "Attiva",
-        "deactivate": "Disattiva"
+      "sections": {
+        "currency": "Valuta"
+      },
+      "hints": {
+        "fixed": "Le valute sono predefinite in NEXUS: puoi solo attivarle o disattivarle.",
+        "minorUnits": "Numero di decimali degli importi in questa valuta."
+      },
+      "activate": "Attiva",
+      "deactivate": "Disattiva",
+      "deactivateDialog": {
+        "title": "Disattivare la valuta?",
+        "message": "«{{name}}» ({{code}}) non potrà più essere scelta come valuta di un'entità legale o di un gruppo. Puoi riattivarla in qualsiasi momento."
+      },
+      "activated": "Valuta attivata",
+      "deactivated": "Valuta disattivata",
+      "errors": {
+        "inUse": "Impossibile disattivare «{{name}}»: almeno un'entità legale o un gruppo attivo usa questa valuta."
       }
     },
     "locations": {

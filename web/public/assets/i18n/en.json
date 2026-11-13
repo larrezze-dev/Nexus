@@ -469,16 +469,30 @@
     "currencies": {
       "title": "Currencies",
       "empty": "No currencies available.",
-      "columns": {
+      "loading": "Loading…",
+      "fields": {
         "code": "Code",
         "caption": "Name",
-        "minorUnits": "Minor units",
-        "status": "Status",
-        "action": "Action"
+        "minorUnits": "Decimal places",
+        "isActive": "Status"
       },
-      "actions": {
-        "activate": "Activate",
-        "deactivate": "Deactivate"
+      "sections": {
+        "currency": "Currency"
+      },
+      "hints": {
+        "fixed": "Currencies are predefined in NEXUS: you can only activate or deactivate them.",
+        "minorUnits": "Number of decimal places of amounts in this currency."
+      },
+      "activate": "Activate",
+      "deactivate": "Deactivate",
+      "deactivateDialog": {
+        "title": "Deactivate the currency?",
+        "message": "«{{name}}» ({{code}}) can then no longer be chosen as the currency of a legal entity or group. You can activate it again at any time."
+      },
+      "activated": "Currency activated",
+      "deactivated": "Currency deactivated",
+      "errors": {
+        "inUse": "«{{name}}» cannot be deactivated: at least one active legal entity or group uses this currency."
       }
     },
     "locations": {

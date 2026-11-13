@@ -469,16 +469,30 @@
     "currencies": {
       "title": "Monedas",
       "empty": "No hay monedas disponibles.",
-      "columns": {
+      "loading": "Cargando…",
+      "fields": {
         "code": "Código",
         "caption": "Nombre",
         "minorUnits": "Decimales",
-        "status": "Estado",
-        "action": "Acción"
+        "isActive": "Estado"
       },
-      "actions": {
-        "activate": "Activar",
-        "deactivate": "Desactivar"
+      "sections": {
+        "currency": "Moneda"
+      },
+      "hints": {
+        "fixed": "Las monedas vienen predefinidas en NEXUS: solo se pueden activar o desactivar.",
+        "minorUnits": "Número de decimales de los importes en esta moneda."
+      },
+      "activate": "Activar",
+      "deactivate": "Desactivar",
+      "deactivateDialog": {
+        "title": "¿Desactivar la moneda?",
+        "message": "«{{name}}» ({{code}}) dejará de poder elegirse como moneda de una entidad legal o de un grupo. Puedes volver a activarla en cualquier momento."
+      },
+      "activated": "Moneda activada",
+      "deactivated": "Moneda desactivada",
+      "errors": {
+        "inUse": "No se puede desactivar «{{name}}»: la usa al menos una entidad legal o un grupo activos."
       }
     },
     "locations": {

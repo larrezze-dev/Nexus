@@ -310,16 +310,30 @@
     "currencies": {
       "title": "Währungen",
       "empty": "Keine Währungen verfügbar.",
-      "columns": {
+      "loading": "Wird geladen…",
+      "fields": {
         "code": "Code",
         "caption": "Name",
         "minorUnits": "Nachkommastellen",
-        "status": "Status",
-        "action": "Aktion"
+        "isActive": "Status"
       },
-      "actions": {
-        "activate": "Aktivieren",
-        "deactivate": "Deaktivieren"
+      "sections": {
+        "currency": "Währung"
+      },
+      "hints": {
+        "fixed": "Währungen sind in NEXUS vorgegeben: Sie können sie nur aktivieren oder deaktivieren.",
+        "minorUnits": "Anzahl Nachkommastellen bei Beträgen in dieser Währung."
+      },
+      "activate": "Aktivieren",
+      "deactivate": "Deaktivieren",
+      "deactivateDialog": {
+        "title": "Währung deaktivieren?",
+        "message": "«{{name}}» ({{code}}) kann dann nicht mehr als Währung einer Gesellschaft oder Gruppe gewählt werden. Sie können sie jederzeit wieder aktivieren."
+      },
+      "activated": "Währung aktiviert",
+      "deactivated": "Währung deaktiviert",
+      "errors": {
+        "inUse": "«{{name}}» kann nicht deaktiviert werden: Mindestens eine aktive Gesellschaft oder Gruppe verwendet diese Währung."
       }
     },
     "locations": {
