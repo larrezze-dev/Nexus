@@ -1,0 +1,97 @@
+.nx-wh-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--nx-space-5);
+  min-width: 0;
+}
+
+.nx-wh-form__code {
+  margin-right: var(--nx-space-1);
+  color: var(--nx-color-text-muted);
+}
+
+.nx-wh-form__muted {
+  color: var(--nx-color-text-muted);
+}
+
+/* Second line of the «location already created» alert: the reason the warehouse failed. */
+.nx-wh-form__cause {
+  display: block;
+  margin-top: var(--nx-space-1);
+}
+
+/* «Creating location…» / «Saving warehouse…» next to the buttons while a save runs. */
+.nx-wh-form__progress {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--nx-space-2);
+  margin-right: auto;
+  color: var(--nx-color-text-muted);
+  font: var(--nx-text-body);
+}
+
+/*
+ * Address modes as option cards (canvas board 3, «Warehouse address»): a bordered card per
+ * radio with its title and a muted explanation; the chosen one gets a primary border.
+ */
+.nx-wh-address {
+  display: flex;
+  flex-direction: column;
+  gap: var(--nx-space-2);
+}
+
+.nx-wh-address__option {
+  display: block;
+  border: 1px solid var(--nx-color-border);
+  border-radius: var(--nx-radius-md);
+  background: var(--nx-color-surface-raised);
+}
+
+.nx-wh-address__option.mat-mdc-radio-checked {
+  border-color: var(--nx-color-primary);
+  box-shadow: inset 0 0 0 1px var(--nx-color-primary);
+}
+
+/* The whole card is the label, so a click anywhere on it picks the option. */
+.nx-wh-address__option ::ng-deep .mdc-form-field {
+  display: flex;
+  align-items: flex-start;
+  width: 100%;
+  padding: var(--nx-space-2) var(--nx-space-3) var(--nx-space-2) var(--nx-space-1);
+  box-sizing: border-box;
+}
+
+.nx-wh-address__option ::ng-deep .mdc-form-field > label {
+  flex: 1 1 auto;
+  min-width: 0;
+  padding-top: var(--nx-space-3);
+  padding-bottom: var(--nx-space-1);
+  cursor: pointer;
+}
+
+.nx-wh-address__option.mat-mdc-radio-disabled ::ng-deep .mdc-form-field > label {
+  cursor: default;
+}
+
+.nx-wh-address__title {
+  display: block;
+  font-weight: 500;
+  color: var(--nx-color-text);
+}
+
+.nx-wh-address__hint {
+  display: block;
+  font: var(--nx-text-label);
+  color: var(--nx-color-text-muted);
+}
+
+.nx-wh-address__option.mat-mdc-radio-disabled .nx-wh-address__title {
+  color: var(--nx-color-text-muted);
+}
+
+.nx-wh-address__fields {
+  display: flex;
+  flex-direction: column;
+  gap: var(--nx-form-gap-y);
+  margin-top: var(--nx-space-2);
+}

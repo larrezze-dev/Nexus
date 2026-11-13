@@ -1,0 +1,464 @@
+@if (mode() === 'create') {
+  <nx-page width="form">
+    <nx-page-header
+      [breadcrumb]="true"
+      [title]="'org.warehouses.newTitle' | transloco"
+      [subtitle]="'org.warehouses.createSubtitle' | transloco"
+    />
+    <ng-container [ngTemplateOutlet]="formTpl" />
+  </nx-page>
+} @else if (selected(); as current) {
+  <nx-page width="form">
+    <nx-page-header [breadcrumb]="true" [title]="name()" [subtitle]="subtitle()">
+      <nx-status-badge nxHeaderStatus [status]="current.isActive ? 'active' : 'inactive'" />
+      @if (current.isActive && canUpdate()) {
+        <button
+          nxHeaderActions
+          mat-stroked-button
+          type="button"
+          class="nx-btn--danger"
+          data-testid="warehouse-deactivate-button"
+          [disabled]="facade.saving()"
+          (click)="deactivate()"
+        >
+          <mat-icon aria-hidden="true">block</mat-icon>
+          {{ 'org.warehouses.deactivate' | transloco }}
+        </button>
+      }
+    </nx-page-header>
+
+    @if (readOnly()) {
+      <div class="nx-alert nx-alert--info" role="status" data-testid="warehouse-read-only">
+        <mat-icon aria-hidden="true">visibility</mat-icon>
+        <span class="nx-alert__text">{{ 'org.warehouses.readOnlyNotice' | transloco }}</span>
+      </div>
+    }
+
+    <mat-tab-group mat-stretch-tabs="false" animationDuration="0ms">
+      <mat-tab [label]="'common.tabs.general' | transloco">
+        <div class="nx-tab-panel">
+          <ng-container [ngTemplateOutlet]="formTpl" />
+        </div>
+      </mat-tab>
+
+      @if (current.id === routeId()) {
+        <ng-container *nxCan="'AUDIT:READ'">
+          <mat-tab [label]="'common.tabs.audit' | transloco">
+            <ng-template matTabContent>
+              <div class="nx-tab-panel">
+                <nx-audit-trail
+                  data-testid="audit-tab"
+                  aggregateType="warehouse"
+                  [aggregateId]="current.id"
+                />
+              </div>
+            </ng-template>
+          </mat-tab>
+        </ng-container>
+      }
+    </mat-tab-group>
+  </nx-page>
+} @else if (facade.error(); as loadError) {
+  <nx-page width="form">
+    <nx-page-header [breadcrumb]="true" [title]="'org.warehouses.title' | transloco" />
+    <nx-empty-state
+      kind="error"
+      class="nx-card"
+      [message]="loadError"
+      data-testid="warehouse-load-error"
+    >
+      <button
+        mat-stroked-button
+        type="button"
+        data-testid="warehouse-retry-button"
+        (click)="load()"
+      >
+        <mat-icon aria-hidden="true">refresh</mat-icon>
+        {{ 'common.retry' | transloco }}
+      </button>
+    </nx-empty-state>
+  </nx-page>
+} @else {
+  <nx-page width="form">
+    <nx-page-header [breadcrumb]="true" [title]="'org.warehouses.loading' | transloco" />
+  </nx-page>
+}
+
+<ng-template #formTpl>
+  @let isEdit = mode() === 'edit';
+  <form class="nx-wh-form" [formGroup]="form" (ngSubmit)="save()" novalidate>
+    @if (invalidCount() > 0) {
+      <div class="nx-alert nx-alert--error" role="alert" data-testid="warehouse-form-invalid">
+        <mat-icon aria-hidden="true">error</mat-icon>
+        <span class="nx-alert__text">{{
+          invalidCount() === 1
+            ? ('shared.form.reviewFieldsOne' | transloco)
+            : ('shared.form.reviewFields' | transloco: { count: invalidCount() })
+        }}</span>
+      </div>
+    }
+
+    @if (saveError(); as message) {
+      @if (locationCreated() && facade.pendingLocation(); as created) {
+        <div
+          #saveAlert
+          class="nx-alert nx-alert--warning"
+          role="alert"
+          tabindex="-1"
+          data-testid="warehouse-pending-location"
+        >
+          <mat-icon aria-hidden="true">warning</mat-icon>
+          <span class="nx-alert__text">
+            {{
+              'org.warehouses.address.locationCreated'
+                | transloco: { value: facade.displayLocation(created) }
+            }}
+            <span class="nx-wh-form__cause">{{ message }}</span>
+          </span>
+          <button
+            mat-button
+            type="button"
+            data-testid="warehouse-retry-save"
+            [disabled]="facade.saving()"
+            (click)="save()"
+          >
+            {{ 'common.retry' | transloco }}
+          </button>
+        </div>
+      } @else {
+        <div
+          #saveAlert
+          class="nx-alert nx-alert--error"
+          role="alert"
+          tabindex="-1"
+          data-testid="warehouse-form-error"
+        >
+          <mat-icon aria-hidden="true">error</mat-icon>
+          <span class="nx-alert__text">{{ message }}</span>
+        </div>
+      }
+    }
+
+    <nx-form-section [title]="'org.warehouses.sections.identification' | transloco">
+      <nx-form-grid>
+        <mat-form-field nxSpan="s" subscriptSizing="dynamic">
+          <mat-label>{{ 'org.warehouses.fields.code' | transloco }}</mat-label>
+          <input
+            matInput
+            class="nx-mono"
+            formControlName="code"
+            data-testid="warehouse-code-input"
+            required
+            autocomplete="off"
+          />
+          @if (form.controls.code.hasError('required')) {
+            <mat-error>{{ 'shared.form.required' | transloco }}</mat-error>
+          }
+        </mat-form-field>
+      </nx-form-grid>
+      <nx-form-grid>
+        <mat-form-field nxSpan="l" subscriptSizing="dynamic" [class.nx-field--locked]="isEdit">
+          <mat-label>{{ 'org.warehouses.fields.legalEntityId' | transloco }}</mat-label>
+          <mat-select
+            formControlName="legalEntityId"
+            data-testid="warehouse-legal-entity"
+            [required]="!isEdit"
+            (selectionChange)="onLegalEntityChange()"
+          >
+            <mat-select-trigger>
+              @if (selectedLegalEntity(); as legalEntity) {
+                <span class="nx-mono nx-wh-form__code">{{ legalEntity.code }}</span>
+                {{ legalEntity.legalName }}
+              }
+            </mat-select-trigger>
+            @for (legalEntity of legalEntityChoices(); track legalEntity.id) {
+              <mat-option [value]="legalEntity.id">
+                <span class="nx-mono nx-wh-form__code">{{ legalEntity.code }}</span>
+                {{ legalEntity.legalName }}
+              </mat-option>
+            }
+          </mat-select>
+          @if (isEdit) {
+            <mat-icon matSuffix class="nx-wh-form__muted" aria-hidden="true">lock</mat-icon>
+          }
+          @if (isEdit) {
+            <mat-hint>{{ 'org.warehouses.hints.lockedAfterCreate' | transloco }}</mat-hint>
+          } @else {
+            <mat-hint>{{ 'org.warehouses.hints.legalEntity' | transloco }}</mat-hint>
+          }
+          @if (form.controls.legalEntityId.hasError('required')) {
+            <mat-error>{{ 'shared.form.required' | transloco }}</mat-error>
+          }
+        </mat-form-field>
+
+        <mat-form-field nxSpan="l" subscriptSizing="dynamic">
+          <mat-label>{{ 'org.warehouses.fields.businessUnitId' | transloco }}</mat-label>
+          <mat-select formControlName="businessUnitId" data-testid="warehouse-business-unit">
+            <mat-select-trigger>
+              @if (selectedBusinessUnit(); as unit) {
+                <span class="nx-mono nx-wh-form__code">{{ unit.code }}</span> {{ unit.label }}
+              }
+            </mat-select-trigger>
+            @for (unit of businessUnitChoices(); track unit.id) {
+              <mat-option [value]="unit.id">
+                <span class="nx-mono nx-wh-form__code">{{ unit.code }}</span> {{ unit.label }}
+              </mat-option>
+            } @empty {
+              <mat-option disabled>{{
+                'org.warehouses.hints.noBusinessUnits' | transloco
+              }}</mat-option>
+            }
+          </mat-select>
+          @if (form.controls.businessUnitId.value && form.controls.businessUnitId.enabled) {
+            <button
+              matSuffix
+              mat-icon-button
+              type="button"
+              data-testid="warehouse-business-unit-clear"
+              [attr.aria-label]="'org.warehouses.actions.clearBusinessUnit' | transloco"
+              (click)="clearBusinessUnit($event)"
+            >
+              <mat-icon aria-hidden="true">close</mat-icon>
+            </button>
+          }
+          @if (!form.controls.legalEntityId.value) {
+            <mat-hint>{{ 'org.warehouses.hints.chooseLegalEntityFirst' | transloco }}</mat-hint>
+          } @else {
+            <mat-hint>{{ 'org.warehouses.hints.businessUnit' | transloco }}</mat-hint>
+          }
+          @if (form.controls.businessUnitId.hasError('orgR3') && businessUnitError(); as message) {
+            <mat-error data-testid="warehouse-business-unit-error">{{ message }}</mat-error>
+          }
+        </mat-form-field>
+      </nx-form-grid>
+    </nx-form-section>
+
+    <nx-form-section
+      [title]="'org.warehouses.sections.names' | transloco"
+      [hint]="'org.warehouses.sectionHints.names' | transloco"
+    >
+      <nx-form-grid>
+        <nx-i18n-caption-editor
+          nxSpan="xl"
+          formControlName="captionI18n"
+          data-testid="warehouse-caption"
+        />
+      </nx-form-grid>
+    </nx-form-section>
+
+    <nx-form-section
+      [title]="'org.warehouses.sections.address' | transloco"
+      [hint]="'org.warehouses.sectionHints.address' | transloco"
+      data-testid="warehouse-address"
+    >
+      <mat-radio-group
+        class="nx-wh-address"
+        formControlName="addressMode"
+        [attr.aria-label]="'org.warehouses.sections.address' | transloco"
+      >
+        <mat-radio-button
+          class="nx-wh-address__option"
+          value="sameAsLegalEntity"
+          [disabled]="!sameAsLegalEntityAvailable"
+          data-testid="warehouse-address-same"
+        >
+          <span class="nx-wh-address__title">{{
+            'org.warehouses.address.sameAsLegalEntity' | transloco
+          }}</span>
+          @if (!sameAsLegalEntityAvailable) {
+            <span class="nx-wh-address__hint">{{
+              'org.warehouses.address.sameAsLegalEntityUnavailable' | transloco
+            }}</span>
+          }
+        </mat-radio-button>
+        <mat-radio-button
+          class="nx-wh-address__option"
+          value="existingLocation"
+          data-testid="warehouse-address-existing"
+        >
+          <span class="nx-wh-address__title">{{
+            'org.warehouses.address.existing' | transloco
+          }}</span>
+          <span class="nx-wh-address__hint">{{
+            'org.warehouses.address.existingHint' | transloco
+          }}</span>
+        </mat-radio-button>
+        <mat-radio-button
+          class="nx-wh-address__option"
+          value="newLocation"
+          data-testid="warehouse-address-new"
+        >
+          <span class="nx-wh-address__title">{{ 'org.warehouses.address.new' | transloco }}</span>
+          <span class="nx-wh-address__hint">{{
+            'org.warehouses.address.newHint' | transloco
+          }}</span>
+        </mat-radio-button>
+      </mat-radio-group>
+
+      @switch (addressMode()) {
+        @case ('existingLocation') {
+          <div class="nx-wh-address__fields" data-testid="warehouse-location-picker">
+            <nx-form-grid>
+              <mat-form-field nxSpan="l" subscriptSizing="dynamic">
+                <mat-label>{{ 'org.warehouses.fields.location' | transloco }}</mat-label>
+                <mat-icon matPrefix aria-hidden="true">place</mat-icon>
+                <input
+                  matInput
+                  type="text"
+                  autocomplete="off"
+                  required
+                  data-testid="warehouse-location-input"
+                  [formControl]="locationSearch"
+                  [errorStateMatcher]="locationErrorState"
+                  [matAutocomplete]="locationAuto"
+                />
+                <mat-autocomplete
+                  #locationAuto="matAutocomplete"
+                  [displayWith]="displayLocation"
+                  (optionSelected)="onLocationSelected($event)"
+                >
+                  @for (location of locationOptions(); track location.id) {
+                    <mat-option [value]="location">
+                      @if (location.code) {
+                        <span class="nx-mono nx-wh-form__code">{{ location.code }}</span>
+                      }
+                      {{ location.name }}
+                      @if (location.city) {
+                        <span class="nx-wh-form__muted"> · {{ location.city }}</span>
+                      }
+                    </mat-option>
+                  } @empty {
+                    <mat-option disabled>{{
+                      'shared.entityPicker.noResults' | transloco
+                    }}</mat-option>
+                  }
+                </mat-autocomplete>
+                <mat-hint>{{ 'org.warehouses.hints.location' | transloco }}</mat-hint>
+                @if (form.controls.locationId.hasError('required')) {
+                  <mat-error>{{ 'org.warehouses.hints.locationRequired' | transloco }}</mat-error>
+                }
+              </mat-form-field>
+            </nx-form-grid>
+          </div>
+        }
+        @case ('newLocation') {
+          <div
+            class="nx-wh-address__fields"
+            formGroupName="newLocation"
+            data-testid="warehouse-new-location"
+          >
+            <nx-form-grid>
+              <mat-form-field nxSpan="l" subscriptSizing="dynamic">
+                <mat-label>{{ 'org.warehouses.address.fields.name' | transloco }}</mat-label>
+                <input
+                  matInput
+                  formControlName="name"
+                  required
+                  data-testid="warehouse-new-location-name"
+                />
+                <mat-hint>{{ 'org.warehouses.address.hints.name' | transloco }}</mat-hint>
+                @if (form.controls.newLocation.controls.name.hasError('required')) {
+                  <mat-error>{{ 'shared.form.required' | transloco }}</mat-error>
+                }
+              </mat-form-field>
+              <mat-form-field nxSpan="s" subscriptSizing="dynamic">
+                <mat-label>{{ 'org.warehouses.address.fields.code' | transloco }}</mat-label>
+                <input
+                  matInput
+                  class="nx-mono"
+                  formControlName="code"
+                  autocomplete="off"
+                  data-testid="warehouse-new-location-code"
+                />
+                <mat-hint>{{ 'org.warehouses.address.hints.code' | transloco }}</mat-hint>
+              </mat-form-field>
+            </nx-form-grid>
+            <nx-form-grid>
+              <mat-form-field nxSpan="l" subscriptSizing="dynamic">
+                <mat-label>{{ 'org.warehouses.address.fields.street' | transloco }}</mat-label>
+                <input
+                  matInput
+                  formControlName="street"
+                  autocomplete="off"
+                  data-testid="warehouse-new-location-street"
+                />
+              </mat-form-field>
+              <mat-form-field nxSpan="s" subscriptSizing="dynamic">
+                <mat-label>{{ 'org.warehouses.address.fields.postalCode' | transloco }}</mat-label>
+                <input
+                  matInput
+                  formControlName="postalCode"
+                  autocomplete="off"
+                  data-testid="warehouse-new-location-postalCode"
+                />
+              </mat-form-field>
+            </nx-form-grid>
+            <nx-form-grid>
+              <mat-form-field nxSpan="m" subscriptSizing="dynamic">
+                <mat-label>{{ 'org.warehouses.address.fields.city' | transloco }}</mat-label>
+                <input
+                  matInput
+                  formControlName="city"
+                  autocomplete="off"
+                  data-testid="warehouse-new-location-city"
+                />
+              </mat-form-field>
+              <mat-form-field nxSpan="m" subscriptSizing="dynamic">
+                <mat-label>{{ 'org.warehouses.address.fields.region' | transloco }}</mat-label>
+                <input
+                  matInput
+                  formControlName="region"
+                  autocomplete="off"
+                  data-testid="warehouse-new-location-region"
+                />
+                <mat-hint>{{ 'org.warehouses.address.hints.region' | transloco }}</mat-hint>
+              </mat-form-field>
+              <mat-form-field nxSpan="m" subscriptSizing="dynamic">
+                <mat-label>{{ 'org.warehouses.address.fields.countryCode' | transloco }}</mat-label>
+                <mat-select
+                  formControlName="countryCode"
+                  required
+                  data-testid="warehouse-new-location-countryCode"
+                >
+                  <mat-select-trigger>
+                    @if (form.controls.newLocation.controls.countryCode.value; as code) {
+                      {{ countryLabel(code) }} ({{ code }})
+                    }
+                  </mat-select-trigger>
+                  @for (country of countries(); track country.code) {
+                    <mat-option [value]="country.code"
+                      >{{ country.name }} ({{ country.code }})</mat-option
+                    >
+                  }
+                </mat-select>
+                @if (form.controls.newLocation.controls.countryCode.invalid) {
+                  <mat-error>{{ 'shared.form.required' | transloco }}</mat-error>
+                }
+              </mat-form-field>
+            </nx-form-grid>
+          </div>
+        }
+      }
+    </nx-form-section>
+
+    <nx-action-bar>
+      @if (saveProgressKey(); as progressKey) {
+        <span class="nx-wh-form__progress" role="status" data-testid="warehouse-save-progress">
+          <mat-progress-spinner diameter="18" mode="indeterminate" aria-hidden="true" />
+          {{ progressKey | transloco }}
+        </span>
+      }
+      <button mat-button type="button" data-testid="warehouse-cancel-button" (click)="cancel()">
+        {{ 'common.cancel' | transloco }}
+      </button>
+      <button
+        mat-flat-button
+        type="submit"
+        data-testid="warehouse-save-button"
+        [disabled]="facade.saving() || readOnly() || (isEdit && form.pristine)"
+      >
+        {{ (isEdit ? 'common.saveChanges' : 'org.warehouses.actions.create') | transloco }}
+      </button>
+    </nx-action-bar>
+  </form>
+</ng-template>
