@@ -35,27 +35,21 @@
         }
       </mat-form-field>
 
-      <mat-form-field nxSpan="l" subscriptSizing="dynamic" [class.nx-field--locked]="isEdit">
-        <mat-label>{{ 'org.parties.fields.isInternal' | transloco }}</mat-label>
-        <mat-select formControlName="isInternal" data-testid="party-form-scope">
-          <mat-select-trigger>{{ scopeKey(form.controls.isInternal.value) | transloco }}</mat-select-trigger>
-          @for (option of scopeOptions; track option) {
-            <mat-option [value]="option">{{ scopeKey(option) | transloco }}</mat-option>
-          }
-        </mat-select>
-        <!-- One element per @if: content projection only routes a block's single root to matSuffix/mat-hint. -->
-        @if (isEdit) {
+      <!-- Manual creation always makes EXTERNAL parties (isInternal=false): the scope is only shown, locked, in edit mode. -->
+      @if (isEdit) {
+        <mat-form-field nxSpan="l" subscriptSizing="dynamic" [class.nx-field--locked]="isEdit">
+          <mat-label>{{ 'org.parties.fields.isInternal' | transloco }}</mat-label>
+          <mat-select formControlName="isInternal" data-testid="party-form-scope">
+            <mat-select-trigger>{{ scopeKey(form.controls.isInternal.value) | transloco }}</mat-select-trigger>
+            @for (option of scopeOptions; track option) {
+              <mat-option [value]="option">{{ scopeKey(option) | transloco }}</mat-option>
+            }
+          </mat-select>
+          <!-- One element per @if: content projection only routes a block's single root to matSuffix/mat-hint. -->
           <mat-icon matSuffix class="nx-party-form__lock" aria-hidden="true">lock</mat-icon>
-        }
-        @if (isEdit) {
           <mat-hint>{{ 'org.parties.hints.lockedAfterCreate' | transloco }}</mat-hint>
-        } @else {
-          <mat-hint>{{ 'org.parties.hints.isInternal' | transloco }}</mat-hint>
-        }
-        @for (message of errorsFor('isInternal'); track message) {
-          <mat-error>{{ message }}</mat-error>
-        }
-      </mat-form-field>
+        </mat-form-field>
+      }
 
       <mat-form-field nxSpan="l" subscriptSizing="dynamic">
         <mat-label>{{ (isPerson() ? 'org.parties.fields.legalNamePerson' : 'org.parties.fields.legalName') | transloco }}</mat-label>

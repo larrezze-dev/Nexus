@@ -85,13 +85,22 @@ describe('PartyFormComponent', () => {
     expect(root(fixture).querySelectorAll('mat-form-field:not([nxSpan])').length).toBe(0);
   });
 
-  it('defaults a new party to an external organization, both editable', async () => {
+  it('creates external parties only: no scope selector on create, isInternal=false is sent', async () => {
+    const { fixture, form, emitted } = await setup('create');
+
+    expect(root(fixture).querySelector('[data-testid="party-form-scope"]')).toBeNull();
+    form.form.controls['legalName'].setValue('Acme AG');
+    root(fixture).querySelector<HTMLButtonElement>('[data-testid="party-form-submit"]')?.click();
+    expect(emitted).toHaveLength(1);
+    expect(emitted[0].isInternal).toBe(false);
+  });
+
+  it('defaults a new party to an external organization with an editable type', async () => {
     const { form } = await setup('create');
 
     expect(form.form.controls['partyType'].value).toBe('ORGANIZATION');
     expect(form.form.controls['isInternal'].value).toBe(false);
     expect(form.form.controls['partyType'].disabled).toBe(false);
-    expect(form.form.controls['isInternal'].disabled).toBe(false);
   });
 
   it('labels the name «Full name» for a person and «Legal name» for an organization', async () => {

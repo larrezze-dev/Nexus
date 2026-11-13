@@ -344,7 +344,6 @@
         "legalNamePerson": "Nombre y apellidos.",
         "displayName": "Para listas y menús.",
         "partyType": "Organización: empresa o institución. Persona: una persona física.",
-        "isInternal": "Interno: forma parte del grupo. Externo: cliente, proveedor u otro tercero.",
         "taxId": "Número de identificación fiscal, p. ej. CHE-123.456.789.",
         "erpCompanyCode": "Código de esta empresa en el ERP, si lo tiene.",
         "lockedAfterCreate": "Se fija al crear el tercero."

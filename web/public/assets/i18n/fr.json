@@ -344,7 +344,6 @@
         "legalNamePerson": "Prénom et nom.",
         "displayName": "Pour les listes et les menus.",
         "partyType": "Organisation : entreprise ou institution. Personne : une personne physique.",
-        "isInternal": "Interne : fait partie du groupe. Externe : client, fournisseur ou autre partenaire.",
         "taxId": "Numéro d'identification fiscale, p. ex. CHE-123.456.789.",
         "erpCompanyCode": "Code de cette entreprise dans l'ERP, s'il existe.",
         "lockedAfterCreate": "Fixé à la création du partenaire."

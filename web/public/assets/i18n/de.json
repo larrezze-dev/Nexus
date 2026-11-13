@@ -283,7 +283,6 @@
         "legalNamePerson": "Vor- und Nachname.",
         "displayName": "Für Listen und Menüs.",
         "partyType": "Organisation: Firma oder Institution. Person: eine natürliche Person.",
-        "isInternal": "Intern: gehört zur Gruppe. Extern: Kunde, Lieferant oder anderer Partner.",
         "taxId": "Steuer-Identifikationsnummer, z. B. CHE-123.456.789.",
         "erpCompanyCode": "Code dieser Firma im ERP, falls vorhanden.",
         "lockedAfterCreate": "Wird beim Anlegen des Partners festgelegt."
