@@ -3,8 +3,15 @@
  * kept in the app or translated by hand. Codes are ISO 3166-1 alpha-2 (`countryCode` in the API).
  */
 
-/** Region codes `Intl` knows that are not countries (EU, UN, pseudo-locales, unknown region). */
-const NOT_COUNTRIES = new Set(['EU', 'EZ', 'UN', 'QO', 'XA', 'XB', 'ZZ']);
+/**
+ * Region codes `Intl` knows that are not countries to pick: EU, UN, pseudo-locales, unknown
+ * region, and the deprecated aliases CLDR still names after their successor (DD → «Germany»,
+ * UK → «United Kingdom», YU/CS → «Serbia»…), which would show each of those countries twice.
+ */
+const NOT_COUNTRIES = new Set([
+  'EU', 'EZ', 'UN', 'QO', 'XA', 'XB', 'ZZ',
+  'AN', 'BU', 'CS', 'DD', 'DY', 'FX', 'HV', 'NH', 'RH', 'SU', 'TP', 'UK', 'VD', 'YD', 'YU', 'ZR',
+]);
 
 const LETTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
 

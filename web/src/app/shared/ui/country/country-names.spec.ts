@@ -16,7 +16,12 @@ describe('country names', () => {
     expect(codes).not.toContain('EU');
     expect(codes).not.toContain('UN');
     expect(codes).not.toContain('ZZ');
+    // Deprecated aliases would list Germany, the UK, Serbia… twice.
+    expect(codes).not.toContain('DD');
+    expect(codes).not.toContain('UK');
+    expect(codes).not.toContain('YU');
     const names = options.map((option) => option.name);
+    expect(new Set(names).size).toBe(names.length);
     expect([...names].sort(new Intl.Collator(['es']).compare)).toEqual(names);
   });
 });
