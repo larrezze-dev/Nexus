@@ -94,6 +94,20 @@ describe('LocationListPage', () => {
     expect(cell('city', { ...row, city: null })).toBe('—');
   });
 
+  it('builds the card subtitle as «city · country» in the active language, leaving out a missing part', () => {
+    fixture.detectChanges();
+    expect((fixture.componentInstance as unknown as { cardFields: { subtitle: string } }).cardFields.subtitle).toBe(
+      'place',
+    );
+    expect(cell('place')).toBe('Zug · Switzerland');
+    expect(cell('place', { ...row, city: null })).toBe('Switzerland');
+    expect(cell('place', { ...row, countryCode: null as never })).toBe('Zug');
+
+    TestBed.inject(TranslocoService).setActiveLang('es');
+    fixture.detectChanges();
+    expect(cell('place')).toBe('Zug · Suiza');
+  });
+
   it('only lets the user sort by the columns the API sorts on (name, city, status)', () => {
     expect(columns().filter((column) => column.sortable).map((column) => column.colId ?? column.field)).toEqual([
       'name',

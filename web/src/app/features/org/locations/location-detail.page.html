@@ -39,22 +39,16 @@
       </div>
     }
 
-    <!-- General only: no Audit tab until there is an audit projection for locations. -->
-    <mat-tab-group mat-stretch-tabs="false" animationDuration="0ms">
-      <mat-tab [label]="'common.tabs.general' | transloco">
-        <div class="nx-tab-panel">
-          <nx-location-form
-            mode="edit"
-            [initial]="current"
-            [saving]="saving()"
-            [readOnly]="!canUpdate()"
-            [fieldErrors]="fieldErrors()"
-            (save)="onSave($event)"
-            (cancel)="onCancel()"
-          />
-        </div>
-      </mat-tab>
-    </mat-tab-group>
+    <!-- One content area only: locations have no audit projection yet, so no General · Audit tabs. -->
+    <nx-location-form
+      mode="edit"
+      [initial]="current"
+      [saving]="saving()"
+      [readOnly]="!canUpdate()"
+      [fieldErrors]="fieldErrors()"
+      (save)="onSave($event)"
+      (cancel)="onCancel()"
+    />
   </nx-page>
 } @else if (loadError()) {
   <nx-page width="form">

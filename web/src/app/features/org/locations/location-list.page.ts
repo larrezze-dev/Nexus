@@ -25,8 +25,8 @@ import { LocationFacade } from './location.facade';
  * No filter bar: `GET /v1/locations` only takes `page`/`pageSize`/`sort` (no search, no status
  * filter). The API sorts by `name`, `city` and `isActive` (default: name), so only those
  * columns are sortable. The country is shown by its name in the active language (columns are a
- * `computed` of the language, so they follow a switch), never as the bare ISO code. A row
- * (click, Enter, card tap) opens the detail page.
+ * `computed` of the language, so they follow a switch), never as the bare ISO code. Below 600 px
+ * each card reads «name / city · country». A row (click, Enter, card tap) opens the detail page.
  */
 @Component({
   selector: 'nx-location-list-page',
@@ -124,13 +124,22 @@ export class LocationListPage {
         width: 140,
         sortable: true,
       },
+      {
+        // Card view only (< 600 px): «Zug · Schweiz» under the name; a missing part is left out.
+        colId: 'place',
+        hide: true,
+        valueGetter: (params) =>
+          [params.data?.city, countryName(params.data?.countryCode, language)]
+            .filter((part) => !!part)
+            .join(' · '),
+      },
     ];
   });
 
-  /** Cards below 600 px: name, code underneath, status on the right. */
+  /** Cards below 600 px: name, «city · country» underneath, status on the right. */
   protected readonly cardFields: NxDataGridCardFields = {
     title: 'name',
-    subtitle: 'code',
+    subtitle: 'place',
     status: 'isActive',
   };
 

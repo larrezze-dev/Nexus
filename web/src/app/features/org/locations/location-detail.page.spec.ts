@@ -135,14 +135,15 @@ describe('LocationDetailPage', () => {
     expect(subtitle.startsWith('modified on')).toBe(true);
   });
 
-  it('has a General tab only (no audit projection for locations)', async () => {
+  it('shows the form directly, without tabs (no audit projection for locations)', async () => {
     const fixture = await setupPage({ id: location.id }, createFacadeStub(location));
     fixture.detectChanges();
     await fixture.whenStable();
     fixture.detectChanges();
 
-    const tabs = Array.from(root(fixture).querySelectorAll('[role="tab"]')).map((tab) => tab.textContent?.trim());
-    expect(tabs).toEqual(['common.tabs.general']);
+    expect(root(fixture).querySelector('mat-tab-group')).toBeNull();
+    expect(root(fixture).querySelectorAll('[role="tab"]').length).toBe(0);
+    expect(root(fixture).querySelector('nx-page > nx-location-form, nx-location-form')).toBeTruthy();
   });
 
   it('names the location in the breadcrumb', async () => {

@@ -3,7 +3,6 @@ import { toSignal } from '@angular/core/rxjs-interop';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatSnackBar } from '@angular/material/snack-bar';
-import { MatTabsModule } from '@angular/material/tabs';
 import { ActivatedRoute, Router } from '@angular/router';
 import { TranslocoModule, TranslocoService } from '@jsverse/transloco';
 import { isProblem } from '../../../core/http/problem';
@@ -22,11 +21,11 @@ const DISPLAY_TIME_ZONE = 'Europe/Zurich';
  * Location detail and create page (`conventions-frontend.md §4.5–§4.6`), same structure as the
  * other org pages. Route `locations/new` (no `id` param) = create form template; an `id` =
  * detail template: header with the location name (also in the breadcrumb), «code · modified on
- * …» (just the date when the location has no code), the status badge, and the General tab.
+ * …» (just the date when the location has no code), the status badge, and the form directly.
  *
  * No header action: the API has no deactivate/reactivate endpoint for locations (0.4 contract).
- * No Audit tab: there is no audit projection for locations yet, so `nx-audit-trail` would have
- * nothing to show — add the tab when the projection exists.
+ * No tabs: there is no audit projection for locations yet, so the page shows the form directly
+ * (like parties) — add the General · Audit tabs when the projection exists.
  *
  * Errors: `errorInterceptor` already handles 401/403/404 navigation and the 409 concurrency
  * dialog; this page turns a 400 into per-field messages (`Problem.errors`) and a 422 into the
@@ -39,7 +38,6 @@ const DISPLAY_TIME_ZONE = 'Europe/Zurich';
     TranslocoModule,
     MatButtonModule,
     MatIconModule,
-    MatTabsModule,
     NxEmptyStateComponent,
     NxPageComponent,
     NxPageHeaderComponent,
