@@ -3,7 +3,6 @@ import { HttpTestingController, provideHttpClientTesting } from '@angular/common
 import { TestBed } from '@angular/core/testing';
 import { Location } from '../../../api/platform/models/location';
 import { LocationListItem } from '../../../api/platform/models/location-list-item';
-import { NxI18nService } from '../../../core/i18n/nx-i18n.service';
 import { LocationFacade } from './location.facade';
 
 const location: Location = {
@@ -31,11 +30,7 @@ const listItem: LocationListItem = {
 describe('LocationFacade', () => {
   function setup() {
     TestBed.configureTestingModule({
-      providers: [
-        provideHttpClient(),
-        provideHttpClientTesting(),
-        { provide: NxI18nService, useValue: { translateErrorCode: (code?: string) => code ?? 'generic-error' } },
-      ],
+      providers: [provideHttpClient(), provideHttpClientTesting()],
     });
 
     return {
@@ -113,18 +108,30 @@ describe('LocationFacade', () => {
     expect(updated?.name).toBe('Renamed');
   });
 
-  it('exposes an error and leaves selected() untouched when create fails', async () => {
+  it('lets a failed create propagate to the page and leaves selected() untouched', async () => {
     const { facade, httpMock } = setup();
 
     const create = facade.create({ name: location.name, countryCode: location.countryCode });
     httpMock
       .expectOne('/api/platform/v1/locations')
       .flush({ detail: 'bad input', code: 'BAD_REQUEST' }, { status: 400, statusText: 'Bad Request' });
-    const created = await create;
 
-    expect(created).toBeNull();
+    await expect(create).rejects.toMatchObject({ status: 400 });
     expect(facade.selected()).toBeNull();
-    expect(facade.error()).toBe('BAD_REQUEST');
+  });
+
+  it('exposes error() and clears selected() when the load fails', async () => {
+    const { facade, httpMock } = setup();
+
+    const load = facade.load(location.id);
+    httpMock
+      .expectOne(`/api/platform/v1/locations/${location.id}`)
+      .flush({ detail: 'boom' }, { status: 500, statusText: 'Server Error' });
+    await load;
+
+    expect(facade.selected()).toBeNull();
+    expect(facade.error()).toBe('load_failed');
+    expect(facade.loading()).toBe(false);
   });
 
   it('reset() clears selected()/error()', async () => {
