@@ -345,7 +345,7 @@
         "address": "Adresse"
       },
       "hints": {
-        "name": "Name, unter dem der Standort bekannt ist, z. B. «Lager Zug».",
+        "name": "Name, unter dem der Standort bekannt ist, z. B. «Lager Zug».",
         "code": "Optional. Für Listen und Auswertungen.",
         "region": "Kanton, Bundesland oder Provinz."
       },

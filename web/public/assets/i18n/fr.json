@@ -504,7 +504,7 @@
         "address": "Adresse"
       },
       "hints": {
-        "name": "Nom sous lequel le lieu est connu, p. ex. «Lager Zug».",
+        "name": "Nom sous lequel le lieu est connu, p. ex. «Lager Zug».",
         "code": "Facultatif. Pour listes et rapports.",
         "region": "Canton, État ou province."
       },
