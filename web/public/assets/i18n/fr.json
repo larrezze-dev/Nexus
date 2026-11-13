@@ -545,6 +545,27 @@
       "businessUnit": "Unité d'affaires",
       "clear": "Effacer",
       "current": "Actuel : {{value}}"
+    },
+    "address": {
+      "title": "Adresse",
+      "sameAsLegalEntity": "Même adresse que l'entité juridique",
+      "sameAsLegalEntityUnavailable": "Pas encore disponible : nécessite l'API d'adresse de l'entité juridique.",
+      "existing": "Un emplacement existant",
+      "new": "Nouvelle adresse",
+      "createdNotSaved": "L'emplacement \"{{value}}\" a été créé, mais l'entrepôt n'a pas pu être enregistré. Un nouvel enregistrement le réutilisera.",
+      "fields": {
+        "code": "Code (facultatif)",
+        "name": "Nom",
+        "street": "Rue",
+        "postalCode": "Code postal",
+        "city": "Ville",
+        "region": "Région",
+        "countryCode": "Code pays (p. ex. CH)"
+      }
+    },
+    "deactivateDialog": {
+      "title": "Désactiver l'entrepôt",
+      "message": "Désactiver l'entrepôt \"{{name}}\" ({{code}}) ? Il ne sera plus proposé pour de nouvelles opérations."
     }
   },
   "audit": {

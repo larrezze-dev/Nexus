@@ -545,6 +545,27 @@
       "businessUnit": "Business unit",
       "clear": "Clear",
       "current": "Current: {{value}}"
+    },
+    "address": {
+      "title": "Address",
+      "sameAsLegalEntity": "Same address as the legal entity",
+      "sameAsLegalEntityUnavailable": "Not available yet: it needs the legal entity address API.",
+      "existing": "An existing location",
+      "new": "New address",
+      "createdNotSaved": "The location \"{{value}}\" was created, but the warehouse could not be saved. Saving again reuses it.",
+      "fields": {
+        "code": "Code (optional)",
+        "name": "Name",
+        "street": "Street",
+        "postalCode": "Postal code",
+        "city": "City",
+        "region": "Region",
+        "countryCode": "Country code (e.g. CH)"
+      }
+    },
+    "deactivateDialog": {
+      "title": "Deactivate warehouse",
+      "message": "Deactivate warehouse \"{{name}}\" ({{code}})? It will no longer be offered for new operations."
     }
   },
   "audit": {

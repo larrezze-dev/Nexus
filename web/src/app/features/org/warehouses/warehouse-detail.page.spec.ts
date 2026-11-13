@@ -26,7 +26,14 @@ function createFacadeStub(selected: Warehouse | null) {
     loading: signal(false).asReadonly(),
     saving: signal(false).asReadonly(),
     error: signal<string | null>(null).asReadonly(),
-    businessUnitError: signal<string | null>(null).asReadonly(),
+    title: signal<string | null>(null).asReadonly(),
+    pendingLocation: signal(null).asReadonly(),
+    saveStep: signal('idle').asReadonly(),
+    describeError: vi.fn().mockReturnValue({ message: 'err' }),
+    displayLocation: (l: { name: string }) => l.name,
+    displayLegalEntity: (l: { code: string }) => l.code,
+    displayBusinessUnit: (b: { code: string }) => b.code,
+    save: vi.fn(),
     resolvedLocationLabel: signal<string | null>(null).asReadonly(),
     resolvedLegalEntityLabel: signal<string | null>(null).asReadonly(),
     resolvedBusinessUnitLabel: signal<string | null>(null).asReadonly(),
@@ -126,5 +133,21 @@ describe('WarehouseDetailPage audit tab', () => {
 
     expect(input()?.value).toBe('WH-EDITED');
     expect(fixture.componentInstance['form'].controls.code.value).toBe('WH-EDITED');
+  });
+});
+
+describe('WarehouseDetailPage address options', () => {
+  it('shows «same as legal entity» disabled and swaps the picker for the new-address fields', async () => {
+    const fixture = await setupPage({ id: 'new' }, createFacadeStub(null));
+    const root = fixture.nativeElement as HTMLElement;
+    expect(root.querySelector('[data-testid="warehouse-address-same"] input')?.hasAttribute('disabled')).toBe(true);
+    expect(root.querySelector('[data-testid="warehouse-location-picker"]')).not.toBeNull();
+    expect(root.querySelector('[data-testid="warehouse-new-location"]')).toBeNull();
+
+    fixture.componentInstance['form'].controls.addressMode.setValue('newLocation');
+    fixture.detectChanges();
+
+    expect(root.querySelector('[data-testid="warehouse-location-picker"]')).toBeNull();
+    expect(root.querySelector('[data-testid="warehouse-new-location-name"]')).not.toBeNull();
   });
 });

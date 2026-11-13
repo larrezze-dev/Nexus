@@ -545,6 +545,27 @@
       "businessUnit": "Business unit",
       "clear": "Rimuovi",
       "current": "Attuale: {{value}}"
+    },
+    "address": {
+      "title": "Indirizzo",
+      "sameAsLegalEntity": "Stesso indirizzo dell'entità giuridica",
+      "sameAsLegalEntityUnavailable": "Non ancora disponibile: richiede l'API dell'indirizzo dell'entità giuridica.",
+      "existing": "Una ubicazione esistente",
+      "new": "Nuovo indirizzo",
+      "createdNotSaved": "L'ubicazione \"{{value}}\" è stata creata, ma il magazzino non è stato salvato. Un nuovo salvataggio la riutilizzerà.",
+      "fields": {
+        "code": "Codice (facoltativo)",
+        "name": "Nome",
+        "street": "Via",
+        "postalCode": "CAP",
+        "city": "Città",
+        "region": "Regione",
+        "countryCode": "Codice paese (es. CH)"
+      }
+    },
+    "deactivateDialog": {
+      "title": "Disattiva magazzino",
+      "message": "Disattivare il magazzino \"{{name}}\" ({{code}})? Non verrà più proposto per nuove operazioni."
     }
   },
   "audit": {

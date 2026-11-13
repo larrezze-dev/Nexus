@@ -545,6 +545,27 @@
       "businessUnit": "Business unit",
       "clear": "Quitar",
       "current": "Actual: {{value}}"
+    },
+    "address": {
+      "title": "Dirección",
+      "sameAsLegalEntity": "Misma dirección que la entidad legal",
+      "sameAsLegalEntityUnavailable": "Aún no disponible: necesita la API de dirección de la entidad legal.",
+      "existing": "Una ubicación existente",
+      "new": "Nueva dirección",
+      "createdNotSaved": "La ubicación \"{{value}}\" se creó, pero no se pudo guardar el almacén. Al guardar de nuevo se reutilizará.",
+      "fields": {
+        "code": "Código (opcional)",
+        "name": "Nombre",
+        "street": "Calle",
+        "postalCode": "Código postal",
+        "city": "Ciudad",
+        "region": "Región",
+        "countryCode": "Código de país (p. ej. CH)"
+      }
+    },
+    "deactivateDialog": {
+      "title": "Desactivar almacén",
+      "message": "¿Desactivar el almacén \"{{name}}\" ({{code}})? Ya no se ofrecerá para nuevas operaciones."
     }
   },
   "audit": {

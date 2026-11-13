@@ -545,6 +545,27 @@
       "businessUnit": "Business Unit",
       "clear": "Entfernen",
       "current": "Aktuell: {{value}}"
+    },
+    "address": {
+      "title": "Adresse",
+      "sameAsLegalEntity": "Gleiche Adresse wie die Rechtseinheit",
+      "sameAsLegalEntityUnavailable": "Noch nicht verfügbar: benötigt die Adress-API der Rechtseinheit.",
+      "existing": "Ein bestehender Standort",
+      "new": "Neue Adresse",
+      "createdNotSaved": "Der Standort \"{{value}}\" wurde angelegt, das Lager konnte aber nicht gespeichert werden. Beim erneuten Speichern wird er wiederverwendet.",
+      "fields": {
+        "code": "Code (optional)",
+        "name": "Name",
+        "street": "Strasse",
+        "postalCode": "Postleitzahl",
+        "city": "Ort",
+        "region": "Region",
+        "countryCode": "Ländercode (z. B. CH)"
+      }
+    },
+    "deactivateDialog": {
+      "title": "Lager deaktivieren",
+      "message": "Lager \"{{name}}\" ({{code}}) deaktivieren? Es wird für neue Vorgänge nicht mehr angeboten."
     }
   },
   "audit": {

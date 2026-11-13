@@ -1,9 +1,10 @@
-import { Component, OnInit, inject, signal } from '@angular/core';
-import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
+import { Component, OnInit, effect, inject, signal } from '@angular/core';
+import { ReactiveFormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
+import { MatRadioModule } from '@angular/material/radio';
 import { MatTabsModule } from '@angular/material/tabs';
 import { TranslocoModule } from '@jsverse/transloco';
 import { Observable } from 'rxjs';
@@ -12,13 +13,14 @@ import { LegalEntityListItem } from '../../../api/platform/models/legal-entity-l
 import { LocationListItem } from '../../../api/platform/models/location-list-item';
 import { NxCanDirective } from '../../../shared/auth/can.directive';
 import { NxAuditTrailComponent } from '../../../shared/platform/nx-audit-trail/nx-audit-trail.component';
-import { emptyI18nText, I18nText } from '../../../shared/ui/i18n-text.model';
+import { NxConfirm } from '../../../shared/ui/layout';
 import { NxEntityPickerComponent } from '../../../shared/ui/nx-entity-picker/nx-entity-picker.component';
 import { NxI18nCaptionEditorComponent } from '../../../shared/ui/nx-i18n-caption-editor/nx-i18n-caption-editor.component';
 import { NxStatusBadgeComponent } from '../../../shared/ui/nx-status-badge/nx-status-badge.component';
 import { WarehouseFacade } from './warehouse.facade';
-import { NxI18nService } from '../../../core/i18n/nx-i18n.service';
-import { resolveCaption } from '../../../shared/ui/caption/caption.util';
+import { createWarehouseForm, patchWarehouseForm, warehouseFormValue } from './warehouse-form';
+import { SAME_AS_LEGAL_ENTITY_AVAILABLE, WarehouseSaveError } from './warehouse.models';
+import { TranslocoService } from '@jsverse/transloco';
 import { NxBreadcrumbService } from '../../../core/layout/breadcrumb.service';
 
 /**
@@ -51,6 +53,7 @@ import { NxBreadcrumbService } from '../../../core/layout/breadcrumb.service';
     MatTabsModule,
     MatFormFieldModule,
     MatInputModule,
+    MatRadioModule,
     MatButtonModule,
     TranslocoModule,
   ],
@@ -76,21 +79,64 @@ import { NxBreadcrumbService } from '../../../core/layout/breadcrumb.service';
 
           <nx-i18n-caption-editor formControlName="captionI18n" />
 
-          <div class="nx-field-group">
-            <span class="nx-field-group__label">{{
-              'warehouses.fields.location' | transloco
-            }}</span>
-            @if (facade.resolvedLocationLabel(); as label) {
-              <p class="nx-field-current">
-                {{ 'warehouses.fields.current' | transloco: { value: label } }}
+          <fieldset class="nx-field-group" data-testid="warehouse-address">
+            <legend class="nx-field-group__label">{{ 'warehouses.address.title' | transloco }}</legend>
+            <mat-radio-group formControlName="addressMode">
+              <mat-radio-button
+                value="sameAsLegalEntity"
+                [disabled]="!sameAsLegalEntityAvailable"
+                data-testid="warehouse-address-same"
+              >
+                {{ 'warehouses.address.sameAsLegalEntity' | transloco }}
+              </mat-radio-button>
+              <mat-radio-button value="existingLocation" data-testid="warehouse-address-existing">
+                {{ 'warehouses.address.existing' | transloco }}
+              </mat-radio-button>
+              <mat-radio-button value="newLocation" data-testid="warehouse-address-new">
+                {{ 'warehouses.address.new' | transloco }}
+              </mat-radio-button>
+            </mat-radio-group>
+            @if (!sameAsLegalEntityAvailable) {
+              <p class="nx-field-current">{{ 'warehouses.address.sameAsLegalEntityUnavailable' | transloco }}</p>
+            }
+
+            @switch (form.controls.addressMode.value) {
+              @case ('existingLocation') {
+                @if (facade.resolvedLocationLabel(); as label) {
+                  <p class="nx-field-current">{{ 'warehouses.fields.current' | transloco: { value: label } }}</p>
+                }
+                <nx-entity-picker
+                  [search]="facade.searchLocations"
+                  [displayWith]="facade.displayLocation"
+                  (selected)="onLocationSelected($event)"
+                  data-testid="warehouse-location-picker"
+                />
+              }
+              @case ('newLocation') {
+                <div formGroupName="newLocation" data-testid="warehouse-new-location">
+                  @for (field of newLocationFields; track field) {
+                    <mat-form-field>
+                      <mat-label>{{ 'warehouses.address.fields.' + field | transloco }}</mat-label>
+                      <input
+                        matInput
+                        [formControlName]="field"
+                        [attr.data-testid]="'warehouse-new-location-' + field"
+                      />
+                    </mat-form-field>
+                  }
+                </div>
+              }
+            }
+
+            @if (facade.pendingLocation(); as created) {
+              <p role="status" class="nx-field-current" data-testid="warehouse-pending-location">
+                {{
+                  'warehouses.address.createdNotSaved'
+                    | transloco: { value: facade.displayLocation(created) }
+                }}
               </p>
             }
-            <nx-entity-picker
-              [search]="searchLocations"
-              [displayWith]="displayLocation"
-              (selected)="onLocationSelected($event)"
-            />
-          </div>
+          </fieldset>
 
           <div class="nx-field-group">
             <span class="nx-field-group__label">{{
@@ -99,13 +145,13 @@ import { NxBreadcrumbService } from '../../../core/layout/breadcrumb.service';
             @if (isNew()) {
               <nx-entity-picker
                 [search]="searchLegalEntities"
-                [displayWith]="displayCode"
+                [displayWith]="facade.displayLegalEntity"
                 (selected)="onLegalEntitySelected($event)"
                 data-testid="warehouse-legal-entity-picker"
               />
             } @else {
               <p class="nx-field-current" data-testid="warehouse-legal-entity-current">
-                {{ facade.resolvedLegalEntityLabel() ?? form.controls.legalEntityId.value }}
+                {{ facade.resolvedLegalEntityLabel() }}
               </p>
             }
           </div>
@@ -121,7 +167,7 @@ import { NxBreadcrumbService } from '../../../core/layout/breadcrumb.service';
             }
             <nx-entity-picker
               [search]="searchBusinessUnits"
-              [displayWith]="displayCode"
+              [displayWith]="facade.displayBusinessUnit"
               (selected)="onBusinessUnitSelected($event)"
               data-testid="warehouse-business-unit-picker"
             />
@@ -129,14 +175,24 @@ import { NxBreadcrumbService } from '../../../core/layout/breadcrumb.service';
               {{ 'warehouses.fields.clear' | transloco }}
             </button>
 
-            @if (facade.businessUnitError(); as businessUnitError) {
+            @if (businessUnitError(); as businessUnitError) {
               <div class="nx-field-error" role="alert" data-testid="warehouse-business-unit-error">
                 {{ businessUnitError }}
               </div>
             }
           </div>
 
-          @if (facade.error(); as error) {
+          @if (facade.error(); as loadError) {
+            <p role="alert" class="nx-form-error" data-testid="warehouse-load-error">
+              {{ loadError }}
+              @if (!isNew() && !facade.selected()) {
+                <button type="button" mat-button (click)="retryLoad()" data-testid="warehouse-retry-button">
+                  {{ 'common.retry' | transloco }}
+                </button>
+              }
+            </p>
+          }
+          @if (formError(); as error) {
             <p role="alert" class="nx-form-error" data-testid="warehouse-form-error">{{ error }}</p>
           }
 
@@ -218,69 +274,61 @@ export class WarehouseDetailPage implements OnInit {
   protected readonly facade = inject(WarehouseFacade);
   private readonly route = inject(ActivatedRoute);
   private readonly breadcrumb = inject(NxBreadcrumbService);
-  private readonly i18n = inject(NxI18nService);
   private readonly router = inject(Router);
+  private readonly confirm = inject(NxConfirm);
+  private readonly transloco = inject(TranslocoService);
 
   protected readonly isNew = signal(true);
   private warehouseId: string | null = null;
   /** Id from the route; the audit tab only shows for the record that matches it. */
   protected readonly routeId = signal<string | null>(null);
+  protected readonly formError = signal<string | null>(null);
+  /** ORG-R3, shown right under the business-unit field. */
+  protected readonly businessUnitError = signal<string | null>(null);
 
-  protected readonly form = new FormGroup({
-    locationId: new FormControl('', { nonNullable: true, validators: [Validators.required] }),
-    legalEntityId: new FormControl('', { nonNullable: true, validators: [Validators.required] }),
-    businessUnitId: new FormControl<string | null>(null),
-    code: new FormControl('', { nonNullable: true, validators: [Validators.required] }),
-    captionI18n: new FormControl<I18nText>(emptyI18nText(), { nonNullable: true }),
-  });
+  protected readonly sameAsLegalEntityAvailable = SAME_AS_LEGAL_ENTITY_AVAILABLE;
+  protected readonly newLocationFields = ['code', 'name', 'street', 'postalCode', 'city', 'region', 'countryCode'] as const;
 
-  protected readonly searchLocations = this.facade.searchLocations;
+  protected readonly form = createWarehouseForm();
+
   protected readonly searchLegalEntities = this.facade.searchLegalEntities;
 
   protected readonly searchBusinessUnits = (query: string): Observable<BusinessUnitListItem[]> =>
     this.facade.searchBusinessUnits(this.form.controls.legalEntityId.value)(query);
 
-  protected readonly displayCode = (item: { code: string }): string => item.code;
-  protected readonly displayLocation = (item: LocationListItem): string =>
-    item.code ? `${item.code} — ${item.name}` : item.name;
+  constructor() {
+    // Breadcrumb label follows the caption in the active language, including language switches.
+    effect(() => this.breadcrumb.setCurrentLabel(this.isNew() ? null : this.facade.title()));
+  }
 
   ngOnInit(): void {
     const id = this.route.snapshot.paramMap.get('id');
+    this.facade.reset();
     if (id && id !== 'new') {
       this.isNew.set(false);
       this.warehouseId = id;
       this.routeId.set(id);
-      this.facade.reset();
       void this.loadExisting(id);
-    } else {
-      this.facade.reset();
+    }
+  }
+
+  protected retryLoad(): void {
+    if (this.warehouseId) {
+      void this.loadExisting(this.warehouseId);
     }
   }
 
   private async loadExisting(id: string): Promise<void> {
     await this.facade.load(id);
     const warehouse = this.facade.selected();
-    this.breadcrumb.setCurrentLabel(
-      warehouse
-        ? resolveCaption(warehouse.captionI18n, this.i18n.getActiveLanguage(), warehouse.code)
-        : null,
-    );
-    if (!warehouse) {
-      return;
+    if (warehouse) {
+      patchWarehouseForm(this.form, warehouse);
     }
-    this.form.patchValue({
-      locationId: warehouse.locationId,
-      legalEntityId: warehouse.legalEntityId,
-      businessUnitId: warehouse.businessUnitId ?? null,
-      code: warehouse.code,
-      captionI18n: warehouse.captionI18n as I18nText,
-    });
-    // ORG-R3/contract: `legalEntityId` is immutable once a warehouse exists.
-    this.form.controls.legalEntityId.disable();
   }
 
   protected onLocationSelected(item: LocationListItem): void {
     this.form.controls.locationId.setValue(item.id);
+    this.form.controls.locationId.markAsDirty();
   }
 
   protected onLegalEntitySelected(item: LegalEntityListItem): void {
@@ -302,36 +350,54 @@ export class WarehouseDetailPage implements OnInit {
       this.form.markAllAsTouched();
       return;
     }
-    const value = this.form.getRawValue();
-    if (this.isNew()) {
-      const created = await this.facade.create({
-        locationId: value.locationId,
-        legalEntityId: value.legalEntityId,
-        businessUnitId: value.businessUnitId,
-        code: value.code,
-        captionI18n: value.captionI18n,
-      });
-      if (created) {
-        void this.router.navigateByUrl(`/warehouses/${created.id}`);
+    this.formError.set(null);
+    this.businessUnitError.set(null);
+    try {
+      const saved = await this.facade.save(this.warehouseId, warehouseFormValue(this.form));
+      if (this.isNew()) {
+        void this.router.navigateByUrl(`/warehouses/${saved.id}`);
+      } else {
+        patchWarehouseForm(this.form, saved);
+        void this.facade.load(saved.id);
       }
-    } else if (this.warehouseId) {
-      const updated = await this.facade.update(this.warehouseId, {
-        locationId: value.locationId,
-        businessUnitId: value.businessUnitId,
-        code: value.code,
-        captionI18n: value.captionI18n,
-      });
-      if (updated) {
-        this.form.markAsPristine();
-      }
+    } catch (error: unknown) {
+      this.showSaveError(error);
+    }
+  }
+
+  private showSaveError(error: unknown): void {
+    const cause = error instanceof WarehouseSaveError ? error.cause : error;
+    const described = this.facade.describeError(cause);
+    if (described.code === 'ORG-R3') {
+      this.businessUnitError.set(described.message);
+    } else {
+      this.formError.set(described.message);
     }
   }
 
   protected async deactivate(): Promise<void> {
-    if (!this.warehouseId) {
+    const warehouse = this.facade.selected();
+    if (!warehouse) {
       return;
     }
-    await this.facade.deactivate(this.warehouseId);
+    const confirmed = await this.confirm.confirm({
+      title: this.transloco.translate('warehouses.deactivateDialog.title'),
+      message: this.transloco.translate('warehouses.deactivateDialog.message', {
+        name: this.facade.title() ?? warehouse.code,
+        code: warehouse.code,
+      }),
+      confirmLabel: this.transloco.translate('warehouses.actions.deactivate'),
+      destructive: true,
+    });
+    if (!confirmed) {
+      return;
+    }
+    this.formError.set(null);
+    try {
+      await this.facade.deactivate(warehouse.id);
+    } catch (error: unknown) {
+      this.showSaveError(error);
+    }
   }
 
   protected cancel(): void {
