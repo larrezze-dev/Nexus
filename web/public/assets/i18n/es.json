@@ -23,7 +23,7 @@
     "SAMPLE-R1": "Mensaje de ejemplo para la regla de negocio SAMPLE-R1 — sustituir por el texto real.",
     "ORG-R6": "El usuario SYSTEM no se puede editar ni desactivar.",
     "ORG-R9": "Ya existe un usuario con este email.",
-    "ORG-R3": "Un warehouse con una business unit debe usar una business unit que pertenezca a la misma legal entity."
+    "ORG-R3": "La unidad de negocio debe pertenecer a la misma entidad legal que el almacén."
   },
   "shell": {
     "skipToContent": "Saltar al contenido",
@@ -517,62 +517,95 @@
       "saved": "Cambios guardados",
       "created": "Ubicación creada",
       "readOnlyNotice": "Solo puedes consultar esta ubicación: no tienes permiso para modificarla."
-    }
-  },
-  "warehouses": {
-    "title": "Almacenes",
-    "actions": {
-      "create": "Nuevo almacén",
-      "deactivate": "Desactivar"
     },
-    "filters": {
-      "search": "Buscar",
-      "legalEntity": "Legal entity",
-      "businessUnit": "Business unit",
-      "isActive": "Estado",
-      "isActiveAll": "Todos"
-    },
-    "list": {
-      "columns": {
-        "code": "Código",
-        "caption": "Título",
-        "isActive": "Estado"
-      }
-    },
-    "detail": {
-      "title": {
-        "create": "Nuevo almacén",
-        "edit": "Editar almacén"
-      }
-    },
-    "fields": {
-      "code": "Código",
-      "location": "Ubicación",
-      "legalEntity": "Legal entity",
-      "businessUnit": "Business unit",
-      "clear": "Quitar",
-      "current": "Actual: {{value}}"
-    },
-    "address": {
-      "title": "Dirección",
-      "sameAsLegalEntity": "Misma dirección que la entidad legal",
-      "sameAsLegalEntityUnavailable": "Aún no disponible: necesita la API de dirección de la entidad legal.",
-      "existing": "Una ubicación existente",
-      "new": "Nueva dirección",
-      "createdNotSaved": "La ubicación \"{{value}}\" se creó, pero no se pudo guardar el almacén. Al guardar de nuevo se reutilizará.",
+    "warehouses": {
+      "title": "Almacenes",
+      "new": "Nuevo almacén",
+      "newTitle": "Nuevo almacén",
+      "createSubtitle": "Un lugar donde se guarda el material de una entidad legal, con su dirección. Los campos con * son obligatorios.",
+      "loading": "Cargando…",
+      "empty": "Todavía no hay almacenes",
+      "emptyHint": "Crea el primero e indica su dirección.",
+      "noResults": "Ningún almacén coincide con los filtros",
+      "deactivate": "Desactivar",
+      "filters": {
+        "q": "Buscar código o nombre",
+        "legalEntity": "Entidad legal",
+        "businessUnit": "Unidad de negocio",
+        "all": "Todas",
+        "status": "Estado",
+        "statusAll": "Todos",
+        "statusActive": "Activos",
+        "statusInactive": "Inactivos"
+      },
       "fields": {
-        "code": "Código (opcional)",
-        "name": "Nombre",
-        "street": "Calle",
-        "postalCode": "Código postal",
-        "city": "Ciudad",
-        "region": "Región",
-        "countryCode": "Código de país (p. ej. CH)"
-      }
-    },
-    "deactivateDialog": {
-      "title": "Desactivar almacén",
-      "message": "¿Desactivar el almacén \"{{name}}\" ({{code}})? Ya no se ofrecerá para nuevas operaciones."
+        "code": "Código",
+        "caption": "Nombre",
+        "legalEntityId": "Entidad legal",
+        "businessUnitId": "Unidad de negocio",
+        "location": "Ubicación",
+        "isActive": "Estado"
+      },
+      "sections": {
+        "identification": "Identificación",
+        "names": "Nombre en cada idioma",
+        "address": "Dirección del almacén"
+      },
+      "sectionHints": {
+        "names": "El alemán es obligatorio. Si falta un idioma, se muestra el nombre en alemán.",
+        "address": "Un almacén puede estar en la misma dirección que su entidad legal o en cualquier otra."
+      },
+      "hints": {
+        "legalEntity": "Entidad legal propietaria del almacén.",
+        "lockedAfterCreate": "Se fija al crear el almacén.",
+        "businessUnit": "Opcional. Solo unidades de la entidad legal elegida.",
+        "chooseLegalEntityFirst": "Elige primero la entidad legal.",
+        "noBusinessUnits": "Esta entidad legal no tiene unidades de negocio activas",
+        "location": "Escribe para buscar por código o nombre.",
+        "locationRequired": "Elige una ubicación de la lista."
+      },
+      "address": {
+        "sameAsLegalEntity": "La misma que la entidad legal",
+        "sameAsLegalEntityUnavailable": "Todavía no disponible. Mientras tanto, elige una ubicación registrada o escribe una dirección nueva.",
+        "existing": "Otra ubicación ya registrada",
+        "existingHint": "Elegir de la lista de ubicaciones (p. ej. una nave compartida con otro almacén).",
+        "new": "Nueva dirección",
+        "newHint": "Se escribe a mano y se guarda como ubicación nueva.",
+        "locationCreated": "La ubicación «{{value}}» ya se ha creado, pero el almacén no se ha podido guardar. Al reintentar se usará esa misma ubicación, sin duplicarla.",
+        "fields": {
+          "name": "Nombre de la ubicación",
+          "code": "Código de la ubicación",
+          "street": "Calle y número",
+          "postalCode": "Código postal",
+          "city": "Ciudad",
+          "region": "Región",
+          "countryCode": "País"
+        },
+        "hints": {
+          "name": "Nombre con que se conoce el lugar, p. ej. «Nave Getafe».",
+          "code": "Opcional. Código corto para listas.",
+          "region": "Cantón, provincia o estado."
+        }
+      },
+      "progress": {
+        "creatingLocation": "Creando ubicación…",
+        "savingWarehouse": "Guardando almacén…"
+      },
+      "actions": {
+        "create": "Crear almacén",
+        "clearBusinessUnit": "Quitar la unidad de negocio"
+      },
+      "detail": {
+        "modified": "modificado el {{date}}"
+      },
+      "deactivateDialog": {
+        "title": "¿Desactivar el almacén?",
+        "message": "«{{name}}» ({{code}}) quedará desactivado y ya no se ofrecerá para nuevas operaciones. Esta acción no se puede deshacer."
+      },
+      "deactivated": "Almacén desactivado",
+      "saved": "Cambios guardados",
+      "created": "Almacén creado",
+      "readOnlyNotice": "Solo puedes consultar este almacén: no tienes permiso para modificarlo."
     }
   },
   "audit": {

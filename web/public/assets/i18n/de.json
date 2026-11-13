@@ -23,7 +23,7 @@
     "SAMPLE-R1": "Beispieltext für Geschäftsregel SAMPLE-R1 — durch den echten Text ersetzen.",
     "ORG-R6": "Der SYSTEM-Benutzer kann nicht bearbeitet oder deaktiviert werden.",
     "ORG-R9": "Es existiert bereits ein Benutzer mit dieser E-Mail-Adresse.",
-    "ORG-R3": "Ein Warehouse mit einer Business Unit muss eine Business Unit verwenden, die zur selben Legal Entity gehört."
+    "ORG-R3": "Der Geschäftsbereich muss zur selben Gesellschaft gehören wie das Lager."
   },
   "shell": {
     "skipToContent": "Zum Inhalt springen",
@@ -358,6 +358,95 @@
       "saved": "Änderungen gespeichert",
       "created": "Standort angelegt",
       "readOnlyNotice": "Sie können diesen Standort nur ansehen: Ihnen fehlt die Berechtigung zum Ändern."
+    },
+    "warehouses": {
+      "title": "Lager",
+      "new": "Neues Lager",
+      "newTitle": "Neues Lager",
+      "createSubtitle": "Ein Ort, an dem Material einer Gesellschaft gelagert wird, mit seiner Adresse. Felder mit * sind Pflichtfelder.",
+      "loading": "Wird geladen…",
+      "empty": "Noch keine Lager",
+      "emptyHint": "Legen Sie das erste an und geben Sie seine Adresse an.",
+      "noResults": "Kein Lager entspricht den Filtern",
+      "deactivate": "Deaktivieren",
+      "filters": {
+        "q": "Code oder Name suchen",
+        "legalEntity": "Gesellschaft",
+        "businessUnit": "Geschäftsbereich",
+        "all": "Alle",
+        "status": "Status",
+        "statusAll": "Alle",
+        "statusActive": "Aktive",
+        "statusInactive": "Inaktive"
+      },
+      "fields": {
+        "code": "Code",
+        "caption": "Bezeichnung",
+        "legalEntityId": "Gesellschaft",
+        "businessUnitId": "Geschäftsbereich",
+        "location": "Standort",
+        "isActive": "Status"
+      },
+      "sections": {
+        "identification": "Identifikation",
+        "names": "Bezeichnung in jeder Sprache",
+        "address": "Adresse des Lagers"
+      },
+      "sectionHints": {
+        "names": "Deutsch ist Pflicht. Fehlt eine Sprache, wird die deutsche Bezeichnung angezeigt.",
+        "address": "Ein Lager kann an der Adresse seiner Gesellschaft oder an jeder anderen Adresse liegen."
+      },
+      "hints": {
+        "legalEntity": "Gesellschaft, der das Lager gehört.",
+        "lockedAfterCreate": "Wird beim Anlegen des Lagers festgelegt.",
+        "businessUnit": "Optional. Nur Geschäftsbereiche der gewählten Gesellschaft.",
+        "chooseLegalEntityFirst": "Wählen Sie zuerst die Gesellschaft.",
+        "noBusinessUnits": "Diese Gesellschaft hat keine aktiven Geschäftsbereiche",
+        "location": "Tippen Sie, um nach Code oder Name zu suchen.",
+        "locationRequired": "Wählen Sie einen Standort aus der Liste."
+      },
+      "address": {
+        "sameAsLegalEntity": "Wie die Gesellschaft",
+        "sameAsLegalEntityUnavailable": "Noch nicht verfügbar. Wählen Sie bis dahin einen erfassten Standort oder geben Sie eine neue Adresse ein.",
+        "existing": "Anderer erfasster Standort",
+        "existingHint": "Aus der Standortliste wählen (z. B. eine Halle, die mit einem anderen Lager geteilt wird).",
+        "new": "Neue Adresse",
+        "newHint": "Wird von Hand erfasst und als neuer Standort gespeichert.",
+        "locationCreated": "Der Standort «{{value}}» wurde bereits angelegt, aber das Lager konnte nicht gespeichert werden. Beim erneuten Versuch wird derselbe Standort verwendet, ohne ihn zu duplizieren.",
+        "fields": {
+          "name": "Name des Standorts",
+          "code": "Code des Standorts",
+          "street": "Strasse und Nr.",
+          "postalCode": "PLZ",
+          "city": "Ort",
+          "region": "Region",
+          "countryCode": "Land"
+        },
+        "hints": {
+          "name": "Name, unter dem der Standort bekannt ist, z. B. «Lager Zug».",
+          "code": "Optional. Kurzer Code für Listen.",
+          "region": "Kanton, Bundesland oder Provinz."
+        }
+      },
+      "progress": {
+        "creatingLocation": "Standort wird angelegt…",
+        "savingWarehouse": "Lager wird gespeichert…"
+      },
+      "actions": {
+        "create": "Lager anlegen",
+        "clearBusinessUnit": "Geschäftsbereich entfernen"
+      },
+      "detail": {
+        "modified": "geändert am {{date}}"
+      },
+      "deactivateDialog": {
+        "title": "Lager deaktivieren?",
+        "message": "«{{name}}» ({{code}}) wird deaktiviert und für neue Vorgänge nicht mehr angeboten. Dies kann nicht rückgängig gemacht werden."
+      },
+      "deactivated": "Lager deaktiviert",
+      "saved": "Änderungen gespeichert",
+      "created": "Lager angelegt",
+      "readOnlyNotice": "Sie können dieses Lager nur ansehen: Ihnen fehlt die Berechtigung zum Ändern."
     }
   },
   "access": {
@@ -517,62 +606,6 @@
       "required": "Pflichtfeld",
       "reviewFields": "Bitte prüfen Sie die {{count}} markierten Felder.",
       "reviewFieldsOne": "Bitte prüfen Sie das markierte Feld."
-    }
-  },
-  "warehouses": {
-    "title": "Warehouses",
-    "actions": {
-      "create": "Neues Warehouse",
-      "deactivate": "Deaktivieren"
-    },
-    "filters": {
-      "search": "Suchen",
-      "legalEntity": "Legal Entity",
-      "businessUnit": "Business Unit",
-      "isActive": "Status",
-      "isActiveAll": "Alle"
-    },
-    "list": {
-      "columns": {
-        "code": "Code",
-        "caption": "Bezeichnung",
-        "isActive": "Status"
-      }
-    },
-    "detail": {
-      "title": {
-        "create": "Neues Warehouse",
-        "edit": "Warehouse bearbeiten"
-      }
-    },
-    "fields": {
-      "code": "Code",
-      "location": "Standort",
-      "legalEntity": "Legal Entity",
-      "businessUnit": "Business Unit",
-      "clear": "Entfernen",
-      "current": "Aktuell: {{value}}"
-    },
-    "address": {
-      "title": "Adresse",
-      "sameAsLegalEntity": "Gleiche Adresse wie die Rechtseinheit",
-      "sameAsLegalEntityUnavailable": "Noch nicht verfügbar: benötigt die Adress-API der Rechtseinheit.",
-      "existing": "Ein bestehender Standort",
-      "new": "Neue Adresse",
-      "createdNotSaved": "Der Standort \"{{value}}\" wurde angelegt, das Lager konnte aber nicht gespeichert werden. Beim erneuten Speichern wird er wiederverwendet.",
-      "fields": {
-        "code": "Code (optional)",
-        "name": "Name",
-        "street": "Strasse",
-        "postalCode": "Postleitzahl",
-        "city": "Ort",
-        "region": "Region",
-        "countryCode": "Ländercode (z. B. CH)"
-      }
-    },
-    "deactivateDialog": {
-      "title": "Lager deaktivieren",
-      "message": "Lager \"{{name}}\" ({{code}}) deaktivieren? Es wird für neue Vorgänge nicht mehr angeboten."
     }
   },
   "audit": {

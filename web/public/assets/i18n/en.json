@@ -23,7 +23,7 @@
     "SAMPLE-R1": "Example business rule message — replace with the real text for rule SAMPLE-R1.",
     "ORG-R6": "The SYSTEM user cannot be edited or deactivated.",
     "ORG-R9": "A user with this email already exists.",
-    "ORG-R3": "A warehouse with a business unit must use a business unit that belongs to the same legal entity."
+    "ORG-R3": "The business unit must belong to the same legal entity as the warehouse."
   },
   "shell": {
     "skipToContent": "Skip to content",
@@ -517,62 +517,95 @@
       "saved": "Changes saved",
       "created": "Location created",
       "readOnlyNotice": "You can only view this location: you are not allowed to change it."
-    }
-  },
-  "warehouses": {
-    "title": "Warehouses",
-    "actions": {
-      "create": "New warehouse",
-      "deactivate": "Deactivate"
     },
-    "filters": {
-      "search": "Search",
-      "legalEntity": "Legal entity",
-      "businessUnit": "Business unit",
-      "isActive": "Status",
-      "isActiveAll": "All"
-    },
-    "list": {
-      "columns": {
-        "code": "Code",
-        "caption": "Caption",
-        "isActive": "Status"
-      }
-    },
-    "detail": {
-      "title": {
-        "create": "New warehouse",
-        "edit": "Edit warehouse"
-      }
-    },
-    "fields": {
-      "code": "Code",
-      "location": "Location",
-      "legalEntity": "Legal entity",
-      "businessUnit": "Business unit",
-      "clear": "Clear",
-      "current": "Current: {{value}}"
-    },
-    "address": {
-      "title": "Address",
-      "sameAsLegalEntity": "Same address as the legal entity",
-      "sameAsLegalEntityUnavailable": "Not available yet: it needs the legal entity address API.",
-      "existing": "An existing location",
-      "new": "New address",
-      "createdNotSaved": "The location \"{{value}}\" was created, but the warehouse could not be saved. Saving again reuses it.",
+    "warehouses": {
+      "title": "Warehouses",
+      "new": "New warehouse",
+      "newTitle": "New warehouse",
+      "createSubtitle": "A place where a legal entity's equipment is stored, with its address. Fields marked * are required.",
+      "loading": "Loading…",
+      "empty": "No warehouses yet",
+      "emptyHint": "Create the first one and give its address.",
+      "noResults": "No warehouse matches the filters",
+      "deactivate": "Deactivate",
+      "filters": {
+        "q": "Search code or name",
+        "legalEntity": "Legal entity",
+        "businessUnit": "Business unit",
+        "all": "All",
+        "status": "Status",
+        "statusAll": "All",
+        "statusActive": "Active",
+        "statusInactive": "Inactive"
+      },
       "fields": {
-        "code": "Code (optional)",
-        "name": "Name",
-        "street": "Street",
-        "postalCode": "Postal code",
-        "city": "City",
-        "region": "Region",
-        "countryCode": "Country code (e.g. CH)"
-      }
-    },
-    "deactivateDialog": {
-      "title": "Deactivate warehouse",
-      "message": "Deactivate warehouse \"{{name}}\" ({{code}})? It will no longer be offered for new operations."
+        "code": "Code",
+        "caption": "Name",
+        "legalEntityId": "Legal entity",
+        "businessUnitId": "Business unit",
+        "location": "Location",
+        "isActive": "Status"
+      },
+      "sections": {
+        "identification": "Identification",
+        "names": "Name in each language",
+        "address": "Warehouse address"
+      },
+      "sectionHints": {
+        "names": "German is required. If a language is missing, the German name is shown.",
+        "address": "A warehouse can be at the address of its legal entity or anywhere else."
+      },
+      "hints": {
+        "legalEntity": "Legal entity that owns the warehouse.",
+        "lockedAfterCreate": "Set when the warehouse is created.",
+        "businessUnit": "Optional. Only units of the chosen legal entity.",
+        "chooseLegalEntityFirst": "Choose the legal entity first.",
+        "noBusinessUnits": "This legal entity has no active business units",
+        "location": "Type to search by code or name.",
+        "locationRequired": "Choose a location from the list."
+      },
+      "address": {
+        "sameAsLegalEntity": "Same as the legal entity",
+        "sameAsLegalEntityUnavailable": "Not available yet. Meanwhile, choose a registered location or type a new address.",
+        "existing": "Another registered location",
+        "existingHint": "Pick one from the location list (e.g. a hall shared with another warehouse).",
+        "new": "New address",
+        "newHint": "Typed by hand and saved as a new location.",
+        "locationCreated": "The location “{{value}}” has already been created, but the warehouse could not be saved. Retrying uses that same location, without duplicating it.",
+        "fields": {
+          "name": "Location name",
+          "code": "Location code",
+          "street": "Street and number",
+          "postalCode": "Postal code",
+          "city": "City",
+          "region": "Region",
+          "countryCode": "Country"
+        },
+        "hints": {
+          "name": "Name the place is known by, e.g. «Lager Zug».",
+          "code": "Optional. Short code for lists.",
+          "region": "Canton, state or province."
+        }
+      },
+      "progress": {
+        "creatingLocation": "Creating location…",
+        "savingWarehouse": "Saving warehouse…"
+      },
+      "actions": {
+        "create": "Create warehouse",
+        "clearBusinessUnit": "Remove the business unit"
+      },
+      "detail": {
+        "modified": "modified on {{date}}"
+      },
+      "deactivateDialog": {
+        "title": "Deactivate the warehouse?",
+        "message": "“{{name}}” ({{code}}) will be deactivated and no longer offered for new operations. This cannot be undone."
+      },
+      "deactivated": "Warehouse deactivated",
+      "saved": "Changes saved",
+      "created": "Warehouse created",
+      "readOnlyNotice": "You can only view this warehouse: you are not allowed to change it."
     }
   },
   "audit": {

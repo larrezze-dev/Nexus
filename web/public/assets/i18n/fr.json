@@ -23,7 +23,7 @@
     "SAMPLE-R1": "Exemple de message pour la règle métier SAMPLE-R1 — à remplacer par le vrai texte.",
     "ORG-R6": "L'utilisateur SYSTEM ne peut pas être modifié ni désactivé.",
     "ORG-R9": "Un utilisateur avec cet e-mail existe déjà.",
-    "ORG-R3": "Un entrepôt avec une unité d'affaires doit utiliser une unité d'affaires qui appartient à la même entité juridique."
+    "ORG-R3": "L'unité d'affaires doit appartenir à la même entité juridique que l'entrepôt."
   },
   "shell": {
     "skipToContent": "Aller au contenu",
@@ -517,62 +517,95 @@
       "saved": "Modifications enregistrées",
       "created": "Site créé",
       "readOnlyNotice": "Vous pouvez seulement consulter ce site : vous n'avez pas le droit de le modifier."
-    }
-  },
-  "warehouses": {
-    "title": "Entrepôts",
-    "actions": {
-      "create": "Nouvel entrepôt",
-      "deactivate": "Désactiver"
     },
-    "filters": {
-      "search": "Rechercher",
-      "legalEntity": "Entité juridique",
-      "businessUnit": "Unité d'affaires",
-      "isActive": "Statut",
-      "isActiveAll": "Tous"
-    },
-    "list": {
-      "columns": {
-        "code": "Code",
-        "caption": "Légende",
-        "isActive": "Statut"
-      }
-    },
-    "detail": {
-      "title": {
-        "create": "Nouvel entrepôt",
-        "edit": "Modifier l'entrepôt"
-      }
-    },
-    "fields": {
-      "code": "Code",
-      "location": "Site",
-      "legalEntity": "Entité juridique",
-      "businessUnit": "Unité d'affaires",
-      "clear": "Effacer",
-      "current": "Actuel : {{value}}"
-    },
-    "address": {
-      "title": "Adresse",
-      "sameAsLegalEntity": "Même adresse que l'entité juridique",
-      "sameAsLegalEntityUnavailable": "Pas encore disponible : nécessite l'API d'adresse de l'entité juridique.",
-      "existing": "Un emplacement existant",
-      "new": "Nouvelle adresse",
-      "createdNotSaved": "L'emplacement \"{{value}}\" a été créé, mais l'entrepôt n'a pas pu être enregistré. Un nouvel enregistrement le réutilisera.",
+    "warehouses": {
+      "title": "Entrepôts",
+      "new": "Nouvel entrepôt",
+      "newTitle": "Nouvel entrepôt",
+      "createSubtitle": "Un lieu où est stocké le matériel d'une entité juridique, avec son adresse. Les champs marqués * sont obligatoires.",
+      "loading": "Chargement…",
+      "empty": "Aucun entrepôt pour l'instant",
+      "emptyHint": "Créez le premier et indiquez son adresse.",
+      "noResults": "Aucun entrepôt ne correspond aux filtres",
+      "deactivate": "Désactiver",
+      "filters": {
+        "q": "Rechercher code ou nom",
+        "legalEntity": "Entité juridique",
+        "businessUnit": "Unité d'affaires",
+        "all": "Toutes",
+        "status": "Statut",
+        "statusAll": "Tous",
+        "statusActive": "Actifs",
+        "statusInactive": "Inactifs"
+      },
       "fields": {
-        "code": "Code (facultatif)",
-        "name": "Nom",
-        "street": "Rue",
-        "postalCode": "Code postal",
-        "city": "Ville",
-        "region": "Région",
-        "countryCode": "Code pays (p. ex. CH)"
-      }
-    },
-    "deactivateDialog": {
-      "title": "Désactiver l'entrepôt",
-      "message": "Désactiver l'entrepôt \"{{name}}\" ({{code}}) ? Il ne sera plus proposé pour de nouvelles opérations."
+        "code": "Code",
+        "caption": "Nom",
+        "legalEntityId": "Entité juridique",
+        "businessUnitId": "Unité d'affaires",
+        "location": "Emplacement",
+        "isActive": "Statut"
+      },
+      "sections": {
+        "identification": "Identification",
+        "names": "Nom dans chaque langue",
+        "address": "Adresse de l'entrepôt"
+      },
+      "sectionHints": {
+        "names": "L'allemand est obligatoire. Si une langue manque, le nom allemand est affiché.",
+        "address": "Un entrepôt peut se trouver à l'adresse de son entité juridique ou à toute autre adresse."
+      },
+      "hints": {
+        "legalEntity": "Entité juridique propriétaire de l'entrepôt.",
+        "lockedAfterCreate": "Fixé à la création de l'entrepôt.",
+        "businessUnit": "Facultatif. Uniquement les unités de l'entité juridique choisie.",
+        "chooseLegalEntityFirst": "Choisissez d'abord l'entité juridique.",
+        "noBusinessUnits": "Cette entité juridique n'a aucune unité d'affaires active",
+        "location": "Tapez pour chercher par code ou nom.",
+        "locationRequired": "Choisissez un emplacement dans la liste."
+      },
+      "address": {
+        "sameAsLegalEntity": "La même que l'entité juridique",
+        "sameAsLegalEntityUnavailable": "Pas encore disponible. En attendant, choisissez un emplacement enregistré ou saisissez une nouvelle adresse.",
+        "existing": "Un autre emplacement enregistré",
+        "existingHint": "Choisir dans la liste des emplacements (p. ex. une halle partagée avec un autre entrepôt).",
+        "new": "Nouvelle adresse",
+        "newHint": "Saisie à la main et enregistrée comme nouvel emplacement.",
+        "locationCreated": "L'emplacement « {{value}} » a déjà été créé, mais l'entrepôt n'a pas pu être enregistré. En réessayant, ce même emplacement sera utilisé, sans doublon.",
+        "fields": {
+          "name": "Nom de l'emplacement",
+          "code": "Code de l'emplacement",
+          "street": "Rue et numéro",
+          "postalCode": "Code postal",
+          "city": "Ville",
+          "region": "Région",
+          "countryCode": "Pays"
+        },
+        "hints": {
+          "name": "Nom sous lequel le lieu est connu, p. ex. «Lager Zug».",
+          "code": "Facultatif. Code court pour les listes.",
+          "region": "Canton, État ou province."
+        }
+      },
+      "progress": {
+        "creatingLocation": "Création de l'emplacement…",
+        "savingWarehouse": "Enregistrement de l'entrepôt…"
+      },
+      "actions": {
+        "create": "Créer l'entrepôt",
+        "clearBusinessUnit": "Retirer l'unité d'affaires"
+      },
+      "detail": {
+        "modified": "modifié le {{date}}"
+      },
+      "deactivateDialog": {
+        "title": "Désactiver l'entrepôt ?",
+        "message": "« {{name}} » ({{code}}) sera désactivé et ne sera plus proposé pour de nouvelles opérations. Cette action est irréversible."
+      },
+      "deactivated": "Entrepôt désactivé",
+      "saved": "Modifications enregistrées",
+      "created": "Entrepôt créé",
+      "readOnlyNotice": "Vous pouvez seulement consulter cet entrepôt : vous n'avez pas le droit de le modifier."
     }
   },
   "audit": {

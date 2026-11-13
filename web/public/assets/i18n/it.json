@@ -23,7 +23,7 @@
     "SAMPLE-R1": "Testo di esempio per la regola di business SAMPLE-R1 — da sostituire con il testo reale.",
     "ORG-R6": "L'utente SYSTEM non può essere modificato né disattivato.",
     "ORG-R9": "Esiste già un utente con questa email.",
-    "ORG-R3": "Un magazzino con una business unit deve usare una business unit che appartiene alla stessa legal entity."
+    "ORG-R3": "L'unità di business deve appartenere alla stessa entità legale del magazzino."
   },
   "shell": {
     "skipToContent": "Vai al contenuto",
@@ -517,62 +517,95 @@
       "saved": "Modifiche salvate",
       "created": "Sede creata",
       "readOnlyNotice": "Puoi solo consultare questa sede: non hai l'autorizzazione per modificarla."
-    }
-  },
-  "warehouses": {
-    "title": "Magazzini",
-    "actions": {
-      "create": "Nuovo magazzino",
-      "deactivate": "Disattiva"
     },
-    "filters": {
-      "search": "Cerca",
-      "legalEntity": "Legal entity",
-      "businessUnit": "Business unit",
-      "isActive": "Stato",
-      "isActiveAll": "Tutti"
-    },
-    "list": {
-      "columns": {
-        "code": "Codice",
-        "caption": "Didascalia",
-        "isActive": "Stato"
-      }
-    },
-    "detail": {
-      "title": {
-        "create": "Nuovo magazzino",
-        "edit": "Modifica magazzino"
-      }
-    },
-    "fields": {
-      "code": "Codice",
-      "location": "Sede",
-      "legalEntity": "Legal entity",
-      "businessUnit": "Business unit",
-      "clear": "Rimuovi",
-      "current": "Attuale: {{value}}"
-    },
-    "address": {
-      "title": "Indirizzo",
-      "sameAsLegalEntity": "Stesso indirizzo dell'entità giuridica",
-      "sameAsLegalEntityUnavailable": "Non ancora disponibile: richiede l'API dell'indirizzo dell'entità giuridica.",
-      "existing": "Una ubicazione esistente",
-      "new": "Nuovo indirizzo",
-      "createdNotSaved": "L'ubicazione \"{{value}}\" è stata creata, ma il magazzino non è stato salvato. Un nuovo salvataggio la riutilizzerà.",
+    "warehouses": {
+      "title": "Magazzini",
+      "new": "Nuovo magazzino",
+      "newTitle": "Nuovo magazzino",
+      "createSubtitle": "Un luogo in cui si conserva il materiale di un'entità legale, con il suo indirizzo. I campi con * sono obbligatori.",
+      "loading": "Caricamento…",
+      "empty": "Ancora nessun magazzino",
+      "emptyHint": "Crea il primo e indica il suo indirizzo.",
+      "noResults": "Nessun magazzino corrisponde ai filtri",
+      "deactivate": "Disattiva",
+      "filters": {
+        "q": "Cerca codice o nome",
+        "legalEntity": "Entità legale",
+        "businessUnit": "Unità di business",
+        "all": "Tutte",
+        "status": "Stato",
+        "statusAll": "Tutti",
+        "statusActive": "Attivi",
+        "statusInactive": "Inattivi"
+      },
       "fields": {
-        "code": "Codice (facoltativo)",
-        "name": "Nome",
-        "street": "Via",
-        "postalCode": "CAP",
-        "city": "Città",
-        "region": "Regione",
-        "countryCode": "Codice paese (es. CH)"
-      }
-    },
-    "deactivateDialog": {
-      "title": "Disattiva magazzino",
-      "message": "Disattivare il magazzino \"{{name}}\" ({{code}})? Non verrà più proposto per nuove operazioni."
+        "code": "Codice",
+        "caption": "Nome",
+        "legalEntityId": "Entità legale",
+        "businessUnitId": "Unità di business",
+        "location": "Ubicazione",
+        "isActive": "Stato"
+      },
+      "sections": {
+        "identification": "Identificazione",
+        "names": "Nome in ogni lingua",
+        "address": "Indirizzo del magazzino"
+      },
+      "sectionHints": {
+        "names": "Il tedesco è obbligatorio. Se manca una lingua, viene mostrato il nome tedesco.",
+        "address": "Un magazzino può trovarsi all'indirizzo della sua entità legale o in qualsiasi altro."
+      },
+      "hints": {
+        "legalEntity": "Entità legale proprietaria del magazzino.",
+        "lockedAfterCreate": "Fissato alla creazione del magazzino.",
+        "businessUnit": "Facoltativo. Solo unità dell'entità legale scelta.",
+        "chooseLegalEntityFirst": "Scegli prima l'entità legale.",
+        "noBusinessUnits": "Questa entità legale non ha unità di business attive",
+        "location": "Digita per cercare per codice o nome.",
+        "locationRequired": "Scegli un'ubicazione dall'elenco."
+      },
+      "address": {
+        "sameAsLegalEntity": "La stessa dell'entità legale",
+        "sameAsLegalEntityUnavailable": "Non ancora disponibile. Nel frattempo, scegli un'ubicazione registrata o inserisci un nuovo indirizzo.",
+        "existing": "Un'altra ubicazione registrata",
+        "existingHint": "Scegliere dall'elenco delle ubicazioni (ad es. un capannone condiviso con un altro magazzino).",
+        "new": "Nuovo indirizzo",
+        "newHint": "Si inserisce a mano e si salva come nuova ubicazione.",
+        "locationCreated": "L'ubicazione «{{value}}» è già stata creata, ma il magazzino non è stato salvato. Riprovando si userà la stessa ubicazione, senza duplicarla.",
+        "fields": {
+          "name": "Nome dell'ubicazione",
+          "code": "Codice dell'ubicazione",
+          "street": "Via e numero",
+          "postalCode": "CAP",
+          "city": "Città",
+          "region": "Regione",
+          "countryCode": "Paese"
+        },
+        "hints": {
+          "name": "Nome con cui è conosciuto il luogo, ad es. «Lager Zug».",
+          "code": "Facoltativo. Codice breve per gli elenchi.",
+          "region": "Cantone, regione o provincia."
+        }
+      },
+      "progress": {
+        "creatingLocation": "Creazione ubicazione…",
+        "savingWarehouse": "Salvataggio magazzino…"
+      },
+      "actions": {
+        "create": "Crea magazzino",
+        "clearBusinessUnit": "Rimuovi l'unità di business"
+      },
+      "detail": {
+        "modified": "modificato il {{date}}"
+      },
+      "deactivateDialog": {
+        "title": "Disattivare il magazzino?",
+        "message": "«{{name}}» ({{code}}) verrà disattivato e non sarà più proposto per nuove operazioni. L'operazione non può essere annullata."
+      },
+      "deactivated": "Magazzino disattivato",
+      "saved": "Modifiche salvate",
+      "created": "Magazzino creato",
+      "readOnlyNotice": "Puoi solo consultare questo magazzino: non hai l'autorizzazione per modificarlo."
     }
   },
   "audit": {
