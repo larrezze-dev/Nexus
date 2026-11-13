@@ -203,7 +203,9 @@ describe('CurrencyDetailPage', () => {
 
     const alert = byTestId(fixture, 'currency-detail-error');
     expect(alert?.getAttribute('role')).toBe('alert');
-    expect(alert?.querySelector('.nx-alert__text')?.textContent?.trim()).toBe('«Swiss franc» is in use.');
+    expect(alert?.querySelector('.nx-alert__text')?.textContent?.trim()).toBe(
+      '«Swiss franc» is in use.',
+    );
   });
 
   it('shows any other refusal with the translated error code', async () => {
@@ -216,9 +218,11 @@ describe('CurrencyDetailPage', () => {
     await fixture.whenStable();
     fixture.detectChanges();
 
-    expect(byTestId(fixture, 'currency-detail-error')?.querySelector('.nx-alert__text')?.textContent?.trim()).toBe(
-      'error:undefined',
-    );
+    expect(
+      byTestId(fixture, 'currency-detail-error')
+        ?.querySelector('.nx-alert__text')
+        ?.textContent?.trim(),
+    ).toBe('error:undefined');
   });
 
   it('offers no action without CURRENCY:UPDATE', async () => {
