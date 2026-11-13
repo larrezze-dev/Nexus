@@ -1,0 +1,112 @@
+@let isEdit = mode() === 'edit';
+<form class="nx-location-form" [formGroup]="form" (ngSubmit)="onSubmit()" novalidate>
+  @if (invalidCount() > 0) {
+    <div class="nx-alert nx-alert--error" role="alert" data-testid="location-form-invalid">
+      <mat-icon aria-hidden="true">error</mat-icon>
+      <span class="nx-alert__text">{{
+        invalidCount() === 1
+          ? ('shared.form.reviewFieldsOne' | transloco)
+          : ('shared.form.reviewFields' | transloco: { count: invalidCount() })
+      }}</span>
+    </div>
+  }
+
+  <nx-form-section [title]="'org.locations.sections.identification' | transloco">
+    <nx-form-grid>
+      <mat-form-field nxSpan="l" subscriptSizing="dynamic">
+        <mat-label>{{ 'org.locations.fields.name' | transloco }}</mat-label>
+        <input matInput formControlName="name" data-testid="location-form-name" required autocomplete="off" />
+        <mat-hint>{{ 'org.locations.hints.name' | transloco }}</mat-hint>
+        @if (form.controls.name.hasError('required')) {
+          <mat-error>{{ 'shared.form.required' | transloco }}</mat-error>
+        }
+        @for (message of errorsFor('name'); track message) {
+          <mat-error>{{ message }}</mat-error>
+        }
+      </mat-form-field>
+
+      <mat-form-field nxSpan="s" subscriptSizing="dynamic">
+        <mat-label>{{ 'org.locations.fields.code' | transloco }}</mat-label>
+        <input matInput class="nx-mono" formControlName="code" data-testid="location-form-code" autocomplete="off" />
+        <mat-hint>{{ 'org.locations.hints.code' | transloco }}</mat-hint>
+        @for (message of errorsFor('code'); track message) {
+          <mat-error>{{ message }}</mat-error>
+        }
+      </mat-form-field>
+    </nx-form-grid>
+  </nx-form-section>
+
+  <nx-form-section [title]="'org.locations.sections.address' | transloco">
+    <nx-form-grid>
+      <mat-form-field nxSpan="l" subscriptSizing="dynamic">
+        <mat-label>{{ 'org.locations.fields.street' | transloco }}</mat-label>
+        <input matInput formControlName="street" data-testid="location-form-street" autocomplete="off" />
+        @for (message of errorsFor('street'); track message) {
+          <mat-error>{{ message }}</mat-error>
+        }
+      </mat-form-field>
+
+      <mat-form-field nxSpan="s" subscriptSizing="dynamic">
+        <mat-label>{{ 'org.locations.fields.postalCode' | transloco }}</mat-label>
+        <input matInput formControlName="postalCode" data-testid="location-form-postal-code" autocomplete="off" />
+        @for (message of errorsFor('postalCode'); track message) {
+          <mat-error>{{ message }}</mat-error>
+        }
+      </mat-form-field>
+
+      <mat-form-field nxSpan="m" subscriptSizing="dynamic">
+        <mat-label>{{ 'org.locations.fields.city' | transloco }}</mat-label>
+        <input matInput formControlName="city" data-testid="location-form-city" autocomplete="off" />
+        @for (message of errorsFor('city'); track message) {
+          <mat-error>{{ message }}</mat-error>
+        }
+      </mat-form-field>
+
+      <mat-form-field nxSpan="m" subscriptSizing="dynamic">
+        <mat-label>{{ 'org.locations.fields.region' | transloco }}</mat-label>
+        <input matInput formControlName="region" data-testid="location-form-region" autocomplete="off" />
+        <mat-hint>{{ 'org.locations.hints.region' | transloco }}</mat-hint>
+        @for (message of errorsFor('region'); track message) {
+          <mat-error>{{ message }}</mat-error>
+        }
+      </mat-form-field>
+
+      <mat-form-field nxSpan="m" subscriptSizing="dynamic">
+        <mat-label>{{ 'org.locations.fields.countryCode' | transloco }}</mat-label>
+        <mat-select formControlName="countryCode" data-testid="location-form-country" required>
+          <mat-select-trigger>
+            @if (form.controls.countryCode.value; as code) {
+              {{ countryLabel(code) }} ({{ code }})
+            }
+          </mat-select-trigger>
+          @for (country of countries(); track country.code) {
+            <mat-option [value]="country.code">{{ country.name }} ({{ country.code }})</mat-option>
+          }
+        </mat-select>
+        @if (form.controls.countryCode.hasError('required')) {
+          <mat-error>{{ 'shared.form.required' | transloco }}</mat-error>
+        }
+        @for (message of errorsFor('countryCode'); track message) {
+          <mat-error>{{ message }}</mat-error>
+        }
+      </mat-form-field>
+    </nx-form-grid>
+  </nx-form-section>
+
+  <nx-action-bar>
+    <button mat-button type="button" data-testid="location-form-cancel" (click)="cancel.emit()">
+      {{ 'common.cancel' | transloco }}
+    </button>
+    <button
+      mat-flat-button
+      type="submit"
+      data-testid="location-form-submit"
+      [disabled]="saving() || readOnly() || (isEdit && form.pristine)"
+    >
+      @if (saving()) {
+        <mat-progress-spinner diameter="18" mode="indeterminate" aria-hidden="true" />
+      }
+      {{ (isEdit ? 'common.saveChanges' : 'org.locations.actions.create') | transloco }}
+    </button>
+  </nx-action-bar>
+</form>

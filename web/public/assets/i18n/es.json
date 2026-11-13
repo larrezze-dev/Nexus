@@ -480,36 +480,43 @@
         "activate": "Activar",
         "deactivate": "Desactivar"
       }
-    }
-  },
-  "locations": {
-    "title": "Ubicaciones",
-    "actions": {
-      "create": "Nueva ubicación"
     },
-    "list": {
-      "columns": {
+    "locations": {
+      "title": "Ubicaciones",
+      "new": "Nueva ubicación",
+      "newTitle": "Nueva ubicación",
+      "createSubtitle": "Un lugar con dirección (nave, recinto, oficina) donde puede haber almacenes. Los campos con * son obligatorios.",
+      "loading": "Cargando…",
+      "empty": "Todavía no hay ubicaciones",
+      "emptyHint": "Crea la primera para asignarle almacenes.",
+      "fields": {
         "code": "Código",
         "name": "Nombre",
+        "street": "Calle y número",
+        "postalCode": "Código postal",
         "city": "Ciudad",
+        "region": "Región",
         "countryCode": "País",
         "isActive": "Estado"
-      }
-    },
-    "detail": {
-      "title": {
-        "create": "Nueva ubicación",
-        "edit": "Editar ubicación"
-      }
-    },
-    "fields": {
-      "code": "Código",
-      "name": "Nombre",
-      "street": "Calle",
-      "postalCode": "Código postal",
-      "city": "Ciudad",
-      "region": "Región",
-      "countryCode": "Código de país"
+      },
+      "sections": {
+        "identification": "Identificación",
+        "address": "Dirección"
+      },
+      "hints": {
+        "name": "Nombre con que se conoce el lugar, p. ej. «Lager Zug».",
+        "code": "Opcional. Para listas e informes.",
+        "region": "Cantón, provincia o estado."
+      },
+      "actions": {
+        "create": "Crear ubicación"
+      },
+      "detail": {
+        "modified": "modificada el {{date}}"
+      },
+      "saved": "Cambios guardados",
+      "created": "Ubicación creada",
+      "readOnlyNotice": "Solo puedes consultar esta ubicación: no tienes permiso para modificarla."
     }
   },
   "warehouses": {

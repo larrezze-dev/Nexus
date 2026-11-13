@@ -321,6 +321,43 @@
         "activate": "Aktivieren",
         "deactivate": "Deaktivieren"
       }
+    },
+    "locations": {
+      "title": "Standorte",
+      "new": "Neuer Standort",
+      "newTitle": "Neuer Standort",
+      "createSubtitle": "Ein Ort mit Adresse (Halle, Gelände, Büro), an dem sich Lager befinden können. Felder mit * sind Pflichtfelder.",
+      "loading": "Wird geladen…",
+      "empty": "Noch keine Standorte",
+      "emptyHint": "Legen Sie den ersten Standort an, um ihm Lager zuzuordnen.",
+      "fields": {
+        "code": "Code",
+        "name": "Name",
+        "street": "Strasse und Nr.",
+        "postalCode": "PLZ",
+        "city": "Ort",
+        "region": "Region",
+        "countryCode": "Land",
+        "isActive": "Status"
+      },
+      "sections": {
+        "identification": "Identifikation",
+        "address": "Adresse"
+      },
+      "hints": {
+        "name": "Name, unter dem der Standort bekannt ist, z. B. «Lager Zug».",
+        "code": "Optional. Für Listen und Auswertungen.",
+        "region": "Kanton, Bundesland oder Provinz."
+      },
+      "actions": {
+        "create": "Standort anlegen"
+      },
+      "detail": {
+        "modified": "geändert am {{date}}"
+      },
+      "saved": "Änderungen gespeichert",
+      "created": "Standort angelegt",
+      "readOnlyNotice": "Sie können diesen Standort nur ansehen: Ihnen fehlt die Berechtigung zum Ändern."
     }
   },
   "access": {
@@ -480,36 +517,6 @@
       "required": "Pflichtfeld",
       "reviewFields": "Bitte prüfen Sie die {{count}} markierten Felder.",
       "reviewFieldsOne": "Bitte prüfen Sie das markierte Feld."
-    }
-  },
-  "locations": {
-    "title": "Standorte",
-    "actions": {
-      "create": "Neuer Standort"
-    },
-    "list": {
-      "columns": {
-        "code": "Code",
-        "name": "Name",
-        "city": "Stadt",
-        "countryCode": "Land",
-        "isActive": "Status"
-      }
-    },
-    "detail": {
-      "title": {
-        "create": "Neuer Standort",
-        "edit": "Standort bearbeiten"
-      }
-    },
-    "fields": {
-      "code": "Code",
-      "name": "Name",
-      "street": "Strasse",
-      "postalCode": "PLZ",
-      "city": "Stadt",
-      "region": "Region",
-      "countryCode": "Ländercode"
     }
   },
   "warehouses": {

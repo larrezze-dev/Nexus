@@ -480,36 +480,43 @@
         "activate": "Activer",
         "deactivate": "Désactiver"
       }
-    }
-  },
-  "locations": {
-    "title": "Sites",
-    "actions": {
-      "create": "Nouveau site"
     },
-    "list": {
-      "columns": {
+    "locations": {
+      "title": "Sites",
+      "new": "Nouveau site",
+      "newTitle": "Nouveau site",
+      "createSubtitle": "Un lieu avec une adresse (halle, terrain, bureau) où peuvent se trouver des entrepôts. Les champs marqués * sont obligatoires.",
+      "loading": "Chargement…",
+      "empty": "Aucun site pour l'instant",
+      "emptyHint": "Créez le premier pour y rattacher des entrepôts.",
+      "fields": {
         "code": "Code",
         "name": "Nom",
+        "street": "Rue et numéro",
+        "postalCode": "Code postal",
         "city": "Ville",
+        "region": "Région",
         "countryCode": "Pays",
         "isActive": "Statut"
-      }
-    },
-    "detail": {
-      "title": {
-        "create": "Nouveau site",
-        "edit": "Modifier le site"
-      }
-    },
-    "fields": {
-      "code": "Code",
-      "name": "Nom",
-      "street": "Rue",
-      "postalCode": "Code postal",
-      "city": "Ville",
-      "region": "Région",
-      "countryCode": "Code pays"
+      },
+      "sections": {
+        "identification": "Identification",
+        "address": "Adresse"
+      },
+      "hints": {
+        "name": "Nom sous lequel le lieu est connu, p. ex. «Lager Zug».",
+        "code": "Facultatif. Pour listes et rapports.",
+        "region": "Canton, État ou province."
+      },
+      "actions": {
+        "create": "Créer le site"
+      },
+      "detail": {
+        "modified": "modifié le {{date}}"
+      },
+      "saved": "Modifications enregistrées",
+      "created": "Site créé",
+      "readOnlyNotice": "Vous pouvez seulement consulter ce site : vous n'avez pas le droit de le modifier."
     }
   },
   "warehouses": {

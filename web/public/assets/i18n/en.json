@@ -480,36 +480,43 @@
         "activate": "Activate",
         "deactivate": "Deactivate"
       }
-    }
-  },
-  "locations": {
-    "title": "Locations",
-    "actions": {
-      "create": "New location"
     },
-    "list": {
-      "columns": {
+    "locations": {
+      "title": "Locations",
+      "new": "New location",
+      "newTitle": "New location",
+      "createSubtitle": "A place with an address (hall, site, office) where warehouses can be. Fields marked * are required.",
+      "loading": "Loading…",
+      "empty": "No locations yet",
+      "emptyHint": "Create the first one to assign warehouses to it.",
+      "fields": {
         "code": "Code",
         "name": "Name",
+        "street": "Street and number",
+        "postalCode": "Postal code",
         "city": "City",
+        "region": "Region",
         "countryCode": "Country",
         "isActive": "Status"
-      }
-    },
-    "detail": {
-      "title": {
-        "create": "New location",
-        "edit": "Edit location"
-      }
-    },
-    "fields": {
-      "code": "Code",
-      "name": "Name",
-      "street": "Street",
-      "postalCode": "Postal code",
-      "city": "City",
-      "region": "Region",
-      "countryCode": "Country code"
+      },
+      "sections": {
+        "identification": "Identification",
+        "address": "Address"
+      },
+      "hints": {
+        "name": "Name the place is known by, e.g. «Lager Zug».",
+        "code": "Optional. For lists and reports.",
+        "region": "Canton, state or province."
+      },
+      "actions": {
+        "create": "Create location"
+      },
+      "detail": {
+        "modified": "modified on {{date}}"
+      },
+      "saved": "Changes saved",
+      "created": "Location created",
+      "readOnlyNotice": "You can only view this location: you are not allowed to change it."
     }
   },
   "warehouses": {

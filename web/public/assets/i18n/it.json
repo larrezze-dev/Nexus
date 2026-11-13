@@ -480,36 +480,43 @@
         "activate": "Attiva",
         "deactivate": "Disattiva"
       }
-    }
-  },
-  "locations": {
-    "title": "Sedi",
-    "actions": {
-      "create": "Nuova sede"
     },
-    "list": {
-      "columns": {
+    "locations": {
+      "title": "Sedi",
+      "new": "Nuova sede",
+      "newTitle": "Nuova sede",
+      "createSubtitle": "Un luogo con indirizzo (capannone, area, ufficio) dove possono trovarsi magazzini. I campi con * sono obbligatori.",
+      "loading": "Caricamento…",
+      "empty": "Ancora nessuna sede",
+      "emptyHint": "Crea la prima per assegnarle magazzini.",
+      "fields": {
         "code": "Codice",
         "name": "Nome",
+        "street": "Via e numero",
+        "postalCode": "CAP",
         "city": "Città",
+        "region": "Regione",
         "countryCode": "Paese",
         "isActive": "Stato"
-      }
-    },
-    "detail": {
-      "title": {
-        "create": "Nuova sede",
-        "edit": "Modifica sede"
-      }
-    },
-    "fields": {
-      "code": "Codice",
-      "name": "Nome",
-      "street": "Via",
-      "postalCode": "CAP",
-      "city": "Città",
-      "region": "Regione",
-      "countryCode": "Codice paese"
+      },
+      "sections": {
+        "identification": "Identificazione",
+        "address": "Indirizzo"
+      },
+      "hints": {
+        "name": "Nome con cui è conosciuto il luogo, ad es. «Lager Zug».",
+        "code": "Facoltativo. Per elenchi e rapporti.",
+        "region": "Cantone, regione o provincia."
+      },
+      "actions": {
+        "create": "Crea sede"
+      },
+      "detail": {
+        "modified": "modificata il {{date}}"
+      },
+      "saved": "Modifiche salvate",
+      "created": "Sede creata",
+      "readOnlyNotice": "Puoi solo consultare questa sede: non hai l'autorizzazione per modificarla."
     }
   },
   "warehouses": {

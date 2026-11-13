@@ -1,0 +1,73 @@
+@if (mode() === 'create') {
+  <nx-page width="form">
+    <nx-page-header
+      [breadcrumb]="true"
+      [title]="'org.locations.newTitle' | transloco"
+      [subtitle]="'org.locations.createSubtitle' | transloco"
+    />
+    @if (saveError()) {
+      <div class="nx-alert nx-alert--error" role="alert" data-testid="location-detail-save-error">
+        <mat-icon aria-hidden="true">error</mat-icon>
+        <span class="nx-alert__text">{{ saveError() }}</span>
+      </div>
+    }
+    <nx-location-form
+      mode="create"
+      [saving]="saving()"
+      [fieldErrors]="fieldErrors()"
+      (save)="onSave($event)"
+      (cancel)="onCancel()"
+    />
+  </nx-page>
+} @else if (location(); as current) {
+  <nx-page width="form">
+    <!-- No header action: the API cannot deactivate a location (0.4 contract). -->
+    <nx-page-header [breadcrumb]="true" [title]="current.name" [subtitle]="subtitle()">
+      <nx-status-badge nxHeaderStatus [status]="current.isActive ? 'active' : 'inactive'" />
+    </nx-page-header>
+
+    @if (!canUpdate()) {
+      <div class="nx-alert nx-alert--info" role="status" data-testid="location-detail-read-only">
+        <mat-icon aria-hidden="true">visibility</mat-icon>
+        <span class="nx-alert__text">{{ 'org.locations.readOnlyNotice' | transloco }}</span>
+      </div>
+    }
+    @if (saveError()) {
+      <div class="nx-alert nx-alert--error" role="alert" data-testid="location-detail-save-error">
+        <mat-icon aria-hidden="true">error</mat-icon>
+        <span class="nx-alert__text">{{ saveError() }}</span>
+      </div>
+    }
+
+    <!-- General only: no Audit tab until there is an audit projection for locations. -->
+    <mat-tab-group mat-stretch-tabs="false" animationDuration="0ms">
+      <mat-tab [label]="'common.tabs.general' | transloco">
+        <div class="nx-tab-panel">
+          <nx-location-form
+            mode="edit"
+            [initial]="current"
+            [saving]="saving()"
+            [readOnly]="!canUpdate()"
+            [fieldErrors]="fieldErrors()"
+            (save)="onSave($event)"
+            (cancel)="onCancel()"
+          />
+        </div>
+      </mat-tab>
+    </mat-tab-group>
+  </nx-page>
+} @else if (loadError()) {
+  <nx-page width="form">
+    <nx-page-header [breadcrumb]="true" [title]="'org.locations.title' | transloco" />
+    <nx-empty-state kind="error" class="nx-card" data-testid="location-detail-load-error">
+      <button mat-stroked-button type="button" (click)="load()">
+        <mat-icon aria-hidden="true">refresh</mat-icon>
+        {{ 'common.retry' | transloco }}
+      </button>
+    </nx-empty-state>
+  </nx-page>
+} @else {
+  <nx-page width="form">
+    <nx-page-header [breadcrumb]="true" [title]="'org.locations.loading' | transloco" />
+  </nx-page>
+}
