@@ -324,10 +324,11 @@ export class WarehouseFacade {
   /**
    * `nx-entity-picker`'s `[search]` for `locationId`. `GET /v1/locations` has no `legalEntityId`
    * (nor `q`) filter in the contract and `Location` is not tied to a legal entity, so every
-   * location is offered and matched client-side by code/name.
+   * location is offered and matched client-side by code/name. Sorted by name: `code` is not a
+   * sort field of `GET /v1/locations` (allowed: city, createdAt, isActive, name, updatedAt).
    */
   readonly searchLocations = (query: string): Observable<LocationListItem[]> =>
-    from(this.api.invoke(listLocations, { page: 1, pageSize: REFERENCE_PAGE_SIZE, sort: 'code' })).pipe(
+    from(this.api.invoke(listLocations, { page: 1, pageSize: REFERENCE_PAGE_SIZE, sort: 'name' })).pipe(
       map((response) =>
         ((response.items ?? []) as LocationListItem[]).filter((item) => this.matches(query, item.code, item.name)),
       ),
