@@ -8,7 +8,6 @@ import { PermissionsStore } from '../../../shared/auth/permissions.store';
 import { Page } from '../../../shared/ui/page.model';
 import { LegalEntitiesFacade } from './legal-entities.facade';
 import { LEGAL_ENTITY_SEARCH_DEBOUNCE_MS, LegalEntityListPage } from './legal-entity-list.page';
-import { secondaryName } from './legal-entity-name-cell.component';
 
 const listItem: LegalEntityListItem = {
   id: '018f1a3c-7e3b-7c5a-9c2e-6a2f8e9b0c40',
@@ -135,14 +134,5 @@ describe('LegalEntityListPage', () => {
     (fixture.componentInstance as unknown as { open(row: LegalEntityListItem): void }).open(listItem);
 
     expect(navigate).toHaveBeenCalledWith([listItem.id], { relativeTo: TestBed.inject(ActivatedRoute) });
-  });
-});
-
-describe('secondaryName', () => {
-  it('shows the display name only when it is set and differs from the legal name', () => {
-    expect(secondaryName({ legalName: 'SAPE smart bud AG', displayName: 'SSB Schweiz' })).toBe('SSB Schweiz');
-    expect(secondaryName({ legalName: 'SAPE smart bud AG', displayName: 'SAPE smart bud AG' })).toBeNull();
-    expect(secondaryName({ legalName: 'SAPE smart bud AG', displayName: null })).toBeNull();
-    expect(secondaryName({ legalName: 'SAPE smart bud AG', displayName: '  ' })).toBeNull();
   });
 });

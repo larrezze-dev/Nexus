@@ -22,7 +22,7 @@ import {
   NxDataGridComponent,
 } from '../../../shared/ui/nx-data-grid/nx-data-grid.component';
 import { NxSortModel, Page } from '../../../shared/ui/page.model';
-import { LegalEntityNameCellComponent } from '../legal-entities/legal-entity-name-cell.component';
+import { OrgNameCellComponent, secondaryName } from '../shared/org-name-cell.component';
 import { OrgActiveStatusCellComponent } from '../shared/org-active-status-cell.component';
 import { PartiesFacade, PartyFilters } from './parties.facade';
 import { partyScopeKey, partyTypeKey } from './party-labels';
@@ -196,7 +196,11 @@ export class PartyListPage {
       {
         field: 'legalName',
         headerKey: 'org.parties.columns.name',
-        cellRenderer: LegalEntityNameCellComponent,
+        cellRenderer: OrgNameCellComponent,
+        cellRendererParams: {
+          primary: (row: PartyListItem | undefined) => row?.legalName ?? '',
+          secondary: secondaryName,
+        },
         flex: 2,
         sortable: true,
       },

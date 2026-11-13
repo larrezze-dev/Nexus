@@ -25,7 +25,7 @@ import {
 import { NxSortModel, Page } from '../../../shared/ui/page.model';
 import { OrgActiveStatusCellComponent } from '../shared/org-active-status-cell.component';
 import { LegalEntitiesFacade, LegalEntityListFilters } from './legal-entities.facade';
-import { LegalEntityNameCellComponent } from './legal-entity-name-cell.component';
+import { OrgNameCellComponent, secondaryName } from '../shared/org-name-cell.component';
 
 /** Status filter: all, only active, only inactive (`isActive` query parameter). */
 export type LegalEntityStatusFilter = 'all' | 'active' | 'inactive';
@@ -165,7 +165,11 @@ export class LegalEntityListPage {
     {
       field: 'legalName',
       headerKey: 'org.legalEntities.fields.legalName',
-      cellRenderer: LegalEntityNameCellComponent,
+      cellRenderer: OrgNameCellComponent,
+      cellRendererParams: {
+        primary: (row: LegalEntityListItem | undefined) => row?.legalName ?? '',
+        secondary: secondaryName,
+      },
       flex: 2,
       sortable: true,
     },
