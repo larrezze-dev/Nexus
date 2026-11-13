@@ -6,7 +6,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { PermissionsStore } from '../../../shared/auth/permissions.store';
 import { NxColDef } from '../../../shared/ui/nx-data-grid/nx-data-grid.component';
 import { Page } from '../../../shared/ui/page.model';
-import { BusinessUnitListPage, legalEntityLabel } from './business-unit-list.page';
+import { BusinessUnitListPage, legalEntityCode, legalEntityName } from './business-unit-list.page';
 import { BusinessUnitRow, BusinessUnitsFacade } from './business-units.facade';
 
 const row: BusinessUnitRow = {
@@ -88,9 +88,15 @@ describe('BusinessUnitListPage', () => {
     expect(cell('caption')).toBe('I+D Barcelona');
   });
 
-  it('shows the legal entity by code and legal name, never its id', () => {
-    expect(cell('legalEntity')).toBe('LE-SSB · SAPE smart bud S.L.');
-    expect(legalEntityLabel({ legalEntity: null })).toBe('—');
+  it('shows the legal entity on two lines (legal name, code muted), never its id', () => {
+    const params = columns().find((c) => c.colId === 'legalEntity')?.cellRendererParams as {
+      primary(r: BusinessUnitRow): string;
+      secondary(r: BusinessUnitRow): string | null;
+    };
+    expect(params.primary(row)).toBe('SAPE smart bud S.L.');
+    expect(params.secondary(row)).toBe('LE-SSB');
+    expect(legalEntityName({ legalEntity: null })).toBe('—');
+    expect(legalEntityCode({ legalEntity: null })).toBeNull();
   });
 
   it('only lets the user sort by the columns the API sorts on (code, status)', () => {

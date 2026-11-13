@@ -15,12 +15,17 @@ import {
 } from '../../../shared/ui/nx-data-grid/nx-data-grid.component';
 import { NxSortModel, Page } from '../../../shared/ui/page.model';
 import { OrgActiveStatusCellComponent } from '../shared/org-active-status-cell.component';
+import { OrgNameCellComponent } from '../shared/org-name-cell.component';
 import { BusinessUnitRow, BusinessUnitsFacade } from './business-units.facade';
 
-/** «LE-SSB · SAPE smart bud AG»; an em dash when the legal entity could not be read. */
-export function legalEntityLabel(row: Pick<BusinessUnitRow, 'legalEntity'> | undefined): string {
-  const legalEntity = row?.legalEntity;
-  return legalEntity ? `${legalEntity.code} · ${legalEntity.legalName}` : '—';
+/** Legal name of the business unit's legal entity; an em dash when it could not be read. */
+export function legalEntityName(row: Pick<BusinessUnitRow, 'legalEntity'> | undefined): string {
+  return row?.legalEntity?.legalName || '—';
+}
+
+/** Code of the business unit's legal entity (second line of the cell), if it could be read. */
+export function legalEntityCode(row: Pick<BusinessUnitRow, 'legalEntity'> | undefined): string | null {
+  return row?.legalEntity?.code || null;
 }
 
 /**
@@ -117,7 +122,8 @@ export class BusinessUnitListPage {
       {
         colId: 'legalEntity',
         headerKey: 'org.businessUnits.fields.legalEntityId',
-        valueGetter: (params) => legalEntityLabel(params.data),
+        cellRenderer: OrgNameCellComponent,
+        cellRendererParams: { primary: legalEntityName, secondary: legalEntityCode },
         flex: 2,
         sortable: false,
       },
