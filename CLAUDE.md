@@ -89,9 +89,10 @@ La sesión principal **orquesta, no implementa**: descompone el track en subtare
 | Nivel | Subagente (`model`) | Cuándo |
 |---|---|---|
 | 1 · Mecánico | `nx-mechanic` (`haiku`) | Localizar código o docs, regenerar clientes y clases (`make contracts`), semillas, claves i18n, ejecutar tests o lint y resumir el resultado, boilerplate que se deriva 1:1 del contrato (DTO, rutas, esquemas Avro de una tabla ya definida) |
-| 2 · Implementación | `nx-implementer` (`sonnet`) | Handlers, endpoints, validadores, consumidores y réplicas `*_ref`, pantallas Angular con las plantillas de `conventions-frontend.md §4`, migraciones que copian una DDL ya escrita en `docs/domain/`, tests de reglas `XXX-Rn` |
+| 2 · Implementación | `nx-implementer` (`sonnet`) | Handlers, endpoints, validadores, consumidores y réplicas `*_ref`, lógica de pantallas Angular (facades, formularios tipados, validadores, llamadas al API), migraciones que copian una DDL ya escrita en `docs/domain/`, tests de reglas `XXX-Rn` |
 | 3 · Crítico | `nx-architect` (`opus`) | RLS y funciones `access.*`; `LedgerPostingService` y todo lo que escribe `stock_movement`/`stock_balance`; `UnitOfWork`, Outbox y relay; versionado VR1; Solver (modelo y restricciones); consulta ATP; concurrencia y bloqueos; dinero, impuestos y conversión de unidades; migraciones que alteran tablas existentes; cualquier decisión no escrita en `docs/` |
-| Revisión | `nx-reviewer` (`opus`) | Revisa todo lo de nivel 3 y una muestra de los niveles 1–2 antes de abrir el PR. Nunca revisa su propio trabajo |
+| UI | `nx-ui-designer` (`opus`) | Sistema de diseño, componentes de layout compartidos (`shared/ui/`), tokens y tema, plantillas de lista/detalle/formulario, maquetación e i18n de pantallas, verificación visual con capturas `de`/`es` (skills `.claude/skills/nx-ui-*`) |
+| Revisión | `nx-reviewer` (`opus`) | Revisa todo lo de nivel 3, todo lo de UI (código y capturas) y una muestra de los niveles 1–2 antes de abrir el PR. Nunca revisa su propio trabajo |
 
 Reglas:
 1. **Plan con niveles:** el plan de cada track (plan mode) lista las subtareas con su nivel y el motivo en una línea. Luciano aprueba el plan y el reparto juntos.
@@ -100,6 +101,7 @@ Reglas:
 4. **Paralelismo:** las subtareas independientes del mismo track se lanzan en paralelo, cada una con `isolation: worktree` si tocan ficheros distintos. Las que comparten ficheros van en secuencia.
 5. **Contexto mínimo:** cada subagente recibe solo la subtarea, los ficheros que debe tocar y las secciones de `docs/` que le aplican (de la tabla "Leer" de la ficha), nunca la ficha entera ni el historial.
 6. **Cierre:** el PR incluye la tabla "Subtarea · Nivel · Subagente · Escalados", para que Luciano vea qué hizo cada modelo.
+7. **UI:** la lógica de pantalla (facades, formularios tipados, validadores, llamadas al API) es de `nx-implementer`; la maquetación, los textos i18n y el aspecto, de `nx-ui-designer`. Si una pantalla necesita las dos cosas, van en secuencia: primero la lógica y después la maquetación. Quien crea una clave i18n escribe sus 5 traducciones en el mismo commit; `nx-mechanic` puede revisarlas después. Si `nx-ui-designer` falla dos veces, la parte de lógica escala a `nx-architect` y la de diseño vuelve al orquestador para consultar a Luciano. Toda pantalla pasa por capturas `de`/`es` revisadas antes del preview a Luciano (§9, §11).
 
 
 ## 8. Gestion de la ventana de contexto
