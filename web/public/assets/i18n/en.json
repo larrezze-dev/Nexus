@@ -464,7 +464,18 @@
     },
     "tree": {
       "title": "Organization tree",
-      "empty": "No organization structure yet."
+      "empty": "No organization structure yet.",
+      "subtitle": "How the group is organized: legal entities, business units and warehouses. Open an item to see its details.",
+      "emptyHint": "It appears here once legal entities, business units and warehouses are created.",
+      "treeLabel": "Organization structure",
+      "expand": "Expand «{{name}}»",
+      "collapse": "Collapse «{{name}}»",
+      "kind": {
+        "group": "Group",
+        "legalEntity": "Legal entity",
+        "businessUnit": "Business unit",
+        "warehouse": "Warehouse"
+      }
     },
     "currencies": {
       "title": "Currencies",

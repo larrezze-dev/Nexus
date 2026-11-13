@@ -36,7 +36,16 @@ describe('OrgTreeFacade', () => {
     });
     httpMock.expectOne('/api/platform/v1/legal-entities?page=1&pageSize=200').flush({
       items: [
-        { id: 'le1', groupId: 'g1', code: 'LE-CH', currencyCode: 'CHF', countryCode: 'CH', isActive: true },
+        {
+          id: 'le1',
+          groupId: 'g1',
+          code: 'LE-CH',
+          legalName: 'SAPE smart bud AG',
+          displayName: 'SSB Schweiz',
+          currencyCode: 'CHF',
+          countryCode: 'CH',
+          isActive: true,
+        },
       ],
       page: 1,
       pageSize: 200,
@@ -88,22 +97,25 @@ describe('OrgTreeFacade', () => {
 
     const [group] = facade.nodes();
     expect(group.kind).toBe('group');
-    expect(group.label).toBe('NUSSLI');
+    expect(group).toMatchObject({ code: 'NUSSLI', name: null, captionI18n: null, label: 'NUSSLI' });
     expect(group.isActive).toBeNull();
 
     const [legalEntity] = group.children;
     expect(legalEntity.kind).toBe('legalEntity');
-    expect(legalEntity.label).toBe('LE-CH');
+    // The trade name when there is one (else the legal name); the code stays separate.
+    expect(legalEntity).toMatchObject({ code: 'LE-CH', name: 'SSB Schweiz', captionI18n: null, label: 'SSB Schweiz' });
     expect(legalEntity.isActive).toBe(true);
     expect(legalEntity.children).toHaveLength(2);
 
     const businessUnit = legalEntity.children.find((node) => node.kind === 'businessUnit');
+    // Raw caption: the page shows it in the active language.
+    expect(businessUnit?.captionI18n).toEqual({ de: 'Vermietung', en: 'Rental' });
     expect(businessUnit?.label).toBe('Rental');
     expect(businessUnit?.children).toHaveLength(1);
     expect(businessUnit?.children[0]).toMatchObject({ kind: 'warehouse', id: 'wh1', isActive: true });
 
     const directWarehouse = legalEntity.children.find((node) => node.kind === 'warehouse');
-    expect(directWarehouse).toMatchObject({ id: 'wh2', isActive: false, label: 'Direkt' });
+    expect(directWarehouse).toMatchObject({ id: 'wh2', isActive: false, captionI18n: { de: 'Direkt' } });
   });
 
   it('paginates a level that reports more rows than one page, but still issues exactly one request for the other three levels', async () => {

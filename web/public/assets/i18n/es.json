@@ -464,7 +464,18 @@
     },
     "tree": {
       "title": "Árbol de la organización",
-      "empty": "Todavía no hay estructura organizativa."
+      "empty": "Todavía no hay estructura organizativa.",
+      "subtitle": "Cómo se organiza el grupo: entidades legales, unidades de negocio y almacenes. Abre un elemento para ver su ficha.",
+      "emptyHint": "Aparecerá aquí cuando se creen entidades legales, unidades de negocio y almacenes.",
+      "treeLabel": "Estructura de la organización",
+      "expand": "Desplegar «{{name}}»",
+      "collapse": "Plegar «{{name}}»",
+      "kind": {
+        "group": "Grupo",
+        "legalEntity": "Entidad legal",
+        "businessUnit": "Unidad de negocio",
+        "warehouse": "Almacén"
+      }
     },
     "currencies": {
       "title": "Monedas",

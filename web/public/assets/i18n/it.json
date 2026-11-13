@@ -464,7 +464,18 @@
     },
     "tree": {
       "title": "Struttura organizzativa",
-      "empty": "Nessuna struttura organizzativa ancora."
+      "empty": "Nessuna struttura organizzativa ancora.",
+      "subtitle": "Come è organizzato il gruppo: entità legali, unità di business e magazzini. Apri un elemento per vederne la scheda.",
+      "emptyHint": "Apparirà qui quando verranno create entità legali, unità di business e magazzini.",
+      "treeLabel": "Struttura organizzativa",
+      "expand": "Espandi «{{name}}»",
+      "collapse": "Comprimi «{{name}}»",
+      "kind": {
+        "group": "Gruppo",
+        "legalEntity": "Entità legale",
+        "businessUnit": "Unità di business",
+        "warehouse": "Magazzino"
+      }
     },
     "currencies": {
       "title": "Valute",

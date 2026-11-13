@@ -305,7 +305,18 @@
     },
     "tree": {
       "title": "Organisationsstruktur",
-      "empty": "Noch keine Organisationsstruktur."
+      "empty": "Noch keine Organisationsstruktur.",
+      "subtitle": "So ist die Gruppe aufgebaut: Gesellschaften, Geschäftsbereiche und Lager. Öffnen Sie einen Eintrag, um seine Details zu sehen.",
+      "emptyHint": "Sie erscheint hier, sobald Gesellschaften, Geschäftsbereiche und Lager erfasst sind.",
+      "treeLabel": "Organisationsstruktur",
+      "expand": "«{{name}}» aufklappen",
+      "collapse": "«{{name}}» zuklappen",
+      "kind": {
+        "group": "Gruppe",
+        "legalEntity": "Gesellschaft",
+        "businessUnit": "Geschäftsbereich",
+        "warehouse": "Lager"
+      }
     },
     "currencies": {
       "title": "Währungen",

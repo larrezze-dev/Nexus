@@ -464,7 +464,18 @@
     },
     "tree": {
       "title": "Arborescence de l'organisation",
-      "empty": "Aucune structure organisationnelle pour le moment."
+      "empty": "Aucune structure organisationnelle pour le moment.",
+      "subtitle": "Organisation du groupe : entités juridiques, unités d'affaires et entrepôts. Ouvrez un élément pour voir sa fiche.",
+      "emptyHint": "Elle apparaîtra ici dès que des entités juridiques, unités d'affaires et entrepôts seront créés.",
+      "treeLabel": "Structure de l'organisation",
+      "expand": "Déplier «{{name}}»",
+      "collapse": "Replier «{{name}}»",
+      "kind": {
+        "group": "Groupe",
+        "legalEntity": "Entité juridique",
+        "businessUnit": "Unité d'affaires",
+        "warehouse": "Entrepôt"
+      }
     },
     "currencies": {
       "title": "Devises",
