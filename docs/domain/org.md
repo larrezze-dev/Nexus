@@ -195,7 +195,7 @@ CREATE TABLE org.party_relationship (
 | Método y ruta | Permiso | Paso |
 |---|---|---|
 | `GET/POST /v1/parties`, `GET/PUT /v1/parties/{id}`, `POST /v1/parties/{id}/deactivate` | `PARTY:READ/CREATE/UPDATE` | 0.4 |
-| `GET/POST /v1/groups`, `GET/PUT /v1/groups/{id}` | `ORG_STRUCTURE:READ/CREATE/UPDATE` | 0.4 |
+| `GET/POST /v1/groups`, `GET/PUT /v1/groups/{id}` (`GroupListItem` y `Group` incluyen `legalName` y `displayName` de su `Party`, ORG-R1) `[+]` | `ORG_STRUCTURE:READ/CREATE/UPDATE` | 0.4 |
 | `GET/POST /v1/legal-entities`, `GET/PUT /v1/legal-entities/{id}`, `POST .../deactivate` | `ORG_STRUCTURE:*` | 0.4 |
 | `GET/POST /v1/business-units`, `GET/PUT /v1/business-units/{id}`, `POST .../deactivate` | `ORG_STRUCTURE:*` | 0.4 |
 | `GET/POST /v1/locations`, `GET/PUT /v1/locations/{id}` | `ORG_STRUCTURE:*` | 0.4 |
@@ -203,7 +203,8 @@ CREATE TABLE org.party_relationship (
 | `GET/POST /v1/users`, `GET/PUT /v1/users/{id}`, `POST .../deactivate` | `USER:READ/CREATE/UPDATE` | 0.4 |
 | `GET /v1/me` | autenticado | 0.5 |
 | `PATCH /v1/me` (`application/json` `{preferredLanguage}`, sin `If-Match`, `conventions-api.md §5`; emite `user.updated` si cambia; el usuario SYSTEM no se modifica, ORG-R6) `[+]` | autenticado | UI 2026-11 |
-| `GET /v1/currencies`, `PUT /v1/currencies/{code}` | `CURRENCY:READ/UPDATE` | 0.4 |
+| `GET /v1/currencies`, `PUT /v1/currencies/{code}` (acepta `captionI18n` opcional además de `isActive`: es lo único editable salvo el estado; `code` y `minorUnits` fijos) `[+]` | `CURRENCY:READ/UPDATE` | 0.4 |
+| `POST /v1/currencies` (`{code, captionI18n, minorUnits 0..4}`, 201, 409 si el código existe; sin evento: moneda es catálogo referenciado por FK, ARC-R2) `[+]` | `CURRENCY:CREATE` | UI 2026-11 |
 | `GET/POST /v1/exchange-rates` (`GET` con `from`, `to`, `on` devuelve el aplicable) | `CURRENCY:READ/CREATE` | 1.1 |
 | `POST /v1/currencies/convert` | `CURRENCY:READ` | 1.1 |
 | `GET/POST/DELETE /v1/parties/{id}/locations` | `PARTY:UPDATE` | 1.1 |

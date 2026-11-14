@@ -125,6 +125,7 @@ Cambios pequeños que salen de decisiones cerradas fuera de un paso. Cada uno va
 | Interfaz web coherente: sistema de diseño (`conventions-frontend.md §4`) aplicado a todas las pantallas existentes; cierra también la accesibilidad, `**` y `MatPaginatorIntl` de la fila anterior. Avance 2026-11-12: spec #49, contrato #47 y backend #48 mergeados; base común web (shell, layout, grid, i18n, rutas de error) en PR-4 con ok de Luciano a F8; pendientes las pantallas de org (PR-5) y de accesos y cuenta (PR-6) | 2026-11-12, canvas aprobado por Luciano | F | 1.3 |
 | Lista de entidades legales con `legalName`, `displayName`, `q` e `isActive` | 2026-11-12, `domain/org.md §5` | C → B ∥ F | Cierre de la interfaz coherente |
 | `PATCH /v1/me` para guardar el idioma elegido (sin `If-Match`) | 2026-11-12, `conventions-api.md §5` | C → B ∥ F | Cierre de la interfaz coherente |
+| Alta de monedas (`POST /v1/currencies`, `CURRENCY:CREATE`), renombrar moneda (`captionI18n` en `PUT`) y nombre del grupo (`legalName`/`displayName` en `GroupListItem`/`Group`) | 2026-11-14, `domain/org.md §5` | C → B ∥ F | Cierre de la interfaz coherente |
 
 ## Preguntas abiertas ⚑ por paso
 
