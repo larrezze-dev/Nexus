@@ -156,3 +156,9 @@ GET /v1/audit/{aggregateType}/{aggregateId} the endpoint no longer allows anonym
 # .RequireAuthenticatedOnly(), documented only via `x-permission: AUTHENTICATED`, no standard
 # `security` entry in the service's generated document. Added pre-emptively, one line per endpoint.
 PATCH /v1/me the endpoint no longer allows anonymous access and now only accepts `bearerAuth`
+
+# --- nexus-platform: POST /v1/currencies (UI contract 2, createCurrency) ---------------------
+# Same finding and root cause as the 0.4 org endpoints above: guarded at runtime by
+# .RequirePermission("CURRENCY", Create), documented only via `x-permission`, no standard
+# `security` entry in the service's generated document. Added pre-emptively, one line per endpoint.
+POST /v1/currencies the endpoint no longer allows anonymous access and now only accepts `bearerAuth`

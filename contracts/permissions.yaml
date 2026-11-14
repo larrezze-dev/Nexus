@@ -73,6 +73,11 @@ permissions:
     action: READ
     defaultRoles: ["SYSTEM_ADMIN", "CATALOG_ADMIN", "WAREHOUSE_OPERATOR", "PROJECT_MANAGER", "SALES", "CONTROLLER", "VIEWER"]
     step: "0.4"
+  - code: CURRENCY:CREATE
+    resource: CURRENCY
+    action: CREATE
+    defaultRoles: ["SYSTEM_ADMIN"]
+    step: "UI"
   - code: CURRENCY:UPDATE
     resource: CURRENCY
     action: UPDATE
