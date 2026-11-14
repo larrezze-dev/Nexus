@@ -38,20 +38,31 @@ public sealed record UpdateGroupRequest
 public sealed record GroupResponse(
     Guid Id,
     Guid PartyId,
+    string LegalName,
     string Code,
     string ConsolidationMethod,
     string ReportingCurrencyCode,
     DateTime CreatedAt,
     DateTime UpdatedAt)
 {
+    /// <summary>Nullable and not listed as required in the contract (still always written).</summary>
+    public string? DisplayName { get; init; }
+
     public static GroupResponse From(GroupDetails group)
     {
         ArgumentNullException.ThrowIfNull(group);
         return new GroupResponse(
-            group.Id, group.PartyId, group.Code, group.ConsolidationMethod, group.ReportingCurrencyCode,
-            group.CreatedAt, group.UpdatedAt);
+            group.Id, group.PartyId, group.LegalName, group.Code, group.ConsolidationMethod, group.ReportingCurrencyCode,
+            group.CreatedAt, group.UpdatedAt)
+        {
+            DisplayName = group.DisplayName,
+        };
     }
 }
 
 /// <summary><c>GroupListItem</c>.</summary>
-public sealed record GroupListItemResponse(Guid Id, Guid PartyId, string Code, string ReportingCurrencyCode);
+public sealed record GroupListItemResponse(Guid Id, Guid PartyId, string LegalName, string Code, string ReportingCurrencyCode)
+{
+    /// <summary>Nullable and not listed as required in the contract (still always written).</summary>
+    public string? DisplayName { get; init; }
+}

@@ -5,11 +5,12 @@ namespace Nexus.Platform.Application.Currencies;
 
 /// <summary>
 /// Write-side access to <see cref="Currency"/> aggregates (implemented over <c>OrgDbContext</c>).
-/// No <c>Add</c>: currencies are seeded once by <c>db/seed/common</c>, never created through the
-/// API.
 /// </summary>
 public interface ICurrencyRepository
 {
+    /// <summary>Tracks a new currency; it is inserted on commit.</summary>
+    void Add(Currency currency);
+
     /// <summary>Loads a currency for modification, or <see langword="null"/>.</summary>
     Task<Currency?> GetByIdAsync(string code, CancellationToken cancellationToken);
 

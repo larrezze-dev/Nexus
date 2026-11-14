@@ -3,6 +3,7 @@ using Nexus.BuildingBlocks.Application.Validation;
 using Nexus.BuildingBlocks.Application;
 using Nexus.BuildingBlocks.Domain;
 using Nexus.Platform.Application.Currencies;
+using Nexus.Platform.Application.Parties;
 using Nexus.Platform.Application.Users;
 
 namespace Nexus.Platform.Application.Groups.UpdateGroup;
@@ -37,12 +38,14 @@ internal sealed class UpdateGroupHandler : ICommandHandler<UpdateGroupCommand, G
 {
     private readonly IRequestTransaction _transaction;
     private readonly IGroupRepository _groups;
+    private readonly IPartyRepository _parties;
     private readonly ICurrencyReadDb _currencies;
 
-    public UpdateGroupHandler(IRequestTransaction transaction, IGroupRepository groups, ICurrencyReadDb currencies)
+    public UpdateGroupHandler(IRequestTransaction transaction, IGroupRepository groups, IPartyRepository parties, ICurrencyReadDb currencies)
     {
         _transaction = transaction;
         _groups = groups;
+        _parties = parties;
         _currencies = currencies;
     }
 
@@ -78,8 +81,11 @@ internal sealed class UpdateGroupHandler : ICommandHandler<UpdateGroupCommand, G
             return Result.Failure<GroupDetails>(updated.Error!);
         }
 
+        var party = await _parties.GetByIdAsync(group.PartyId, cancellationToken)
+            ?? throw new InvalidOperationException($"Party '{group.PartyId}' of group '{group.Id}' does not exist.");
+
         await _transaction.CommitAsync(cancellationToken);
 
-        return Result.Success(GroupDetails.From(group, _groups.GetMetadata(group)));
+        return Result.Success(GroupDetails.From(group, party, _groups.GetMetadata(group)));
     }
 }
