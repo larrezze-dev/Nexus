@@ -75,7 +75,7 @@ describe('CurrencyCreatePage', () => {
 
     await internals(fixture).onSave(value);
 
-    expect(internals(fixture).fieldErrors()).toEqual({ code: ['errors.CONFLICT'] });
+    expect(internals(fixture).fieldErrors()).toEqual({ code: ['org.currencies.errors.duplicateCode'] });
     expect(internals(fixture).saveError()).toBeNull();
     expect(navigate).not.toHaveBeenCalled();
   });

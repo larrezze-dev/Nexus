@@ -2,6 +2,8 @@ import {
   ChangeDetectionStrategy,
   Component,
   ElementRef,
+  Injector,
+  afterNextRender,
   effect,
   inject,
   input,
@@ -42,7 +44,10 @@ const FIELD_ORDER = ['code', 'minorUnits', 'captionI18n'] as const;
 /**
  * Currency form: create (`code` ISO 4217 in capitals, name in each language with German required,
  * decimals 0..4, default 2) and edit (only the name changes; `code` and `minorUnits` are locked).
- * Logic only: the layout is minimal and gets its final look from the design pass.
+ * Layout (`nx-ui-page-templates`, like the legal entity form): «Currency» section with the code
+ * (mono, capitals) and the decimals, «Name in each language» section with the caption editor, and
+ * the action bar «Cancel · Create currency / Save changes». On edit the locked fields keep a lock
+ * icon and a hint saying why.
  */
 @Component({
   selector: 'nx-currency-form',
@@ -63,7 +68,7 @@ const FIELD_ORDER = ['code', 'minorUnits', 'captionI18n'] as const;
   ],
   template: `
     @let isEdit = mode() === 'edit';
-    <form [formGroup]="form" (ngSubmit)="onSubmit()" novalidate>
+    <form class="nx-form-stack" [formGroup]="form" (ngSubmit)="onSubmit()" novalidate>
       @if (invalidCount() > 0) {
         <div class="nx-alert nx-alert--error" role="alert" data-testid="currency-form-invalid">
           <mat-icon aria-hidden="true">error</mat-icon>
@@ -89,8 +94,12 @@ const FIELD_ORDER = ['code', 'minorUnits', 'captionI18n'] as const;
               [required]="!isEdit"
               (input)="onCodeInput($event)"
             />
+            <!-- One element per @if block: a block with two roots is not projected into the slots. -->
             @if (isEdit) {
-              <mat-icon matSuffix aria-hidden="true">lock</mat-icon>
+              <mat-icon matSuffix class="nx-currency-form__lock" aria-hidden="true">lock</mat-icon>
+            }
+            @if (isEdit) {
+              <mat-hint>{{ 'org.currencies.hints.lockedAfterCreate' | transloco }}</mat-hint>
             } @else {
               <mat-hint>{{ 'org.currencies.hints.code' | transloco }}</mat-hint>
             }
@@ -119,8 +128,12 @@ const FIELD_ORDER = ['code', 'minorUnits', 'captionI18n'] as const;
               data-testid="currency-form-minor-units"
               [required]="!isEdit"
             />
+            <!-- One element per @if block: a block with two roots is not projected into the slots. -->
             @if (isEdit) {
-              <mat-icon matSuffix aria-hidden="true">lock</mat-icon>
+              <mat-icon matSuffix class="nx-currency-form__lock" aria-hidden="true">lock</mat-icon>
+            }
+            @if (isEdit) {
+              <mat-hint>{{ 'org.currencies.hints.lockedAfterCreate' | transloco }}</mat-hint>
             } @else {
               <mat-hint>{{ 'org.currencies.hints.minorUnits' | transloco }}</mat-hint>
             }
@@ -144,7 +157,7 @@ const FIELD_ORDER = ['code', 'minorUnits', 'captionI18n'] as const;
       </nx-form-section>
 
       <nx-action-bar>
-        <button mat-stroked-button type="button" data-testid="currency-form-cancel" (click)="cancel.emit()">
+        <button mat-button type="button" data-testid="currency-form-cancel" (click)="cancel.emit()">
           {{ 'common.cancel' | transloco }}
         </button>
         <button
@@ -156,10 +169,15 @@ const FIELD_ORDER = ['code', 'minorUnits', 'captionI18n'] as const;
           @if (saving()) {
             <mat-progress-spinner diameter="18" mode="indeterminate" aria-hidden="true" />
           }
-          {{ (isEdit ? 'common.saveChanges' : 'org.currencies.new') | transloco }}
+          {{ (isEdit ? 'common.saveChanges' : 'org.currencies.actions.create') | transloco }}
         </button>
       </nx-action-bar>
     </form>
+  `,
+  styles: `
+    .nx-currency-form__lock {
+      color: var(--nx-color-text-muted);
+    }
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
@@ -176,6 +194,7 @@ export class CurrencyFormComponent {
   readonly cancel = output<void>();
 
   private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
+  private readonly injector = inject(Injector);
 
   protected readonly form = inject(FormBuilder).nonNullable.group({
     code: ['', [Validators.required, Validators.pattern(CURRENCY_CODE_PATTERN)]],
@@ -219,7 +238,15 @@ export class CurrencyFormComponent {
       }
     });
 
-    effect(() => markServerErrors(this.form.controls, this.fieldErrors()));
+    effect(() => {
+      const errors = this.fieldErrors();
+      markServerErrors(this.form.controls, errors);
+      // A server error on a field (e.g. the code already exists): move the focus there.
+      const first = FIELD_ORDER.find((name) => (errors[name]?.length ?? 0) > 0);
+      if (first) {
+        afterNextRender(() => this.focusField(first), { injector: this.injector });
+      }
+    });
   }
 
   /** The code is always typed in capitals (ISO 4217). */

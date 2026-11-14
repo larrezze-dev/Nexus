@@ -231,3 +231,15 @@
     animation: none;
   }
 }
+
+/*
+ * A form made of stacked sections (`<form class="nx-form-stack">`: alert, `nx-form-section`s,
+ * `nx-action-bar`), spaced like the page (`--nx-space-5`). The older org forms still carry a local
+ * copy of this block (`.nx-le-form`, `.nx-bu-form`, …).
+ */
+.nx-form-stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--nx-space-5);
+  min-width: 0;
+}

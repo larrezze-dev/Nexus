@@ -34,6 +34,7 @@ const currencies = {
   deactivated: 'Currency deactivated',
   errors: { inUse: '«{{name}}» is in use.', codeFormat: 'Three capitals.', minorUnitsRange: '0 to 4.' },
   new: 'New currency',
+  readOnlyNotice: 'You can only view this currency.',
 };
 
 const translations = {
@@ -47,6 +48,8 @@ interface Setup {
   readonly confirmed?: boolean;
   readonly toggleOk?: boolean;
   readonly toggleError?: CurrencyToggleError | null;
+  /** The GET never answers: the page stays in its loading state. */
+  readonly pending?: boolean;
 }
 
 async function setupPage(options: Setup = {}) {
@@ -54,6 +57,9 @@ async function setupPage(options: Setup = {}) {
   const toggleError = signal<CurrencyToggleError | null>(null);
   const facade = {
     get: vi.fn(() => {
+      if (options.pending) {
+        return new Promise<Currency>(() => undefined);
+      }
       const value = current();
       return value ? Promise.resolve(value) : Promise.reject(new Error('load failed'));
     }),
@@ -277,8 +283,22 @@ describe('CurrencyDetailPage', () => {
 
     expect(byTestId(fixture, 'currency-detail-deactivate')).toBeNull();
     expect(byTestId(fixture, 'currency-detail-activate')).toBeNull();
-    // The form is read-only too: no save.
+    // The form is read-only too: no save, and a notice says why.
     expect(byTestId(fixture, 'currency-form-submit')?.hasAttribute('disabled')).toBe(true);
+    expect(byTestId(fixture, 'currency-detail-read-only')?.textContent).toContain('You can only view');
+  });
+
+  it('shows no read-only notice with CURRENCY:UPDATE', async () => {
+    const { fixture } = await setupPage();
+
+    expect(byTestId(fixture, 'currency-detail-read-only')).toBeNull();
+  });
+
+  it('shows a header and card skeleton while loading, never a «Loading…» title', async () => {
+    const { fixture } = await setupPage({ pending: true });
+
+    expect(byTestId(fixture, 'nx-detail-skeleton')).toBeTruthy();
+    expect(root(fixture).querySelector('h1')).toBeNull();
   });
 
   it('shows the error state with «Retry» when the load fails', async () => {

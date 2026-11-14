@@ -503,9 +503,9 @@
         "names": "Name in each language"
       },
       "hints": {
-        "fixed": "The code and the decimals do not change after creation; you can rename the currency and activate or deactivate it.",
         "minorUnits": "Number of decimal places of amounts in this currency.",
-        "code": "Three capital letters (ISO 4217), e.g. SEK."
+        "code": "Three capital letters (ISO 4217), e.g. SEK.",
+        "lockedAfterCreate": "Set when the currency is created."
       },
       "activate": "Activate",
       "deactivate": "Deactivate",
@@ -518,13 +518,18 @@
       "errors": {
         "inUse": "«{{name}}» cannot be deactivated: at least one active legal entity or group uses this currency.",
         "codeFormat": "Enter three capital letters (A–Z).",
-        "minorUnitsRange": "A value between 0 and 4."
+        "minorUnitsRange": "A value between 0 and 4.",
+        "duplicateCode": "A currency with this code already exists."
       },
       "new": "New currency",
       "newTitle": "New currency",
       "createSubtitle": "An ISO 4217 currency that can be chosen for legal entities and groups. The code and the decimals cannot be changed later. Fields marked * are required.",
       "created": "Currency created",
-      "renamed": "Name saved"
+      "renamed": "Name saved",
+      "actions": {
+        "create": "Create currency"
+      },
+      "readOnlyNotice": "You can only view this currency: you are not allowed to change it."
     },
     "locations": {
       "title": "Locations",

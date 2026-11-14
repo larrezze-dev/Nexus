@@ -503,9 +503,9 @@
         "names": "Nome in ogni lingua"
       },
       "hints": {
-        "fixed": "Il codice e i decimali non cambiano dopo la creazione; puoi rinominare la valuta e attivarla o disattivarla.",
         "minorUnits": "Numero di decimali degli importi in questa valuta.",
-        "code": "Tre lettere maiuscole (ISO 4217), ad es. SEK."
+        "code": "Tre lettere maiuscole (ISO 4217), ad es. SEK.",
+        "lockedAfterCreate": "Fissato alla creazione della valuta."
       },
       "activate": "Attiva",
       "deactivate": "Disattiva",
@@ -518,13 +518,18 @@
       "errors": {
         "inUse": "Impossibile disattivare «{{name}}»: almeno un'entità legale o un gruppo attivo usa questa valuta.",
         "codeFormat": "Inserisci tre lettere maiuscole (A–Z).",
-        "minorUnitsRange": "Un valore tra 0 e 4."
+        "minorUnitsRange": "Un valore tra 0 e 4.",
+        "duplicateCode": "Esiste già una valuta con questo codice."
       },
       "new": "Nuova valuta",
       "newTitle": "Nuova valuta",
       "createSubtitle": "Una valuta ISO 4217 selezionabile per entità legali e gruppi. Il codice e i decimali non si possono modificare in seguito. I campi con * sono obbligatori.",
       "created": "Valuta creata",
-      "renamed": "Nome salvato"
+      "renamed": "Nome salvato",
+      "actions": {
+        "create": "Crea valuta"
+      },
+      "readOnlyNotice": "Puoi solo consultare questa valuta: non hai l'autorizzazione per modificarla."
     },
     "locations": {
       "title": "Sedi",

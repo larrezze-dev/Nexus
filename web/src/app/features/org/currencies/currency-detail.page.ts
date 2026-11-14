@@ -38,7 +38,7 @@ import { CurrencyFormComponent, CurrencyFormValue } from './currency-form.compon
  * Currency detail (`conventions-frontend.md §4.5`): header with the currency name in the active
  * language (also the last breadcrumb), the ISO code as subtitle, the status badge, «Deactivate»
  * (destructive, with `NxConfirm`) or «Activate», and the form to rename it (the code and the
- * decimals are locked after creation). Renaming sends `PUT` with the `ETag` of the load.
+ * decimals are locked after creation, each with a lock and a hint saying why). Renaming sends `PUT` with the `ETag` of the load.
  *
  * No tabs: there is no audit projection for currencies. ORG-R7 (a currency used by an active
  * group or legal entity cannot be deactivated) comes back as a 422 and is shown as an alert in
@@ -93,14 +93,18 @@ import { CurrencyFormComponent, CurrencyFormValue } from './currency-form.compon
           }
         </nx-page-header>
 
+        @if (!canUpdate()) {
+          <div class="nx-alert nx-alert--info" role="status" data-testid="currency-detail-read-only">
+            <mat-icon aria-hidden="true">visibility</mat-icon>
+            <span class="nx-alert__text">{{ 'org.currencies.readOnlyNotice' | transloco }}</span>
+          </div>
+        }
         @if (actionError(); as message) {
           <div class="nx-alert nx-alert--error" role="alert" data-testid="currency-detail-error">
             <mat-icon aria-hidden="true">error</mat-icon>
             <span class="nx-alert__text">{{ message }}</span>
           </div>
         }
-
-        <p class="nx-currency-detail__hint">{{ 'org.currencies.hints.fixed' | transloco }}</p>
 
         <nx-currency-form
           mode="edit"

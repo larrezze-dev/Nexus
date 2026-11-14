@@ -12,9 +12,10 @@ const translations = {
       currencies: {
         fields: { code: 'Code', minorUnits: 'Decimal places' },
         sections: { currency: 'Currency', names: 'Names' },
-        hints: { code: 'Three letters.', minorUnits: 'Decimals.' },
+        hints: { code: 'Three letters.', minorUnits: 'Decimals.', lockedAfterCreate: 'Set at creation.' },
         errors: { codeFormat: 'Three capitals.', minorUnitsRange: '0 to 4.' },
         new: 'New currency',
+        actions: { create: 'Create currency' },
       },
     },
     common: { cancel: 'Cancel', saveChanges: 'Save changes' },
@@ -148,6 +149,25 @@ describe('CurrencyFormComponent', () => {
 
     expect(el(fixture, 'currency-form-code-server')?.textContent).toContain('already exists');
     expect(el(fixture, 'currency-form-code').classList.contains('ng-invalid')).toBe(true);
+    // The focus moves to the field the server refused.
+    expect(document.activeElement).toBe(el(fixture, 'currency-form-code'));
+  });
+
+  it('create: the primary button says «Create currency», Cancel is a text button', async () => {
+    const fixture = await setup();
+
+    expect(el(fixture, 'currency-form-submit').textContent?.trim()).toBe('Create currency');
+    const cancel = el(fixture, 'currency-form-cancel');
+    expect(cancel.hasAttribute('mat-button')).toBe(true);
+    expect(cancel.hasAttribute('mat-stroked-button')).toBe(false);
+  });
+
+  it('create: an invalid submit focuses the first invalid field (the code)', async () => {
+    const fixture = await setup();
+
+    submit(fixture);
+
+    expect(document.activeElement).toBe(el(fixture, 'currency-form-code'));
   });
 
   it('edit: code and decimals are locked, the name is editable, Save needs a change', async () => {
@@ -160,6 +180,16 @@ describe('CurrencyFormComponent', () => {
 
     expect(el(fixture, 'currency-form-code').disabled).toBe(true);
     expect(el(fixture, 'currency-form-minor-units').disabled).toBe(true);
+    // Locked look: lock icon and a hint saying why, on both fields.
+    const root = fixture.nativeElement as HTMLElement;
+    expect(root.querySelectorAll('.nx-field--locked').length).toBe(2);
+    // Projected into Material's slots (suffix and hint line), not left inside the input row.
+    expect(root.querySelectorAll('.nx-field--locked .mat-mdc-form-field-icon-suffix mat-icon').length).toBe(2);
+    expect(
+      [...root.querySelectorAll('.nx-field--locked .mat-mdc-form-field-hint-wrapper mat-hint')].map((hint) =>
+        hint.textContent?.trim(),
+      ),
+    ).toEqual(['Set at creation.', 'Set at creation.']);
     expect(german(fixture).value).toBe('Schwedische Krone');
     expect(german(fixture).disabled).toBe(false);
     expect(el(fixture, 'currency-form-submit').disabled).toBe(true);

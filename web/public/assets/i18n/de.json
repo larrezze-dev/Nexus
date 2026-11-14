@@ -336,9 +336,9 @@
         "names": "Name in jeder Sprache"
       },
       "hints": {
-        "fixed": "Code und Dezimalstellen ändern sich nach dem Anlegen nicht; Sie können die Währung umbenennen sowie aktivieren oder deaktivieren.",
         "minorUnits": "Anzahl Nachkommastellen bei Beträgen in dieser Währung.",
-        "code": "Drei Grossbuchstaben (ISO 4217), z. B. SEK."
+        "code": "Drei Grossbuchstaben (ISO 4217), z. B. SEK.",
+        "lockedAfterCreate": "Wird beim Anlegen der Währung festgelegt."
       },
       "activate": "Aktivieren",
       "deactivate": "Deaktivieren",
@@ -351,13 +351,18 @@
       "errors": {
         "inUse": "«{{name}}» kann nicht deaktiviert werden: Mindestens eine aktive Gesellschaft oder Gruppe verwendet diese Währung.",
         "codeFormat": "Geben Sie drei Grossbuchstaben (A–Z) ein.",
-        "minorUnitsRange": "Wert zwischen 0 und 4."
+        "minorUnitsRange": "Wert zwischen 0 und 4.",
+        "duplicateCode": "Es gibt bereits eine Währung mit diesem Code."
       },
       "new": "Neue Währung",
       "newTitle": "Neue Währung",
       "createSubtitle": "Eine ISO-4217-Währung, die bei Gesellschaften und Gruppen gewählt werden kann. Code und Dezimalstellen lassen sich später nicht mehr ändern. Felder mit * sind Pflichtfelder.",
       "created": "Währung angelegt",
-      "renamed": "Name gespeichert"
+      "renamed": "Name gespeichert",
+      "actions": {
+        "create": "Währung anlegen"
+      },
+      "readOnlyNotice": "Sie können diese Währung nur ansehen: Ihnen fehlt die Berechtigung zum Ändern."
     },
     "locations": {
       "title": "Standorte",

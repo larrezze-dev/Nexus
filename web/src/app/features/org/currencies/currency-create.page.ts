@@ -92,7 +92,7 @@ export class CurrencyCreatePage {
     const http = error as { status?: number } | undefined;
     const problem = problemOf(error);
     if (isDuplicateConflict(error)) {
-      this.fieldErrors.set({ code: [this.transloco.translate('errors.CONFLICT')] });
+      this.fieldErrors.set({ code: [this.transloco.translate('org.currencies.errors.duplicateCode')] });
       return;
     }
     if (http?.status === 400 && problem?.errors) {

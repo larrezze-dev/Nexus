@@ -503,9 +503,9 @@
         "names": "Nombre en cada idioma"
       },
       "hints": {
-        "fixed": "El código y los decimales no cambian tras el alta; puedes renombrar la moneda y activarla o desactivarla.",
         "minorUnits": "Número de decimales de los importes en esta moneda.",
-        "code": "Tres letras mayúsculas (ISO 4217), p. ej. SEK."
+        "code": "Tres letras mayúsculas (ISO 4217), p. ej. SEK.",
+        "lockedAfterCreate": "Se fija al crear la moneda."
       },
       "activate": "Activar",
       "deactivate": "Desactivar",
@@ -518,13 +518,18 @@
       "errors": {
         "inUse": "No se puede desactivar «{{name}}»: la usa al menos una entidad legal o un grupo activos.",
         "codeFormat": "Introduce tres letras mayúsculas (A–Z).",
-        "minorUnitsRange": "Un valor entre 0 y 4."
+        "minorUnitsRange": "Un valor entre 0 y 4.",
+        "duplicateCode": "Ya existe una moneda con este código."
       },
       "new": "Nueva moneda",
       "newTitle": "Nueva moneda",
       "createSubtitle": "Una moneda ISO 4217 que se podrá elegir en entidades legales y grupos. El código y los decimales no se pueden cambiar después. Los campos con * son obligatorios.",
       "created": "Moneda creada",
-      "renamed": "Nombre guardado"
+      "renamed": "Nombre guardado",
+      "actions": {
+        "create": "Crear moneda"
+      },
+      "readOnlyNotice": "Solo puedes consultar esta moneda: no tienes permiso para modificarla."
     },
     "locations": {
       "title": "Ubicaciones",

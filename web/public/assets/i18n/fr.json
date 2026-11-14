@@ -503,9 +503,9 @@
         "names": "Nom dans chaque langue"
       },
       "hints": {
-        "fixed": "Le code et les décimales ne changent pas après la création ; vous pouvez renommer la devise et l'activer ou la désactiver.",
         "minorUnits": "Nombre de décimales des montants dans cette devise.",
-        "code": "Trois lettres majuscules (ISO 4217), p. ex. SEK."
+        "code": "Trois lettres majuscules (ISO 4217), p. ex. SEK.",
+        "lockedAfterCreate": "Fixé à la création de la devise."
       },
       "activate": "Activer",
       "deactivate": "Désactiver",
@@ -518,13 +518,18 @@
       "errors": {
         "inUse": "Impossible de désactiver «{{name}}» : au moins une entité juridique ou un groupe actif utilise cette devise.",
         "codeFormat": "Saisissez trois lettres majuscules (A–Z).",
-        "minorUnitsRange": "Une valeur entre 0 et 4."
+        "minorUnitsRange": "Une valeur entre 0 et 4.",
+        "duplicateCode": "Une devise avec ce code existe déjà."
       },
       "new": "Nouvelle devise",
       "newTitle": "Nouvelle devise",
       "createSubtitle": "Une devise ISO 4217 qui pourra être choisie pour les entités juridiques et les groupes. Le code et les décimales ne peuvent plus être modifiés ensuite. Les champs marqués * sont obligatoires.",
       "created": "Devise créée",
-      "renamed": "Nom enregistré"
+      "renamed": "Nom enregistré",
+      "actions": {
+        "create": "Créer la devise"
+      },
+      "readOnlyNotice": "Vous pouvez seulement consulter cette devise : vous n'avez pas le droit de la modifier."
     },
     "locations": {
       "title": "Sites",
