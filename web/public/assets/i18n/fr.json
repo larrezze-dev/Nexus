@@ -194,7 +194,7 @@
       "resources": {
         "CURRENCY": "Devises",
         "ORG_STRUCTURE": "Structure de l'organisation",
-        "PARTY": "Tiers",
+        "PARTY": "Partenaires",
         "ROLE": "Rôles",
         "ROLE_ASSIGNMENT": "Attributions de rôle",
         "USER": "Utilisateurs",

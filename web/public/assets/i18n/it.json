@@ -194,7 +194,7 @@
       "resources": {
         "CURRENCY": "Valute",
         "ORG_STRUCTURE": "Struttura dell'organizzazione",
-        "PARTY": "Terzi",
+        "PARTY": "Partner",
         "ROLE": "Ruoli",
         "ROLE_ASSIGNMENT": "Assegnazioni di ruolo",
         "USER": "Utenti",

@@ -194,7 +194,7 @@
       "resources": {
         "CURRENCY": "Currencies",
         "ORG_STRUCTURE": "Organization structure",
-        "PARTY": "Third parties",
+        "PARTY": "Parties",
         "ROLE": "Roles",
         "ROLE_ASSIGNMENT": "Role assignments",
         "USER": "Users",

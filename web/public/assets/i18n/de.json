@@ -654,7 +654,7 @@
       "resources": {
         "CURRENCY": "Währungen",
         "ORG_STRUCTURE": "Organisationsstruktur",
-        "PARTY": "Dritte",
+        "PARTY": "Partner",
         "ROLE": "Rollen",
         "ROLE_ASSIGNMENT": "Rollenzuweisungen",
         "USER": "Benutzer",
