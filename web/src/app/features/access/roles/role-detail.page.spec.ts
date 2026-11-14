@@ -6,6 +6,8 @@ import { signal } from '@angular/core';
 import { PermissionGrant } from '../../../api/platform/models/permission-grant';
 import { Role } from '../../../api/platform/models/role';
 import { NxI18nService } from '../../../core/i18n/nx-i18n.service';
+import { PermissionsStore } from '../../../shared/auth/permissions.store';
+import { NxConfirm } from '../../../shared/ui/layout';
 import { RoleDetailPage } from './role-detail.page';
 import { RolesFacade } from './roles.facade';
 import { NxBreadcrumbService } from '../../../core/layout/breadcrumb.service';
@@ -41,6 +43,11 @@ const translations = {
         tabs: { general: 'General', permissionHistory: 'Permission history' },
         actions: { deactivate: 'Deactivate', save: 'Save' },
         permissionMatrix: { asOf: 'As of', resource: 'Resource' },
+        deactivateDialog: { title: 'Deactivate role', message: 'Deactivate {{name}}?' },
+      },
+      permissions: {
+        resources: { ORG_STRUCTURE: 'Organisation structure', AUDIT: 'Audit' },
+        actions: { READ: 'View', CREATE: 'Create' },
       },
     },
     errors: { validation: 'Fix the fields', generic: 'Something went wrong' },
@@ -52,6 +59,7 @@ function createFacadeStub(initialSelected: Role | null) {
   return {
     selected: signal(initialSelected).asReadonly(),
     loading: signal(false).asReadonly(),
+    error: signal<string | null>(null).asReadonly(),
     reset: vi.fn(),
     load: vi.fn().mockResolvedValue(undefined),
     create: vi.fn(),
@@ -75,13 +83,28 @@ async function setupPage(paramMap: Record<string, string>, facade: ReturnType<ty
     providers: [
       provideNoopAnimations(),
       { provide: RolesFacade, useValue: facade },
-      { provide: NxI18nService, useValue: { translateErrorCode: (code: string | null | undefined) => code ?? 'generic' } },
+      { provide: NxI18nService, useValue: {
+          activeLang: () => 'en',
+          getActiveLanguage: () => 'en',
+          translateErrorCode: (code: string | null | undefined) => code ?? 'generic',
+        },
+      },
       {
         provide: ActivatedRoute,
         useValue: { snapshot: { paramMap: convertToParamMap(paramMap) } },
       },
       { provide: Router, useValue: { navigate: vi.fn().mockResolvedValue(true) } },
-      { provide: NxBreadcrumbService, useValue: { setCurrentLabel: vi.fn() } },
+      {
+        provide: NxBreadcrumbService,
+        useValue: {
+          setCurrentLabel: vi.fn(),
+          setLoadFailed: vi.fn(),
+          clearLoadFailed: vi.fn(),
+          claimForPage: () => () => undefined,
+          trail: signal([]),
+        },
+      },
+      { provide: NxConfirm, useValue: { confirm: vi.fn().mockResolvedValue(true) } },
     ],
   }).compileComponents();
 
@@ -185,12 +208,7 @@ describe('RoleDetailPage', () => {
     fixture.componentInstance['allPermissions'].set([
       { code: grant.code, action: 'CREATE', resourceType: 'ORG_STRUCTURE', captionI18n: { de: 'Anlegen' } },
     ]);
-    fixture.componentInstance['toggleGrant']({
-      code: grant.code,
-      action: 'CREATE',
-      resourceType: 'ORG_STRUCTURE',
-      captionI18n: { de: 'Anlegen' },
-    });
+    fixture.componentInstance['toggleGrant']({ code: grant.code });
 
     await fixture.componentInstance['onSavePermissions']();
 
@@ -225,5 +243,133 @@ describe('RoleDetailPage', () => {
     expect(fixture.componentInstance['asOf']()).toBe('');
     expect(fixture.componentInstance['readOnlyMatrix']()).toBe(false);
     expect(facade.getPermissions).toHaveBeenCalledWith(role.id, undefined);
+  });
+
+  const catalog = [
+    { code: 'AUDIT:READ', action: 'READ', resourceType: 'AUDIT', captionI18n: { en: 'View audit' } },
+    { code: 'ORG_STRUCTURE:READ', action: 'READ', resourceType: 'ORG_STRUCTURE', captionI18n: { en: 'View org' } },
+    { code: 'ORG_STRUCTURE:CREATE', action: 'CREATE', resourceType: 'ORG_STRUCTURE', captionI18n: { en: 'Create org' } },
+  ] as const;
+
+  async function setupMatrix(grants: string[]) {
+    const facade = createFacadeStub(role);
+    facade.listAllPermissions.mockResolvedValue([...catalog]);
+    facade.getPermissions.mockResolvedValue(grants.map((code) => ({ ...grant, code })));
+    const fixture = await setupPage({ id: role.id }, facade);
+    fixture.detectChanges();
+    await fixture.whenStable();
+    return { facade, fixture };
+  }
+
+  it('builds the matrix with readable, translated row/column/cell labels', async () => {
+    const { fixture } = await setupMatrix([]);
+    const matrix = fixture.componentInstance['matrix']();
+
+    expect(matrix.columns.map((c: { label: string }) => c.label)).toEqual(['View', 'Create']);
+    expect(matrix.rows.map((r: { label: string }) => r.label)).toEqual(['Audit', 'Organisation structure']);
+    expect(matrix.rows[1].cells.get('CREATE')?.label).toBe('Organisation structure — Create');
+  });
+
+  it('ticking and unticking cells yields the add/remove diff, and saving sends the full list', async () => {
+    const { facade, fixture } = await setupMatrix(['AUDIT:READ']);
+    const page = fixture.componentInstance;
+    expect(page['permissionsDirty']()).toBe(false);
+
+    page['toggleGrant']({ code: 'ORG_STRUCTURE:READ' });
+    page['toggleGrant']({ code: 'AUDIT:READ' });
+    expect(page['permissionDiff']()).toEqual({ added: ['ORG_STRUCTURE:READ'], removed: ['AUDIT:READ'] });
+
+    facade.savePermissions.mockResolvedValue([{ ...grant, code: 'ORG_STRUCTURE:READ' }]);
+    await page['onSavePermissions']();
+    expect(facade.savePermissions).toHaveBeenCalledWith(role.id, ['ORG_STRUCTURE:READ']);
+    expect(page['permissionsDirty']()).toBe(false);
+
+    page['toggleGrant']({ code: 'ORG_STRUCTURE:READ' });
+    page['onDiscardPermissions']();
+    expect(page['permissionsDirty']()).toBe(false);
+  });
+
+  it('does not call the server when nothing changed', async () => {
+    const { facade, fixture } = await setupMatrix(['AUDIT:READ']);
+    await fixture.componentInstance['onSavePermissions']();
+    expect(facade.savePermissions).not.toHaveBeenCalled();
+  });
+
+  it('permission save: 400 -> validation text, 422 -> rule message, 409 CONCURRENCY -> nothing and keeps the draft', async () => {
+    const { facade, fixture } = await setupMatrix([]);
+    const page = fixture.componentInstance;
+    page['toggleGrant']({ code: 'AUDIT:READ' });
+
+    facade.savePermissions.mockRejectedValueOnce({ status: 400, error: { errors: [{ field: 'permissionCodes', message: 'x' }] } });
+    await page['onSavePermissions']();
+    expect(page['permissionsError']()).toBe('Fix the fields');
+
+    facade.savePermissions.mockRejectedValueOnce({ status: 422, error: { code: 'ACC-R9' } });
+    await page['onSavePermissions']();
+    expect(page['permissionsError']()).toBe('ACC-R9');
+
+    facade.savePermissions.mockRejectedValueOnce({
+      status: 409,
+      error: { type: 'https://nexus.nussli.ch/problems/conflict', code: 'CONCURRENCY', status: 409 },
+    });
+    await page['onSavePermissions']();
+    expect(page['permissionsError']()).toBeNull();
+    expect(page['grantedCodes']().has('AUDIT:READ')).toBe(true);
+  });
+
+  it('a late permission response for a superseded asOf does not overwrite the newer one', async () => {
+    const { facade, fixture } = await setupMatrix([]);
+    const page = fixture.componentInstance;
+    let resolveSlow!: (value: PermissionGrant[]) => void;
+    facade.getPermissions.mockReturnValueOnce(new Promise<PermissionGrant[]>((resolve) => (resolveSlow = resolve)));
+    facade.getPermissions.mockResolvedValueOnce([{ ...grant, code: 'AUDIT:READ' }]);
+
+    const slow = page['onAsOfChange']('2026-01-01');
+    await page['onAsOfChange']('2026-02-01');
+    resolveSlow([{ ...grant, code: 'ORG_STRUCTURE:CREATE' }]);
+    await slow;
+
+    expect([...page['grantedCodes']()]).toEqual(['AUDIT:READ']);
+    expect(page['loadingPermissions']()).toBe(false);
+  });
+
+  it('a system role keeps name/permissions editable but offers no deactivate', async () => {
+    const facade = createFacadeStub({ ...role, isSystem: true });
+    const fixture = await setupPage({ id: role.id }, facade);
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+    const el: HTMLElement = fixture.nativeElement;
+
+    expect(el.querySelector('[data-testid="role-detail-system-badge"]')).not.toBeNull();
+    expect(el.querySelector('[data-testid="role-detail-deactivate"]')).toBeNull();
+    expect(fixture.componentInstance['canEditPermissions']()).toBe(true);
+  });
+
+  it('deactivates through the confirm dialog and not when it is cancelled', async () => {
+    const facade = createFacadeStub(role);
+    facade.deactivate.mockResolvedValue({ ...role, isActive: false });
+    const fixture = await setupPage({ id: role.id }, facade);
+    fixture.detectChanges();
+    await fixture.whenStable();
+    const confirm = TestBed.inject(NxConfirm) as unknown as { confirm: ReturnType<typeof vi.fn> };
+
+    confirm.confirm.mockResolvedValueOnce(false);
+    await fixture.componentInstance['onDeactivate']();
+    expect(facade.deactivate).not.toHaveBeenCalled();
+
+    await fixture.componentInstance['onDeactivate']();
+    expect(facade.deactivate).toHaveBeenCalledWith(role.id);
+  });
+
+  it('is read-only without ROLE:UPDATE', async () => {
+    const facade = createFacadeStub(role);
+    const fixture = await setupPage({ id: role.id }, facade);
+    TestBed.inject(PermissionsStore).setPermissions([{ code: 'ROLE:READ', scopes: [] }] as never);
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    expect(fixture.componentInstance['canUpdate']()).toBe(false);
+    expect(fixture.componentInstance['canEditPermissions']()).toBe(false);
   });
 });

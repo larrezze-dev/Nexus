@@ -1,10 +1,14 @@
 import { ChangeDetectionStrategy, Component, OnInit, computed, effect, inject, signal } from '@angular/core';
+import { NgTemplateOutlet } from '@angular/common';
+import { toSignal } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, Router } from '@angular/router';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
+import { MatIconModule } from '@angular/material/icon';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
+import { MatSnackBar } from '@angular/material/snack-bar';
 import { MatTabsModule } from '@angular/material/tabs';
 import { TranslocoModule, TranslocoService } from '@jsverse/transloco';
 import { Permission } from '../../../api/platform/models/permission';
@@ -19,15 +23,18 @@ import { NxCanDirective } from '../../../shared/auth/can.directive';
 import { PermissionsStore } from '../../../shared/auth/permissions.store';
 import { I18nText, emptyI18nText } from '../../../shared/ui/i18n-text.model';
 import { NxI18nCaptionEditorComponent } from '../../../shared/ui/nx-i18n-caption-editor/nx-i18n-caption-editor.component';
+import { NxAuditTrailComponent } from '../../../shared/platform/nx-audit-trail/nx-audit-trail.component';
+import { NxConfirm, NxEmptyStateComponent, NxPageComponent, NxPageHeaderComponent } from '../../../shared/ui/layout';
+import { resolveCaption } from '../../../shared/ui/caption/caption.util';
 import { NxStatusBadgeComponent } from '../../../shared/ui/nx-status-badge/nx-status-badge.component';
 import { RolesFacade } from './roles.facade';
 import { NxBreadcrumbService } from '../../../core/layout/breadcrumb.service';
-
-/** One row of the permission matrix: a `resourceType` and its `Permission` per `action`. */
-export interface PermissionMatrixRow {
-  readonly resourceType: string;
-  readonly cells: ReadonlyMap<string, Permission>;
-}
+import {
+  PermissionMatrix,
+  buildPermissionMatrix,
+  diffPermissions,
+  humanizeCode,
+} from './permission-matrix';
 
 /**
  * `Role` detail/create page (`access.md §4`, `conventions-frontend.md
@@ -61,14 +68,20 @@ export interface PermissionMatrixRow {
   selector: 'nx-role-detail-page',
   standalone: true,
   imports: [
+    NgTemplateOutlet,
     ReactiveFormsModule,
     TranslocoModule,
     MatButtonModule,
     MatFormFieldModule,
     MatInputModule,
+    MatIconModule,
     MatProgressSpinnerModule,
     MatTabsModule,
+    NxAuditTrailComponent,
     NxCanDirective,
+    NxEmptyStateComponent,
+    NxPageComponent,
+    NxPageHeaderComponent,
     NxStatusBadgeComponent,
     NxI18nCaptionEditorComponent,
   ],
@@ -84,6 +97,11 @@ export class RoleDetailPage implements OnInit {
   private readonly transloco = inject(TranslocoService);
   private readonly permissionsStore = inject(PermissionsStore);
   private readonly fb = inject(FormBuilder);
+  private readonly confirm = inject(NxConfirm);
+  private readonly snackBar = inject(MatSnackBar);
+  /** Emits once the active language's file is loaded (and on every switch): texts built in TS follow it. */
+  private readonly translation = toSignal(this.transloco.selectTranslation());
+  private permissionsSeq = 0;
 
   protected readonly mode = signal<'create' | 'edit'>('create');
   protected readonly saving = signal(false);
@@ -92,6 +110,19 @@ export class RoleDetailPage implements OnInit {
 
   protected readonly entity = this.facade.selected;
   protected readonly loading = this.facade.loading;
+  protected readonly loadError = this.facade.error;
+
+  /** Role name in the active language (caption, the code if it has none). */
+  protected readonly name = computed(() => {
+    this.i18n.activeLang();
+    const current = this.entity();
+    return current ? resolveCaption(current.captionI18n, this.i18n.getActiveLanguage(), current.code) : '';
+  });
+
+  protected readonly canUpdate = computed(() => {
+    this.permissionsStore.permissions();
+    return this.permissionsStore.has('ROLE:UPDATE');
+  });
 
   protected readonly form = this.fb.group({
     code: this.fb.control('', { nonNullable: true, validators: [Validators.required] }),
@@ -106,31 +137,30 @@ export class RoleDetailPage implements OnInit {
   protected readonly permissionsError = signal<string | null>(null);
   /** `''` means "now" (editable); any other value is a past `asOf` instant (read-only). */
   protected readonly asOf = signal<string>('');
+  /** Grants as loaded from the server (the baseline of the diff). */
+  protected readonly originalCodes = signal<ReadonlySet<string>>(new Set());
+  /** Grants as currently ticked in the matrix (the draft). */
   protected readonly grantedCodes = signal<ReadonlySet<string>>(new Set());
 
   protected readonly readOnlyMatrix = computed(() => this.asOf() !== '');
-  protected readonly canEditPermissions = computed(
-    () => !this.readOnlyMatrix() && this.permissionsStore.has('ROLE:UPDATE'),
-  );
+  protected readonly canEditPermissions = computed(() => !this.readOnlyMatrix() && this.canUpdate());
 
-  protected readonly matrixColumns = computed<string[]>(() => {
-    const actions = new Set<string>();
-    for (const permission of this.allPermissions()) {
-      actions.add(permission.action);
-    }
-    return [...actions].sort();
+  /** What saving would change: codes to open and to close (`ACC-R7`). */
+  protected readonly permissionDiff = computed(() => diffPermissions(this.originalCodes(), this.grantedCodes()));
+  protected readonly permissionsDirty = computed(() => {
+    const diff = this.permissionDiff();
+    return diff.added.length > 0 || diff.removed.length > 0;
   });
 
-  protected readonly matrixRows = computed<PermissionMatrixRow[]>(() => {
-    const byResource = new Map<string, Map<string, Permission>>();
-    for (const permission of this.allPermissions()) {
-      const row = byResource.get(permission.resourceType) ?? new Map<string, Permission>();
-      row.set(permission.action, permission);
-      byResource.set(permission.resourceType, row);
-    }
-    return [...byResource.entries()]
-      .sort(([a], [b]) => a.localeCompare(b))
-      .map(([resourceType, cells]) => ({ resourceType, cells }));
+  /** Rows (resources) x columns (actions) with readable labels in the active language. */
+  protected readonly matrix = computed<PermissionMatrix>(() => {
+    this.translation();
+    this.i18n.activeLang();
+    return buildPermissionMatrix(this.allPermissions(), {
+      language: this.i18n.getActiveLanguage(),
+      resource: (resourceType) => this.labelFor(`access.permissions.resources.${resourceType}`, resourceType),
+      action: (action) => this.labelFor(`access.permissions.actions.${action}`, action),
+    });
   });
 
   constructor() {
@@ -144,6 +174,28 @@ export class RoleDetailPage implements OnInit {
         },
         { emitEvent: false },
       );
+    });
+
+    effect(() => {
+      // Breadcrumb/title: the role name, following a language switch; «Not available» if the load failed.
+      if (this.mode() !== 'edit') {
+        return;
+      }
+      if (this.loadError()) {
+        this.breadcrumb.setLoadFailed();
+      } else {
+        this.breadcrumb.setCurrentLabel(this.name() || null);
+      }
+    });
+
+    effect(() => {
+      if (this.mode() === 'edit' && !this.canUpdate()) {
+        this.form.controls.captionI18n.disable({ emitEvent: false });
+        this.form.controls.description.disable({ emitEvent: false });
+      } else {
+        this.form.controls.captionI18n.enable({ emitEvent: false });
+        this.form.controls.description.enable({ emitEvent: false });
+      }
     });
 
     effect(() => {
@@ -167,10 +219,20 @@ export class RoleDetailPage implements OnInit {
     }
   }
 
-  private async initEdit(id: string): Promise<void> {
+  /** Loads the role (also the «Retry» of the error state), then its permission catalog and grants. */
+  protected async initEdit(id = this.route.snapshot.paramMap.get('id') ?? ''): Promise<void> {
+    this.breadcrumb.clearLoadFailed();
     await this.facade.load(id);
-    this.breadcrumb.setCurrentLabel(this.entity()?.code ?? null);
+    if (this.facade.error()) {
+      return;
+    }
     await Promise.all([this.loadPermissionCatalog(), this.loadPermissionHistory()]);
+  }
+
+  /** Translation of `key`, or a readable form of `code` when the key has no text yet. */
+  private labelFor(key: string, code: string): string {
+    const text = this.transloco.translate(key);
+    return text && text !== key ? text : humanizeCode(code);
   }
 
   private async loadPermissionCatalog(): Promise<void> {
@@ -204,24 +266,39 @@ export class RoleDetailPage implements OnInit {
     if (!entity) {
       return;
     }
+    const seq = ++this.permissionsSeq;
     this.loadingPermissions.set(true);
     this.permissionsError.set(null);
     try {
       const asOfParam = this.asOf() ? new Date(this.asOf()).toISOString() : undefined;
       const grants = await this.facade.getPermissions(entity.id, asOfParam);
-      this.grantedCodes.set(new Set(grants.map((grant) => grant.code)));
+      if (seq !== this.permissionsSeq) {
+        return; // a later asOf pick (or reload) supersedes this response
+      }
+      const codes = new Set(grants.map((grant) => grant.code));
+      this.originalCodes.set(codes);
+      this.grantedCodes.set(new Set(codes));
     } catch {
-      this.permissionsError.set(this.transloco.translate('errors.generic'));
+      if (seq === this.permissionsSeq) {
+        this.permissionsError.set(this.transloco.translate('errors.generic'));
+      }
     } finally {
-      this.loadingPermissions.set(false);
+      if (seq === this.permissionsSeq) {
+        this.loadingPermissions.set(false);
+      }
     }
   }
 
-  protected isGranted(permission: Permission | undefined): boolean {
-    return !!permission && this.grantedCodes().has(permission.code);
+  protected isGranted(code: string | undefined): boolean {
+    return !!code && this.grantedCodes().has(code);
   }
 
-  protected toggleGrant(permission: Permission): void {
+  /** Discards the unsaved ticks. */
+  protected onDiscardPermissions(): void {
+    this.grantedCodes.set(new Set(this.originalCodes()));
+  }
+
+  protected toggleGrant(permission: Pick<Permission, 'code'>): void {
     if (!this.canEditPermissions()) {
       return;
     }
@@ -236,19 +313,27 @@ export class RoleDetailPage implements OnInit {
 
   protected async onSavePermissions(): Promise<void> {
     const entity = this.entity();
-    if (!entity || !this.canEditPermissions()) {
+    if (!entity || !this.canEditPermissions() || !this.permissionsDirty() || this.savingPermissions()) {
       return;
     }
     this.savingPermissions.set(true);
     this.permissionsError.set(null);
     try {
-      const grants = await this.facade.savePermissions(entity.id, [...this.grantedCodes()]);
-      this.grantedCodes.set(new Set(grants.map((grant) => grant.code)));
+      // Full replace (`ACC-R7`): the complete desired list, the server computes the diff.
+      const grants = await this.facade.savePermissions(entity.id, [...this.grantedCodes()].sort());
+      const codes = new Set(grants.map((grant) => grant.code));
+      this.originalCodes.set(codes);
+      this.grantedCodes.set(new Set(codes));
+      this.notify('access.roles.permissionsSaved');
     } catch (error: unknown) {
-      this.permissionsError.set(this.extractErrorMessage(error));
+      this.permissionsError.set(this.permissionsErrorMessage(error));
     } finally {
       this.savingPermissions.set(false);
     }
+  }
+
+  private notify(key: string): void {
+    this.snackBar.open(this.transloco.translate(key), undefined, { duration: 4000 });
   }
 
   protected async onSave(): Promise<void> {
@@ -277,6 +362,7 @@ export class RoleDetailPage implements OnInit {
             captionI18n: raw.captionI18n,
             description: raw.description || null,
           });
+          this.notify('access.roles.saved');
         }
       }
     } catch (error: unknown) {
@@ -291,7 +377,15 @@ export class RoleDetailPage implements OnInit {
     if (!entity) {
       return;
     }
-    const confirmed = globalThis.confirm(this.transloco.translate('access.roles.confirmDeactivate'));
+    const confirmed = await this.confirm.confirm({
+      title: this.transloco.translate('access.roles.deactivateDialog.title'),
+      message: this.transloco.translate('access.roles.deactivateDialog.message', {
+        name: this.name(),
+        code: entity.code,
+      }),
+      confirmLabel: this.transloco.translate('access.roles.actions.deactivate'),
+      destructive: true,
+    });
     if (!confirmed) {
       return;
     }
@@ -300,6 +394,7 @@ export class RoleDetailPage implements OnInit {
     this.saveError.set(null);
     try {
       await this.facade.deactivate(entity.id);
+      this.notify('access.roles.deactivated');
     } catch (error: unknown) {
       this.handleSaveError(error);
     } finally {
@@ -337,11 +432,19 @@ export class RoleDetailPage implements OnInit {
     this.saveError.set(this.transloco.translate('errors.generic'));
   }
 
-  private extractErrorMessage(error: unknown): string {
+  /** Message of a failed permission save: 400 -> generic validation, 422 -> the business rule, 409 CONCURRENCY -> none (dialog). */
+  private permissionsErrorMessage(error: unknown): string | null {
     const httpError = error as { status?: number; error?: unknown } | undefined;
     const body = httpError?.error;
+    if (httpError?.status === 400) {
+      return this.transloco.translate('errors.validation');
+    }
     if (httpError?.status === 422 && isProblem(body)) {
       return this.i18n.translateErrorCode(body.code);
+    }
+    if (isConcurrencyConflict(error)) {
+      // `errorInterceptor` already opened the concurrency dialog; the draft stays as the user left it.
+      return null;
     }
     return this.transloco.translate('errors.generic');
   }
