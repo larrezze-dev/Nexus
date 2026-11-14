@@ -26,6 +26,8 @@
     .nx-i18n-caption-editor__toggle {
       display: inline-flex;
       justify-self: start;
+      // The icon lines up with the fields' left edge (text button padding: 12 px).
+      margin-inline-start: calc(-1 * var(--nx-space-3));
     }
 
     &:not(.nx-i18n-caption-editor--expanded) .nx-i18n-caption-editor__row--extra {

@@ -114,10 +114,18 @@ const SKELETON_FIELDS: readonly NxSpan[] = ['l', 'l', 'm', 'm', 'm'];
       width: calc(2 * var(--nx-space-6) + var(--nx-space-4));
     }
 
+    /* Same padding as nx-form-section, so the placeholders sit where the fields will. */
     .nx-detail-skeleton__card {
       display: flex;
       flex-direction: column;
       gap: var(--nx-space-4);
+      padding: var(--nx-space-5);
+    }
+
+    @media (max-width: 599.98px) {
+      .nx-detail-skeleton__card {
+        padding: var(--nx-space-4);
+      }
     }
 
     .nx-detail-skeleton__section-title {
