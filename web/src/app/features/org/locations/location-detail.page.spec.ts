@@ -230,4 +230,37 @@ describe('LocationDetailPage', () => {
 
     expect(TestBed.inject(Router).navigate).toHaveBeenCalledWith(['/locations']);
   });
+
+  it('409 CONFLICT (duplicate code) marks the code field with the translated message', async () => {
+    const facade = createFacadeStub(null);
+    facade.create.mockRejectedValue({ status: 409, error: { type: 'https://nexus.nussli.ch/problems/conflict', code: 'CONFLICT', status: 409 } });
+    const fixture = await setupPage({}, facade);
+    fixture.detectChanges();
+
+    await fixture.componentInstance['onSave'](formValue);
+
+    expect(fixture.componentInstance['fieldErrors']()).toEqual({ code: ['errors.CONFLICT'] });
+    expect(fixture.componentInstance['saveError']()).toBeNull();
+  });
+
+  it('409 CONCURRENCY shows nothing here: the interceptor dialog handles it', async () => {
+    const facade = createFacadeStub(location);
+    facade.update.mockRejectedValue({ status: 409, error: { type: 'https://nexus.nussli.ch/problems/conflict', code: 'CONCURRENCY', status: 409 } });
+    const fixture = await setupPage({ id: location.id }, facade);
+    fixture.detectChanges();
+
+    await fixture.componentInstance['onSave'](formValue);
+
+    expect(fixture.componentInstance['fieldErrors']()).toEqual({});
+    expect(fixture.componentInstance['saveError']()).toBeNull();
+  });
+
+  it('tells the breadcrumb the load failed instead of leaving «Loading…»', async () => {
+    const fixture = await setupPage({ id: location.id }, createFacadeStub(null, 'load_failed'));
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    expect(TestBed.inject(NxBreadcrumbService).setLoadFailed).toHaveBeenCalled();
+  });
 });

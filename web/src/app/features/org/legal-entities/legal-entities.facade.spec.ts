@@ -231,4 +231,59 @@ describe('LegalEntitiesFacade', () => {
     expect(facade.selected()).toBeNull();
     expect(facade.error()).toBeNull();
   });
+
+  it('load(): a late response of an older load never overwrites the newer one', async () => {
+    const { facade, httpMock } = setup();
+    const older = { ...legalEntity, id: 'le-old', partyId: 'p-old', code: 'OLD' };
+    const newer = { ...legalEntity, id: 'le-new', partyId: 'p-new', code: 'NEW' };
+
+    const first = facade.load(older.id);
+    const second = facade.load(newer.id);
+    httpMock.expectOne('/api/platform/v1/legal-entities/le-new').flush(newer, { headers: { ETag: '"new"' } });
+    await new Promise((resolve) => setTimeout(resolve));
+    httpMock.expectOne('/api/platform/v1/parties/p-new').flush(party);
+    await second;
+    // The older answer arrives last: it is dropped (and does not even fetch its party).
+    httpMock.expectOne('/api/platform/v1/legal-entities/le-old').flush(older, { headers: { ETag: '"old"' } });
+    await first;
+
+    expect(facade.selected()?.code).toBe('NEW');
+    expect(facade.loading()).toBe(false);
+    httpMock.verify();
+  });
+
+  it('load(): the party of a superseded load is dropped too', async () => {
+    const { facade, httpMock } = setup();
+    const older = { ...legalEntity, id: 'le-old', partyId: 'p-old', code: 'OLD' };
+    const newer = { ...legalEntity, id: 'le-new', partyId: 'p-new', code: 'NEW' };
+
+    const first = facade.load(older.id);
+    httpMock.expectOne('/api/platform/v1/legal-entities/le-old').flush(older);
+    await new Promise((resolve) => setTimeout(resolve));
+    const oldParty = httpMock.expectOne('/api/platform/v1/parties/p-old');
+    const second = facade.load(newer.id);
+    httpMock.expectOne('/api/platform/v1/legal-entities/le-new').flush(newer);
+    await new Promise((resolve) => setTimeout(resolve));
+    httpMock.expectOne('/api/platform/v1/parties/p-new').flush({ ...party, legalName: 'New AG' });
+    await second;
+    oldParty.flush({ ...party, legalName: 'Old AG' });
+    await first;
+
+    expect(facade.party()?.legalName).toBe('New AG');
+  });
+
+  it('reset() invalidates a load in flight: its response is ignored and loading() is false', async () => {
+    const { facade, httpMock } = setup();
+
+    const load = facade.load(legalEntity.id);
+    expect(facade.loading()).toBe(true);
+    facade.reset();
+    expect(facade.loading()).toBe(false);
+    httpMock.expectOne(`/api/platform/v1/legal-entities/${legalEntity.id}`).flush(legalEntity);
+    await load;
+
+    expect(facade.selected()).toBeNull();
+    expect(facade.party()).toBeNull();
+    httpMock.verify();
+  });
 });

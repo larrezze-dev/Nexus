@@ -210,6 +210,7 @@ describe('WarehouseDetailPage header and states', () => {
     facade.load.mockClear();
 
     expect(byTestId(fixture, 'warehouse-load-error')).toBeTruthy();
+    expect(TestBed.inject(NxBreadcrumbService).setLoadFailed).toHaveBeenCalled();
     byTestId(fixture, 'warehouse-retry-button')?.click();
     expect(facade.load).toHaveBeenCalledWith(warehouse.id);
   });
@@ -370,5 +371,86 @@ describe('WarehouseDetailPage address options and saving', () => {
       'Unit of another legal entity',
     );
     expect(byTestId(fixture, 'warehouse-form-error')).toBeNull();
+  });
+
+  it('409 CONCURRENCY shows nothing here: the interceptor dialog handles it', async () => {
+    const facade = createFacadeStub(warehouse);
+    const cause = new HttpErrorResponse({
+      status: 409,
+      error: { type: 'https://nexus.nussli.ch/problems/conflict', code: 'CONCURRENCY' },
+    });
+    facade.save.mockRejectedValue(new WarehouseSaveError('warehouse', cause, null));
+    const fixture = await setupPage({ id: warehouse.id }, facade);
+    await fixture.componentInstance['load']();
+    fixture.componentInstance['form'].markAsDirty();
+
+    await fixture.componentInstance['save']();
+    await settle(fixture);
+
+    expect(facade.describeError).not.toHaveBeenCalled();
+    expect(byTestId(fixture, 'warehouse-form-error')).toBeNull();
+    expect(fixture.componentInstance['form'].controls.code.hasError('conflict')).toBe(false);
+  });
+
+  it('409 CONFLICT on the warehouse step marks the warehouse code', async () => {
+    const facade = createFacadeStub(warehouse);
+    const cause = new HttpErrorResponse({
+      status: 409,
+      error: { type: 'https://nexus.nussli.ch/problems/conflict', code: 'CONFLICT' },
+    });
+    facade.save.mockRejectedValue(new WarehouseSaveError('warehouse', cause, null));
+    const fixture = await setupPage({ id: warehouse.id }, facade);
+    await fixture.componentInstance['load']();
+    fixture.componentInstance['form'].markAsDirty();
+
+    await fixture.componentInstance['save']();
+    await settle(fixture);
+
+    const form = fixture.componentInstance['form'];
+    expect(form.controls.code.hasError('conflict')).toBe(true);
+    expect(byTestId(fixture, 'warehouse-code-conflict')).toBeTruthy();
+    expect(form.controls.newLocation.controls.code.hasError('conflict')).toBe(false);
+  });
+
+  it('409 CONFLICT on the location step marks the new location code', async () => {
+    const facade = createFacadeStub(null);
+    const cause = new HttpErrorResponse({
+      status: 409,
+      error: { type: 'https://nexus.nussli.ch/problems/conflict', code: 'CONFLICT' },
+    });
+    facade.save.mockRejectedValue(new WarehouseSaveError('location', cause, null));
+    const fixture = await setupPage({}, facade);
+    const form = fixture.componentInstance['form'];
+    form.controls.addressMode.setValue('newLocation');
+    form.controls.code.setValue('WH-09');
+    form.controls.captionI18n.setValue({ de: 'Lager' } as never);
+    form.controls.legalEntityId.setValue(LE_ID);
+    form.controls.newLocation.patchValue({ name: 'Depot', countryCode: 'CH', code: 'LOC-1' });
+    await settle(fixture);
+
+    await fixture.componentInstance['save']();
+    await settle(fixture);
+
+    expect(form.controls.newLocation.controls.code.hasError('conflict')).toBe(true);
+    expect(form.controls.code.hasError('conflict')).toBe(false);
+  });
+
+  it('after saving with «New address» empties that sub-form and goes back to «existing location»', async () => {
+    const facade = createFacadeStub(warehouse);
+    facade.save.mockResolvedValue(warehouse);
+    const fixture = await setupPage({ id: warehouse.id }, facade);
+    await fixture.componentInstance['load']();
+    const form = fixture.componentInstance['form'];
+    form.controls.addressMode.setValue('newLocation');
+    form.controls.newLocation.patchValue({ name: 'Depot', countryCode: 'CH', city: 'Zug' });
+    form.markAsDirty();
+    await settle(fixture);
+
+    await fixture.componentInstance['save']();
+    await settle(fixture);
+
+    expect(form.controls.addressMode.value).toBe('existingLocation');
+    expect(form.controls.newLocation.controls.name.value).toBe('');
+    expect(form.controls.newLocation.controls.city.value).toBe('');
   });
 });

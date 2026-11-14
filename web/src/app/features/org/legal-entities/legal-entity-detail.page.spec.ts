@@ -56,12 +56,16 @@ const translations = {
   },
 };
 
-function createFacadeStub(initialSelected: LegalEntity | null, initialParty: Party | null = initialSelected ? party : null) {
+function createFacadeStub(
+  initialSelected: LegalEntity | null,
+  initialParty: Party | null = initialSelected ? party : null,
+  initialError: string | null = null,
+) {
   return {
     selected: signal(initialSelected).asReadonly(),
     party: signal(initialParty).asReadonly(),
     loading: signal(false).asReadonly(),
-    error: signal<string | null>(null).asReadonly(),
+    error: signal<string | null>(initialError).asReadonly(),
     groupOptions: vi.fn().mockResolvedValue([{ id: legalEntity.groupId, code: 'SAPE', name: 'SAPE Holding AG' }]),
     currencyOptions: vi.fn().mockResolvedValue([]),
     reset: vi.fn(),
@@ -277,5 +281,81 @@ describe('LegalEntityDetailPage', () => {
       fixture.detectChanges();
       expect(findAuditTab(fixture)).toBeUndefined();
     });
+  });
+
+  it('409 CONFLICT (duplicate code) marks the code field with the translated message', async () => {
+    const facade = createFacadeStub(null);
+    facade.create.mockRejectedValue({ status: 409, error: { type: 'https://nexus.nussli.ch/problems/conflict', code: 'CONFLICT', status: 409 } });
+    const fixture = await setupPage({}, facade);
+    fixture.detectChanges();
+
+    await fixture.componentInstance['onSave']({
+      legalName: 'Nexus Event AG',
+      displayName: '',
+      groupId: legalEntity.groupId,
+      code: 'LE-CH',
+      currencyCode: 'CHF',
+      countryCode: 'CH',
+    });
+
+    expect(fixture.componentInstance['fieldErrors']()).toEqual({ code: ['errors.CONFLICT'] });
+    expect(fixture.componentInstance['saveError']()).toBeNull();
+  });
+
+  it('409 CONCURRENCY shows nothing here: the interceptor dialog handles it', async () => {
+    const facade = createFacadeStub(legalEntity);
+    facade.update.mockRejectedValue({ status: 409, error: { type: 'https://nexus.nussli.ch/problems/conflict', code: 'CONCURRENCY', status: 409 } });
+    const fixture = await setupPage({ id: legalEntity.id }, facade);
+    fixture.detectChanges();
+
+    await fixture.componentInstance['onSave']({
+      legalName: 'Nexus Event AG',
+      displayName: '',
+      groupId: legalEntity.groupId,
+      code: 'LE-CH',
+      currencyCode: 'CHF',
+      countryCode: 'CH',
+    });
+
+    expect(fixture.componentInstance['fieldErrors']()).toEqual({});
+    expect(fixture.componentInstance['saveError']()).toBeNull();
+  });
+
+  it('does not name the breadcrumb when the user left before the load finished', async () => {
+    const facade = createFacadeStub(legalEntity);
+    let finish!: () => void;
+    facade.load.mockReturnValue(new Promise<void>((resolve) => (finish = resolve)));
+    const fixture = await setupPage({ id: legalEntity.id }, facade);
+    fixture.detectChanges();
+    const breadcrumb = TestBed.inject(NxBreadcrumbService);
+
+    fixture.destroy();
+    finish();
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(breadcrumb.setCurrentLabel).not.toHaveBeenCalled();
+    expect(breadcrumb.setLoadFailed).not.toHaveBeenCalled();
+  });
+
+  it('tells the breadcrumb the load failed instead of leaving «Loading…»', async () => {
+    const fixture = await setupPage({ id: legalEntity.id }, createFacadeStub(null, null, 'load_failed'));
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    const breadcrumb = TestBed.inject(NxBreadcrumbService);
+    expect(breadcrumb.setLoadFailed).toHaveBeenCalled();
+    expect(breadcrumb.setCurrentLabel).not.toHaveBeenCalled();
+  });
+
+  it('shows no date (and no error) in the subtitle when updatedAt is invalid', async () => {
+    const fixture = await setupPage(
+      { id: legalEntity.id },
+      createFacadeStub({ ...legalEntity, updatedAt: 'not a date' }),
+    );
+    fixture.detectChanges();
+
+    const subtitle = (fixture.nativeElement as HTMLElement).querySelector('.nx-page-header__subtitle');
+    expect(subtitle?.textContent?.trim()).toBe('LE-CH');
   });
 });

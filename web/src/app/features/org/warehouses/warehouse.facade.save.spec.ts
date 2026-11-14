@@ -193,4 +193,24 @@ describe('WarehouseFacade save()', () => {
     expect(facade.error()).not.toBeNull();
     expect(facade.loading()).toBe(false);
   });
+
+  it('new address: a lost response to POST /locations is retried with the same UUIDv7 id', async () => {
+    const { facade, http } = setup();
+    const form = value({ addressMode: 'newLocation', locationId: null });
+
+    const failed = facade.save(null, form);
+    const first = http.expectOne(`${base}/locations`);
+    const id = first.request.body.id as string;
+    expect(id).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/);
+    first.error(new ProgressEvent('network'));
+    await expect(failed).rejects.toMatchObject({ step: 'location' });
+
+    const retry = facade.save(null, form);
+    const second = http.expectOne(`${base}/locations`);
+    expect(second.request.body.id).toBe(id);
+    second.flush({ id, name: 'Depot', code: null }, { headers: { ETag: '"l1"' } });
+    await tick();
+    http.expectOne(`${base}/warehouses`).flush({ ...warehouse, locationId: id });
+    await retry;
+  });
 });

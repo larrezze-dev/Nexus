@@ -3,7 +3,7 @@ import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { ActivatedRoute, convertToParamMap } from '@angular/router';
 import { provideNoopAnimations } from '@angular/platform-browser/animations';
-import { provideTransloco } from '@jsverse/transloco';
+import { TranslocoService, provideTransloco } from '@jsverse/transloco';
 import { OrgTreeFacade } from '../../org/tree/org-tree.facade';
 import { OrgTreeNode } from '../../org/tree/org-tree.model';
 import { EffectiveScopePage } from './effective-scope.page';
@@ -29,7 +29,7 @@ function setup(
     imports: [EffectiveScopePage],
     providers: [
       provideNoopAnimations(),
-      ...provideTransloco({ config: { availableLangs: ['en'], defaultLang: 'en' } }),
+      ...provideTransloco({ config: { availableLangs: ['en', 'es'], defaultLang: 'en' } }),
       { provide: OrgTreeFacade, useValue: orgTreeFacade },
       { provide: RoleAssignmentsFacade, useValue: assignmentsFacade },
       { provide: ActivatedRoute, useValue: { snapshot: { paramMap: convertToParamMap({ id: userId }) } } },
@@ -84,6 +84,44 @@ describe('EffectiveScopePage', () => {
     // A Group is visible when at least one descendant is, even though it isn't itself a
     // grantable scope type.
     expect(fixture.componentInstance['isVisible'](group)).toBe(true);
+  });
+
+  it('names the nodes in the active language and follows a language switch', async () => {
+    const warehouse: OrgTreeNode = {
+      id: 'wh1',
+      kind: 'warehouse',
+      code: 'WH-01',
+      captionI18n: { de: 'Lager Zug', es: 'Almacén Zug' },
+      isActive: true,
+      children: [],
+    };
+    const group: OrgTreeNode = {
+      id: 'g1',
+      kind: 'group',
+      code: 'SSB',
+      name: 'SAPE Holding',
+      isActive: null,
+      children: [warehouse],
+    };
+    const { fixture } = setup([group], {
+      legalEntityIds: [],
+      businessUnitIds: [],
+      warehouseIds: ['wh1'],
+      projectIds: [],
+    });
+    fixture.detectChanges();
+    await flushUntilLoaded(fixture);
+    const labels = () =>
+      Array.from((fixture.nativeElement as HTMLElement).querySelectorAll('.nx-effective-scope-tree__label')).map(
+        (node) => node.textContent?.trim(),
+      );
+
+    // en is not a caption language of the node: de is the fallback; the group shows its name.
+    expect(labels()).toEqual(['SAPE Holding', 'Lager Zug']);
+
+    TestBed.inject(TranslocoService).setActiveLang('es');
+    fixture.detectChanges();
+    expect(labels()).toEqual(['SAPE Holding', 'Almacén Zug']);
   });
 
   it('shows the overall empty-state message, not an error, when nothing is visible at all', async () => {

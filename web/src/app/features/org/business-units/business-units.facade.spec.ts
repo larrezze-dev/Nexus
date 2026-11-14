@@ -174,4 +174,36 @@ describe('BusinessUnitsFacade', () => {
 
     expect((await deactivate).isActive).toBe(false);
   });
+
+  it('load(): a late response of an older load never overwrites the newer one', async () => {
+    const { facade, httpMock } = setup();
+    const older = { ...businessUnit, id: 'bu-old', partyId: 'p-old', code: 'OLD' };
+    const newer = { ...businessUnit, id: 'bu-new', partyId: 'p-new', code: 'NEW' };
+
+    const first = facade.load(older.id);
+    const second = facade.load(newer.id);
+    httpMock.expectOne('/api/platform/v1/business-units/bu-new').flush(newer, { headers: { ETag: '"new"' } });
+    await new Promise((resolve) => setTimeout(resolve));
+    httpMock.expectOne('/api/platform/v1/parties/p-new').flush({ legalName: 'New AG' });
+    await second;
+    httpMock.expectOne('/api/platform/v1/business-units/bu-old').flush(older, { headers: { ETag: '"old"' } });
+    await first;
+
+    expect(facade.selected()?.code).toBe('NEW');
+    expect(facade.loading()).toBe(false);
+    httpMock.verify();
+  });
+
+  it('reset() invalidates a load in flight: its response is ignored and loading() is false', async () => {
+    const { facade, httpMock } = setup();
+
+    const load = facade.load(businessUnit.id);
+    facade.reset();
+    expect(facade.loading()).toBe(false);
+    httpMock.expectOne(`/api/platform/v1/business-units/${businessUnit.id}`).flush(businessUnit);
+    await load;
+
+    expect(facade.selected()).toBeNull();
+    httpMock.verify();
+  });
 });

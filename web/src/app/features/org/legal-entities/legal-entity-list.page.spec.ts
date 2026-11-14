@@ -122,6 +122,24 @@ describe('LegalEntityListPage', () => {
     expect(root().querySelector('[data-testid="nx-filter-bar-clear"]')).toBeNull();
   });
 
+  it('«Clear filters» reloads at once, without waiting for the search debounce', () => {
+    vi.useFakeTimers();
+    fixture.detectChanges();
+    const page = fixture.componentInstance as unknown as {
+      q: { setValue(value: string): void };
+      clearFilters(): void;
+    };
+    page.q.setValue('x');
+    vi.advanceTimersByTime(LEGAL_ENTITY_SEARCH_DEBOUNCE_MS);
+    fixture.detectChanges();
+    expect(list).toHaveBeenLastCalledWith(0, 25, null, { q: 'x', isActive: undefined });
+
+    page.clearFilters();
+    fixture.detectChanges();
+    // No timer advanced: the empty search is already applied.
+    expect(list).toHaveBeenLastCalledWith(0, 25, null, { q: undefined, isActive: undefined });
+  });
+
   it('only lets the user sort by the columns the API sorts on (code, legal name, status)', () => {
     const columns = (fixture.componentInstance as unknown as { columns: { field: string; sortable: boolean }[] }).columns;
     expect(columns.filter((column) => column.sortable).map((column) => column.field)).toEqual(['code', 'legalName', 'isActive']);

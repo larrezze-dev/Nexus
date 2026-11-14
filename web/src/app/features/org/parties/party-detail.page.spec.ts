@@ -56,11 +56,11 @@ const translations = {
   },
 };
 
-function createFacadeStub(initialSelected: Party | null) {
+function createFacadeStub(initialSelected: Party | null, initialError: string | null = null) {
   return {
     selected: signal(initialSelected).asReadonly(),
     loading: signal(false).asReadonly(),
-    error: signal<string | null>(null).asReadonly(),
+    error: signal<string | null>(initialError).asReadonly(),
     reset: vi.fn(),
     load: vi.fn().mockResolvedValue(undefined),
     create: vi.fn(),
@@ -254,5 +254,52 @@ describe('PartyDetailPage', () => {
     expect(root.querySelector('[data-testid="party-detail-read-only"]')).toBeTruthy();
     expect(root.querySelector('[data-testid="party-detail-deactivate"]')).toBeNull();
     expect((root.querySelector('[data-testid="party-form-submit"]') as HTMLButtonElement).disabled).toBe(true);
+  });
+
+  it('409 CONFLICT shows the translated duplicate message above the form', async () => {
+    const facade = createFacadeStub(null);
+    facade.create.mockRejectedValue({ status: 409, error: { type: 'https://nexus.nussli.ch/problems/conflict', code: 'CONFLICT', status: 409 } });
+    const fixture = await setupPage({}, facade);
+    fixture.detectChanges();
+
+    await internals(fixture).onSave(formValue);
+
+    expect(internals(fixture).saveError()).toBe('errors.CONFLICT');
+  });
+
+  it('409 CONCURRENCY shows nothing here: the interceptor dialog handles it', async () => {
+    const facade = createFacadeStub(party);
+    facade.update.mockRejectedValue({ status: 409, error: { type: 'https://nexus.nussli.ch/problems/conflict', code: 'CONCURRENCY', status: 409 } });
+    const fixture = await setupPage({ id: party.id }, facade);
+    fixture.detectChanges();
+
+    await internals(fixture).onSave(formValue);
+
+    expect(internals(fixture).saveError()).toBeNull();
+    expect(internals(fixture).fieldErrors()).toEqual({});
+  });
+
+  it('does not name the breadcrumb when the user left before the load finished', async () => {
+    const facade = createFacadeStub(party);
+    let finish!: () => void;
+    facade.load.mockReturnValue(new Promise<void>((resolve) => (finish = resolve)));
+    const fixture = await setupPage({ id: party.id }, facade);
+    fixture.detectChanges();
+    const breadcrumb = TestBed.inject(NxBreadcrumbService);
+
+    fixture.destroy();
+    finish();
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(breadcrumb.setCurrentLabel).not.toHaveBeenCalled();
+  });
+
+  it('tells the breadcrumb the load failed instead of leaving «Loading…»', async () => {
+    const fixture = await setupPage({ id: party.id }, createFacadeStub(null, 'load_failed'));
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    expect(TestBed.inject(NxBreadcrumbService).setLoadFailed).toHaveBeenCalled();
   });
 });

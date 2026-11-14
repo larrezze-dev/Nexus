@@ -161,6 +161,19 @@ describe('PartyListPage', () => {
     expect(root().querySelector('[data-testid="nx-filter-bar-clear"]')).toBeNull();
   });
 
+  it('«Clear filters» reloads at once, without waiting for the search debounce', () => {
+    vi.useFakeTimers();
+    fixture.detectChanges();
+    page().q.setValue('x');
+    vi.advanceTimersByTime(PARTY_SEARCH_DEBOUNCE_MS);
+    fixture.detectChanges();
+    expect(list).toHaveBeenLastCalledWith(0, 25, null, expect.objectContaining({ q: 'x' }));
+
+    page().clearFilters();
+    fixture.detectChanges();
+    expect(list).toHaveBeenLastCalledWith(0, 25, null, expect.objectContaining({ q: undefined }));
+  });
+
   it('translates the type and the scope instead of showing ORGANIZATION or true/false', () => {
     fixture.detectChanges();
     const format = (id: string, value: unknown) =>

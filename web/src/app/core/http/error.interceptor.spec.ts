@@ -133,6 +133,31 @@ describe('errorInterceptor', () => {
     expect(captured?.status).toBe(409);
   });
 
+  it('still accepts the legacy type "concurrency" for the concurrency dialog', () => {
+    const { http, controller, concurrencyDialog } = setup();
+
+    http.put('/api/v1/asset-types/1', {}).subscribe({ error: () => undefined });
+    controller
+      .expectOne('/api/v1/asset-types/1')
+      .flush({ type: 'concurrency', status: 409 } satisfies Problem, { status: 409, statusText: 'Conflict' });
+
+    expect(concurrencyDialog.open).toHaveBeenCalledTimes(1);
+  });
+
+  it('opens no dialog for a 409 CONFLICT (duplicate code): the form handles it', () => {
+    const { http, controller, concurrencyDialog } = setup();
+    let captured: HttpErrorResponse | undefined;
+
+    http.post('/api/v1/legal-entities', {}).subscribe({ error: (err) => (captured = err) });
+    controller.expectOne('/api/v1/legal-entities').flush(
+      { type: 'https://nexus.nussli.ch/problems/conflict', code: 'CONFLICT', status: 409 } satisfies Problem,
+      { status: 409, statusText: 'Conflict' },
+    );
+
+    expect(concurrencyDialog.open).not.toHaveBeenCalled();
+    expect((captured?.error as Problem).code).toBe('CONFLICT');
+  });
+
   it('passes 422 business-rule errors through with the rule code intact', () => {
     const { http, controller, router } = setup();
     let captured: HttpErrorResponse | undefined;
