@@ -2,7 +2,6 @@ using FluentValidation;
 using Nexus.BuildingBlocks.Application.Validation;
 using Nexus.BuildingBlocks.Application;
 using Nexus.BuildingBlocks.Domain;
-using Nexus.Platform.Application.Common;
 
 namespace Nexus.Platform.Application.Currencies.UpdateCurrency;
 
@@ -23,7 +22,11 @@ internal sealed class UpdateCurrencyValidator : AbstractValidator<UpdateCurrency
         RuleFor(c => c.Code)
             .Matches("^[A-Z]{3}$")
             .WithMessage("'code' must be 3 upper-case letters (ISO 4217).");
-        RuleFor(c => c.CaptionI18n!).MustHaveGermanCaption().When(c => c.CaptionI18n is not null);
+        // Optional: null passes (unchanged). Unconditional so the OpenAPI projection shows `de`
+        // as required (ADR-0014); same shape rule as MustHaveGermanCaption otherwise.
+        RuleFor(c => c.CaptionI18n)
+            .MustContainNonBlankKeys("de")
+            .WithMessage("'{PropertyName}' must include a non-empty 'de' caption.");
     }
 }
 

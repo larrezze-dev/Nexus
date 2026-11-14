@@ -44,6 +44,16 @@ public sealed class OpenApiConformanceTests : IClassFixture<WebAppFixture<Progra
         updateMe.GetProperty("x-permission").GetString().ShouldBe("AUTHENTICATED");
         updateMe.GetProperty("x-scope").GetString().ShouldBe("none");
 
+        // POST /v1/currencies (createCurrency) and the group name fields of the UI contract.
+        var createCurrency = paths.GetProperty("/v1/currencies").GetProperty("post");
+        createCurrency.GetProperty("operationId").GetString().ShouldBe("createCurrency");
+        createCurrency.GetProperty("x-permission").GetString().ShouldBe("CURRENCY:CREATE");
+        createCurrency.GetProperty("x-scope").GetString().ShouldBe("none");
+        var groupProperties = document.RootElement.GetProperty("components").GetProperty("schemas")
+            .GetProperty("GroupResponse").GetProperty("properties");
+        groupProperties.TryGetProperty("legalName", out _).ShouldBeTrue();
+        groupProperties.TryGetProperty("displayName", out _).ShouldBeTrue();
+
         // The test-only diagnostics endpoint must never leak into the generated document.
         paths.TryGetProperty("/v1/_diagnostics/business-rule-error", out _).ShouldBeFalse();
     }
