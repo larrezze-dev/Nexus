@@ -1,18 +1,18 @@
-import { Component, inject, OnInit } from '@angular/core';
+import { ChangeDetectionStrategy, Component, OnInit, inject } from '@angular/core';
+import { MatFormFieldModule } from '@angular/material/form-field';
+import { MatSelectModule } from '@angular/material/select';
 import { TranslocoPipe } from '@jsverse/transloco';
 import { AccountFacade } from './account.facade';
 
 /**
- * "My account" page (ficha 0.5, track F point 4; extended by ficha 0.4 track F point 3).
- * Reached from the shell's user menu (`routerLink="/account"`) once `authGuard` lets the
- * navigation through. Reads `GET /v1/me` through `AccountFacade` only (`FE-R1`) and shows
- * every field the contract exposes, including the 0.4 `app_user` fields `userId`/`partyId`/
- * `businessUnitId` — `null` until 0.4-B resolves `oid -> app_user` (today's mock backend keeps
- * them `null`/`provisioned: false`; the contract itself does not change).
+ * «My account» page. Reached from the shell's user menu once `authGuard` lets the navigation
+ * through. Reads `GET /v1/me` through `AccountFacade` only (`FE-R1`) and shows names, never ids:
+ * name, email, language (changeable here, same action as the top-bar selector), business unit and
+ * the permissions grouped by resource.
  */
 @Component({
   selector: 'nx-account-page',
-  imports: [TranslocoPipe],
+  imports: [TranslocoPipe, MatFormFieldModule, MatSelectModule],
   template: `
     <h1>{{ 'account.title' | transloco }}</h1>
 
@@ -21,49 +21,51 @@ import { AccountFacade } from './account.facade';
     } @else if (facade.error()) {
       <p role="alert">{{ facade.error() }}</p>
     } @else if (facade.me(); as me) {
+      @if (!me.provisioned) {
+        <p role="status" data-testid="account-not-provisioned">{{ 'account.notProvisioned' | transloco }}</p>
+      }
       <dl>
-        <dt>{{ 'account.fields.subject' | transloco }}</dt>
-        <dd>{{ me.subject }}</dd>
-
-        <dt>{{ 'account.fields.oid' | transloco }}</dt>
-        <dd>{{ me.oid }}</dd>
-
         <dt>{{ 'account.fields.displayName' | transloco }}</dt>
-        <dd>{{ me.displayName }}</dd>
+        <dd data-testid="account-name">{{ me.displayName }}</dd>
 
         <dt>{{ 'account.fields.email' | transloco }}</dt>
-        <dd>{{ me.email ?? '—' }}</dd>
+        <dd data-testid="account-email">{{ me.email ?? '—' }}</dd>
 
-        <dt>{{ 'account.fields.userId' | transloco }}</dt>
-        <dd>{{ me.userId ?? '—' }}</dd>
+        <dt>{{ 'account.fields.businessUnit' | transloco }}</dt>
+        <dd data-testid="account-business-unit">{{ facade.businessUnitLabel() ?? '—' }}</dd>
+      </dl>
 
-        <dt>{{ 'account.fields.partyId' | transloco }}</dt>
-        <dd>{{ me.partyId ?? '—' }}</dd>
+      <mat-form-field>
+        <mat-label>{{ 'account.fields.preferredLanguage' | transloco }}</mat-label>
+        <mat-select
+          [value]="facade.language()"
+          (selectionChange)="facade.setLanguage($event.value)"
+          data-testid="account-language-select"
+        >
+          @for (option of facade.languageOptions; track option.code) {
+            <mat-option [value]="option.code">{{ option.label }}</mat-option>
+          }
+        </mat-select>
+      </mat-form-field>
 
-        <dt>{{ 'account.fields.businessUnitId' | transloco }}</dt>
-        <dd>{{ me.businessUnitId ?? '—' }}</dd>
-
-        <dt>{{ 'account.fields.preferredLanguage' | transloco }}</dt>
-        <dd>{{ me.preferredLanguage }}</dd>
-
-        <dt>{{ 'account.fields.provisioned' | transloco }}</dt>
-        <dd>{{ me.provisioned }}</dd>
-
-        <dt>{{ 'account.fields.permissions' | transloco }}</dt>
-        <dd>
-          @if (me.permissions.length === 0) {
-            {{ 'account.fields.noPermissions' | transloco }}
-          } @else {
+      <h2>{{ 'account.fields.permissions' | transloco }}</h2>
+      @if (facade.permissionGroups().length === 0) {
+        <p data-testid="account-no-permissions">{{ 'account.fields.noPermissions' | transloco }}</p>
+      } @else {
+        @for (group of facade.permissionGroups(); track group.resource) {
+          <section [attr.data-testid]="'account-permissions-' + group.resource">
+            <h3>{{ group.resourceLabel }}</h3>
             <ul>
-              @for (permission of me.permissions; track permission.code) {
-                <li>{{ permission.code }}</li>
+              @for (permission of group.permissions; track permission.code) {
+                <li>{{ permission.label }}</li>
               }
             </ul>
-          }
-        </dd>
-      </dl>
+          </section>
+        }
+      }
     }
   `,
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class AccountPage implements OnInit {
   protected readonly facade = inject(AccountFacade);
