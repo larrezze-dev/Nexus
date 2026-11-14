@@ -6,7 +6,7 @@ Todo el aspecto de la interfaz se adapta editando solo CSS. Los valores vienen d
 |---|---|
 | `tokens.css` | **Fuente única de los valores**: tokens semánticos NEXUS (`--nx-*`) de color, estados, tipos de evento, diff, radios, espaciado, tipografía y layout. |
 | `theme.scss` | Tema Angular Material M3: paleta generadora (primary/tertiary), tipografía, densidad y la redirección de los tokens de sistema `--mat-sys-*` hacia los `--nx-*`. |
-| `components.css` | Clases genéricas (`.nx-header-bar`, `.nx-card`, `.nx-empty-state`, `.nx-alert`, `.nx-chip-outline`, `.nx-mono`, `.nx-create--header`/`.nx-create--fab` —botón «Nuevo» que pasa a FAB extendido < 600 px—, `.nx-tab-panel` —contenido de una pestaña de detalle—) que solo usan tokens. |
+| `components.css` | Clases genéricas (`.nx-header-bar`, `.nx-card`, `.nx-empty-state`, `.nx-alert`, `.nx-chip-outline`, `.nx-mono`, `.nx-create--header`/`.nx-create--fab` —botón «Nuevo» que pasa a FAB extendido < 600 px—, `.nx-tab-panel` —contenido de una pestaña de detalle—, `.nx-skeleton-bar` —barra de un esqueleto de carga—) que solo usan tokens. |
 | `../styles.scss` | Carga las fuentes, importa el tema y fija la base del documento (fondo, texto, `h1`/`h2`). |
 
 Orden de carga (`angular.json` → `styles`): `styles.scss`, `tokens.css`, `components.css`.
@@ -75,6 +75,10 @@ Los tokens sin sufijo son atajos para la propiedad `font` (`font: var(--nx-text-
 | `--nx-content-padding` | 32px (24px por debajo de 1280px, `@media` al final de `tokens.css`) |
 | `--nx-page-max-width-form` | 1120px (ancho máximo de detalle y formulario) |
 | `--nx-form-gap-x` / `--nx-form-gap-y` | 24px / 16px (rejilla de formulario) |
+| `--nx-row-height` | 52px (fila de lista o árbol; igual al `rowHeight` de `nx-data-grid`) |
+| `--nx-field-height` | 56px (campo `outline` con densidad 0; lo usa el esqueleto de campo) |
+| `--nx-skeleton-bar-height` | 12px (barra de texto de los esqueletos de carga, `.nx-skeleton-bar`) |
+| `--nx-tree-indent` | 32px (sangría por nivel del árbol y de su esqueleto) |
 
 Radios `--nx-radius-sm|md|lg` = 4/8/12px. Espaciado `--nx-space-1..6` = 4/8/12/16/24/32px.
 

@@ -84,11 +84,8 @@ const SKELETON_ROWS = [0, 1, 2, 3, 4];
         @if (facade.loading()) {
           <div class="nx-org-tree__skeleton" aria-hidden="true" data-testid="org-tree-loading">
             @for (row of skeletonRows; track row) {
-              <div
-                class="nx-org-tree__skeleton-row"
-                [style.padding-inline-start.px]="16 + (row % 3) * 32"
-              >
-                <span class="nx-org-tree__skeleton-bar" [style.width.%]="40 - (row % 3) * 6"></span>
+              <div class="nx-org-tree__skeleton-row" [style.--nx-org-tree-level]="row % 3">
+                <span class="nx-skeleton-bar" [style.width.%]="40 - (row % 3) * 6"></span>
               </div>
             }
           </div>
@@ -196,7 +193,7 @@ const SKELETON_ROWS = [0, 1, 2, 3, 4];
       display: flex;
       align-items: center;
       gap: var(--nx-space-2);
-      min-height: 52px;
+      min-height: var(--nx-row-height);
       padding-inline: var(--nx-space-2) var(--nx-space-4);
     }
     .nx-org-tree__node:focus-visible > .nx-org-tree__row {
@@ -208,8 +205,8 @@ const SKELETON_ROWS = [0, 1, 2, 3, 4];
     }
     .nx-org-tree__toggle {
       flex: none;
-      width: 40px;
-      height: 40px;
+      width: calc(var(--nx-space-6) + var(--nx-space-2)); /* 40, Material icon button */
+      height: calc(var(--nx-space-6) + var(--nx-space-2));
     }
     .nx-org-tree__icon {
       flex: none;
@@ -246,34 +243,16 @@ const SKELETON_ROWS = [0, 1, 2, 3, 4];
       flex: none;
     }
     .nx-org-tree__children {
-      padding-inline-start: var(--nx-space-6);
+      padding-inline-start: var(--nx-tree-indent);
     }
+    /* One bar per row (.nx-skeleton-bar, components.css), indented by its level like the tree. */
     .nx-org-tree__skeleton-row {
       display: flex;
       align-items: center;
-      height: 52px;
-    }
-    /* Same bar as the grid skeleton (tokens.css --nx-color-skeleton, tablero 5). */
-    .nx-org-tree__skeleton-bar {
-      display: block;
-      height: 12px;
-      border-radius: 6px;
-      background: var(--nx-color-skeleton);
-      animation: nx-org-tree-pulse 1.4s ease-in-out infinite;
-    }
-    @keyframes nx-org-tree-pulse {
-      0%,
-      100% {
-        opacity: 1;
-      }
-      50% {
-        opacity: 0.5;
-      }
-    }
-    @media (prefers-reduced-motion: reduce) {
-      .nx-org-tree__skeleton-bar {
-        animation: none;
-      }
+      height: var(--nx-row-height);
+      padding-inline-start: calc(
+        var(--nx-space-4) + var(--nx-org-tree-level, 0) * var(--nx-tree-indent)
+      );
     }
     @media (max-width: 599.98px) {
       .nx-org-tree__children {

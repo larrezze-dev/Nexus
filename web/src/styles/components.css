@@ -138,6 +138,15 @@
 }
 
 /*
+ * Code typed in a Material field (`<input matInput class="nx-mono">`): Material resets the input
+ * with `font: inherit` at a higher specificity, so `.nx-mono` alone lost. Only the family changes;
+ * the size stays the field's, so it lines up with the fields next to it.
+ */
+.mat-mdc-form-field .mat-mdc-form-field-input-control.nx-mono {
+  font-family: var(--nx-font-mono);
+}
+
+/*
  * «New X» on list pages (`nx-ui-page-templates`, Móvil): the header button (`.nx-create--header`)
  * becomes an extended FAB fixed at the bottom right below 600 px — a second
  * `<a mat-flat-button class="nx-create--fab">` shaped as a FAB (56 px, radius 16, level-3 shadow;
@@ -197,4 +206,28 @@
 .mat-mdc-form-field.nx-field--locked .mat-mdc-text-field-wrapper {
   background: var(--nx-color-surface-muted);
   border-radius: var(--nx-radius-sm);
+}
+
+/*
+ * Loading skeleton bar (§4.7: skeleton, never «Loading…»): a grey rounded bar standing in for a
+ * line of text. Width is set by the user (`[style.width.%]`); same look as the grid skeleton.
+ */
+.nx-skeleton-bar {
+  display: block;
+  height: var(--nx-skeleton-bar-height);
+  border-radius: calc(var(--nx-skeleton-bar-height) / 2);
+  background: var(--nx-color-skeleton);
+  animation: nx-skeleton-bar-pulse 1.4s ease-in-out infinite;
+}
+
+@keyframes nx-skeleton-bar-pulse {
+  50% {
+    opacity: 0.55;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .nx-skeleton-bar {
+    animation: none;
+  }
 }

@@ -118,6 +118,10 @@
   --nx-page-max-width-form: 1120px;       /* ancho máximo de detalle y formulario */
   --nx-form-gap-x: 24px;                  /* rejilla de formulario: entre columnas */
   --nx-form-gap-y: 16px;                  /* rejilla de formulario: entre filas */
+  --nx-row-height: 52px;                  /* fila de lista o árbol (= rowHeight de nx-data-grid) */
+  --nx-field-height: 56px;                /* mat-form-field outline con densidad 0 (esqueleto de campo) */
+  --nx-skeleton-bar-height: 12px;         /* barra de texto de un esqueleto de carga (tablero 5) */
+  --nx-tree-indent: 32px;                 /* sangría por nivel del árbol (y de su esqueleto) */
 }
 
 /* Por debajo de 1280px (breakpoints compact y medium): menos relleno alrededor del contenido. */
