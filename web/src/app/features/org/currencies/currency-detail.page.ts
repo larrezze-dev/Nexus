@@ -26,6 +26,7 @@ import {
   NxFormSectionComponent,
   NxPageComponent,
   NxPageHeaderComponent,
+  NxSpanDirective,
 } from '../../../shared/ui/layout';
 import { NxStatusBadgeComponent } from '../../../shared/ui/nx-status-badge/nx-status-badge.component';
 import { CurrenciesFacade } from './currencies.facade';
@@ -54,6 +55,7 @@ import { CurrenciesFacade } from './currencies.facade';
     NxFormSectionComponent,
     NxPageComponent,
     NxPageHeaderComponent,
+    NxSpanDirective,
     NxStatusBadgeComponent,
   ],
   template: `

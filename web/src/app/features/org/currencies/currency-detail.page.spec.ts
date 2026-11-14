@@ -144,6 +144,9 @@ describe('CurrencyDetailPage', () => {
     const inputs = Array.from(root(fixture).querySelectorAll('input')) as HTMLInputElement[];
     expect(inputs.map((input) => input.value)).toEqual(['CHF', 'Swiss franc', '2']);
     expect(inputs.every((input) => input.disabled)).toBe(true);
+    // Widths from the form grid: code S, name L, decimal places S.
+    const fields = Array.from(root(fixture).querySelectorAll('nx-form-grid > mat-form-field'));
+    expect(fields.map((field) => field.className.match(/nx-span--(\w+)/)?.[1])).toEqual(['s', 'l', 's']);
     expect(root(fixture).querySelector('mat-tab-group')).toBeNull();
     expect(root(fixture).querySelector('nx-action-bar')).toBeNull();
     expect(root(fixture).querySelector('[mat-flat-button]')).toBeNull();
