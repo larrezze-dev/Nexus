@@ -5,6 +5,12 @@ namespace Nexus.Platform.Application.Currencies;
 /// <summary>Caller-facing errors of the currency use cases.</summary>
 public static class CurrencyErrors
 {
+    /// <summary>PK of <c>org.currency</c>, hit by two concurrent creates of the same code.</summary>
+    public const string CurrencyPrimaryKey = "currency_pkey";
+
+    public static readonly Error CodeAlreadyUsed =
+        Error.Conflict("A currency with this code already exists.");
+
     public static Error NotFound(string code) => Error.NotFound($"Currency '{code}' does not exist.");
 
     public static readonly Error StaleVersion =

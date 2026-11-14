@@ -119,7 +119,7 @@ internal sealed class CreateGroupHandler : ICommandHandler<CreateGroupCommand, C
         // translated by the web layer (GroupErrors, AddNexusConstraintViolation).
         await _transaction.CommitAsync(cancellationToken);
 
-        return Result.Success(new CreateGroupResult(GroupDetails.From(group, _groups.GetMetadata(group)), Created: true));
+        return Result.Success(new CreateGroupResult(GroupDetails.From(group, party, _groups.GetMetadata(group)), Created: true));
     }
 
     /// <summary>Same id again: identical content is a replay (200), anything else a conflict (409).</summary>
@@ -135,7 +135,14 @@ internal sealed class CreateGroupHandler : ICommandHandler<CreateGroupCommand, C
             return Result.Failure<CreateGroupResult>(GroupErrors.IdAlreadyUsed);
         }
 
+        var existingParty = await _parties.GetByIdAsync(existing.PartyId, cancellationToken);
+        if (existingParty is null)
+        {
+            // org.group.party_id is a FK to org.party: cannot happen.
+            throw new InvalidOperationException($"Party '{existing.PartyId}' of group '{existing.Id}' does not exist.");
+        }
+
         await _transaction.CommitAsync(cancellationToken);
-        return Result.Success(new CreateGroupResult(GroupDetails.From(existing, _groups.GetMetadata(existing)), Created: false));
+        return Result.Success(new CreateGroupResult(GroupDetails.From(existing, existingParty, _groups.GetMetadata(existing)), Created: false));
     }
 }

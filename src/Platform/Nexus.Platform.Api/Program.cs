@@ -51,6 +51,7 @@ builder.Services.AddRoleAssignmentInfrastructure();
 builder.Services.AddUserConstraintViolations();
 builder.Services.AddPartyConstraintViolations();
 builder.Services.AddGroupConstraintViolations();
+builder.Services.AddCurrencyConstraintViolations();
 builder.Services.AddLegalEntityConstraintViolations();
 builder.Services.AddBusinessUnitConstraintViolations();
 builder.Services.AddWarehouseConstraintViolations();

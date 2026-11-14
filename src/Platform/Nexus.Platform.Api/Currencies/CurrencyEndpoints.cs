@@ -7,6 +7,7 @@ using Nexus.BuildingBlocks.Web.Http;
 using Nexus.BuildingBlocks.Web.OpenApi;
 using Nexus.Platform.Api.Users;
 using Nexus.Platform.Application.Currencies;
+using Nexus.Platform.Application.Currencies.CreateCurrency;
 using Nexus.Platform.Application.Currencies.GetCurrencies;
 using Nexus.Platform.Application.Currencies.GetCurrency;
 using Nexus.Platform.Application.Currencies.UpdateCurrency;
@@ -17,8 +18,8 @@ namespace Nexus.Platform.Api.Currencies;
 /// <c>/v1/currencies</c> (domain/org.md §5; <c>contracts/openapi/platform.yaml</c>, tag
 /// Currencies). Endpoints only translate HTTP ↔ commands/queries (conventions-backend.md §2):
 /// body/route → command, <c>If-Match</c> → expected version, <c>Result</c> → status +
-/// <c>ETag</c>. No create: currencies are seeded (<c>db/seed/common</c>), never created through
-/// the API.
+/// <c>ETag</c>. Currencies are seeded (<c>db/seed/common</c>) and can also be created
+/// (<c>POST</c>, <c>CURRENCY:CREATE</c>).
 /// </summary>
 public static class CurrencyEndpoints
 {
@@ -32,6 +33,12 @@ public static class CurrencyEndpoints
             .WithName("listCurrencies")
             .ValidatedBy<GetCurrenciesQuery>()
             .RequirePermission("CURRENCY", PermissionAction.Read)
+            .WithScope("none");
+
+        group.MapPost(string.Empty, CreateCurrency)
+            .WithName("createCurrency")
+            .ValidatedBy<CreateCurrencyCommand>()
+            .RequirePermission("CURRENCY", PermissionAction.Create)
             .WithScope("none");
 
         group.MapGet("/{code}", GetCurrency)
@@ -73,6 +80,25 @@ public static class CurrencyEndpoints
             value.Total));
     }
 
+    internal static async Task<Results<Created<CurrencyResponse>, ProblemHttpResult>> CreateCurrency(
+        CreateCurrencyRequest request,
+        IDispatcher dispatcher,
+        HttpResponse response,
+        CancellationToken cancellationToken)
+    {
+        var result = await dispatcher.Send(
+            new CreateCurrencyCommand(request.Code, request.CaptionI18n, request.MinorUnits),
+            cancellationToken);
+        if (result.IsFailure)
+        {
+            return result.Error!.ToProblem();
+        }
+
+        var currency = result.Value;
+        response.SetETag(currency.Version.ToString());
+        return TypedResults.Created($"/v1/currencies/{currency.Code}", CurrencyResponse.From(currency));
+    }
+
     internal static async Task<Results<Ok<CurrencyResponse>, ProblemHttpResult>> GetCurrency(
         string code,
         IDispatcher dispatcher,
@@ -102,7 +128,7 @@ public static class CurrencyEndpoints
             return problem;
         }
 
-        var result = await dispatcher.Send(new UpdateCurrencyCommand(code, expected, request.IsActive), cancellationToken);
+        var result = await dispatcher.Send(new UpdateCurrencyCommand(code, expected, request.IsActive, request.CaptionI18n), cancellationToken);
         if (result.IsFailure)
         {
             return result.Error!.ToProblem();

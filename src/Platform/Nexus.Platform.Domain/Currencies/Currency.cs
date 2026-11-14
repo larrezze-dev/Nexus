@@ -30,6 +30,43 @@ public sealed class Currency : AggregateRoot<string>
 
     public bool IsActive { get; private set; }
 
+    /// <summary>
+    /// Creates an active currency (<c>POST /v1/currencies</c>). No domain event: org.md §6
+    /// defines none for currencies. <paramref name="minorUnits"/> (0..4) is validated by the
+    /// command; it never changes after creation.
+    /// </summary>
+    public static Currency Create(string code, IReadOnlyDictionary<string, string> captionI18n, short minorUnits)
+    {
+        Guard.Against.NullOrWhiteSpace(code, nameof(code));
+        Guard.Against.Null(captionI18n, nameof(captionI18n));
+
+        return new Currency(code)
+        {
+            CaptionI18n = captionI18n,
+            MinorUnits = minorUnits,
+            IsActive = true,
+        };
+    }
+
+    /// <summary>
+    /// Replaces the whole <see cref="CaptionI18n"/> (PUT semantics). Returns whether anything
+    /// changed.
+    /// </summary>
+    public bool Rename(IReadOnlyDictionary<string, string> captionI18n)
+    {
+        Guard.Against.Null(captionI18n, nameof(captionI18n));
+
+        var same = CaptionI18n.Count == captionI18n.Count
+            && CaptionI18n.All(pair => captionI18n.TryGetValue(pair.Key, out var value) && string.Equals(pair.Value, value, StringComparison.Ordinal));
+        if (same)
+        {
+            return false;
+        }
+
+        CaptionI18n = captionI18n;
+        return true;
+    }
+
     /// <summary>Idempotent: activating an already active currency changes nothing. Returns whether anything changed.</summary>
     public bool Activate()
     {

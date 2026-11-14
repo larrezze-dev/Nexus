@@ -38,6 +38,8 @@ public sealed record UpdateGroupRequest
 public sealed record GroupResponse(
     Guid Id,
     Guid PartyId,
+    string LegalName,
+    string? DisplayName,
     string Code,
     string ConsolidationMethod,
     string ReportingCurrencyCode,
@@ -48,10 +50,10 @@ public sealed record GroupResponse(
     {
         ArgumentNullException.ThrowIfNull(group);
         return new GroupResponse(
-            group.Id, group.PartyId, group.Code, group.ConsolidationMethod, group.ReportingCurrencyCode,
+            group.Id, group.PartyId, group.LegalName, group.DisplayName, group.Code, group.ConsolidationMethod, group.ReportingCurrencyCode,
             group.CreatedAt, group.UpdatedAt);
     }
 }
 
 /// <summary><c>GroupListItem</c>.</summary>
-public sealed record GroupListItemResponse(Guid Id, Guid PartyId, string Code, string ReportingCurrencyCode);
+public sealed record GroupListItemResponse(Guid Id, Guid PartyId, string LegalName, string? DisplayName, string Code, string ReportingCurrencyCode);

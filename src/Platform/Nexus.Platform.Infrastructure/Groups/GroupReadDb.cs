@@ -14,7 +14,7 @@ internal sealed class GroupReadDb : IGroupReadDb
 {
     private const string DetailColumns =
         """
-        g.id AS Id, g.party_id AS PartyId, g.code AS Code, g.consolidation_method AS ConsolidationMethod,
+        g.id AS Id, g.party_id AS PartyId, p.legal_name AS LegalName, p.display_name AS DisplayName, g.code AS Code, g.consolidation_method AS ConsolidationMethod,
         g.reporting_currency_code AS ReportingCurrencyCode, g.created_at AS CreatedAt, g.updated_at AS UpdatedAt,
         g.xmin::text::bigint AS Version
         """;
@@ -37,7 +37,7 @@ internal sealed class GroupReadDb : IGroupReadDb
     public async Task<GroupDetails?> GetByIdAsync(Guid id, CancellationToken cancellationToken)
     {
         var row = await _unitOfWork.Connection.QuerySingleOrDefaultAsync<DetailRow>(Command(
-            $"""SELECT {DetailColumns} FROM org."group" g WHERE g.id = @id""",
+            $"""SELECT {DetailColumns} FROM org."group" g JOIN org.party p ON p.id = g.party_id WHERE g.id = @id""",
             new { id },
             cancellationToken));
 
@@ -61,8 +61,10 @@ internal sealed class GroupReadDb : IGroupReadDb
 
         var rows = await _unitOfWork.Connection.QueryAsync<ListRow>(Command(
             $"""
-             SELECT g.id AS Id, g.party_id AS PartyId, g.code AS Code, g.reporting_currency_code AS ReportingCurrencyCode
+             SELECT g.id AS Id, g.party_id AS PartyId, p.legal_name AS LegalName, p.display_name AS DisplayName,
+                    g.code AS Code, g.reporting_currency_code AS ReportingCurrencyCode
              FROM org."group" g
+             JOIN org.party p ON p.id = g.party_id
              ORDER BY {orderBy}, g.id
              LIMIT @limit OFFSET @offset
              """,
@@ -70,7 +72,7 @@ internal sealed class GroupReadDb : IGroupReadDb
             cancellationToken));
 
         var items = rows
-            .Select(r => new GroupListItem(r.Id, r.PartyId, r.Code, r.ReportingCurrencyCode))
+            .Select(r => new GroupListItem(r.Id, r.PartyId, r.LegalName, r.DisplayName, r.Code, r.ReportingCurrencyCode))
             .ToList();
 
         return new PagedResult<GroupListItem>(items, page, pageSize, total);
@@ -86,6 +88,10 @@ internal sealed class GroupReadDb : IGroupReadDb
 
         public Guid PartyId { get; set; }
 
+        public string LegalName { get; set; } = string.Empty;
+
+        public string? DisplayName { get; set; }
+
         public string Code { get; set; } = string.Empty;
 
         public string ConsolidationMethod { get; set; } = string.Empty;
@@ -99,7 +105,7 @@ internal sealed class GroupReadDb : IGroupReadDb
         public long Version { get; set; }
 
         public GroupDetails ToDetails() => new(
-            Id, PartyId, Code, ConsolidationMethod, ReportingCurrencyCode,
+            Id, PartyId, LegalName, DisplayName, Code, ConsolidationMethod, ReportingCurrencyCode,
             DateTime.SpecifyKind(CreatedAt, DateTimeKind.Utc),
             DateTime.SpecifyKind(UpdatedAt, DateTimeKind.Utc),
             checked((uint)Version));
@@ -110,6 +116,10 @@ internal sealed class GroupReadDb : IGroupReadDb
         public Guid Id { get; set; }
 
         public Guid PartyId { get; set; }
+
+        public string LegalName { get; set; } = string.Empty;
+
+        public string? DisplayName { get; set; }
 
         public string Code { get; set; } = string.Empty;
 

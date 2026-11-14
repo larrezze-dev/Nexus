@@ -73,7 +73,7 @@ public static class GroupEndpoints
         var value = result.Value;
         return TypedResults.Ok(new PageResponse<GroupListItemResponse>(
             value.Items
-                .Select(g => new GroupListItemResponse(g.Id, g.PartyId, g.Code, g.ReportingCurrencyCode))
+                .Select(g => new GroupListItemResponse(g.Id, g.PartyId, g.LegalName, g.DisplayName, g.Code, g.ReportingCurrencyCode))
                 .ToList(),
             value.Page,
             value.PageSize,

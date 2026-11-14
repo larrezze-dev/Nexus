@@ -2,17 +2,19 @@ using FluentValidation;
 using Nexus.BuildingBlocks.Application.Validation;
 using Nexus.BuildingBlocks.Application;
 using Nexus.BuildingBlocks.Domain;
+using Nexus.Platform.Application.Common;
 
 namespace Nexus.Platform.Application.Currencies.UpdateCurrency;
 
 /// <summary>
 /// <c>PUT /v1/currencies/{code}</c> (<c>updateCurrency</c>), guarded by <c>If-Match</c>. The
-/// only writable field is <see cref="IsActive"/> (everything else is fixed from the seed). Rule
+/// writable fields are <see cref="IsActive"/> and, optionally, <see cref="CaptionI18n"/> (omitted
+/// = unchanged; present = replaces the whole map). <c>code</c> and <c>minorUnits</c> are fixed. Rule
 /// ORG-R7 is checked here, not in the <c>Currency</c> aggregate: it needs to see
 /// <c>org."group"</c>/<c>org.legal_entity</c>, which the aggregate has no way to (see
 /// <c>Currency</c>'s remarks).
 /// </summary>
-public sealed record UpdateCurrencyCommand(string Code, CurrencyVersion ExpectedVersion, bool IsActive) : ICommand<CurrencyDetails>;
+public sealed record UpdateCurrencyCommand(string Code, CurrencyVersion ExpectedVersion, bool IsActive, IReadOnlyDictionary<string, string>? CaptionI18n = null) : ICommand<CurrencyDetails>;
 
 internal sealed class UpdateCurrencyValidator : AbstractValidator<UpdateCurrencyCommand>
 {
@@ -21,6 +23,7 @@ internal sealed class UpdateCurrencyValidator : AbstractValidator<UpdateCurrency
         RuleFor(c => c.Code)
             .Matches("^[A-Z]{3}$")
             .WithMessage("'code' must be 3 upper-case letters (ISO 4217).");
+        RuleFor(c => c.CaptionI18n!).MustHaveGermanCaption().When(c => c.CaptionI18n is not null);
     }
 }
 
@@ -66,6 +69,11 @@ internal sealed class UpdateCurrencyHandler : ICommandHandler<UpdateCurrencyComm
             }
 
             currency.Deactivate();
+        }
+
+        if (command.CaptionI18n is not null)
+        {
+            currency.Rename(command.CaptionI18n);
         }
 
         await _transaction.CommitAsync(cancellationToken);

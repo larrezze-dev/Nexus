@@ -15,6 +15,8 @@ internal sealed class CurrencyRepository : ICurrencyRepository
         _db = db;
     }
 
+    public void Add(Currency currency) => _db.Currencies.Add(currency);
+
     public Task<Currency?> GetByIdAsync(string code, CancellationToken cancellationToken) =>
         _db.Currencies.SingleOrDefaultAsync(c => c.Id == code, cancellationToken);
 

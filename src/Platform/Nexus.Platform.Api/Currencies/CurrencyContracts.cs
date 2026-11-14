@@ -5,10 +5,23 @@ namespace Nexus.Platform.Api.Currencies;
 // HTTP shapes of contracts/openapi/platform.yaml (Currencies). PascalCase here, camelCase on
 // the wire (JsonSerializerDefaults.Web).
 
+/// <summary><c>CreateCurrencyRequest</c>.</summary>
+public sealed record CreateCurrencyRequest
+{
+    public required string Code { get; init; }
+
+    public required IReadOnlyDictionary<string, string> CaptionI18n { get; init; }
+
+    public required short MinorUnits { get; init; }
+}
+
 /// <summary><c>UpdateCurrencyRequest</c>.</summary>
 public sealed record UpdateCurrencyRequest
 {
     public required bool IsActive { get; init; }
+
+    /// <summary>Optional: omitted = unchanged; present = replaces the whole map (<c>de</c> required).</summary>
+    public IReadOnlyDictionary<string, string>? CaptionI18n { get; init; }
 }
 
 /// <summary><c>Currency</c>.</summary>
