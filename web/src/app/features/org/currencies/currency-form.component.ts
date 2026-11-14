@@ -72,7 +72,7 @@ const FIELD_ORDER = ['code', 'minorUnits', 'captionI18n'] as const;
   ],
   template: `
     @let isEdit = mode() === 'edit';
-    <form class="nx-form-stack" [formGroup]="form" (ngSubmit)="onSubmit()" novalidate>
+    <form class="nx-form-stack" [class.nx-readonly]="readOnly()" [formGroup]="form" (ngSubmit)="onSubmit()" novalidate>
       @if (invalidCount() > 0) {
         <div class="nx-alert nx-alert--error" role="alert" data-testid="currency-form-invalid">
           <mat-icon aria-hidden="true">error</mat-icon>

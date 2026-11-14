@@ -90,6 +90,8 @@ export class NxI18nCaptionEditorComponent implements ControlValueAccessor, Valid
   protected readonly extraIds = EXTRA_LANGUAGES.map((lang) => `${this.idPrefix}-${lang}`).join(' ');
   /** fr/it/es shown below 600 px (always shown above: the fold is CSS only). */
   protected readonly expanded = signal(false);
+  /** Disabled by the host form = read-only: legible like a locked field (`.nx-readonly`, components.css). */
+  protected readonly disabled = signal(false);
 
   private readonly injector = inject(Injector);
   private readonly destroyRef = inject(DestroyRef);
@@ -163,6 +165,7 @@ export class NxI18nCaptionEditorComponent implements ControlValueAccessor, Valid
   }
 
   setDisabledState(isDisabled: boolean): void {
+    this.disabled.set(isDisabled);
     if (isDisabled) {
       this.form.disable({ emitEvent: false });
     } else {

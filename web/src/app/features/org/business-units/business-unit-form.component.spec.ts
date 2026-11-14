@@ -172,6 +172,8 @@ describe('BusinessUnitFormComponent', () => {
     expect(input(fixture, 'bu-form-cost-center').disabled).toBe(true);
     expect((root(fixture).querySelector('input[data-lang="de"]') as HTMLInputElement).disabled).toBe(true);
     expect((root(fixture).querySelector('[data-testid="bu-form-submit"]') as HTMLButtonElement).disabled).toBe(true);
+    // Legible like locked fields, not Material's faint disabled grey.
+    expect(root(fixture).querySelector('form')?.classList).toContain('nx-readonly');
   });
 
   it('on an invalid submit counts the fields to check (German name included), marks them and focuses the first', () => {

@@ -193,19 +193,35 @@
  * Read-only field that cannot change after creation (`nx-ui-page-templates`: immutable fields):
  * a disabled `mat-form-field` that stays legible — muted background, normal text — with a lock
  * icon (`matSuffix`) and a `mat-hint` saying why. Material's disabled look is too faint to read.
+ *
+ * Same look, without the lock, for every disabled field inside a read-only form (decision of
+ * Luciano, 2026-11-14): put `.nx-readonly` on the `<form>` (or any container) when the user may
+ * not change the record (no UPDATE permission, SYSTEM record). Text 14.9:1 and label 5.6:1 on
+ * the muted background (AA). Fields disabled for another reason outside `.nx-readonly` keep
+ * Material's look.
  */
-.mat-mdc-form-field.nx-field--locked {
+.mat-mdc-form-field.nx-field--locked,
+.nx-readonly .mat-mdc-form-field.mat-form-field-disabled {
   --mat-form-field-outlined-disabled-input-text-color: var(--nx-color-text);
   --mat-form-field-outlined-disabled-label-text-color: var(--nx-color-text-muted);
   --mat-form-field-outlined-disabled-outline-color: var(--nx-color-border);
   --mat-form-field-disabled-trailing-icon-color: var(--nx-color-text-muted);
+  --mat-form-field-disabled-leading-icon-color: var(--nx-color-text-muted);
   --mat-select-disabled-trigger-text-color: var(--nx-color-text);
   --mat-select-disabled-arrow-color: transparent;
 }
 
-.mat-mdc-form-field.nx-field--locked .mat-mdc-text-field-wrapper {
+.mat-mdc-form-field.nx-field--locked .mat-mdc-text-field-wrapper,
+.nx-readonly .mat-mdc-form-field.mat-form-field-disabled .mat-mdc-text-field-wrapper {
   background: var(--nx-color-surface-muted);
   border-radius: var(--nx-radius-sm);
+}
+
+/* Choices of a read-only form: the label stays as legible as the text fields. */
+.nx-readonly {
+  --mat-checkbox-disabled-label-color: var(--nx-color-text);
+  --mat-radio-disabled-label-color: var(--nx-color-text);
+  --mat-slide-toggle-disabled-label-text-color: var(--nx-color-text);
 }
 
 /*

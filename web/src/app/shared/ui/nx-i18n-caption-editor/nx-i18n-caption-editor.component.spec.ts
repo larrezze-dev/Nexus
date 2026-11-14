@@ -119,6 +119,21 @@ describe('NxI18nCaptionEditorComponent', () => {
     expect(emitted.at(-1)).toEqual({ de: 'Vermietung', en: 'Rental' });
   });
 
+  it('looks read-only (.nx-readonly, like a locked field) while the host disables it', () => {
+    fixture.detectChanges();
+    const group = (): HTMLElement => fixture.nativeElement.querySelector('.nx-i18n-caption-editor');
+    expect(group().classList).not.toContain('nx-readonly');
+
+    fixture.componentInstance.form.controls.captionI18n.disable();
+    fixture.detectChanges();
+    expect(group().classList).toContain('nx-readonly');
+    expect(inputFor('de').disabled).toBe(true);
+
+    fixture.componentInstance.form.controls.captionI18n.enable();
+    fixture.detectChanges();
+    expect(group().classList).not.toContain('nx-readonly');
+  });
+
   describe('«Show more languages» (fr/it/es folded below 600 px)', () => {
     function toggle(): HTMLButtonElement {
       return fixture.nativeElement.querySelector('[data-testid="nx-i18n-caption-editor-toggle"]');

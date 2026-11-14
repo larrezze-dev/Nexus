@@ -2,6 +2,7 @@
   class="nx-i18n-caption-editor"
   role="group"
   [class.nx-i18n-caption-editor--expanded]="expanded()"
+  [class.nx-readonly]="disabled()"
   [attr.aria-label]="'shared.i18nCaptionEditor.groupLabel' | transloco"
 >
   @for (lang of languages; track lang) {

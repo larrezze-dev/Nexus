@@ -20,7 +20,7 @@
 
     <mat-tab-group mat-stretch-tabs="false" mat-align-tabs="start">
       <mat-tab [label]="'org.users.detail.tabs.general' | transloco">
-        <form [formGroup]="form" (ngSubmit)="save()">
+        <form [class.nx-readonly]="isSystemUser()" [formGroup]="form" (ngSubmit)="save()">
           <mat-form-field>
             <mat-label>{{ 'org.users.fields.oid' | transloco }}</mat-label>
             <input matInput formControlName="oid" data-testid="user-oid-input" />

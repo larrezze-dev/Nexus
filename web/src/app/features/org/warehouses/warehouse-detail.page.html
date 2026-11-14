@@ -82,7 +82,7 @@
 
 <ng-template #formTpl>
   @let isEdit = mode() === 'edit';
-  <form class="nx-wh-form" [formGroup]="form" (ngSubmit)="save()" novalidate>
+  <form class="nx-wh-form" [class.nx-readonly]="readOnly()" [formGroup]="form" (ngSubmit)="save()" novalidate>
     @if (invalidCount() > 0) {
       <div class="nx-alert nx-alert--error" role="alert" data-testid="warehouse-form-invalid">
         <mat-icon aria-hidden="true">error</mat-icon>

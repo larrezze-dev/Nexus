@@ -1,5 +1,5 @@
 @let isEdit = mode() === 'edit';
-<form class="nx-location-form" [formGroup]="form" (ngSubmit)="onSubmit()" novalidate>
+<form class="nx-location-form" [class.nx-readonly]="readOnly()" [formGroup]="form" (ngSubmit)="onSubmit()" novalidate>
   @if (invalidCount() > 0) {
     <div class="nx-alert nx-alert--error" role="alert" data-testid="location-form-invalid">
       <mat-icon aria-hidden="true">error</mat-icon>
