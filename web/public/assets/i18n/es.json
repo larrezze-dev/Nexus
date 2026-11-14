@@ -26,7 +26,12 @@
     "ORG-R3": "La unidad de negocio debe pertenecer a la misma entidad legal que el almacén.",
     "CONFLICT": "Ya existe un registro con este código.",
     "ORG-R5": "La entidad legal no se puede desactivar mientras tenga unidades de negocio o almacenes activos.",
-    "ORG-R7": "La moneda debe estar activa; una moneda en uso por una entidad legal o un grupo activos no se puede desactivar."
+    "ORG-R7": "La moneda debe estar activa; una moneda en uso por una entidad legal o un grupo activos no se puede desactivar.",
+    "ACC-R1": "Una asignación global no tiene entidad; el resto de alcances la requieren.",
+    "ACC-R2": "La entidad elegida no existe para este alcance (los proyectos aún no están disponibles).",
+    "ACC-R4": "No puedes conceder este rol en este alcance: tu propio alcance no lo cubre.",
+    "ACC-R5": "Nadie puede modificar sus propias asignaciones.",
+    "ACC-R6": "Esta asignación del sistema no se puede revocar."
   },
   "shell": {
     "skipToContent": "Saltar al contenido",
@@ -181,7 +186,28 @@
       "noPermissions": "Sin permisos todavía",
       "userId": "ID de usuario",
       "partyId": "ID de party",
-      "businessUnitId": "ID de la unidad de negocio"
+      "businessUnitId": "ID de la unidad de negocio",
+      "businessUnit": "Unidad de negocio"
+    },
+    "notProvisioned": "Tu cuenta aún no está vinculada a un usuario de NEXUS. Contacta con tu administrador.",
+    "permissions": {
+      "resources": {
+        "CURRENCY": "Monedas",
+        "ORG_STRUCTURE": "Estructura de la organización",
+        "PARTY": "Terceros",
+        "ROLE": "Roles",
+        "ROLE_ASSIGNMENT": "Asignaciones de rol",
+        "USER": "Usuarios",
+        "AUDIT": "Auditoría"
+      },
+      "actions": {
+        "CREATE": "Crear",
+        "READ": "Ver",
+        "UPDATE": "Editar",
+        "DELETE": "Eliminar",
+        "APPROVE": "Aprobar",
+        "EXPORT": "Exportar"
+      }
     }
   },
   "breadcrumb": {
@@ -340,7 +366,18 @@
             "RESOURCE_ASSIGNMENT": "Asignación de recurso",
             "SEED": "Datos semilla"
           },
-          "revoke": "Revocar"
+          "revoke": "Revocar",
+          "granted": "Asignación concedida.",
+          "revoked": "Asignación revocada.",
+          "noEnd": "Sin fecha de fin",
+          "errors": {
+            "dateRange": "«Hasta» no puede ser anterior a «Desde».",
+            "overlap": "Ya existe una asignación para este rol y alcance que se solapa en el tiempo."
+          },
+          "revokeDialog": {
+            "title": "¿Revocar la asignación?",
+            "message": "El rol «{{role}}» ({{scope}}) terminará ahora. La asignación queda en el historial."
+          }
         }
       },
       "fields": {
@@ -350,6 +387,16 @@
         "preferredLanguage": "Idioma preferido",
         "businessUnit": "Unidad de negocio",
         "isActive": "Estado"
+      },
+      "created": "Usuario creado.",
+      "saved": "Cambios guardados.",
+      "deactivated": "Usuario desactivado.",
+      "errors": {
+        "oidTaken": "Este ID de objeto ya está vinculado a otro usuario."
+      },
+      "deactivateDialog": {
+        "title": "¿Desactivar el usuario?",
+        "message": "{{name}} ya no podrá iniciar sesión. Esto no se puede deshacer desde aquí."
       }
     },
     "parties": {

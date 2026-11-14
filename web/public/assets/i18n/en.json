@@ -26,7 +26,12 @@
     "ORG-R3": "The business unit must belong to the same legal entity as the warehouse.",
     "CONFLICT": "A record with this code already exists.",
     "ORG-R5": "The legal entity cannot be deactivated while it has active business units or warehouses.",
-    "ORG-R7": "The currency must be active; a currency used by an active legal entity or group cannot be deactivated."
+    "ORG-R7": "The currency must be active; a currency used by an active legal entity or group cannot be deactivated.",
+    "ACC-R1": "A global assignment has no entity; every other scope needs one.",
+    "ACC-R2": "The chosen entity does not exist for this scope (projects are not available yet).",
+    "ACC-R4": "You cannot grant this role in this scope: your own scope does not cover it.",
+    "ACC-R5": "Nobody can change their own assignments.",
+    "ACC-R6": "This system assignment cannot be revoked."
   },
   "shell": {
     "skipToContent": "Skip to content",
@@ -181,7 +186,28 @@
       "noPermissions": "No permissions yet",
       "userId": "User id",
       "partyId": "Party id",
-      "businessUnitId": "Business unit id"
+      "businessUnitId": "Business unit id",
+      "businessUnit": "Business unit"
+    },
+    "notProvisioned": "Your account is not linked to a NEXUS user yet. Contact your administrator.",
+    "permissions": {
+      "resources": {
+        "CURRENCY": "Currencies",
+        "ORG_STRUCTURE": "Organization structure",
+        "PARTY": "Third parties",
+        "ROLE": "Roles",
+        "ROLE_ASSIGNMENT": "Role assignments",
+        "USER": "Users",
+        "AUDIT": "Audit"
+      },
+      "actions": {
+        "CREATE": "Create",
+        "READ": "View",
+        "UPDATE": "Edit",
+        "DELETE": "Delete",
+        "APPROVE": "Approve",
+        "EXPORT": "Export"
+      }
     }
   },
   "breadcrumb": {
@@ -340,7 +366,18 @@
             "RESOURCE_ASSIGNMENT": "Resource assignment",
             "SEED": "Seed data"
           },
-          "revoke": "Revoke"
+          "revoke": "Revoke",
+          "granted": "Assignment granted.",
+          "revoked": "Assignment revoked.",
+          "noEnd": "No end date",
+          "errors": {
+            "dateRange": "«Until» cannot be before «From».",
+            "overlap": "There is already an assignment for this role and scope that overlaps in time."
+          },
+          "revokeDialog": {
+            "title": "Revoke assignment?",
+            "message": "The role «{{role}}» ({{scope}}) will end now. The assignment stays in the history."
+          }
         }
       },
       "fields": {
@@ -350,6 +387,16 @@
         "preferredLanguage": "Preferred language",
         "businessUnit": "Business unit",
         "isActive": "Status"
+      },
+      "created": "User created.",
+      "saved": "Changes saved.",
+      "deactivated": "User deactivated.",
+      "errors": {
+        "oidTaken": "This object ID is already linked to another user."
+      },
+      "deactivateDialog": {
+        "title": "Deactivate user?",
+        "message": "{{name}} will no longer be able to sign in. This cannot be undone here."
       }
     },
     "parties": {

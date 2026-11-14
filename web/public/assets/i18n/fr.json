@@ -26,7 +26,12 @@
     "ORG-R3": "L'unité d'affaires doit appartenir à la même entité juridique que l'entrepôt.",
     "CONFLICT": "Un enregistrement avec ce code existe déjà.",
     "ORG-R5": "L'entité juridique ne peut pas être désactivée tant qu'elle a des unités d'affaires ou des entrepôts actifs.",
-    "ORG-R7": "La devise doit être active ; une devise utilisée par une entité juridique ou un groupe actifs ne peut pas être désactivée."
+    "ORG-R7": "La devise doit être active ; une devise utilisée par une entité juridique ou un groupe actifs ne peut pas être désactivée.",
+    "ACC-R1": "Une attribution globale n'a pas d'entité ; tous les autres périmètres en exigent une.",
+    "ACC-R2": "L'entité choisie n'existe pas pour ce périmètre (les projets ne sont pas encore disponibles).",
+    "ACC-R4": "Vous ne pouvez pas attribuer ce rôle dans ce périmètre : votre propre périmètre ne le couvre pas.",
+    "ACC-R5": "Personne ne peut modifier ses propres attributions.",
+    "ACC-R6": "Cette attribution système ne peut pas être révoquée."
   },
   "shell": {
     "skipToContent": "Aller au contenu",
@@ -181,7 +186,28 @@
       "noPermissions": "Aucune permission pour le moment",
       "userId": "ID utilisateur",
       "partyId": "ID de party",
-      "businessUnitId": "ID de l'unité commerciale"
+      "businessUnitId": "ID de l'unité commerciale",
+      "businessUnit": "Unité commerciale"
+    },
+    "notProvisioned": "Votre compte n'est pas encore lié à un utilisateur NEXUS. Contactez votre administrateur.",
+    "permissions": {
+      "resources": {
+        "CURRENCY": "Devises",
+        "ORG_STRUCTURE": "Structure de l'organisation",
+        "PARTY": "Tiers",
+        "ROLE": "Rôles",
+        "ROLE_ASSIGNMENT": "Attributions de rôle",
+        "USER": "Utilisateurs",
+        "AUDIT": "Audit"
+      },
+      "actions": {
+        "CREATE": "Créer",
+        "READ": "Consulter",
+        "UPDATE": "Modifier",
+        "DELETE": "Supprimer",
+        "APPROVE": "Approuver",
+        "EXPORT": "Exporter"
+      }
     }
   },
   "breadcrumb": {
@@ -340,7 +366,18 @@
             "RESOURCE_ASSIGNMENT": "Attribution de ressource",
             "SEED": "Données d'amorçage"
           },
-          "revoke": "Révoquer"
+          "revoke": "Révoquer",
+          "granted": "Attribution accordée.",
+          "revoked": "Attribution révoquée.",
+          "noEnd": "Sans date de fin",
+          "errors": {
+            "dateRange": "«Jusqu'au» ne peut pas précéder «Du».",
+            "overlap": "Il existe déjà une attribution pour ce rôle et ce périmètre qui se chevauche dans le temps."
+          },
+          "revokeDialog": {
+            "title": "Révoquer l'attribution ?",
+            "message": "Le rôle «{{role}}» ({{scope}}) prendra fin maintenant. L'attribution reste dans l'historique."
+          }
         }
       },
       "fields": {
@@ -350,6 +387,16 @@
         "preferredLanguage": "Langue préférée",
         "businessUnit": "Unité d'affaires",
         "isActive": "Statut"
+      },
+      "created": "Utilisateur créé.",
+      "saved": "Modifications enregistrées.",
+      "deactivated": "Utilisateur désactivé.",
+      "errors": {
+        "oidTaken": "Cet ID d'objet est déjà lié à un autre utilisateur."
+      },
+      "deactivateDialog": {
+        "title": "Désactiver l'utilisateur ?",
+        "message": "{{name}} ne pourra plus se connecter. Cette action ne peut pas être annulée ici."
       }
     },
     "parties": {

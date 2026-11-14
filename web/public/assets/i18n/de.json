@@ -26,7 +26,12 @@
     "ORG-R3": "Der Geschäftsbereich muss zur selben Gesellschaft gehören wie das Lager.",
     "CONFLICT": "Es existiert bereits ein Eintrag mit diesem Code.",
     "ORG-R5": "Die Gesellschaft kann nicht deaktiviert werden, solange sie aktive Geschäftsbereiche oder Lager hat.",
-    "ORG-R7": "Die Währung muss aktiv sein; eine Währung, die eine aktive Gesellschaft oder Gruppe verwendet, kann nicht deaktiviert werden."
+    "ORG-R7": "Die Währung muss aktiv sein; eine Währung, die eine aktive Gesellschaft oder Gruppe verwendet, kann nicht deaktiviert werden.",
+    "ACC-R1": "Eine globale Zuweisung hat keine Entität; alle anderen Bereiche benötigen eine.",
+    "ACC-R2": "Die gewählte Entität existiert nicht für diesen Bereich (Projekte sind noch nicht verfügbar).",
+    "ACC-R4": "Sie dürfen diese Rolle in diesem Bereich nicht vergeben: Ihr eigener Bereich deckt ihn nicht ab.",
+    "ACC-R5": "Niemand kann seine eigenen Zuweisungen ändern.",
+    "ACC-R6": "Diese Systemzuweisung kann nicht widerrufen werden."
   },
   "shell": {
     "skipToContent": "Zum Inhalt springen",
@@ -226,7 +231,18 @@
             "RESOURCE_ASSIGNMENT": "Ressourcenzuweisung",
             "SEED": "Saatdaten"
           },
-          "revoke": "Entziehen"
+          "revoke": "Entziehen",
+          "granted": "Zuweisung erteilt.",
+          "revoked": "Zuweisung widerrufen.",
+          "noEnd": "Unbefristet",
+          "errors": {
+            "dateRange": "«Bis» darf nicht vor «Von» liegen.",
+            "overlap": "Für diese Rolle und diesen Bereich gibt es bereits eine Zuweisung, die sich zeitlich überschneidet."
+          },
+          "revokeDialog": {
+            "title": "Zuweisung widerrufen?",
+            "message": "Die Rolle «{{role}}» ({{scope}}) wird ab jetzt beendet. Die Zuweisung bleibt im Verlauf erhalten."
+          }
         }
       },
       "fields": {
@@ -236,6 +252,16 @@
         "preferredLanguage": "Bevorzugte Sprache",
         "businessUnit": "Geschäftsbereich",
         "isActive": "Status"
+      },
+      "created": "Benutzer angelegt.",
+      "saved": "Änderungen gespeichert.",
+      "deactivated": "Benutzer deaktiviert.",
+      "errors": {
+        "oidTaken": "Diese Objekt-ID ist bereits einem anderen Benutzer zugeordnet."
+      },
+      "deactivateDialog": {
+        "title": "Benutzer deaktivieren?",
+        "message": "{{name}} kann sich nicht mehr anmelden. Dies kann hier nicht rückgängig gemacht werden."
       }
     },
     "parties": {
@@ -588,7 +614,28 @@
       "noPermissions": "Noch keine Berechtigungen",
       "userId": "Benutzer-ID",
       "partyId": "Party-ID",
-      "businessUnitId": "Geschäftsbereich-ID"
+      "businessUnitId": "Geschäftsbereich-ID",
+      "businessUnit": "Geschäftseinheit"
+    },
+    "notProvisioned": "Ihr Konto ist noch keinem Benutzer in NEXUS zugeordnet. Wenden Sie sich an Ihre Administration.",
+    "permissions": {
+      "resources": {
+        "CURRENCY": "Währungen",
+        "ORG_STRUCTURE": "Organisationsstruktur",
+        "PARTY": "Dritte",
+        "ROLE": "Rollen",
+        "ROLE_ASSIGNMENT": "Rollenzuweisungen",
+        "USER": "Benutzer",
+        "AUDIT": "Audit"
+      },
+      "actions": {
+        "CREATE": "Anlegen",
+        "READ": "Ansehen",
+        "UPDATE": "Ändern",
+        "DELETE": "Löschen",
+        "APPROVE": "Genehmigen",
+        "EXPORT": "Exportieren"
+      }
     }
   },
   "breadcrumb": {
