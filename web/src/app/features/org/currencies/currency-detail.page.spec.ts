@@ -24,14 +24,16 @@ const currencies = {
   title: 'Currencies',
   loading: 'Loading…',
   fields: { code: 'Code', caption: 'Name', minorUnits: 'Decimal places', isActive: 'Status' },
-  sections: { currency: 'Currency' },
-  hints: { fixed: 'Predefined.', minorUnits: 'Decimals.' },
+  sections: { currency: 'Currency', names: 'Name in each language' },
+  renamed: 'Name saved',
+  hints: { fixed: 'Predefined.', minorUnits: 'Decimals.', code: 'Three letters.' },
   activate: 'Activate',
   deactivate: 'Deactivate',
   deactivateDialog: { title: 'Deactivate the currency?', message: '«{{name}}» ({{code}}) …' },
   activated: 'Currency activated',
   deactivated: 'Currency deactivated',
-  errors: { inUse: '«{{name}}» is in use.' },
+  errors: { inUse: '«{{name}}» is in use.', codeFormat: 'Three capitals.', minorUnitsRange: '0 to 4.' },
+  new: 'New currency',
 };
 
 const translations = {
@@ -63,13 +65,18 @@ async function setupPage(options: Setup = {}) {
       current.update((value) => (value ? { ...value, isActive } : value));
       return true;
     }),
+    etag: vi.fn(() => '"v1"'),
+    rename: vi.fn(async (_code: string, captionI18n: Currency['captionI18n']) => {
+      current.update((value) => (value ? { ...value, captionI18n } : value));
+      return current() as Currency;
+    }),
     toggleError,
     clearToggleError: vi.fn(() => toggleError.set(null)),
   };
   const confirm = { confirm: vi.fn().mockResolvedValue(options.confirmed ?? true) };
   const snackBar = { open: vi.fn() };
   const breadcrumb = {
-    setCurrentLabel: vi.fn(),
+    setCurrentLabel: vi.fn(), setLoadFailed: vi.fn(),
     claimForPage: () => () => undefined,
     trail: signal([]),
   };
@@ -138,18 +145,55 @@ describe('CurrencyDetailPage', () => {
     expect(breadcrumb.setCurrentLabel).toHaveBeenLastCalledWith('Franco suizo');
   });
 
-  it('shows every field read-only, without tabs and without a save bar', async () => {
+  it('locks the code and the decimals, lets the name be edited, and has no tabs', async () => {
     const { fixture } = await setupPage();
 
-    const inputs = Array.from(root(fixture).querySelectorAll('input')) as HTMLInputElement[];
-    expect(inputs.map((input) => input.value)).toEqual(['CHF', 'Swiss franc', '2']);
-    expect(inputs.every((input) => input.disabled)).toBe(true);
-    // Widths from the form grid: code S, name L, decimal places S.
-    const fields = Array.from(root(fixture).querySelectorAll('nx-form-grid > mat-form-field'));
-    expect(fields.map((field) => field.className.match(/nx-span--(\w+)/)?.[1])).toEqual(['s', 'l', 's']);
+    expect(byTestId(fixture, 'currency-form-code')?.hasAttribute('disabled')).toBe(true);
+    expect(byTestId(fixture, 'currency-form-minor-units')?.hasAttribute('disabled')).toBe(true);
+    expect((byTestId(fixture, 'currency-form-code') as HTMLInputElement).value).toBe('CHF');
+    expect((byTestId(fixture, 'currency-form-minor-units') as HTMLInputElement).value).toBe('2');
+    const german = root(fixture).querySelector<HTMLInputElement>(
+      '[formcontrolname="captionI18n"] input[data-lang="de"]',
+    );
+    expect(german?.value).toBe('Schweizer Franken');
+    expect(german?.disabled).toBe(false);
     expect(root(fixture).querySelector('mat-tab-group')).toBeNull();
-    expect(root(fixture).querySelector('nx-action-bar')).toBeNull();
-    expect(root(fixture).querySelector('[mat-flat-button]')).toBeNull();
+  });
+
+  it('renames the currency with the ETag of the load, then reloads and notifies', async () => {
+    const { fixture, facade, snackBar } = await setupPage();
+
+    const german = root(fixture).querySelector<HTMLInputElement>(
+      '[formcontrolname="captionI18n"] input[data-lang="de"]',
+    )!;
+    german.value = 'Franken';
+    german.dispatchEvent(new Event('input'));
+    fixture.detectChanges();
+    byTestId(fixture, 'currency-form-submit')!.click();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    expect(facade.rename).toHaveBeenCalledWith('CHF', expect.objectContaining({ de: 'Franken' }), '"v1"');
+    expect(snackBar.open).toHaveBeenCalledWith('Name saved', undefined, { duration: 4000 });
+    expect(facade.get).toHaveBeenCalledTimes(2);
+  });
+
+  it('shows nothing extra for a 409 CONCURRENCY on rename (the interceptor opens the dialog)', async () => {
+    const { fixture, facade } = await setupPage();
+    facade.rename.mockRejectedValue({
+      status: 409,
+      error: { type: 'https://nexus.nussli.ch/problems/conflict', code: 'CONCURRENCY' },
+    });
+
+    (fixture.componentInstance as unknown as { onRename(v: unknown): Promise<void> }).onRename({
+      code: 'CHF',
+      captionI18n: { de: 'X' },
+      minorUnits: 2,
+    });
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    expect(byTestId(fixture, 'currency-detail-error')).toBeNull();
   });
 
   it('deactivates after the destructive confirmation, then reloads and notifies', async () => {
@@ -233,6 +277,8 @@ describe('CurrencyDetailPage', () => {
 
     expect(byTestId(fixture, 'currency-detail-deactivate')).toBeNull();
     expect(byTestId(fixture, 'currency-detail-activate')).toBeNull();
+    // The form is read-only too: no save.
+    expect(byTestId(fixture, 'currency-form-submit')?.hasAttribute('disabled')).toBe(true);
   });
 
   it('shows the error state with «Retry» when the load fails', async () => {
@@ -243,5 +289,11 @@ describe('CurrencyDetailPage', () => {
       .querySelector<HTMLButtonElement>('[data-testid="currency-detail-load-error"] button')!
       .click();
     expect(facade.get).toHaveBeenCalledTimes(2);
+  });
+
+  it('tells the breadcrumb the load failed', async () => {
+    const { breadcrumb } = await setupPage({ currency: null });
+
+    expect(breadcrumb.setLoadFailed).toHaveBeenCalled();
   });
 });

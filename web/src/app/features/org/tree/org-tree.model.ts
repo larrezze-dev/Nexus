@@ -17,13 +17,8 @@ export interface OrgTreeNode {
    * kinds. Kept raw so the page shows it in the active language and follows a language switch.
    */
   readonly captionI18n?: I18NText | null;
-  /** Plain name: a legal entity's trade name (or legal name); `null` when the kind has none (group). */
+  /** Plain name: trade name (or legal name) of a legal entity or group; `null` for captioned kinds. */
   readonly name?: string | null;
-  /**
-   * Label in the language that was active when the tree loaded ({@link orgTreeNodeLabel}). Kept
-   * for `features/access` (effective scope); the org tree page re-resolves it on every switch.
-   */
-  readonly label: string;
   /**
    * `null` for `Group` nodes: `GroupListItem` has no `isActive` field in the 0.4 contract
    * (a `Group` is not deactivated in this step) — the page renders no status badge for those.

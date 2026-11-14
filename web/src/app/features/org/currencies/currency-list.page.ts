@@ -1,9 +1,12 @@
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
-import { Router } from '@angular/router';
+import { MatButtonModule } from '@angular/material/button';
+import { MatIconModule } from '@angular/material/icon';
+import { Router, RouterLink } from '@angular/router';
 import { TranslocoModule } from '@jsverse/transloco';
 import { Observable, tap } from 'rxjs';
 import { CurrencyListItem } from '../../../api/platform/models/currency-list-item';
 import { NxI18nService } from '../../../core/i18n/nx-i18n.service';
+import { PermissionsStore } from '../../../shared/auth/permissions.store';
 import { resolveCaption } from '../../../shared/ui/caption/caption.util';
 import { NxPageComponent, NxPageHeaderComponent } from '../../../shared/ui/layout';
 import {
@@ -19,8 +22,8 @@ import { CurrenciesFacade } from './currencies.facade';
  * Currency list (`conventions-frontend.md §4.4`, list template): header with the record count
  * and the server-paginated `nx-data-grid` in a flush card.
  *
- * No «New currency» and no filter bar: the API has no create endpoint (the currencies are
- * seeded) and `GET /v1/currencies` only takes `page`/`pageSize`/`sort`. The API sorts by
+ * «New currency» (`POST /v1/currencies`) shows only with `CURRENCY:CREATE` (`canCreate`). No
+ * filter bar: `GET /v1/currencies` only takes `page`/`pageSize`/`sort`. The API sorts by
  * `code`, `minorUnits` and `isActive`, so only those columns are sortable. The name is the
  * caption in the active language (columns are a `computed` of the language). A row (click,
  * Enter, card tap) opens the detail page, where the currency is activated or deactivated.
@@ -28,14 +31,42 @@ import { CurrenciesFacade } from './currencies.facade';
 @Component({
   selector: 'nx-currency-list-page',
   standalone: true,
-  imports: [TranslocoModule, NxDataGridComponent, NxPageComponent, NxPageHeaderComponent],
+  imports: [
+    RouterLink,
+    TranslocoModule,
+    MatButtonModule,
+    MatIconModule,
+    NxDataGridComponent,
+    NxPageComponent,
+    NxPageHeaderComponent,
+  ],
   template: `
     <nx-page width="full">
       <nx-page-header
         [breadcrumb]="true"
         [title]="'org.currencies.title' | transloco"
         [count]="total()"
-      />
+      >
+        @if (canCreate()) {
+          <a
+            nxHeaderActions
+            mat-flat-button
+            class="nx-create--header"
+            routerLink="/org/currencies/new"
+            data-testid="currency-list-new"
+          >
+            <mat-icon aria-hidden="true">add</mat-icon>
+            {{ 'org.currencies.new' | transloco }}
+          </a>
+        }
+      </nx-page-header>
+      @if (canCreate()) {
+        <!-- Below 600 px «New» is an extended FAB (components.css .nx-create--*). -->
+        <a mat-flat-button class="nx-create--fab" routerLink="/org/currencies/new">
+          <mat-icon aria-hidden="true">add</mat-icon>
+          {{ 'org.currencies.new' | transloco }}
+        </a>
+      }
 
       <section class="nx-card nx-card--flush">
         <nx-data-grid
@@ -55,6 +86,13 @@ export class CurrencyListPage {
   private readonly facade = inject(CurrenciesFacade);
   private readonly router = inject(Router);
   private readonly i18n = inject(NxI18nService);
+  private readonly permissions = inject(PermissionsStore);
+
+  /** Hook for the «New currency» action: `CURRENCY:CREATE`. */
+  protected readonly canCreate = computed(() => {
+    this.permissions.permissions(); // re-evaluate when permissions change
+    return this.permissions.has('CURRENCY:CREATE');
+  });
 
   /** Total of the last loaded page («N records» in the header); `null` until the first load. */
   protected readonly total = signal<number | null>(null);

@@ -72,7 +72,12 @@ export class PartiesFacade {
     );
   }
 
+  /** Monotonic sequence: only the latest `load()` (and none issued before a `reset()`) may apply its result. */
+  private loadSeq = 0;
+
   reset(): void {
+    this.loadSeq++;
+    this.loadingSignal.set(false);
     this.selectedSignal.set(null);
     this.selectedETag = null;
     this.errorSignal.set(null);
@@ -80,18 +85,26 @@ export class PartiesFacade {
 
   /** Loads the party and its ETag; on failure `error` is set and `selected` cleared (retry state). */
   async load(id: string): Promise<void> {
+    const seq = ++this.loadSeq;
     this.loadingSignal.set(true);
     this.errorSignal.set(null);
     try {
       const response = await this.api.invoke$Response(getParty, { id });
+      if (seq !== this.loadSeq) {
+        return;
+      }
       this.selectedSignal.set(response.body);
       this.selectedETag = response.headers.get('ETag');
     } catch (error: unknown) {
-      this.selectedSignal.set(null);
-      this.selectedETag = null;
-      this.applyError(error);
+      if (seq === this.loadSeq) {
+        this.selectedSignal.set(null);
+        this.selectedETag = null;
+        this.applyError(error);
+      }
     } finally {
-      this.loadingSignal.set(false);
+      if (seq === this.loadSeq) {
+        this.loadingSignal.set(false);
+      }
     }
   }
 

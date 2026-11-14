@@ -1,6 +1,7 @@
 import { Injectable, inject, signal } from '@angular/core';
 import { Observable, from, map } from 'rxjs';
 import { Api } from '../../../api/platform/api';
+import { IdempotentCreateId } from '../../../core/ids/uuid-v7';
 import { createLocation } from '../../../api/platform/fn/locations/create-location';
 import { getLocation } from '../../../api/platform/fn/locations/get-location';
 import { listLocations } from '../../../api/platform/fn/locations/list-locations';
@@ -38,6 +39,7 @@ export class LocationFacade {
 
   /** `ETag` of `selected()`, captured from the last `GET`/`POST`/`PUT` response; sent back as `If-Match` on `update()`. */
   private etag: string | null = null;
+  private readonly createId = new IdempotentCreateId();
 
   /**
    * `nx-data-grid`'s `fetch` input. `page` is 0-based (grid convention, `page.model.ts`);
@@ -62,25 +64,42 @@ export class LocationFacade {
     );
   }
 
+  /** Monotonic sequence: only the latest `load()` (and none issued before a `reset()`) may apply its result. */
+  private loadSeq = 0;
+
   /** Loads the location and its ETag; on failure `selected()` is cleared and `error()` set. */
   async load(id: string): Promise<void> {
+    const seq = ++this.loadSeq;
     this.loadingSignal.set(true);
     this.errorSignal.set(null);
     try {
       const response = await this.api.invoke$Response(getLocation, { id });
+      if (seq !== this.loadSeq) {
+        return;
+      }
       this.selectedSignal.set(response.body);
       this.etag = response.headers.get('ETag');
     } catch {
-      this.selectedSignal.set(null);
-      this.etag = null;
-      this.errorSignal.set('load_failed');
+      if (seq === this.loadSeq) {
+        this.selectedSignal.set(null);
+        this.etag = null;
+        this.errorSignal.set('load_failed');
+      }
     } finally {
-      this.loadingSignal.set(false);
+      if (seq === this.loadSeq) {
+        this.loadingSignal.set(false);
+      }
     }
   }
 
+  /**
+   * Creates a location with a client-generated UUIDv7 `id` (idempotent create, ADR-0009): a retry
+   * of the same content after a lost response reuses the id and gets the existing record back.
+   */
   async create(request: CreateLocationRequest): Promise<Location> {
-    const response = await this.api.invoke$Response(createLocation, { body: request });
+    const body: CreateLocationRequest = { ...request, id: request.id ?? this.createId.idFor(request) };
+    const response = await this.api.invoke$Response(createLocation, { body });
+    this.createId.clear();
     this.selectedSignal.set(response.body);
     this.etag = response.headers.get('ETag');
     return response.body;
@@ -99,6 +118,8 @@ export class LocationFacade {
 
   /** Clears stale `selected()`/`error()` from a previous detail visit, e.g. before starting a "new" form. */
   reset(): void {
+    this.loadSeq++;
+    this.loadingSignal.set(false);
     this.selectedSignal.set(null);
     this.errorSignal.set(null);
     this.etag = null;

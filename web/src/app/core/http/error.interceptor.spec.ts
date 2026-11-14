@@ -105,7 +105,11 @@ describe('errorInterceptor', () => {
     const { http, controller, router, concurrencyDialog } = setup();
 
     http.put('/api/v1/asset-types/1', {}).subscribe({ error: () => undefined });
-    const problem: Problem = { type: 'concurrency', status: 409 };
+    const problem: Problem = {
+      type: 'https://nexus.nussli.ch/problems/conflict',
+      code: 'CONCURRENCY',
+      status: 409,
+    };
     controller.expectOne('/api/v1/asset-types/1').flush(problem, { status: 409, statusText: 'Conflict' });
 
     expect(concurrencyDialog.open).toHaveBeenCalledTimes(1);
@@ -118,7 +122,11 @@ describe('errorInterceptor', () => {
     let captured: HttpErrorResponse | undefined;
 
     http.post('/api/v1/asset-types', {}).subscribe({ error: (err) => (captured = err) });
-    const problem: Problem = { type: 'idempotency_conflict', status: 409 };
+    const problem: Problem = {
+      type: 'https://nexus.nussli.ch/problems/conflict',
+      code: 'CONFLICT',
+      status: 409,
+    };
     controller.expectOne('/api/v1/asset-types').flush(problem, { status: 409, statusText: 'Conflict' });
 
     expect(concurrencyDialog.open).not.toHaveBeenCalled();

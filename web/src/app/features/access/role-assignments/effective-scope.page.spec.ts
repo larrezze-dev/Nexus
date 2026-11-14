@@ -60,9 +60,9 @@ async function flushUntilLoaded(fixture: ComponentFixture<EffectiveScopePage>): 
 
 describe('EffectiveScopePage', () => {
   it('loads the org tree and the effective scope for the user id in the route', async () => {
-    const warehouse: OrgTreeNode = { id: 'wh1', kind: 'warehouse', code: 'WH-01', label: 'Zürich', isActive: true, children: [] };
-    const legalEntity: OrgTreeNode = { id: 'le1', kind: 'legalEntity', code: 'LE-CH', label: 'LE-CH', isActive: true, children: [warehouse] };
-    const group: OrgTreeNode = { id: 'g1', kind: 'group', code: 'NUSSLI', label: 'NUSSLI', isActive: null, children: [legalEntity] };
+    const warehouse: OrgTreeNode = { id: 'wh1', kind: 'warehouse', code: 'WH-01', captionI18n: { de: 'Zürich' }, isActive: true, children: [] };
+    const legalEntity: OrgTreeNode = { id: 'le1', kind: 'legalEntity', code: 'LE-CH', isActive: true, children: [warehouse] };
+    const group: OrgTreeNode = { id: 'g1', kind: 'group', code: 'NUSSLI', isActive: null, children: [legalEntity] };
 
     const { fixture, orgTreeFacade, assignmentsFacade } = setup([group], {
       legalEntityIds: ['le1'],
@@ -98,7 +98,7 @@ describe('EffectiveScopePage', () => {
   });
 
   it('shows the projects-specific empty-state message when only projectIds is empty', async () => {
-    const legalEntity: OrgTreeNode = { id: 'le1', kind: 'legalEntity', code: 'LE-CH', label: 'LE-CH', isActive: true, children: [] };
+    const legalEntity: OrgTreeNode = { id: 'le1', kind: 'legalEntity', code: 'LE-CH', isActive: true, children: [] };
 
     const { fixture } = setup([legalEntity], {
       legalEntityIds: ['le1'],

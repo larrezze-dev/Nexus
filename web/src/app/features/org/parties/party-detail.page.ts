@@ -1,11 +1,25 @@
-import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  DestroyRef,
+  OnInit,
+  computed,
+  inject,
+  signal,
+} from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { ActivatedRoute, Router } from '@angular/router';
 import { TranslocoModule, TranslocoService } from '@jsverse/transloco';
-import { isProblem } from '../../../core/http/problem';
+import {
+  isConcurrencyConflict,
+  isDuplicateConflict,
+  isProblem,
+  localizedFieldErrors,
+} from '../../../core/http/problem';
+import { NxFormatService } from '../../../core/i18n/nx-format.service';
 import { NxI18nService } from '../../../core/i18n/nx-i18n.service';
 import { NxBreadcrumbService } from '../../../core/layout/breadcrumb.service';
 import { PermissionsStore } from '../../../shared/auth/permissions.store';
@@ -19,9 +33,6 @@ import { NxStatusBadgeComponent } from '../../../shared/ui/nx-status-badge/nx-st
 import { PartiesFacade } from './parties.facade';
 import { PartyFormComponent, PartyFormValue } from './party-form.component';
 import { partyScopeKey, partyTypeKey } from './party-labels';
-
-/** Dates are shown in this time zone. */
-const DISPLAY_TIME_ZONE = 'Europe/Zurich';
 
 /**
  * Party detail and create page (`conventions-frontend.md §4.5–§4.6`). No `id` route param
@@ -57,6 +68,8 @@ export class PartyDetailPage implements OnInit {
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
   private readonly i18n = inject(NxI18nService);
+  private readonly format = inject(NxFormatService);
+  private destroyed = false;
   private readonly transloco = inject(TranslocoService);
   private readonly breadcrumb = inject(NxBreadcrumbService);
   private readonly confirm = inject(NxConfirm);
@@ -87,16 +100,20 @@ export class PartyDetailPage implements OnInit {
     }
     this.translation();
     const lang = this.transloco.getActiveLang();
-    const date = new Intl.DateTimeFormat(lang === 'de' ? 'de-CH' : lang, {
-      dateStyle: 'medium',
-      timeZone: DISPLAY_TIME_ZONE,
-    }).format(new Date(party.updatedAt));
+    const date = this.format.formatDateMedium(party.updatedAt);
+    const modified = date ? this.transloco.translate('org.parties.detail.modified', { date }, lang) : '';
     return [
       this.transloco.translate(partyTypeKey(party.partyType), {}, lang),
       this.transloco.translate(partyScopeKey(party.isInternal), {}, lang),
-      this.transloco.translate('org.parties.detail.modified', { date }, lang),
-    ].join(' · ');
+      modified,
+    ]
+      .filter(Boolean)
+      .join(' · ');
   });
+
+  constructor() {
+    inject(DestroyRef).onDestroy(() => (this.destroyed = true));
+  }
 
   ngOnInit(): void {
     this.facade.reset();
@@ -114,7 +131,15 @@ export class PartyDetailPage implements OnInit {
       return;
     }
     await this.facade.load(id);
-    this.breadcrumb.setCurrentLabel(this.party()?.legalName || null);
+    if (this.destroyed) {
+      // The user already left: a late response must not name the next page's breadcrumb.
+      return;
+    }
+    if (this.facade.error()) {
+      this.breadcrumb.setLoadFailed();
+    } else {
+      this.breadcrumb.setCurrentLabel(this.party()?.legalName || null);
+    }
   }
 
   protected async onSave(value: PartyFormValue): Promise<void> {
@@ -195,7 +220,9 @@ export class PartyDetailPage implements OnInit {
     const body = httpError?.error;
 
     if (httpError?.status === 400 && isProblem(body) && body.errors) {
-      this.fieldErrors.set(body.errors);
+      this.fieldErrors.set(
+        localizedFieldErrors(body.errors, this.transloco.translate('shared.form.invalidValue')),
+      );
       this.saveError.set(this.transloco.translate('errors.validation'));
       return;
     }
@@ -205,8 +232,13 @@ export class PartyDetailPage implements OnInit {
       return;
     }
 
-    if (httpError?.status === 409) {
+    if (isConcurrencyConflict(error)) {
       // `errorInterceptor` already opened the concurrency dialog; nothing else to show here.
+      return;
+    }
+
+    if (isDuplicateConflict(error)) {
+      this.saveError.set(this.transloco.translate('errors.CONFLICT'));
       return;
     }
 

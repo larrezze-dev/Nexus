@@ -14,7 +14,6 @@ const warehouse: OrgTreeNode = {
   code: 'WH-01',
   captionI18n: { de: 'Lager Zug', es: 'Almacén Zug' },
   name: null,
-  label: 'Lager Zug',
   isActive: false,
   children: [],
 };
@@ -24,7 +23,6 @@ const businessUnit: OrgTreeNode = {
   code: 'BU-EV',
   captionI18n: { de: 'Events', es: 'Eventos' },
   name: null,
-  label: 'Events',
   isActive: true,
   children: [warehouse],
 };
@@ -34,7 +32,6 @@ const legalEntity: OrgTreeNode = {
   code: 'LE-CH',
   captionI18n: null,
   name: 'SSB Schweiz',
-  label: 'SSB Schweiz',
   isActive: true,
   children: [businessUnit],
 };
@@ -44,7 +41,6 @@ const group: OrgTreeNode = {
   code: 'SSB',
   captionI18n: null,
   name: null,
-  label: 'SSB',
   isActive: null,
   children: [legalEntity],
 };

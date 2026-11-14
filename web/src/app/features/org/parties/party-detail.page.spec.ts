@@ -88,12 +88,12 @@ async function setupPage(
     providers: [
       provideNoopAnimations(),
       { provide: PartiesFacade, useValue: facade },
-      { provide: NxI18nService, useValue: { translateErrorCode: (code: string | null | undefined) => code ?? 'generic' } },
+      { provide: NxI18nService, useValue: { activeLang: () => 'en', translateErrorCode: (code: string | null | undefined) => code ?? 'generic' } },
       { provide: ActivatedRoute, useValue: { snapshot: { paramMap: convertToParamMap(paramMap) } } },
       { provide: Router, useValue: { navigate: vi.fn().mockResolvedValue(true) } },
       {
         provide: NxBreadcrumbService,
-        useValue: { setCurrentLabel: vi.fn(), claimForPage: () => () => undefined, trail: signal([]) },
+        useValue: { setCurrentLabel: vi.fn(), setLoadFailed: vi.fn(), claimForPage: () => () => undefined, trail: signal([]) },
       },
       { provide: NxConfirm, useValue: confirmStub },
     ],
@@ -178,7 +178,7 @@ describe('PartyDetailPage', () => {
 
     await internals(fixture).onSave(formValue);
 
-    expect(internals(fixture).fieldErrors()).toEqual({ legalName: ['Too long'] });
+    expect(internals(fixture).fieldErrors()).toEqual({ legalName: ['shared.form.invalidValue'] });
     expect(internals(fixture).saveError()).toBe('Fix the fields');
   });
 

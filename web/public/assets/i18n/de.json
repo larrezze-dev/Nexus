@@ -23,7 +23,10 @@
     "SAMPLE-R1": "Beispieltext für Geschäftsregel SAMPLE-R1 — durch den echten Text ersetzen.",
     "ORG-R6": "Der SYSTEM-Benutzer kann nicht bearbeitet oder deaktiviert werden.",
     "ORG-R9": "Es existiert bereits ein Benutzer mit dieser E-Mail-Adresse.",
-    "ORG-R3": "Der Geschäftsbereich muss zur selben Gesellschaft gehören wie das Lager."
+    "ORG-R3": "Der Geschäftsbereich muss zur selben Gesellschaft gehören wie das Lager.",
+    "CONFLICT": "Es existiert bereits ein Eintrag mit diesem Code.",
+    "ORG-R5": "Die Gesellschaft kann nicht deaktiviert werden, solange sie aktive Geschäftsbereiche oder Lager hat.",
+    "ORG-R7": "Die Währung muss aktiv sein; eine Währung, die eine aktive Gesellschaft oder Gruppe verwendet, kann nicht deaktiviert werden."
   },
   "shell": {
     "skipToContent": "Zum Inhalt springen",
@@ -329,11 +332,13 @@
         "isActive": "Status"
       },
       "sections": {
-        "currency": "Währung"
+        "currency": "Währung",
+        "names": "Name in jeder Sprache"
       },
       "hints": {
-        "fixed": "Währungen sind in NEXUS vorgegeben: Sie können sie nur aktivieren oder deaktivieren.",
-        "minorUnits": "Anzahl Nachkommastellen bei Beträgen in dieser Währung."
+        "fixed": "Code und Dezimalstellen ändern sich nach dem Anlegen nicht; Sie können die Währung umbenennen sowie aktivieren oder deaktivieren.",
+        "minorUnits": "Anzahl Nachkommastellen bei Beträgen in dieser Währung.",
+        "code": "Drei Grossbuchstaben (ISO 4217), z. B. SEK."
       },
       "activate": "Aktivieren",
       "deactivate": "Deaktivieren",
@@ -344,8 +349,15 @@
       "activated": "Währung aktiviert",
       "deactivated": "Währung deaktiviert",
       "errors": {
-        "inUse": "«{{name}}» kann nicht deaktiviert werden: Mindestens eine aktive Gesellschaft oder Gruppe verwendet diese Währung."
-      }
+        "inUse": "«{{name}}» kann nicht deaktiviert werden: Mindestens eine aktive Gesellschaft oder Gruppe verwendet diese Währung.",
+        "codeFormat": "Geben Sie drei Grossbuchstaben (A–Z) ein.",
+        "minorUnitsRange": "Wert zwischen 0 und 4."
+      },
+      "new": "Neue Währung",
+      "newTitle": "Neue Währung",
+      "createSubtitle": "Eine ISO-4217-Währung, die bei Gesellschaften und Gruppen gewählt werden kann. Code und Dezimalstellen lassen sich später nicht mehr ändern. Felder mit * sind Pflichtfelder.",
+      "created": "Währung angelegt",
+      "renamed": "Name gespeichert"
     },
     "locations": {
       "title": "Standorte",
@@ -540,8 +552,10 @@
       "warehouse": "Neues Lager",
       "user": "Neuer Benutzer",
       "party": "Neuer Partner",
-      "role": "Neue Rolle"
-    }
+      "role": "Neue Rolle",
+      "currency": "Neue Währung"
+    },
+    "unavailable": "Nicht verfügbar"
   },
   "shared": {
     "dataGrid": {
@@ -630,7 +644,8 @@
     "form": {
       "required": "Pflichtfeld",
       "reviewFields": "Bitte prüfen Sie die {{count}} markierten Felder.",
-      "reviewFieldsOne": "Bitte prüfen Sie das markierte Feld."
+      "reviewFieldsOne": "Bitte prüfen Sie das markierte Feld.",
+      "invalidValue": "Ungültiger Wert"
     }
   },
   "audit": {

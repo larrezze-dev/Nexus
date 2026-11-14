@@ -9,6 +9,7 @@ import {
   output,
   signal,
 } from '@angular/core';
+import { markServerErrors } from '../../../shared/forms/server-errors';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
@@ -125,6 +126,9 @@ export class PartyFormComponent {
   protected readonly invalidCount = signal(0);
 
   constructor() {
+    // Server field errors (400, or a 409 duplicate code) also mark the controls, so `mat-error` shows.
+    effect(() => markServerErrors(this.form.controls, this.fieldErrors()));
+
     effect(() => {
       this.initial();
       this.resetToInitial();

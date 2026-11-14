@@ -29,7 +29,16 @@ describe('OrgTreeFacade', () => {
     const load = facade.load();
 
     httpMock.expectOne('/api/platform/v1/groups?page=1&pageSize=200').flush({
-      items: [{ id: 'g1', partyId: 'p-g1', code: 'NUSSLI', reportingCurrencyCode: 'CHF' }],
+      items: [
+        {
+          id: 'g1',
+          partyId: 'p-g1',
+          code: 'NUSSLI',
+          legalName: 'SAPE smart bud Holding AG',
+          displayName: 'SAPE Holding',
+          reportingCurrencyCode: 'CHF',
+        },
+      ],
       page: 1,
       pageSize: 200,
       total: 1,
@@ -97,20 +106,20 @@ describe('OrgTreeFacade', () => {
 
     const [group] = facade.nodes();
     expect(group.kind).toBe('group');
-    expect(group).toMatchObject({ code: 'NUSSLI', name: null, captionI18n: null, label: 'NUSSLI' });
+    // The group is named after its party (short name first), not only by its code.
+    expect(group).toMatchObject({ code: 'NUSSLI', name: 'SAPE Holding', captionI18n: null });
     expect(group.isActive).toBeNull();
 
     const [legalEntity] = group.children;
     expect(legalEntity.kind).toBe('legalEntity');
     // The trade name when there is one (else the legal name); the code stays separate.
-    expect(legalEntity).toMatchObject({ code: 'LE-CH', name: 'SSB Schweiz', captionI18n: null, label: 'SSB Schweiz' });
+    expect(legalEntity).toMatchObject({ code: 'LE-CH', name: 'SSB Schweiz', captionI18n: null });
     expect(legalEntity.isActive).toBe(true);
     expect(legalEntity.children).toHaveLength(2);
 
     const businessUnit = legalEntity.children.find((node) => node.kind === 'businessUnit');
     // Raw caption: the page shows it in the active language.
     expect(businessUnit?.captionI18n).toEqual({ de: 'Vermietung', en: 'Rental' });
-    expect(businessUnit?.label).toBe('Rental');
     expect(businessUnit?.children).toHaveLength(1);
     expect(businessUnit?.children[0]).toMatchObject({ kind: 'warehouse', id: 'wh1', isActive: true });
 
@@ -185,6 +194,8 @@ describe('OrgTreeFacade', () => {
 
     expect(facade.loading()).toBe(false);
     expect(facade.nodes()).toEqual([]);
-    expect(facade.error()).toBe('boom');
+    // Never the server's English `detail`: the generic translated text.
+    expect(facade.error()).not.toBe('boom');
+    expect(facade.error()).toBeTruthy();
   });
 });

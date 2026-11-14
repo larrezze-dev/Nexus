@@ -154,6 +154,9 @@
           @if (form.controls.code.hasError('required')) {
             <mat-error>{{ 'shared.form.required' | transloco }}</mat-error>
           }
+          @if (form.controls.code.hasError('conflict')) {
+            <mat-error data-testid="warehouse-code-conflict">{{ 'errors.CONFLICT' | transloco }}</mat-error>
+          }
         </mat-form-field>
       </nx-form-grid>
       <nx-form-grid>
@@ -371,6 +374,9 @@
                   data-testid="warehouse-new-location-code"
                 />
                 <mat-hint>{{ 'org.warehouses.address.hints.code' | transloco }}</mat-hint>
+                @if (form.controls.newLocation.controls.code.hasError('conflict')) {
+                  <mat-error data-testid="warehouse-new-location-code-conflict">{{ 'errors.CONFLICT' | transloco }}</mat-error>
+                }
               </mat-form-field>
             </nx-form-grid>
             <nx-form-grid>

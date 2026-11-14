@@ -7,7 +7,8 @@ import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatTreeModule, MatTreeNestedDataSource } from '@angular/material/tree';
 import { TranslocoModule } from '@jsverse/transloco';
 import { OrgTreeFacade } from '../../org/tree/org-tree.facade';
-import { OrgTreeNode, OrgTreeNodeKind } from '../../org/tree/org-tree.model';
+import { NxI18nService } from '../../../core/i18n/nx-i18n.service';
+import { OrgTreeNode, OrgTreeNodeKind, orgTreeNodeLabel } from '../../org/tree/org-tree.model';
 import { RoleAssignmentsFacade } from './role-assignments.facade';
 
 const ICON_BY_KIND: Readonly<Record<OrgTreeNodeKind, string>> = {
@@ -63,13 +64,13 @@ const ICON_BY_KIND: Readonly<Record<OrgTreeNodeKind, string>> = {
               mat-icon-button
               matTreeNodeToggle
               type="button"
-              [attr.aria-label]="node.label"
+              [attr.aria-label]="labelOf(node)"
               [style.visibility]="hasChild(0, node) ? 'visible' : 'hidden'"
             >
               <mat-icon>{{ treeControl.isExpanded(node) ? 'expand_more' : 'chevron_right' }}</mat-icon>
             </button>
             <mat-icon [attr.aria-hidden]="true">{{ iconFor(node) }}</mat-icon>
-            <span class="nx-effective-scope-tree__label">{{ node.label }}</span>
+            <span class="nx-effective-scope-tree__label">{{ labelOf(node) }}</span>
             @if (isVisible(node)) {
               <mat-icon class="nx-effective-scope-tree__check" [attr.aria-label]="'access.effectiveScope.visible' | transloco">
                 visibility
@@ -114,6 +115,7 @@ export class EffectiveScopePage implements OnInit {
   private readonly route = inject(ActivatedRoute);
   protected readonly orgTreeFacade = inject(OrgTreeFacade);
   private readonly assignmentsFacade = inject(RoleAssignmentsFacade);
+  private readonly i18n = inject(NxI18nService);
 
   protected readonly treeControl = new NestedTreeControl<OrgTreeNode>((node) => node.children);
   protected readonly dataSource = new MatTreeNestedDataSource<OrgTreeNode>();
@@ -124,6 +126,11 @@ export class EffectiveScopePage implements OnInit {
   protected readonly projectIds = signal<string[]>([]);
 
   private visibleIds = new Set<string>();
+
+  /** Node name in the active language; reads the language signal, so it follows a switch. */
+  protected labelOf(node: OrgTreeNode): string {
+    return orgTreeNodeLabel(node, this.i18n.activeLang());
+  }
 
   protected readonly hasChild = (_: number, node: OrgTreeNode): boolean => node.children.length > 0;
 

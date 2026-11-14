@@ -93,22 +93,37 @@ export class BusinessUnitsFacade {
     }));
   }
 
+  /** Monotonic sequence: only the latest `load()` (and none issued before a `reset()`) may apply its result. */
+  private loadSeq = 0;
+
   /** Loads the unit (and its ETag) plus its `Party` (legal name and short name, read-only). */
   async load(id: string): Promise<void> {
+    const seq = ++this.loadSeq;
     this.loadingSignal.set(true);
     this.errorSignal.set(null);
     try {
       const response = await this.api.invoke$Response(getBusinessUnit, { id });
+      if (seq !== this.loadSeq) {
+        return;
+      }
       this.selectedSignal.set(response.body);
       this.etag = response.headers.get('ETag');
-      this.partySignal.set(await this.fetchParty(response.body.partyId));
+      const party = await this.fetchParty(response.body.partyId);
+      if (seq !== this.loadSeq) {
+        return;
+      }
+      this.partySignal.set(party);
     } catch {
-      this.selectedSignal.set(null);
-      this.partySignal.set(null);
-      this.etag = null;
-      this.errorSignal.set('load_failed');
+      if (seq === this.loadSeq) {
+        this.selectedSignal.set(null);
+        this.partySignal.set(null);
+        this.etag = null;
+        this.errorSignal.set('load_failed');
+      }
     } finally {
-      this.loadingSignal.set(false);
+      if (seq === this.loadSeq) {
+        this.loadingSignal.set(false);
+      }
     }
   }
 
@@ -151,6 +166,8 @@ export class BusinessUnitsFacade {
 
   /** Clears `selected`/`error`/the stored `ETag` — call when entering the detail page fresh. */
   reset(): void {
+    this.loadSeq++;
+    this.loadingSignal.set(false);
     this.selectedSignal.set(null);
     this.partySignal.set(null);
     this.errorSignal.set(null);

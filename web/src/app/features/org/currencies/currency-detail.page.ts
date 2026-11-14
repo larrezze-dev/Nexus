@@ -1,6 +1,7 @@
 import {
   ChangeDetectionStrategy,
   Component,
+  DestroyRef,
   OnInit,
   computed,
   effect,
@@ -8,13 +9,16 @@ import {
   signal,
 } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
-import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
-import { MatInputModule } from '@angular/material/input';
 import { MatSnackBar } from '@angular/material/snack-bar';
-import { ActivatedRoute } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
 import { TranslocoModule, TranslocoService } from '@jsverse/transloco';
 import { Currency } from '../../../api/platform/models/currency';
+import {
+  isConcurrencyConflict,
+  localizedFieldErrors,
+  problemOf,
+} from '../../../core/http/problem';
 import { NxI18nService } from '../../../core/i18n/nx-i18n.service';
 import { NxBreadcrumbService } from '../../../core/layout/breadcrumb.service';
 import { PermissionsStore } from '../../../shared/auth/permissions.store';
@@ -22,24 +26,22 @@ import { resolveCaption } from '../../../shared/ui/caption/caption.util';
 import {
   NxConfirm,
   NxEmptyStateComponent,
-  NxFormGridComponent,
-  NxFormSectionComponent,
   NxPageComponent,
   NxPageHeaderComponent,
-  NxSpanDirective,
 } from '../../../shared/ui/layout';
 import { NxStatusBadgeComponent } from '../../../shared/ui/nx-status-badge/nx-status-badge.component';
 import { CurrenciesFacade } from './currencies.facade';
+import { CurrencyFormComponent, CurrencyFormValue } from './currency-form.component';
 
 /**
  * Currency detail (`conventions-frontend.md §4.5`): header with the currency name in the active
- * language (also the last breadcrumb), the ISO code as subtitle, the status badge and the only
- * write the API offers — «Deactivate» (destructive, with `NxConfirm`) or «Activate».
+ * language (also the last breadcrumb), the ISO code as subtitle, the status badge, «Deactivate»
+ * (destructive, with `NxConfirm`) or «Activate», and the form to rename it (the code and the
+ * decimals are locked after creation). Renaming sends `PUT` with the `ETag` of the load.
  *
- * Every field is fixed by the seed (the API only changes `isActive`), so the page shows them
- * read-only with a lock and has no «Save» bar. No tabs: there is no audit projection for
- * currencies. ORG-R7 (a currency used by an active group or legal entity cannot be deactivated)
- * comes back as a 422 and is shown as an alert in the user's language.
+ * No tabs: there is no audit projection for currencies. ORG-R7 (a currency used by an active
+ * group or legal entity cannot be deactivated) comes back as a 422 and is shown as an alert in
+ * the user's language; a stale `ETag` (409 `CONCURRENCY`) is handled by `errorInterceptor`.
  */
 @Component({
   selector: 'nx-currency-detail-page',
@@ -47,16 +49,12 @@ import { CurrenciesFacade } from './currencies.facade';
   imports: [
     TranslocoModule,
     MatButtonModule,
-    MatFormFieldModule,
     MatIconModule,
-    MatInputModule,
     NxEmptyStateComponent,
-    NxFormGridComponent,
-    NxFormSectionComponent,
     NxPageComponent,
     NxPageHeaderComponent,
-    NxSpanDirective,
     NxStatusBadgeComponent,
+    CurrencyFormComponent,
   ],
   template: `
     @if (currency(); as current) {
@@ -100,40 +98,17 @@ import { CurrenciesFacade } from './currencies.facade';
           </div>
         }
 
-        <nx-form-section
-          [title]="'org.currencies.sections.currency' | transloco"
-          [hint]="'org.currencies.hints.fixed' | transloco"
-        >
-          <nx-form-grid>
-            <mat-form-field nxSpan="s" subscriptSizing="dynamic" class="nx-field--locked">
-              <mat-label>{{ 'org.currencies.fields.code' | transloco }}</mat-label>
-              <input
-                matInput
-                class="nx-mono"
-                [value]="current.code"
-                disabled
-                data-testid="currency-detail-code"
-              />
-              <mat-icon matSuffix aria-hidden="true">lock</mat-icon>
-            </mat-form-field>
-            <mat-form-field nxSpan="l" subscriptSizing="dynamic" class="nx-field--locked">
-              <mat-label>{{ 'org.currencies.fields.caption' | transloco }}</mat-label>
-              <input matInput [value]="name()" disabled data-testid="currency-detail-caption" />
-              <mat-icon matSuffix aria-hidden="true">lock</mat-icon>
-            </mat-form-field>
-            <mat-form-field nxSpan="s" subscriptSizing="dynamic" class="nx-field--locked">
-              <mat-label>{{ 'org.currencies.fields.minorUnits' | transloco }}</mat-label>
-              <input
-                matInput
-                [value]="current.minorUnits"
-                disabled
-                data-testid="currency-detail-minor-units"
-              />
-              <mat-icon matSuffix aria-hidden="true">lock</mat-icon>
-              <mat-hint>{{ 'org.currencies.hints.minorUnits' | transloco }}</mat-hint>
-            </mat-form-field>
-          </nx-form-grid>
-        </nx-form-section>
+        <p class="nx-currency-detail__hint">{{ 'org.currencies.hints.fixed' | transloco }}</p>
+
+        <nx-currency-form
+          mode="edit"
+          [initial]="current"
+          [saving]="renaming()"
+          [readOnly]="!canUpdate()"
+          [fieldErrors]="fieldErrors()"
+          (save)="onRename($event)"
+          (cancel)="onCancel()"
+        />
       </nx-page>
     } @else if (loadError()) {
       <nx-page width="form">
@@ -160,6 +135,7 @@ export class CurrencyDetailPage implements OnInit {
   private readonly transloco = inject(TranslocoService);
   private readonly breadcrumb = inject(NxBreadcrumbService);
   private readonly snackBar = inject(MatSnackBar);
+  private readonly router = inject(Router);
   private readonly confirm = inject(NxConfirm);
   private readonly permissions = inject(PermissionsStore);
 
@@ -167,6 +143,9 @@ export class CurrencyDetailPage implements OnInit {
   protected readonly loadError = signal(false);
   protected readonly busy = signal(false);
   protected readonly actionError = signal<string | null>(null);
+  protected readonly renaming = signal(false);
+  protected readonly fieldErrors = signal<Readonly<Record<string, readonly string[]>>>({});
+  private destroyed = false;
 
   protected readonly canUpdate = computed(() => {
     this.permissions.permissions(); // re-evaluate when permissions change
@@ -182,6 +161,8 @@ export class CurrencyDetailPage implements OnInit {
   });
 
   constructor() {
+    inject(DestroyRef).onDestroy(() => (this.destroyed = true));
+
     // The last breadcrumb is the currency name, in the active language.
     effect(() => {
       const name = this.name();
@@ -203,12 +184,62 @@ export class CurrencyDetailPage implements OnInit {
     }
     this.loadError.set(false);
     try {
-      this.currency.set(await this.facade.get(code));
+      const currency = await this.facade.get(code);
+      if (!this.destroyed) {
+        this.currency.set(currency);
+      }
     } catch {
+      if (this.destroyed) {
+        return;
+      }
       // A 404 is already sent to the «not found» page by `errorInterceptor`.
       this.currency.set(null);
       this.loadError.set(true);
+      this.breadcrumb.setLoadFailed();
     }
+  }
+
+  /** Saves a new name (`PUT` with the current status and the `ETag` of the load). */
+  protected async onRename(value: CurrencyFormValue): Promise<void> {
+    const current = this.currency();
+    if (!current) {
+      return;
+    }
+    this.renaming.set(true);
+    this.actionError.set(null);
+    this.fieldErrors.set({});
+    try {
+      await this.facade.rename(current.code, value.captionI18n, this.facade.etag(current.code));
+      this.snackBar.open(this.transloco.translate('org.currencies.renamed'), undefined, {
+        duration: 4000,
+      });
+      await this.load();
+    } catch (error: unknown) {
+      this.handleRenameError(error);
+    } finally {
+      this.renaming.set(false);
+    }
+  }
+
+  protected onCancel(): void {
+    void this.router.navigateByUrl('/org/currencies');
+  }
+
+  private handleRenameError(error: unknown): void {
+    const http = error as { status?: number } | undefined;
+    const problem = problemOf(error);
+    if (isConcurrencyConflict(error)) {
+      // `errorInterceptor` already opened the concurrency dialog.
+      return;
+    }
+    if (http?.status === 400 && problem?.errors) {
+      this.fieldErrors.set(
+        localizedFieldErrors(problem.errors, this.transloco.translate('shared.form.invalidValue')),
+      );
+      this.actionError.set(this.transloco.translate('errors.validation'));
+      return;
+    }
+    this.actionError.set(this.i18n.translateErrorCode(http?.status === 422 ? problem?.code : undefined));
   }
 
   protected async onDeactivate(): Promise<void> {
@@ -255,6 +286,10 @@ export class CurrencyDetailPage implements OnInit {
       }
       const failure = this.facade.toggleError();
       this.facade.clearToggleError();
+      if (failure?.problemCode === 'CONCURRENCY') {
+        // `errorInterceptor` already opened the concurrency dialog.
+        return;
+      }
       this.actionError.set(
         failure?.problemCode === 'ORG-R7'
           ? this.transloco.translate('org.currencies.errors.inUse', { name: this.name() })

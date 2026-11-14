@@ -5,7 +5,13 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { ActivatedRoute, Router } from '@angular/router';
 import { TranslocoModule, TranslocoService } from '@jsverse/transloco';
-import { isProblem } from '../../../core/http/problem';
+import {
+  isConcurrencyConflict,
+  isDuplicateConflict,
+  isProblem,
+  localizedFieldErrors,
+} from '../../../core/http/problem';
+import { NxFormatService } from '../../../core/i18n/nx-format.service';
 import { NxI18nService } from '../../../core/i18n/nx-i18n.service';
 import { NxBreadcrumbService } from '../../../core/layout/breadcrumb.service';
 import { PermissionsStore } from '../../../shared/auth/permissions.store';
@@ -13,9 +19,6 @@ import { NxEmptyStateComponent, NxPageComponent, NxPageHeaderComponent } from '.
 import { NxStatusBadgeComponent } from '../../../shared/ui/nx-status-badge/nx-status-badge.component';
 import { LocationFormComponent, LocationFormValue } from './location-form.component';
 import { LocationFacade } from './location.facade';
-
-/** Dates are shown in this time zone. */
-const DISPLAY_TIME_ZONE = 'Europe/Zurich';
 
 /**
  * Location detail and create page (`conventions-frontend.md §4.5–§4.6`), same structure as the
@@ -52,6 +55,7 @@ export class LocationDetailPage implements OnInit {
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
   private readonly i18n = inject(NxI18nService);
+  private readonly format = inject(NxFormatService);
   private readonly transloco = inject(TranslocoService);
   private readonly breadcrumb = inject(NxBreadcrumbService);
   private readonly snackBar = inject(MatSnackBar);
@@ -81,15 +85,19 @@ export class LocationDetailPage implements OnInit {
     }
     this.translation();
     const lang = this.transloco.getActiveLang();
-    const date = new Intl.DateTimeFormat(lang === 'de' ? 'de-CH' : lang, {
-      dateStyle: 'medium',
-      timeZone: DISPLAY_TIME_ZONE,
-    }).format(new Date(location.updatedAt));
-    const modified = this.transloco.translate('org.locations.detail.modified', { date }, lang);
-    return location.code ? `${location.code} · ${modified}` : modified;
+    const date = this.format.formatDateMedium(location.updatedAt);
+    const modified = date ? this.transloco.translate('org.locations.detail.modified', { date }, lang) : '';
+    return [location.code, modified].filter(Boolean).join(' · ');
   });
 
   constructor() {
+    // A record that failed to load never gets a name: the breadcrumb says so.
+    effect(() => {
+      if (this.mode() === 'edit' && this.facade.error()) {
+        this.breadcrumb.setLoadFailed();
+      }
+    });
+
     // The last breadcrumb is the location name (updated after a rename too).
     effect(() => {
       const name = this.location()?.name;
@@ -154,7 +162,9 @@ export class LocationDetailPage implements OnInit {
     const body = httpError?.error;
 
     if (httpError?.status === 400 && isProblem(body) && body.errors) {
-      this.fieldErrors.set(body.errors);
+      this.fieldErrors.set(
+        localizedFieldErrors(body.errors, this.transloco.translate('shared.form.invalidValue')),
+      );
       this.saveError.set(this.transloco.translate('errors.validation'));
       return;
     }
@@ -164,8 +174,13 @@ export class LocationDetailPage implements OnInit {
       return;
     }
 
-    if (httpError?.status === 409) {
+    if (isConcurrencyConflict(error)) {
       // `errorInterceptor` already opened the concurrency dialog; nothing else to show here.
+      return;
+    }
+
+    if (isDuplicateConflict(error)) {
+      this.fieldErrors.set({ code: [this.transloco.translate('errors.CONFLICT')] });
       return;
     }
 

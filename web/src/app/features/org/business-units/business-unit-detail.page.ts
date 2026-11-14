@@ -6,7 +6,13 @@ import { MatSnackBar } from '@angular/material/snack-bar';
 import { MatTabsModule } from '@angular/material/tabs';
 import { ActivatedRoute, Router } from '@angular/router';
 import { TranslocoModule, TranslocoService } from '@jsverse/transloco';
-import { isProblem } from '../../../core/http/problem';
+import {
+  isConcurrencyConflict,
+  isDuplicateConflict,
+  isProblem,
+  localizedFieldErrors,
+} from '../../../core/http/problem';
+import { NxFormatService } from '../../../core/i18n/nx-format.service';
 import { NxI18nService } from '../../../core/i18n/nx-i18n.service';
 import { NxBreadcrumbService } from '../../../core/layout/breadcrumb.service';
 import { NxCanDirective } from '../../../shared/auth/can.directive';
@@ -22,9 +28,6 @@ import {
 import { NxStatusBadgeComponent } from '../../../shared/ui/nx-status-badge/nx-status-badge.component';
 import { BusinessUnitFormComponent, BusinessUnitFormValue } from './business-unit-form.component';
 import { BusinessUnitLegalEntityOption, BusinessUnitsFacade } from './business-units.facade';
-
-/** Dates are shown in this time zone. */
-const DISPLAY_TIME_ZONE = 'Europe/Zurich';
 
 /**
  * Business-unit detail and create page (`conventions-frontend.md §4.5–§4.6`), same structure as
@@ -62,6 +65,7 @@ export class BusinessUnitDetailPage implements OnInit {
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
   private readonly i18n = inject(NxI18nService);
+  private readonly format = inject(NxFormatService);
   private readonly transloco = inject(TranslocoService);
   private readonly breadcrumb = inject(NxBreadcrumbService);
   private readonly confirm = inject(NxConfirm);
@@ -101,14 +105,19 @@ export class BusinessUnitDetailPage implements OnInit {
     }
     this.translation();
     const lang = this.transloco.getActiveLang();
-    const date = new Intl.DateTimeFormat(lang === 'de' ? 'de-CH' : lang, {
-      dateStyle: 'medium',
-      timeZone: DISPLAY_TIME_ZONE,
-    }).format(new Date(entity.updatedAt));
-    return `${entity.code} · ${this.transloco.translate('org.businessUnits.detail.modified', { date }, lang)}`;
+    const date = this.format.formatDateMedium(entity.updatedAt);
+    const modified = date ? this.transloco.translate('org.businessUnits.detail.modified', { date }, lang) : '';
+    return [entity.code, modified].filter(Boolean).join(' · ');
   });
 
   constructor() {
+    // A record that failed to load never gets a name: the breadcrumb says so.
+    effect(() => {
+      if (this.mode() === 'edit' && this.facade.error()) {
+        this.breadcrumb.setLoadFailed();
+      }
+    });
+
     // The breadcrumb names the record and follows a language switch (the name is a caption).
     effect(() => {
       const name = this.name();
@@ -224,7 +233,9 @@ export class BusinessUnitDetailPage implements OnInit {
     const body = httpError?.error;
 
     if (httpError?.status === 400 && isProblem(body) && body.errors) {
-      this.fieldErrors.set(body.errors);
+      this.fieldErrors.set(
+        localizedFieldErrors(body.errors, this.transloco.translate('shared.form.invalidValue')),
+      );
       this.saveError.set(this.transloco.translate('errors.validation'));
       return;
     }
@@ -234,8 +245,13 @@ export class BusinessUnitDetailPage implements OnInit {
       return;
     }
 
-    if (httpError?.status === 409) {
+    if (isConcurrencyConflict(error)) {
       // `errorInterceptor` already opened the concurrency dialog; nothing else to show here.
+      return;
+    }
+
+    if (isDuplicateConflict(error)) {
+      this.fieldErrors.set({ code: [this.transloco.translate('errors.CONFLICT')] });
       return;
     }
 

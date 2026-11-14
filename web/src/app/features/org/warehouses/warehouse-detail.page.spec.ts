@@ -104,7 +104,7 @@ async function setupPage(
       {
         provide: NxBreadcrumbService,
         useValue: {
-          setCurrentLabel: vi.fn(),
+          setCurrentLabel: vi.fn(), setLoadFailed: vi.fn(),
           claimForPage: () => () => undefined,
           trail: signal([]),
         },

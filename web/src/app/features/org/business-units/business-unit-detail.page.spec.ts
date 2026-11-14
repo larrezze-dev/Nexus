@@ -106,7 +106,7 @@ async function setupPage(paramMap: Record<string, string>, facade: ReturnType<ty
       { provide: Router, useValue: { navigate: vi.fn().mockResolvedValue(true) } },
       {
         provide: NxBreadcrumbService,
-        useValue: { setCurrentLabel: vi.fn(), claimForPage: () => () => undefined, trail: signal([]) },
+        useValue: { setCurrentLabel: vi.fn(), setLoadFailed: vi.fn(), claimForPage: () => () => undefined, trail: signal([]) },
       },
       { provide: NxConfirm, useValue: confirmStub },
     ],
@@ -146,7 +146,7 @@ describe('BusinessUnitDetailPage', () => {
 
     await fixture.componentInstance['onSave'](formValue);
 
-    expect(fixture.componentInstance['fieldErrors']()).toEqual({ code: ['Code already in use'] });
+    expect(fixture.componentInstance['fieldErrors']()).toEqual({ code: ['shared.form.invalidValue'] });
     expect(fixture.componentInstance['saveError']()).toBe('Fix the fields');
   });
 

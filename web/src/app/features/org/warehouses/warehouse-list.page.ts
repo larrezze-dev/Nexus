@@ -8,7 +8,7 @@ import { MatInputModule } from '@angular/material/input';
 import { MatSelectModule } from '@angular/material/select';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { TranslocoModule } from '@jsverse/transloco';
-import { Observable, catchError, debounceTime, map, of, tap } from 'rxjs';
+import { Observable, catchError, debounce, map, of, tap, timer } from 'rxjs';
 import { BusinessUnitListItem } from '../../../api/platform/models/business-unit-list-item';
 import { LegalEntityListItem } from '../../../api/platform/models/legal-entity-list-item';
 import { WarehouseListItem } from '../../../api/platform/models/warehouse-list-item';
@@ -202,7 +202,8 @@ export class WarehouseListPage {
   protected readonly q = new FormControl('', { nonNullable: true });
   private readonly qValue = toSignal(
     this.q.valueChanges.pipe(
-      debounceTime(WAREHOUSE_SEARCH_DEBOUNCE_MS),
+      // Typing waits for a pause; an empty box («Clear filters») reloads immediately.
+      debounce((value) => (value.trim() === '' ? of(0) : timer(WAREHOUSE_SEARCH_DEBOUNCE_MS))),
       map((value) => value.trim()),
     ),
     { initialValue: '' },

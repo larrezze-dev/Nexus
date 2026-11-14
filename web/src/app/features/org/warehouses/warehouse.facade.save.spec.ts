@@ -76,7 +76,10 @@ describe('WarehouseFacade save()', () => {
     const result = facade.save(null, value({ addressMode: 'newLocation', locationId: null }));
     expect(facade.saveStep()).toBe('creatingLocation');
     const loc = http.expectOne(`${base}/locations`);
+    // Client-generated UUIDv7 `id`: the create is idempotent (ADR-0009).
+    expect(loc.request.body.id).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/);
     expect(loc.request.body).toEqual({
+      id: loc.request.body.id,
       code: null,
       name: 'Depot',
       street: 'Main 1',

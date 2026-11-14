@@ -27,7 +27,8 @@ export const NEXUS_UNAUTHORIZED_EVENT = 'nexus:auth:unauthorized';
  * - 403: navigates to `/forbidden?permission=<Problem.requiredPermission>` (query param, not
  *   router state, so the page is reachable and testable without relying on navigation history).
  * - 404: navigates to `/not-found`.
- * - 409 with `Problem.type === 'concurrency'`: does not navigate. Opens the
+ * - 409 with `Problem.code === 'CONCURRENCY'` (the backend's `NexusProblemType`; the legacy
+ *   `type: 'concurrency'` is still accepted): does not navigate. Opens the
  *   `ConcurrencyDialogService` dialog instead, so the user stays on the page that triggered
  *   the conflict. Any other 409 is re-thrown as-is (e.g. the idempotent-create "different
  *   content" conflict from conventions-api.md §5, which a form must handle itself).
@@ -75,7 +76,7 @@ export const errorInterceptor: HttpInterceptorFn = (req, next) => {
             break;
           }
           case 409: {
-            if (problem?.type === 'concurrency') {
+            if (problem?.code === 'CONCURRENCY' || problem?.type === 'concurrency') {
               concurrencyDialog.open();
             }
             break;

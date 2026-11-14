@@ -23,7 +23,10 @@
     "SAMPLE-R1": "Exemple de message pour la règle métier SAMPLE-R1 — à remplacer par le vrai texte.",
     "ORG-R6": "L'utilisateur SYSTEM ne peut pas être modifié ni désactivé.",
     "ORG-R9": "Un utilisateur avec cet e-mail existe déjà.",
-    "ORG-R3": "L'unité d'affaires doit appartenir à la même entité juridique que l'entrepôt."
+    "ORG-R3": "L'unité d'affaires doit appartenir à la même entité juridique que l'entrepôt.",
+    "CONFLICT": "Un enregistrement avec ce code existe déjà.",
+    "ORG-R5": "L'entité juridique ne peut pas être désactivée tant qu'elle a des unités d'affaires ou des entrepôts actifs.",
+    "ORG-R7": "La devise doit être active ; une devise utilisée par une entité juridique ou un groupe actifs ne peut pas être désactivée."
   },
   "shell": {
     "skipToContent": "Aller au contenu",
@@ -147,8 +150,10 @@
       "warehouse": "Nouvel entrepôt",
       "user": "Nouvel utilisateur",
       "party": "Nouveau partenaire",
-      "role": "Nouveau rôle"
-    }
+      "role": "Nouveau rôle",
+      "currency": "Nouvelle devise"
+    },
+    "unavailable": "Indisponible"
   },
   "shared": {
     "dataGrid": {
@@ -237,7 +242,8 @@
     "form": {
       "required": "Champ obligatoire",
       "reviewFields": "Vérifiez les {{count}} champs signalés.",
-      "reviewFieldsOne": "Vérifiez le champ signalé."
+      "reviewFieldsOne": "Vérifiez le champ signalé.",
+      "invalidValue": "Valeur non valide"
     }
   },
   "org": {
@@ -488,11 +494,13 @@
         "isActive": "Statut"
       },
       "sections": {
-        "currency": "Devise"
+        "currency": "Devise",
+        "names": "Nom dans chaque langue"
       },
       "hints": {
-        "fixed": "Les devises sont prédéfinies dans NEXUS : vous pouvez seulement les activer ou les désactiver.",
-        "minorUnits": "Nombre de décimales des montants dans cette devise."
+        "fixed": "Le code et les décimales ne changent pas après la création ; vous pouvez renommer la devise et l'activer ou la désactiver.",
+        "minorUnits": "Nombre de décimales des montants dans cette devise.",
+        "code": "Trois lettres majuscules (ISO 4217), p. ex. SEK."
       },
       "activate": "Activer",
       "deactivate": "Désactiver",
@@ -503,8 +511,15 @@
       "activated": "Devise activée",
       "deactivated": "Devise désactivée",
       "errors": {
-        "inUse": "Impossible de désactiver «{{name}}» : au moins une entité juridique ou un groupe actif utilise cette devise."
-      }
+        "inUse": "Impossible de désactiver «{{name}}» : au moins une entité juridique ou un groupe actif utilise cette devise.",
+        "codeFormat": "Saisissez trois lettres majuscules (A–Z).",
+        "minorUnitsRange": "Une valeur entre 0 et 4."
+      },
+      "new": "Nouvelle devise",
+      "newTitle": "Nouvelle devise",
+      "createSubtitle": "Une devise ISO 4217 qui pourra être choisie pour les entités juridiques et les groupes. Le code et les décimales ne peuvent plus être modifiés ensuite. Les champs marqués * sont obligatoires.",
+      "created": "Devise créée",
+      "renamed": "Nom enregistré"
     },
     "locations": {
       "title": "Sites",

@@ -122,9 +122,9 @@ describe('LegalEntityListPage', () => {
     expect(root().querySelector('[data-testid="nx-filter-bar-clear"]')).toBeNull();
   });
 
-  it('only lets the user sort by the columns the API sorts on (code, legal name)', () => {
+  it('only lets the user sort by the columns the API sorts on (code, legal name, status)', () => {
     const columns = (fixture.componentInstance as unknown as { columns: { field: string; sortable: boolean }[] }).columns;
-    expect(columns.filter((column) => column.sortable).map((column) => column.field)).toEqual(['code', 'legalName']);
+    expect(columns.filter((column) => column.sortable).map((column) => column.field)).toEqual(['code', 'legalName', 'isActive']);
   });
 
   it('opens a row at its detail page', () => {

@@ -9,6 +9,7 @@ import {
   output,
   signal,
 } from '@angular/core';
+import { markServerErrors } from '../../../shared/forms/server-errors';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatFormFieldModule } from '@angular/material/form-field';
@@ -136,6 +137,9 @@ export class BusinessUnitFormComponent {
   protected readonly showPartySection = computed(() => this.mode() === 'create' || this.party() !== null);
 
   constructor() {
+    // Server field errors (400, or a 409 duplicate code) also mark the controls, so `mat-error` shows.
+    effect(() => markServerErrors(this.form.controls, this.fieldErrors()));
+
     effect(() => {
       this.initial();
       this.party();

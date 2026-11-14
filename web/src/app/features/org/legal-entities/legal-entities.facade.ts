@@ -63,6 +63,9 @@ export class LegalEntitiesFacade {
   readonly loading = this.loadingSignal.asReadonly();
   readonly error = this.errorSignal.asReadonly();
 
+  /** Monotonic sequence: only the latest `load()` (and none issued before a `reset()`) may apply its result. */
+  private loadSeq = 0;
+
   /** `nx-data-grid`'s `fetch` callback. `page` is 0-based; the API's `page` query param is 1-based. */
   list(
     page: number,
@@ -90,40 +93,45 @@ export class LegalEntitiesFacade {
   }
 
   /**
-   * `nx-entity-picker`'s `search` callback, used when picking a
-   * `BusinessUnit.legalEntityId`. `GET /v1/legal-entities` has no `q` query
-   * parameter in the contract (only `page`/`pageSize`/`sort`), so this
-   * fetches one page sorted by `code` and filters client-side on a
-   * substring match of `code` — acceptable while the number of legal
-   * entities per group stays small; revisit (back to Gate C) if that
-   * stops being true.
+   * `nx-entity-picker`'s `search` callback, used when picking a `BusinessUnit.legalEntityId`.
+   * The server filters (`q` matches `code` or `legalName`); one page sorted by `code` is enough
+   * for a picker.
    */
   search(query: string): Observable<LegalEntityListItem[]> {
-    return from(this.api.invoke(listLegalEntities, { page: 1, pageSize: 100, sort: 'code' })).pipe(
-      map((response) => {
-        const needle = query.trim().toLowerCase();
-        const items = response.items ?? [];
-        return needle ? items.filter((item) => item.code.toLowerCase().includes(needle)) : items;
-      }),
-    );
+    const q = query.trim();
+    return from(
+      this.api.invoke(listLegalEntities, { page: 1, pageSize: 100, sort: 'code', q: q ? q : undefined }),
+    ).pipe(map((response) => response.items ?? []));
   }
 
   /** Loads the entity (and its ETag) plus its `Party`, whose legal name is the record's title. */
   async load(id: string): Promise<void> {
+    const seq = ++this.loadSeq;
     this.loadingSignal.set(true);
     this.errorSignal.set(null);
     try {
       const response = await this.api.invoke$Response(getLegalEntity, { id });
+      if (seq !== this.loadSeq) {
+        return;
+      }
       this.selectedSignal.set(response.body);
       this.etag = response.headers.get('ETag');
-      this.partySignal.set(await this.fetchParty(response.body.partyId));
+      const party = await this.fetchParty(response.body.partyId);
+      if (seq !== this.loadSeq) {
+        return;
+      }
+      this.partySignal.set(party);
     } catch {
-      this.selectedSignal.set(null);
-      this.partySignal.set(null);
-      this.etag = null;
-      this.errorSignal.set('load_failed');
+      if (seq === this.loadSeq) {
+        this.selectedSignal.set(null);
+        this.partySignal.set(null);
+        this.etag = null;
+        this.errorSignal.set('load_failed');
+      }
     } finally {
-      this.loadingSignal.set(false);
+      if (seq === this.loadSeq) {
+        this.loadingSignal.set(false);
+      }
     }
   }
 
@@ -185,6 +193,8 @@ export class LegalEntitiesFacade {
 
   /** Clears `selected`/`error`/the stored `ETag` — call when entering the detail page fresh. */
   reset(): void {
+    this.loadSeq++;
+    this.loadingSignal.set(false);
     this.selectedSignal.set(null);
     this.partySignal.set(null);
     this.errorSignal.set(null);

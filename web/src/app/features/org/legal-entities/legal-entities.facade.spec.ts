@@ -115,19 +115,26 @@ describe('LegalEntitiesFacade', () => {
     expect(await result).toEqual([{ id: 'g1', code: 'SAPE', name: 'SAPE smart bud AG' }]);
   });
 
-  it('search() filters the fetched page by a case-insensitive code substring', async () => {
+  it('search() lets the server filter with q (no client-side filtering)', async () => {
     const { facade, httpMock } = setup();
 
-    const result = firstValueFrom(facade.search('ch'));
+    const result = firstValueFrom(facade.search(' ch '));
     const req = httpMock.expectOne((r) => r.url === '/api/platform/v1/legal-entities');
-    req.flush({
-      items: [listItem, { ...listItem, id: 'other', code: 'LE-FR' }],
-      page: 1,
-      pageSize: 100,
-      total: 2,
-    });
+    expect(req.request.params.get('q')).toBe('ch');
+    req.flush({ items: [listItem], page: 1, pageSize: 100, total: 1 });
 
     expect(await result).toEqual([listItem]);
+  });
+
+  it('search() sends no q for an empty query', async () => {
+    const { facade, httpMock } = setup();
+
+    const result = firstValueFrom(facade.search('  '));
+    const req = httpMock.expectOne((r) => r.url === '/api/platform/v1/legal-entities');
+    expect(req.request.params.has('q')).toBe(false);
+    req.flush({ items: [], page: 1, pageSize: 100, total: 0 });
+
+    expect(await result).toEqual([]);
   });
 
   it('load() stores the entity and the response ETag', async () => {

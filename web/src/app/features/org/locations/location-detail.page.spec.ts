@@ -77,7 +77,7 @@ async function setupPage(paramMap: Record<string, string>, facade: ReturnType<ty
       { provide: Router, useValue: { navigate: vi.fn().mockResolvedValue(true) } },
       {
         provide: NxBreadcrumbService,
-        useValue: { setCurrentLabel: vi.fn(), claimForPage: () => () => undefined, trail: signal([]) },
+        useValue: { setCurrentLabel: vi.fn(), setLoadFailed: vi.fn(), claimForPage: () => () => undefined, trail: signal([]) },
       },
     ],
   }).compileComponents();
@@ -207,7 +207,7 @@ describe('LocationDetailPage', () => {
 
     await fixture.componentInstance['onSave'](formValue);
 
-    expect(fixture.componentInstance['fieldErrors']()).toEqual({ countryCode: ['Unknown country'] });
+    expect(fixture.componentInstance['fieldErrors']()).toEqual({ countryCode: ['shared.form.invalidValue'] });
     expect(fixture.componentInstance['saveError']()).toBe('Fix the fields');
   });
 

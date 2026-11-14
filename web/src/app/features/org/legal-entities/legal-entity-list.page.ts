@@ -8,7 +8,7 @@ import { MatInputModule } from '@angular/material/input';
 import { MatSelectModule } from '@angular/material/select';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { TranslocoModule, TranslocoService } from '@jsverse/transloco';
-import { Observable, debounceTime, map, tap } from 'rxjs';
+import { Observable, debounce, map, of, tap, timer } from 'rxjs';
 import { LegalEntityListItem } from '../../../api/platform/models/legal-entity-list-item';
 import { NxCanDirective } from '../../../shared/auth/can.directive';
 import { countryName } from '../../../shared/ui/country/country-names';
@@ -36,8 +36,8 @@ export const LEGAL_ENTITY_SEARCH_DEBOUNCE_MS = 300;
 /**
  * Legal-entity list (`conventions-frontend.md §4.4`, list template): header with the record
  * count and «New legal entity», a filter bar (search by code or legal name, status) and the
- * server-paginated `nx-data-grid`. The API sorts by `code` and `legalName` only, so the other
- * columns are not sortable. A row (click, Enter, card tap) opens the detail page.
+ * server-paginated `nx-data-grid`. The code, legal name and status columns are sortable (the API
+ * also sorts by currency and country, but those show names, not the sorted codes). A row (click, Enter, card tap) opens the detail page.
  */
 @Component({
   selector: 'nx-legal-entity-list-page',
@@ -131,7 +131,8 @@ export class LegalEntityListPage {
   protected readonly q = new FormControl('', { nonNullable: true });
   private readonly qValue = toSignal(
     this.q.valueChanges.pipe(
-      debounceTime(LEGAL_ENTITY_SEARCH_DEBOUNCE_MS),
+      // Typing waits for a pause; an empty box («Clear filters») reloads immediately.
+      debounce((value) => (value.trim() === '' ? of(0) : timer(LEGAL_ENTITY_SEARCH_DEBOUNCE_MS))),
       map((value) => value.trim()),
     ),
     { initialValue: '' },
@@ -191,7 +192,7 @@ export class LegalEntityListPage {
       headerKey: 'org.legalEntities.fields.isActive',
       cellRenderer: OrgActiveStatusCellComponent,
       width: 140,
-      sortable: false,
+      sortable: true,
     },
   ];
 

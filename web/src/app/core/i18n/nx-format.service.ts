@@ -1,4 +1,5 @@
 import { Injectable, inject } from '@angular/core';
+import { dateLocaleFor } from './nx-date-locale';
 import { NxI18nService } from './nx-i18n.service';
 
 /** IANA zone used to display dates/times across NEXUS (conventions-frontend.md §7). */
@@ -36,5 +37,25 @@ export class NxFormatService {
       ...options,
     };
     return new Intl.DateTimeFormat(this.i18n.getActiveLanguage(), formatOptions).format(date);
+  }
+
+  /**
+   * Medium date («11 Nov 2026», «11. Nov. 2026») of a UTC ISO-8601 instant, in `Europe/Zurich` and
+   * the regional locale of the active language (`de` → `de-CH`). Returns `''` for a missing or
+   * invalid value, so a bad date never reaches the screen as «Invalid Date» or an error. Reads the
+   * `activeLang` signal, so a `computed` using it follows a language switch.
+   */
+  formatDateMedium(isoUtc: string | null | undefined): string {
+    if (!isoUtc) {
+      return '';
+    }
+    const date = new Date(isoUtc);
+    if (Number.isNaN(date.getTime())) {
+      return '';
+    }
+    return new Intl.DateTimeFormat(dateLocaleFor(this.i18n.activeLang()), {
+      dateStyle: 'medium',
+      timeZone: DISPLAY_TIME_ZONE,
+    }).format(date);
   }
 }

@@ -8,9 +8,9 @@ import { BusinessUnitListItem } from '../../../api/platform/models/business-unit
 import { GroupListItem } from '../../../api/platform/models/group-list-item';
 import { LegalEntityListItem } from '../../../api/platform/models/legal-entity-list-item';
 import { WarehouseListItem } from '../../../api/platform/models/warehouse-list-item';
-import { isProblem } from '../../../core/http/problem';
+import { problemOf } from '../../../core/http/problem';
 import { NxI18nService } from '../../../core/i18n/nx-i18n.service';
-import { OrgTreeNode, orgTreeNodeLabel } from './org-tree.model';
+import { OrgTreeNode } from './org-tree.model';
 
 /** Max `pageSize` the contract allows (`_shared/components.yaml`); minimizes the number of
  * pages fetched per level. */
@@ -29,8 +29,8 @@ const MAX_PAGE_SIZE = 200;
  * `businessUnitId`). Total HTTP calls = 4 (one per level) + 1 extra per level only once that
  * level's row count exceeds 200.
  *
- * Nodes keep the raw `captionI18n`/name next to the `label` of the load-time language: the org
- * tree page resolves the label again in the active language, so a switch needs no reload.
+ * Nodes keep the raw `captionI18n`/name: pages resolve the label with `orgTreeNodeLabel` in the
+ * active language, so a language switch needs no reload.
  */
 @Injectable({ providedIn: 'root' })
 export class OrgTreeFacade {
@@ -99,12 +99,6 @@ export class OrgTreeFacade {
     businessUnits: readonly BusinessUnitListItem[],
     warehouses: readonly WarehouseListItem[],
   ): OrgTreeNode[] {
-    const language = this.i18n.getActiveLanguage();
-    const withLabel = (node: Omit<OrgTreeNode, 'label'>): OrgTreeNode => ({
-      ...node,
-      label: orgTreeNodeLabel(node, language),
-    });
-
     const legalEntitiesByGroup = groupBy(legalEntities, (le) => le.groupId);
     const businessUnitsByLe = groupBy(businessUnits, (bu) => bu.legalEntityId);
     const warehousesByBu = groupBy(
@@ -119,7 +113,7 @@ export class OrgTreeFacade {
     );
 
     const toWarehouseNode = (warehouse: WarehouseListItem): OrgTreeNode =>
-      withLabel({
+      ({
         id: warehouse.id,
         kind: 'warehouse',
         code: warehouse.code,
@@ -130,7 +124,7 @@ export class OrgTreeFacade {
       });
 
     const toBusinessUnitNode = (businessUnit: BusinessUnitListItem): OrgTreeNode =>
-      withLabel({
+      ({
         id: businessUnit.id,
         kind: 'businessUnit',
         code: businessUnit.code,
@@ -141,7 +135,7 @@ export class OrgTreeFacade {
       });
 
     const toLegalEntityNode = (legalEntity: LegalEntityListItem): OrgTreeNode =>
-      withLabel({
+      ({
         id: legalEntity.id,
         kind: 'legalEntity',
         code: legalEntity.code,
@@ -155,13 +149,13 @@ export class OrgTreeFacade {
       });
 
     return groups.map((group) =>
-      withLabel({
+      ({
         id: group.id,
         kind: 'group',
         code: group.code,
         captionI18n: null,
-        // `GroupListItem` carries no name, only the code.
-        name: null,
+        // The legal name (short name first) of the group's `Party`, as for a legal entity.
+        name: group.displayName?.trim() || group.legalName,
         isActive: null,
         children: (legalEntitiesByGroup.get(group.id) ?? []).map(toLegalEntityNode),
       }),
@@ -169,13 +163,8 @@ export class OrgTreeFacade {
   }
 
   private describe(error: unknown): string {
-    if (error && typeof error === 'object' && 'error' in error) {
-      const body = (error as { error?: unknown }).error;
-      if (isProblem(body) && body.detail) {
-        return body.detail;
-      }
-    }
-    return this.i18n.translateErrorCode(undefined);
+    // Never `Problem.detail` (English server text): the code maps to `errors.<code>`.
+    return this.i18n.translateErrorCode(problemOf(error)?.code);
   }
 }
 

@@ -23,7 +23,10 @@
     "SAMPLE-R1": "Mensaje de ejemplo para la regla de negocio SAMPLE-R1 — sustituir por el texto real.",
     "ORG-R6": "El usuario SYSTEM no se puede editar ni desactivar.",
     "ORG-R9": "Ya existe un usuario con este email.",
-    "ORG-R3": "La unidad de negocio debe pertenecer a la misma entidad legal que el almacén."
+    "ORG-R3": "La unidad de negocio debe pertenecer a la misma entidad legal que el almacén.",
+    "CONFLICT": "Ya existe un registro con este código.",
+    "ORG-R5": "La entidad legal no se puede desactivar mientras tenga unidades de negocio o almacenes activos.",
+    "ORG-R7": "La moneda debe estar activa; una moneda en uso por una entidad legal o un grupo activos no se puede desactivar."
   },
   "shell": {
     "skipToContent": "Saltar al contenido",
@@ -147,8 +150,10 @@
       "warehouse": "Nuevo almacén",
       "user": "Nuevo usuario",
       "party": "Nuevo tercero",
-      "role": "Nuevo rol"
-    }
+      "role": "Nuevo rol",
+      "currency": "Nueva moneda"
+    },
+    "unavailable": "No disponible"
   },
   "shared": {
     "dataGrid": {
@@ -237,7 +242,8 @@
     "form": {
       "required": "Campo obligatorio",
       "reviewFields": "Revisa los {{count}} campos marcados.",
-      "reviewFieldsOne": "Revisa el campo marcado."
+      "reviewFieldsOne": "Revisa el campo marcado.",
+      "invalidValue": "Valor no válido"
     }
   },
   "org": {
@@ -488,11 +494,13 @@
         "isActive": "Estado"
       },
       "sections": {
-        "currency": "Moneda"
+        "currency": "Moneda",
+        "names": "Nombre en cada idioma"
       },
       "hints": {
-        "fixed": "Las monedas vienen predefinidas en NEXUS: solo se pueden activar o desactivar.",
-        "minorUnits": "Número de decimales de los importes en esta moneda."
+        "fixed": "El código y los decimales no cambian tras el alta; puedes renombrar la moneda y activarla o desactivarla.",
+        "minorUnits": "Número de decimales de los importes en esta moneda.",
+        "code": "Tres letras mayúsculas (ISO 4217), p. ej. SEK."
       },
       "activate": "Activar",
       "deactivate": "Desactivar",
@@ -503,8 +511,15 @@
       "activated": "Moneda activada",
       "deactivated": "Moneda desactivada",
       "errors": {
-        "inUse": "No se puede desactivar «{{name}}»: la usa al menos una entidad legal o un grupo activos."
-      }
+        "inUse": "No se puede desactivar «{{name}}»: la usa al menos una entidad legal o un grupo activos.",
+        "codeFormat": "Introduce tres letras mayúsculas (A–Z).",
+        "minorUnitsRange": "Un valor entre 0 y 4."
+      },
+      "new": "Nueva moneda",
+      "newTitle": "Nueva moneda",
+      "createSubtitle": "Una moneda ISO 4217 que se podrá elegir en entidades legales y grupos. El código y los decimales no se pueden cambiar después. Los campos con * son obligatorios.",
+      "created": "Moneda creada",
+      "renamed": "Nombre guardado"
     },
     "locations": {
       "title": "Ubicaciones",

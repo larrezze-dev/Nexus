@@ -23,7 +23,10 @@
     "SAMPLE-R1": "Testo di esempio per la regola di business SAMPLE-R1 — da sostituire con il testo reale.",
     "ORG-R6": "L'utente SYSTEM non può essere modificato né disattivato.",
     "ORG-R9": "Esiste già un utente con questa email.",
-    "ORG-R3": "L'unità di business deve appartenere alla stessa entità legale del magazzino."
+    "ORG-R3": "L'unità di business deve appartenere alla stessa entità legale del magazzino.",
+    "CONFLICT": "Esiste già un record con questo codice.",
+    "ORG-R5": "L'entità legale non può essere disattivata finché ha unità di business o magazzini attivi.",
+    "ORG-R7": "La valuta deve essere attiva; una valuta usata da un'entità legale o da un gruppo attivi non può essere disattivata."
   },
   "shell": {
     "skipToContent": "Vai al contenuto",
@@ -147,8 +150,10 @@
       "warehouse": "Nuovo magazzino",
       "user": "Nuovo utente",
       "party": "Nuovo partner",
-      "role": "Nuovo ruolo"
-    }
+      "role": "Nuovo ruolo",
+      "currency": "Nuova valuta"
+    },
+    "unavailable": "Non disponibile"
   },
   "shared": {
     "dataGrid": {
@@ -237,7 +242,8 @@
     "form": {
       "required": "Campo obbligatorio",
       "reviewFields": "Controlla i {{count}} campi evidenziati.",
-      "reviewFieldsOne": "Controlla il campo evidenziato."
+      "reviewFieldsOne": "Controlla il campo evidenziato.",
+      "invalidValue": "Valore non valido"
     }
   },
   "org": {
@@ -488,11 +494,13 @@
         "isActive": "Stato"
       },
       "sections": {
-        "currency": "Valuta"
+        "currency": "Valuta",
+        "names": "Nome in ogni lingua"
       },
       "hints": {
-        "fixed": "Le valute sono predefinite in NEXUS: puoi solo attivarle o disattivarle.",
-        "minorUnits": "Numero di decimali degli importi in questa valuta."
+        "fixed": "Il codice e i decimali non cambiano dopo la creazione; puoi rinominare la valuta e attivarla o disattivarla.",
+        "minorUnits": "Numero di decimali degli importi in questa valuta.",
+        "code": "Tre lettere maiuscole (ISO 4217), ad es. SEK."
       },
       "activate": "Attiva",
       "deactivate": "Disattiva",
@@ -503,8 +511,15 @@
       "activated": "Valuta attivata",
       "deactivated": "Valuta disattivata",
       "errors": {
-        "inUse": "Impossibile disattivare «{{name}}»: almeno un'entità legale o un gruppo attivo usa questa valuta."
-      }
+        "inUse": "Impossibile disattivare «{{name}}»: almeno un'entità legale o un gruppo attivo usa questa valuta.",
+        "codeFormat": "Inserisci tre lettere maiuscole (A–Z).",
+        "minorUnitsRange": "Un valore tra 0 e 4."
+      },
+      "new": "Nuova valuta",
+      "newTitle": "Nuova valuta",
+      "createSubtitle": "Una valuta ISO 4217 selezionabile per entità legali e gruppi. Il codice e i decimali non si possono modificare in seguito. I campi con * sono obbligatori.",
+      "created": "Valuta creata",
+      "renamed": "Nome salvato"
     },
     "locations": {
       "title": "Sedi",

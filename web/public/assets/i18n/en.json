@@ -23,7 +23,10 @@
     "SAMPLE-R1": "Example business rule message — replace with the real text for rule SAMPLE-R1.",
     "ORG-R6": "The SYSTEM user cannot be edited or deactivated.",
     "ORG-R9": "A user with this email already exists.",
-    "ORG-R3": "The business unit must belong to the same legal entity as the warehouse."
+    "ORG-R3": "The business unit must belong to the same legal entity as the warehouse.",
+    "CONFLICT": "A record with this code already exists.",
+    "ORG-R5": "The legal entity cannot be deactivated while it has active business units or warehouses.",
+    "ORG-R7": "The currency must be active; a currency used by an active legal entity or group cannot be deactivated."
   },
   "shell": {
     "skipToContent": "Skip to content",
@@ -147,8 +150,10 @@
       "warehouse": "New warehouse",
       "user": "New user",
       "party": "New third party",
-      "role": "New role"
-    }
+      "role": "New role",
+      "currency": "New currency"
+    },
+    "unavailable": "Not available"
   },
   "shared": {
     "dataGrid": {
@@ -237,7 +242,8 @@
     "form": {
       "required": "Required field",
       "reviewFields": "Check the {{count}} highlighted fields.",
-      "reviewFieldsOne": "Check the highlighted field."
+      "reviewFieldsOne": "Check the highlighted field.",
+      "invalidValue": "Invalid value"
     }
   },
   "org": {
@@ -488,11 +494,13 @@
         "isActive": "Status"
       },
       "sections": {
-        "currency": "Currency"
+        "currency": "Currency",
+        "names": "Name in each language"
       },
       "hints": {
-        "fixed": "Currencies are predefined in NEXUS: you can only activate or deactivate them.",
-        "minorUnits": "Number of decimal places of amounts in this currency."
+        "fixed": "The code and the decimals do not change after creation; you can rename the currency and activate or deactivate it.",
+        "minorUnits": "Number of decimal places of amounts in this currency.",
+        "code": "Three capital letters (ISO 4217), e.g. SEK."
       },
       "activate": "Activate",
       "deactivate": "Deactivate",
@@ -503,8 +511,15 @@
       "activated": "Currency activated",
       "deactivated": "Currency deactivated",
       "errors": {
-        "inUse": "«{{name}}» cannot be deactivated: at least one active legal entity or group uses this currency."
-      }
+        "inUse": "«{{name}}» cannot be deactivated: at least one active legal entity or group uses this currency.",
+        "codeFormat": "Enter three capital letters (A–Z).",
+        "minorUnitsRange": "A value between 0 and 4."
+      },
+      "new": "New currency",
+      "newTitle": "New currency",
+      "createSubtitle": "An ISO 4217 currency that can be chosen for legal entities and groups. The code and the decimals cannot be changed later. Fields marked * are required.",
+      "created": "Currency created",
+      "renamed": "Name saved"
     },
     "locations": {
       "title": "Locations",

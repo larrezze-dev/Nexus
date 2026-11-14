@@ -187,7 +187,7 @@ describe('PartyListPage', () => {
       .columns()
       .filter((col) => col.sortable)
       .map((col) => col.field);
-    expect(sortable).toEqual(['legalName', 'partyType', 'isInternal']);
+    expect(sortable).toEqual(['legalName', 'partyType', 'isInternal', 'isActive']);
   });
 
   it('opens a row at its detail page', () => {

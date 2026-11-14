@@ -23,6 +23,7 @@ import { LocationListItem } from '../../../api/platform/models/location-list-ite
 import { UpdateWarehouseRequest } from '../../../api/platform/models/update-warehouse-request';
 import { Warehouse } from '../../../api/platform/models/warehouse';
 import { WarehouseListItem } from '../../../api/platform/models/warehouse-list-item';
+import { IdempotentCreateId } from '../../../core/ids/uuid-v7';
 import { isProblem } from '../../../core/http/problem';
 import { NxI18nService } from '../../../core/i18n/nx-i18n.service';
 import { resolveCaption } from '../../../shared/ui/caption/caption.util';
@@ -268,6 +269,7 @@ export class WarehouseFacade {
   }
 
   /** The location created by a previous `save()` attempt (id, ETag, and what was sent). */
+  private readonly locationCreateId = new IdempotentCreateId();
   private createdLocation: { id: string; etag: string | null; fingerprint: string } | null = null;
 
   private async ensureNewLocation(value: WarehouseFormValue): Promise<string> {
@@ -288,7 +290,12 @@ export class WarehouseFacade {
       this.rememberLocation(response.body.id, response.headers.get('ETag'), fingerprint, response.body);
       return pending.id;
     }
-    const response = await this.api.invoke$Response(createLocation, { body });
+    // Client-generated UUIDv7 (idempotent create): a retry of the same address after a lost
+    // response reuses this id, so it never creates a second location.
+    const response = await this.api.invoke$Response(createLocation, {
+      body: { ...body, id: this.locationCreateId.idFor(body) },
+    });
+    this.locationCreateId.clear();
     this.rememberLocation(response.body.id, response.headers.get('ETag'), fingerprint, response.body);
     return response.body.id;
   }
@@ -438,15 +445,13 @@ export class WarehouseFacade {
     return `${sort.direction === 'desc' ? '-' : ''}${sort.colId}`;
   }
 
-  /** Prefers the business-rule translation for `Problem.code` (e.g. `ORG-R3`) over the raw `detail`. */
+  /** Business-rule translation of `Problem.code` (e.g. `ORG-R3`), generic text without one. */
   private describe(error: unknown): { message: string; code?: string } {
     if (error && typeof error === 'object' && 'error' in error) {
       const body = (error as { error?: unknown }).error;
       if (isProblem(body)) {
-        const message = body.code
-          ? this.i18n.translateErrorCode(body.code)
-          : body.detail ?? this.i18n.translateErrorCode(undefined);
-        return { message, code: body.code };
+        // Never `Problem.detail`: the server text is in English; the code maps to `errors.<code>`.
+        return { message: this.i18n.translateErrorCode(body.code), code: body.code };
       }
     }
     return { message: this.i18n.translateErrorCode(undefined) };

@@ -4,6 +4,7 @@ import { TranslocoService, TranslocoTestingModule } from '@jsverse/transloco';
 import { of } from 'rxjs';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { CurrencyListItem } from '../../../api/platform/models/currency-list-item';
+import { PermissionsStore } from '../../../shared/auth/permissions.store';
 import { NxColDef } from '../../../shared/ui/nx-data-grid/nx-data-grid.component';
 import { Page } from '../../../shared/ui/page.model';
 import { CurrencyListPage } from './currency-list.page';
@@ -78,7 +79,8 @@ describe('CurrencyListPage', () => {
       : undefined;
   }
 
-  it('renders the list template: one h1, breadcrumb, record count, no «New» and no filter bar', () => {
+  it('renders the list template: one h1, breadcrumb, record count, no «New» without CURRENCY:CREATE and no filter bar', () => {
+    TestBed.inject(PermissionsStore).setPermissions([{ code: 'CURRENCY:READ', scopes: [] } as never]);
     fixture.detectChanges();
 
     expect(root().querySelectorAll('h1').length).toBe(1);
@@ -87,7 +89,7 @@ describe('CurrencyListPage', () => {
     expect(root().querySelector('[data-testid="nx-page-header-count"]')?.textContent?.trim()).toBe(
       '1 record',
     );
-    // No create endpoint and no filters in the contract.
+    // No filters in the contract; «New» needs CURRENCY:CREATE.
     expect(root().querySelector('nx-filter-bar')).toBeNull();
     expect(root().querySelector('.nx-create--fab, .nx-create--header')).toBeNull();
     // No native buttons left in the page (the old inline toggle is gone).
@@ -99,6 +101,18 @@ describe('CurrencyListPage', () => {
           ':not(.mat-mdc-paginator-navigation-last)',
       ),
     ).toBeNull();
+  });
+
+  it('shows «New currency» with CURRENCY:CREATE, linking to the create page', () => {
+    TestBed.inject(PermissionsStore).setPermissions([
+      { code: 'CURRENCY:READ', scopes: [] } as never,
+      { code: 'CURRENCY:CREATE', scopes: [] } as never,
+    ]);
+    fixture.detectChanges();
+
+    const link = root().querySelector<HTMLAnchorElement>('[data-testid="currency-list-new"]');
+    expect(link).toBeTruthy();
+    expect(link?.getAttribute('href')).toBe('/org/currencies/new');
   });
 
   it('declares translatable headers (headerKey) for code, name, decimal places and status', () => {

@@ -8,7 +8,7 @@ import { MatInputModule } from '@angular/material/input';
 import { MatSelectModule } from '@angular/material/select';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { TranslocoModule, TranslocoService } from '@jsverse/transloco';
-import { Observable, debounceTime, map, tap } from 'rxjs';
+import { Observable, debounce, map, of, tap, timer } from 'rxjs';
 import type { PartyListItem } from '../../../api/platform/models/party-list-item';
 import { NxCanDirective } from '../../../shared/auth/can.directive';
 import {
@@ -40,9 +40,9 @@ export const PARTY_SEARCH_DEBOUNCE_MS = 300;
  * Parties directory list (`conventions-frontend.md §4.4`, list template): header with the
  * record count and «New party», a filter bar with the three filters `GET /v1/parties` offers
  * (search on the legal name, type, internal/external) and the server-paginated `nx-data-grid`.
- * The API sorts by legal name, type, scope and status; the status column stays unsortable like
- * the other org lists. Type and scope are translated, never the API literals. A row (click,
- * Enter, card tap) opens the detail page.
+ * The API sorts by legal name, type, scope and status, and every one of those columns is
+ * sortable (the status too, as in the other org lists). Type and scope are translated, never the
+ * API literals. A row (click, Enter, card tap) opens the detail page.
  */
 @Component({
   selector: 'nx-party-list-page',
@@ -148,7 +148,8 @@ export class PartyListPage {
   protected readonly q = new FormControl('', { nonNullable: true });
   private readonly qValue = toSignal(
     this.q.valueChanges.pipe(
-      debounceTime(PARTY_SEARCH_DEBOUNCE_MS),
+      // Typing waits for a pause; an empty box («Clear filters») reloads immediately.
+      debounce((value) => (value.trim() === '' ? of(0) : timer(PARTY_SEARCH_DEBOUNCE_MS))),
       map((value) => value.trim()),
     ),
     { initialValue: '' },
@@ -225,7 +226,7 @@ export class PartyListPage {
         headerKey: 'org.parties.fields.isActive',
         cellRenderer: OrgActiveStatusCellComponent,
         width: 140,
-        sortable: false,
+        sortable: true,
       },
       {
         // Card view only (< 600 px): «Organization · External» under the name.

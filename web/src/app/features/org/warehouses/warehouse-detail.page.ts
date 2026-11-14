@@ -40,7 +40,8 @@ import {
 import { BusinessUnitListItem } from '../../../api/platform/models/business-unit-list-item';
 import { LegalEntityListItem } from '../../../api/platform/models/legal-entity-list-item';
 import { LocationListItem } from '../../../api/platform/models/location-list-item';
-import { isProblem } from '../../../core/http/problem';
+import { isConcurrencyConflict, isDuplicateConflict } from '../../../core/http/problem';
+import { NxFormatService } from '../../../core/i18n/nx-format.service';
 import { NxI18nService } from '../../../core/i18n/nx-i18n.service';
 import { NxBreadcrumbService } from '../../../core/layout/breadcrumb.service';
 import { NxCanDirective } from '../../../shared/auth/can.directive';
@@ -73,9 +74,6 @@ import {
   WarehouseLocationRef,
   WarehouseSaveError,
 } from './warehouse.models';
-
-/** Dates are shown in this time zone. */
-const DISPLAY_TIME_ZONE = 'Europe/Zurich';
 
 /** Debounce of the location search box. */
 const LOCATION_SEARCH_DEBOUNCE_MS = 250;
@@ -154,6 +152,7 @@ export class WarehouseDetailPage implements OnInit {
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
   private readonly i18n = inject(NxI18nService);
+  private readonly format = inject(NxFormatService);
   private readonly transloco = inject(TranslocoService);
   private readonly breadcrumb = inject(NxBreadcrumbService);
   private readonly confirm = inject(NxConfirm);
@@ -203,11 +202,9 @@ export class WarehouseDetailPage implements OnInit {
     }
     this.translation();
     const lang = this.transloco.getActiveLang();
-    const date = new Intl.DateTimeFormat(lang === 'de' ? 'de-CH' : lang, {
-      dateStyle: 'medium',
-      timeZone: DISPLAY_TIME_ZONE,
-    }).format(new Date(warehouse.updatedAt));
-    return `${warehouse.code} · ${this.transloco.translate('org.warehouses.detail.modified', { date }, lang)}`;
+    const date = this.format.formatDateMedium(warehouse.updatedAt);
+    const modified = date ? this.transloco.translate('org.warehouses.detail.modified', { date }, lang) : '';
+    return [warehouse.code, modified].filter(Boolean).join(' · ');
   });
 
   protected readonly addressMode = toSignal(this.form.controls.addressMode.valueChanges, {
@@ -334,6 +331,13 @@ export class WarehouseDetailPage implements OnInit {
   });
 
   constructor() {
+    // A record that failed to load never gets a name: the breadcrumb says so.
+    effect(() => {
+      if (this.mode() === 'edit' && this.facade.error()) {
+        this.breadcrumb.setLoadFailed();
+      }
+    });
+
     // The breadcrumb names the record and follows a language switch (the name is a caption).
     effect(() => {
       const name = this.name();
@@ -425,6 +429,7 @@ export class WarehouseDetailPage implements OnInit {
     const id = this.mode() === 'edit' ? this.routeId() : null;
     try {
       const saved = await this.facade.save(id, warehouseFormValue(this.form));
+      this.resetNewLocation();
       if (this.mode() === 'create') {
         this.notify('org.warehouses.created');
         void this.router.navigateByUrl(`/warehouses/${saved.id}`);
@@ -470,11 +475,31 @@ export class WarehouseDetailPage implements OnInit {
     void this.router.navigateByUrl('/warehouses');
   }
 
+  /**
+   * After a save with «New address» the location exists and is the warehouse's: empty the
+   * sub-form and go back to «existing location» so a second save does not create it again.
+   */
+  private resetNewLocation(): void {
+    this.form.controls.newLocation.reset();
+    this.form.controls.addressMode.setValue('existingLocation');
+  }
+
   private showSaveError(error: unknown): void {
     const cause = error instanceof WarehouseSaveError ? error.cause : error;
     const http = cause as { status?: number; error?: unknown } | null;
-    if (http?.status === 409 && isProblem(http.error) && http.error.type === 'concurrency') {
+    if (isConcurrencyConflict(http)) {
       // `errorInterceptor` already opened the concurrency dialog for a stale version.
+      return;
+    }
+    if (isDuplicateConflict(http)) {
+      // 409 CONFLICT: the code is taken; the failing step says whose code (location or warehouse).
+      const onLocation = error instanceof WarehouseSaveError && error.step === 'location';
+      const control = onLocation
+        ? this.form.controls.newLocation.controls.code
+        : this.form.controls.code;
+      control.setErrors({ ...(control.errors ?? {}), conflict: true });
+      control.markAsTouched();
+      this.focusTestId(onLocation ? 'warehouse-new-location-code' : 'warehouse-code-input');
       return;
     }
     const described = this.facade.describeError(cause);
