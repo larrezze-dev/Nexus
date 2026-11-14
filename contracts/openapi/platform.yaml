@@ -427,6 +427,8 @@ paths:
                 items:
                   - id: "018f1a3c-7e3b-7c5a-9c2e-6a2f8e9b0c30"
                     partyId: "018f1a3c-7e3b-7c5a-9c2e-6a2f8e9b0c10"
+                    legalName: "Nüssli Group AG"
+                    displayName: "Nüssli Group"
                     code: "NUSSLI"
                     reportingCurrencyCode: "CHF"
                 page: 1
@@ -475,6 +477,8 @@ paths:
               example:
                 id: "018f1a3c-7e3b-7c5a-9c2e-6a2f8e9b0c30"
                 partyId: "018f1a3c-7e3b-7c5a-9c2e-6a2f8e9b0c10"
+                legalName: "Nüssli Group AG"
+                displayName: "Nüssli Group"
                 code: "NUSSLI"
                 consolidationMethod: FULL
                 reportingCurrencyCode: "CHF"
@@ -497,6 +501,8 @@ paths:
               example:
                 id: "018f1a3c-7e3b-7c5a-9c2e-6a2f8e9b0c30"
                 partyId: "018f1a3c-7e3b-7c5a-9c2e-6a2f8e9b0c10"
+                legalName: "Nüssli Group AG"
+                displayName: "Nüssli Group"
                 code: "NUSSLI"
                 consolidationMethod: FULL
                 reportingCurrencyCode: "CHF"
@@ -538,6 +544,8 @@ paths:
               example:
                 id: "018f1a3c-7e3b-7c5a-9c2e-6a2f8e9b0c30"
                 partyId: "018f1a3c-7e3b-7c5a-9c2e-6a2f8e9b0c10"
+                legalName: "Nüssli Group AG"
+                displayName: "Nüssli Group"
                 code: "NUSSLI"
                 consolidationMethod: FULL
                 reportingCurrencyCode: "CHF"
@@ -585,6 +593,8 @@ paths:
               example:
                 id: "018f1a3c-7e3b-7c5a-9c2e-6a2f8e9b0c30"
                 partyId: "018f1a3c-7e3b-7c5a-9c2e-6a2f8e9b0c10"
+                legalName: "Nüssli Group AG"
+                displayName: "Nüssli Group"
                 code: "NUSSLI"
                 consolidationMethod: FULL
                 reportingCurrencyCode: "CHF"
@@ -1990,8 +2000,8 @@ paths:
       operationId: listCurrencies
       summary: Listar monedas.
       description: >
-        No hay alta por API: las 4 monedas base (`CHF`, `EUR`, `USD`,
-        `GBP`) ya están sembradas (semilla común, 0.4).
+        Las 4 monedas base (`CHF`, `EUR`, `USD`, `GBP`) vienen sembradas
+        (semilla común, 0.4); `POST /v1/currencies` permite dar de alta más.
       tags: [Currencies]
       x-permission: "CURRENCY:READ"
       x-scope: none
@@ -2032,6 +2042,66 @@ paths:
           $ref: '_shared/components.yaml#/components/responses/Forbidden'
         '404':
           $ref: '_shared/components.yaml#/components/responses/NotFound'
+
+    post:
+      operationId: createCurrency
+      summary: Dar de alta una moneda. `[+]`
+      description: >
+        Alta de una moneda del catálogo (`org.currency`). La clave es el
+        código ISO 4217 (`code`), no hay `id` de cliente: un código ya
+        existente responde 409, también si el contenido es idéntico. Tras el
+        alta solo se puede editar el nombre (`captionI18n`) y `isActive` con
+        `PUT`; `code` y `minorUnits` quedan fijos. `minorUnits` se valida en
+        el contrato (0..4, rango de ISO 4217); la tabla no tiene `CHECK`.
+        No emite evento: `org.md §6` no define eventos de moneda (catálogo
+        referenciado por FK, ARC-R2).
+      tags: [Currencies]
+      x-permission: "CURRENCY:CREATE"
+      x-scope: none
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateCurrencyRequest'
+            example:
+              code: "SEK"
+              captionI18n:
+                de: "Schwedische Krone"
+                en: "Swedish Krona"
+              minorUnits: 2
+      responses:
+        '201':
+          description: Moneda creada (activa).
+          headers:
+            Location:
+              description: URL del nuevo recurso.
+              schema:
+                type: string
+              example: "/v1/currencies/SEK"
+            ETag:
+              $ref: '#/components/headers/ETag'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Currency'
+              example:
+                code: "SEK"
+                captionI18n:
+                  de: "Schwedische Krone"
+                  en: "Swedish Krona"
+                minorUnits: 2
+                isActive: true
+        '400':
+          $ref: '_shared/components.yaml#/components/responses/BadRequest'
+        '401':
+          $ref: '_shared/components.yaml#/components/responses/Unauthorized'
+        '403':
+          $ref: '_shared/components.yaml#/components/responses/Forbidden'
+        '409':
+          $ref: '_shared/components.yaml#/components/responses/Conflict'
+        '422':
+          $ref: '_shared/components.yaml#/components/responses/UnprocessableEntity'
 
   /v1/currencies/{code}:
     get:
@@ -2074,10 +2144,12 @@ paths:
           $ref: '_shared/components.yaml#/components/responses/NotFound'
     put:
       operationId: updateCurrency
-      summary: Activar o desactivar una moneda.
+      summary: Renombrar, activar o desactivar una moneda.
       description: >
-        Único caso de uso de escritura sobre monedas: activar/desactivar
-        (`isActive`). El resto de campos son fijos desde la semilla. No se
+        Campos editables: `isActive` (obligatorio, como hasta ahora) y
+        `captionI18n` `[+]` (opcional: si se omite, el nombre no cambia; si
+        se envía, sustituye al texto traducible completo y `de` es
+        obligatorio). `code` y `minorUnits` son fijos desde el alta. No se
         puede desactivar una moneda en uso por un `Group`/`LegalEntity`
         activo (ORG-R7: ambos deben apuntar a una moneda activa).
       tags: [Currencies]
@@ -2095,6 +2167,10 @@ paths:
               $ref: '#/components/schemas/UpdateCurrencyRequest'
             example:
               isActive: false
+              captionI18n:
+                de: "Britisches Pfund"
+                en: "British Pound"
+                fr: "Livre sterling"
       responses:
         '200':
           description: Moneda modificada.
@@ -2110,6 +2186,7 @@ paths:
                 captionI18n:
                   de: "Britisches Pfund"
                   en: "British Pound"
+                  fr: "Livre sterling"
                 minorUnits: 2
                 isActive: false
         '400':
@@ -3244,6 +3321,12 @@ components:
           $ref: '_shared/components.yaml#/components/schemas/UuidV7'
         partyId:
           $ref: '_shared/components.yaml#/components/schemas/UuidV7'
+        legalName:
+          type: string
+          description: Razón social del `Party` del group (`org.party.legal_name`, ORG-R1). `[+]`
+        displayName:
+          type: [string, "null"]
+          description: Nombre corto del `Party` del group (`org.party.display_name`). `[+]`
         code:
           type: string
         consolidationMethod:
@@ -3258,7 +3341,7 @@ components:
         updatedAt:
           type: string
           format: date-time
-      required: [id, partyId, code, consolidationMethod, reportingCurrencyCode, createdAt, updatedAt]
+      required: [id, partyId, legalName, code, consolidationMethod, reportingCurrencyCode, createdAt, updatedAt]
 
     GroupListItem:
       type: object
@@ -3267,12 +3350,18 @@ components:
           $ref: '_shared/components.yaml#/components/schemas/UuidV7'
         partyId:
           $ref: '_shared/components.yaml#/components/schemas/UuidV7'
+        legalName:
+          type: string
+          description: Razón social del `Party` del group (`org.party.legal_name`, ORG-R1). `[+]`
+        displayName:
+          type: [string, "null"]
+          description: Nombre corto del `Party` del group (`org.party.display_name`). `[+]`
         code:
           type: string
         reportingCurrencyCode:
           type: string
           pattern: '^[A-Z]{3}$'
-      required: [id, partyId, code, reportingCurrencyCode]
+      required: [id, partyId, legalName, code, reportingCurrencyCode]
 
     CreateGroupRequest:
       type: object
@@ -3802,11 +3891,30 @@ components:
           type: boolean
       required: [code, captionI18n, minorUnits, isActive]
 
+    CreateCurrencyRequest:
+      type: object
+      properties:
+        code:
+          type: string
+          pattern: '^[A-Z]{3}$'
+          description: Código ISO 4217 de 3 letras mayúsculas; es la clave y no cambia.
+        captionI18n:
+          $ref: '_shared/components.yaml#/components/schemas/I18nText'
+        minorUnits:
+          type: integer
+          format: int16
+          minimum: 0
+          maximum: 4
+          description: Decimales de la moneda (ISO 4217, 0, 2, 3 o 4); fijos tras el alta.
+      required: [code, captionI18n, minorUnits]
+
     UpdateCurrencyRequest:
       type: object
       properties:
         isActive:
           type: boolean
+        captionI18n:
+          $ref: '_shared/components.yaml#/components/schemas/I18nText'
       required: [isActive]
 
     # --- Me ----------------------------------------------------------------
