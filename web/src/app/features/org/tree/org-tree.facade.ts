@@ -8,9 +8,8 @@ import { BusinessUnitListItem } from '../../../api/platform/models/business-unit
 import { GroupListItem } from '../../../api/platform/models/group-list-item';
 import { LegalEntityListItem } from '../../../api/platform/models/legal-entity-list-item';
 import { WarehouseListItem } from '../../../api/platform/models/warehouse-list-item';
-import { isProblem } from '../../../core/http/problem';
+import { problemOf } from '../../../core/http/problem';
 import { NxI18nService } from '../../../core/i18n/nx-i18n.service';
-import { resolveCaption } from '../../../shared/ui/caption/caption.util';
 import { OrgTreeNode } from './org-tree.model';
 
 /** Max `pageSize` the contract allows (`_shared/components.yaml`); minimizes the number of
@@ -29,6 +28,9 @@ const MAX_PAGE_SIZE = 200;
  * from the parent-id fields every list item already carries (`groupId`, `legalEntityId`,
  * `businessUnitId`). Total HTTP calls = 4 (one per level) + 1 extra per level only once that
  * level's row count exceeds 200.
+ *
+ * Nodes keep the raw `captionI18n`/name: pages resolve the label with `orgTreeNodeLabel` in the
+ * active language, so a language switch needs no reload.
  */
 @Injectable({ providedIn: 'root' })
 export class OrgTreeFacade {
@@ -97,8 +99,6 @@ export class OrgTreeFacade {
     businessUnits: readonly BusinessUnitListItem[],
     warehouses: readonly WarehouseListItem[],
   ): OrgTreeNode[] {
-    const language = this.i18n.getActiveLanguage();
-
     const legalEntitiesByGroup = groupBy(legalEntities, (le) => le.groupId);
     const businessUnitsByLe = groupBy(businessUnits, (bu) => bu.legalEntityId);
     const warehousesByBu = groupBy(
@@ -112,54 +112,59 @@ export class OrgTreeFacade {
       (wh) => wh.legalEntityId,
     );
 
-    const toWarehouseNode = (warehouse: WarehouseListItem): OrgTreeNode => ({
-      id: warehouse.id,
-      kind: 'warehouse',
-      code: warehouse.code,
-      label: resolveCaption(warehouse.captionI18n, language, warehouse.code),
-      isActive: warehouse.isActive,
-      children: [],
-    });
+    const toWarehouseNode = (warehouse: WarehouseListItem): OrgTreeNode =>
+      ({
+        id: warehouse.id,
+        kind: 'warehouse',
+        code: warehouse.code,
+        captionI18n: warehouse.captionI18n,
+        name: null,
+        isActive: warehouse.isActive,
+        children: [],
+      });
 
-    const toBusinessUnitNode = (businessUnit: BusinessUnitListItem): OrgTreeNode => ({
-      id: businessUnit.id,
-      kind: 'businessUnit',
-      code: businessUnit.code,
-      label: resolveCaption(businessUnit.captionI18n, language, businessUnit.code),
-      isActive: businessUnit.isActive,
-      children: (warehousesByBu.get(businessUnit.id) ?? []).map(toWarehouseNode),
-    });
+    const toBusinessUnitNode = (businessUnit: BusinessUnitListItem): OrgTreeNode =>
+      ({
+        id: businessUnit.id,
+        kind: 'businessUnit',
+        code: businessUnit.code,
+        captionI18n: businessUnit.captionI18n,
+        name: null,
+        isActive: businessUnit.isActive,
+        children: (warehousesByBu.get(businessUnit.id) ?? []).map(toWarehouseNode),
+      });
 
-    const toLegalEntityNode = (legalEntity: LegalEntityListItem): OrgTreeNode => ({
-      id: legalEntity.id,
-      kind: 'legalEntity',
-      code: legalEntity.code,
-      label: legalEntity.code,
-      isActive: legalEntity.isActive,
-      children: [
-        ...(businessUnitsByLe.get(legalEntity.id) ?? []).map(toBusinessUnitNode),
-        ...(warehousesByLeDirect.get(legalEntity.id) ?? []).map(toWarehouseNode),
-      ],
-    });
+    const toLegalEntityNode = (legalEntity: LegalEntityListItem): OrgTreeNode =>
+      ({
+        id: legalEntity.id,
+        kind: 'legalEntity',
+        code: legalEntity.code,
+        captionI18n: null,
+        name: legalEntity.displayName?.trim() || legalEntity.legalName,
+        isActive: legalEntity.isActive,
+        children: [
+          ...(businessUnitsByLe.get(legalEntity.id) ?? []).map(toBusinessUnitNode),
+          ...(warehousesByLeDirect.get(legalEntity.id) ?? []).map(toWarehouseNode),
+        ],
+      });
 
-    return groups.map((group) => ({
-      id: group.id,
-      kind: 'group',
-      code: group.code,
-      label: group.code,
-      isActive: null,
-      children: (legalEntitiesByGroup.get(group.id) ?? []).map(toLegalEntityNode),
-    }));
+    return groups.map((group) =>
+      ({
+        id: group.id,
+        kind: 'group',
+        code: group.code,
+        captionI18n: null,
+        // The legal name (short name first) of the group's `Party`, as for a legal entity.
+        name: group.displayName?.trim() || group.legalName,
+        isActive: null,
+        children: (legalEntitiesByGroup.get(group.id) ?? []).map(toLegalEntityNode),
+      }),
+    );
   }
 
   private describe(error: unknown): string {
-    if (error && typeof error === 'object' && 'error' in error) {
-      const body = (error as { error?: unknown }).error;
-      if (isProblem(body) && body.detail) {
-        return body.detail;
-      }
-    }
-    return this.i18n.translateErrorCode(undefined);
+    // Never `Problem.detail` (English server text): the code maps to `errors.<code>`.
+    return this.i18n.translateErrorCode(problemOf(error)?.code);
   }
 }
 

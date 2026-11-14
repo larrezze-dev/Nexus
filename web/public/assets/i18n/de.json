@@ -8,7 +8,9 @@
     "tabs": {
       "general": "Allgemein",
       "audit": "Audit"
-    }
+    },
+    "saveChanges": "Änderungen speichern",
+    "retry": "Erneut versuchen"
   },
   "errors": {
     "generic": "Etwas ist schiefgelaufen. Bitte versuchen Sie es erneut.",
@@ -21,7 +23,10 @@
     "SAMPLE-R1": "Beispieltext für Geschäftsregel SAMPLE-R1 — durch den echten Text ersetzen.",
     "ORG-R6": "Der SYSTEM-Benutzer kann nicht bearbeitet oder deaktiviert werden.",
     "ORG-R9": "Es existiert bereits ein Benutzer mit dieser E-Mail-Adresse.",
-    "ORG-R3": "Ein Warehouse mit einer Business Unit muss eine Business Unit verwenden, die zur selben Legal Entity gehört."
+    "ORG-R3": "Der Geschäftsbereich muss zur selben Gesellschaft gehören wie das Lager.",
+    "CONFLICT": "Es existiert bereits ein Eintrag mit diesem Code.",
+    "ORG-R5": "Die Gesellschaft kann nicht deaktiviert werden, solange sie aktive Geschäftsbereiche oder Lager hat.",
+    "ORG-R7": "Die Währung muss aktiv sein; eine Währung, die eine aktive Gesellschaft oder Gruppe verwendet, kann nicht deaktiviert werden."
   },
   "shell": {
     "skipToContent": "Zum Inhalt springen",
@@ -85,37 +90,98 @@
       "new": "Neue Gesellschaft",
       "newTitle": "Neue Gesellschaft",
       "loading": "Wird geladen…",
-      "empty": "Keine Gesellschaften gefunden.",
+      "empty": "Noch keine Gesellschaften",
       "deactivate": "Deaktivieren",
-      "confirmDeactivate": "Diese Gesellschaft deaktivieren? Dies kann nicht widerrufen werden.",
       "fields": {
         "legalName": "Rechtsname",
-        "displayName": "Anzeigename",
+        "displayName": "Kurzname",
         "groupId": "Gruppe",
         "code": "Code",
         "currencyCode": "Währung",
         "countryCode": "Land",
         "isActive": "Status"
-      }
+      },
+      "filters": {
+        "q": "Code oder Name suchen",
+        "status": "Status",
+        "statusAll": "Alle",
+        "statusActive": "Aktive",
+        "statusInactive": "Inaktive"
+      },
+      "emptyHint": "Legen Sie die erste Gesellschaft an, um ihr Lager und Personal zuzuordnen.",
+      "noResults": "Keine Gesellschaft entspricht den Filtern",
+      "sections": {
+        "company": "Unternehmen",
+        "countryCurrency": "Land und Währung"
+      },
+      "hints": {
+        "legalName": "Offizieller Name laut Handelsregister.",
+        "displayName": "Für Listen und Menüs.",
+        "lockedAfterCreate": "Wird beim Anlegen der Gesellschaft festgelegt."
+      },
+      "createSubtitle": "Ein Unternehmen der Gruppe: stellt Rechnungen und hat eigene Lager und eigenes Personal. Felder mit * sind Pflichtfelder.",
+      "actions": {
+        "create": "Gesellschaft anlegen"
+      },
+      "detail": {
+        "modified": "geändert am {{date}}"
+      },
+      "deactivateDialog": {
+        "title": "Gesellschaft deaktivieren?",
+        "message": "«{{name}}» ({{code}}) wird deaktiviert. Dies kann nicht rückgängig gemacht werden."
+      },
+      "deactivated": "Gesellschaft deaktiviert",
+      "saved": "Änderungen gespeichert",
+      "created": "Gesellschaft angelegt",
+      "readOnlyNotice": "Sie können diese Gesellschaft nur ansehen: Ihnen fehlt die Berechtigung zum Ändern."
     },
     "businessUnits": {
       "title": "Geschäftsbereiche",
       "new": "Neuer Geschäftsbereich",
       "newTitle": "Neuer Geschäftsbereich",
       "loading": "Wird geladen…",
-      "empty": "Keine Geschäftsbereiche gefunden.",
+      "empty": "Noch keine Geschäftsbereiche",
       "deactivate": "Deaktivieren",
-      "confirmDeactivate": "Diesen Geschäftsbereich deaktivieren? Dies kann nicht widerrufen werden.",
       "fields": {
         "legalName": "Rechtsname",
-        "displayName": "Anzeigename",
+        "displayName": "Kurzname",
         "legalEntityId": "Gesellschaft",
-        "legalEntitySearch": "Gesellschaft suchen…",
         "code": "Code",
         "caption": "Bezeichnung",
         "costCenterCode": "Kostenstelle",
         "isActive": "Status"
-      }
+      },
+      "emptyHint": "Legen Sie den ersten Geschäftsbereich an, um ihm Lager und Personal zuzuordnen.",
+      "sections": {
+        "identification": "Identifikation",
+        "names": "Bezeichnung in jeder Sprache",
+        "party": "Partnerdaten"
+      },
+      "sectionHints": {
+        "names": "Deutsch ist Pflicht. Fehlt eine Sprache, wird die deutsche Bezeichnung angezeigt.",
+        "party": "Der Geschäftsbereich ist auch als interner Partner mit diesen Namen erfasst."
+      },
+      "hints": {
+        "legalEntity": "Gesellschaft, zu der der Geschäftsbereich gehört.",
+        "costCenterCode": "Für die Kostenzuordnung in der Buchhaltung.",
+        "displayName": "Für Listen und Menüs.",
+        "lockedAfterCreate": "Wird beim Anlegen des Geschäftsbereichs festgelegt."
+      },
+      "createSubtitle": "Ein Geschäftsbereich einer Gesellschaft (z. B. Events oder Vermietung), der Lager und Personal zusammenfasst. Felder mit * sind Pflichtfelder.",
+      "actions": {
+        "create": "Geschäftsbereich anlegen"
+      },
+      "detail": {
+        "modified": "geändert am {{date}}"
+      },
+      "deactivateDialog": {
+        "title": "Geschäftsbereich deaktivieren?",
+        "message": "«{{name}}» ({{code}}) wird deaktiviert. Dies kann nicht rückgängig gemacht werden."
+      },
+      "deactivated": "Geschäftsbereich deaktiviert",
+      "saved": "Änderungen gespeichert",
+      "created": "Geschäftsbereich angelegt",
+      "readOnlyNotice": "Sie können diesen Geschäftsbereich nur ansehen: Ihnen fehlt die Berechtigung zum Ändern."
     },
     "users": {
       "title": "Benutzer",
@@ -168,61 +234,261 @@
         "fullName": "Vollständiger Name",
         "email": "E-Mail",
         "preferredLanguage": "Bevorzugte Sprache",
-        "businessUnit": "Business Unit",
+        "businessUnit": "Geschäftsbereich",
         "isActive": "Status"
       }
     },
     "parties": {
       "title": "Partner",
-      "actions": {
-        "new": "Neuer Partner",
-        "deactivate": "Deaktivieren"
+      "new": "Neuer Partner",
+      "newTitle": "Neuer Partner",
+      "loading": "Wird geladen…",
+      "empty": "Noch keine Partner",
+      "emptyHint": "Erfassen Sie Kunden, Lieferanten und andere Firmen oder Personen, mit denen die Gruppe zusammenarbeitet.",
+      "noResults": "Kein Partner entspricht den Filtern",
+      "deactivate": "Deaktivieren",
+      "columns": {
+        "name": "Name"
       },
-      "filters": {
-        "search": "Suche",
+      "fields": {
         "partyType": "Typ",
-        "isInternal": "Intern",
-        "any": "Alle",
+        "legalName": "Rechtsname",
+        "legalNamePerson": "Vollständiger Name",
+        "displayName": "Kurzname",
+        "taxId": "UID / Steuernummer",
+        "erpCompanyCode": "ERP-Firmencode",
+        "isInternal": "Zugehörigkeit",
+        "isActive": "Status"
+      },
+      "type": {
+        "ORGANIZATION": "Organisation",
+        "PERSON": "Person"
+      },
+      "scope": {
         "internal": "Intern",
         "external": "Extern"
       },
-      "partyType": {
-        "organization": "Organisation",
-        "person": "Person"
+      "filters": {
+        "q": "Name suchen",
+        "partyType": "Typ",
+        "partyTypeAll": "Alle",
+        "isInternal": "Zugehörigkeit",
+        "isInternalAll": "Alle",
+        "internal": "Interne",
+        "external": "Externe"
+      },
+      "sections": {
+        "identification": "Identifikation",
+        "taxErp": "Steuer und ERP"
+      },
+      "hints": {
+        "legalName": "Offizieller Name laut Handelsregister.",
+        "legalNamePerson": "Vor- und Nachname.",
+        "displayName": "Für Listen und Menüs.",
+        "partyType": "Organisation: Firma oder Institution. Person: eine natürliche Person.",
+        "taxId": "Steuer-Identifikationsnummer, z. B. CHE-123.456.789.",
+        "erpCompanyCode": "Code dieser Firma im ERP, falls vorhanden.",
+        "lockedAfterCreate": "Wird beim Anlegen des Partners festgelegt."
+      },
+      "createSubtitle": "Ein Kunde, Lieferant oder eine andere Firma oder Person, mit der die Gruppe zusammenarbeitet. Felder mit * sind Pflichtfelder.",
+      "actions": {
+        "create": "Partner anlegen"
       },
       "detail": {
-        "newTitle": "Neuer Partner",
-        "editTitle": "Partner bearbeiten",
-        "loading": "Wird geladen…"
+        "modified": "geändert am {{date}}"
       },
-      "fields": {
-        "partyType": "Partnertyp",
-        "legalName": "Rechtlicher Name",
-        "displayName": "Anzeigename",
-        "taxId": "Steuernummer",
-        "erpCompanyCode": "ERP-Firmencode",
-        "isInternal": "Intern",
-        "isActive": "Status"
-      }
+      "deactivateDialog": {
+        "title": "Partner deaktivieren?",
+        "message": "«{{name}}» wird deaktiviert. Dies kann nicht rückgängig gemacht werden."
+      },
+      "deactivated": "Partner deaktiviert",
+      "saved": "Änderungen gespeichert",
+      "created": "Partner angelegt",
+      "readOnlyNotice": "Sie können diesen Partner nur ansehen: Ihnen fehlt die Berechtigung zum Ändern."
     },
     "tree": {
       "title": "Organisationsstruktur",
-      "empty": "Noch keine Organisationsstruktur."
+      "empty": "Noch keine Organisationsstruktur.",
+      "subtitle": "So ist die Gruppe aufgebaut: Gesellschaften, Geschäftsbereiche und Lager. Öffnen Sie einen Eintrag, um seine Details zu sehen.",
+      "emptyHint": "Sie erscheint hier, sobald Gesellschaften, Geschäftsbereiche und Lager erfasst sind.",
+      "treeLabel": "Organisationsstruktur",
+      "expand": "«{{name}}» aufklappen",
+      "collapse": "«{{name}}» zuklappen",
+      "kind": {
+        "group": "Gruppe",
+        "legalEntity": "Gesellschaft",
+        "businessUnit": "Geschäftsbereich",
+        "warehouse": "Lager"
+      }
     },
     "currencies": {
       "title": "Währungen",
       "empty": "Keine Währungen verfügbar.",
-      "columns": {
+      "loading": "Wird geladen…",
+      "fields": {
         "code": "Code",
         "caption": "Name",
         "minorUnits": "Nachkommastellen",
-        "status": "Status",
-        "action": "Aktion"
+        "isActive": "Status"
+      },
+      "sections": {
+        "currency": "Währung",
+        "names": "Name in jeder Sprache"
+      },
+      "hints": {
+        "minorUnits": "Anzahl Nachkommastellen bei Beträgen in dieser Währung.",
+        "code": "Drei Grossbuchstaben (ISO 4217), z. B. SEK.",
+        "lockedAfterCreate": "Wird beim Anlegen der Währung festgelegt."
+      },
+      "activate": "Aktivieren",
+      "deactivate": "Deaktivieren",
+      "deactivateDialog": {
+        "title": "Währung deaktivieren?",
+        "message": "«{{name}}» ({{code}}) kann dann nicht mehr als Währung einer Gesellschaft oder Gruppe gewählt werden. Sie können sie jederzeit wieder aktivieren."
+      },
+      "activated": "Währung aktiviert",
+      "deactivated": "Währung deaktiviert",
+      "errors": {
+        "inUse": "«{{name}}» kann nicht deaktiviert werden: Mindestens eine aktive Gesellschaft oder Gruppe verwendet diese Währung.",
+        "codeFormat": "Geben Sie drei Grossbuchstaben (A–Z) ein.",
+        "minorUnitsRange": "Wert zwischen 0 und 4.",
+        "duplicateCode": "Es gibt bereits eine Währung mit diesem Code."
+      },
+      "new": "Neue Währung",
+      "newTitle": "Neue Währung",
+      "createSubtitle": "Eine ISO-4217-Währung, die bei Gesellschaften und Gruppen gewählt werden kann. Code und Dezimalstellen lassen sich später nicht mehr ändern. Felder mit * sind Pflichtfelder.",
+      "created": "Währung angelegt",
+      "renamed": "Name gespeichert",
+      "actions": {
+        "create": "Währung anlegen"
+      },
+      "readOnlyNotice": "Sie können diese Währung nur ansehen: Ihnen fehlt die Berechtigung zum Ändern."
+    },
+    "locations": {
+      "title": "Standorte",
+      "new": "Neuer Standort",
+      "newTitle": "Neuer Standort",
+      "createSubtitle": "Ein Ort mit Adresse (Halle, Gelände, Büro), an dem sich Lager befinden können. Felder mit * sind Pflichtfelder.",
+      "loading": "Wird geladen…",
+      "empty": "Noch keine Standorte",
+      "emptyHint": "Legen Sie den ersten Standort an, um ihm Lager zuzuordnen.",
+      "fields": {
+        "code": "Code",
+        "name": "Name",
+        "street": "Strasse und Nr.",
+        "postalCode": "PLZ",
+        "city": "Ort",
+        "region": "Region",
+        "countryCode": "Land",
+        "isActive": "Status"
+      },
+      "sections": {
+        "identification": "Identifikation",
+        "address": "Adresse"
+      },
+      "hints": {
+        "name": "Name, unter dem der Standort bekannt ist, z. B. «Lager Zug».",
+        "code": "Optional. Für Listen und Auswertungen.",
+        "region": "Kanton, Bundesland oder Provinz."
       },
       "actions": {
-        "activate": "Aktivieren",
-        "deactivate": "Deaktivieren"
-      }
+        "create": "Standort anlegen"
+      },
+      "detail": {
+        "modified": "geändert am {{date}}"
+      },
+      "saved": "Änderungen gespeichert",
+      "created": "Standort angelegt",
+      "readOnlyNotice": "Sie können diesen Standort nur ansehen: Ihnen fehlt die Berechtigung zum Ändern."
+    },
+    "warehouses": {
+      "title": "Lager",
+      "new": "Neues Lager",
+      "newTitle": "Neues Lager",
+      "createSubtitle": "Ein Ort, an dem Material einer Gesellschaft gelagert wird, mit seiner Adresse. Felder mit * sind Pflichtfelder.",
+      "loading": "Wird geladen…",
+      "empty": "Noch keine Lager",
+      "emptyHint": "Legen Sie das erste an und geben Sie seine Adresse an.",
+      "noResults": "Kein Lager entspricht den Filtern",
+      "deactivate": "Deaktivieren",
+      "filters": {
+        "q": "Code oder Name suchen",
+        "legalEntity": "Gesellschaft",
+        "businessUnit": "Geschäftsbereich",
+        "all": "Alle",
+        "status": "Status",
+        "statusAll": "Alle",
+        "statusActive": "Aktive",
+        "statusInactive": "Inaktive"
+      },
+      "fields": {
+        "code": "Code",
+        "caption": "Bezeichnung",
+        "legalEntityId": "Gesellschaft",
+        "businessUnitId": "Geschäftsbereich",
+        "location": "Standort",
+        "isActive": "Status"
+      },
+      "sections": {
+        "identification": "Identifikation",
+        "names": "Bezeichnung in jeder Sprache",
+        "address": "Adresse des Lagers"
+      },
+      "sectionHints": {
+        "names": "Deutsch ist Pflicht. Fehlt eine Sprache, wird die deutsche Bezeichnung angezeigt.",
+        "address": "Ein Lager kann an der Adresse seiner Gesellschaft oder an jeder anderen Adresse liegen."
+      },
+      "hints": {
+        "legalEntity": "Gesellschaft, der das Lager gehört.",
+        "lockedAfterCreate": "Wird beim Anlegen des Lagers festgelegt.",
+        "businessUnit": "Optional. Nur Geschäftsbereiche der gewählten Gesellschaft.",
+        "chooseLegalEntityFirst": "Wählen Sie zuerst die Gesellschaft.",
+        "noBusinessUnits": "Diese Gesellschaft hat keine aktiven Geschäftsbereiche",
+        "location": "Tippen Sie, um nach Code oder Name zu suchen.",
+        "locationRequired": "Wählen Sie einen Standort aus der Liste."
+      },
+      "address": {
+        "sameAsLegalEntity": "Wie die Gesellschaft",
+        "sameAsLegalEntityUnavailable": "Noch nicht verfügbar. Wählen Sie bis dahin einen erfassten Standort oder geben Sie eine neue Adresse ein.",
+        "existing": "Anderer erfasster Standort",
+        "existingHint": "Aus der Standortliste wählen (z. B. eine Halle, die mit einem anderen Lager geteilt wird).",
+        "new": "Neue Adresse",
+        "newHint": "Wird von Hand erfasst und als neuer Standort gespeichert.",
+        "locationCreated": "Der Standort «{{value}}» wurde bereits angelegt, aber das Lager konnte nicht gespeichert werden. Beim erneuten Versuch wird derselbe Standort verwendet, ohne ihn zu duplizieren.",
+        "fields": {
+          "name": "Name des Standorts",
+          "code": "Code des Standorts",
+          "street": "Strasse und Nr.",
+          "postalCode": "PLZ",
+          "city": "Ort",
+          "region": "Region",
+          "countryCode": "Land"
+        },
+        "hints": {
+          "name": "Name, unter dem der Standort bekannt ist, z. B. «Lager Zug».",
+          "code": "Optional. Kurzer Code für Listen.",
+          "region": "Kanton, Bundesland oder Provinz."
+        }
+      },
+      "progress": {
+        "creatingLocation": "Standort wird angelegt…",
+        "savingWarehouse": "Lager wird gespeichert…"
+      },
+      "actions": {
+        "create": "Lager anlegen",
+        "clearBusinessUnit": "Geschäftsbereich entfernen"
+      },
+      "detail": {
+        "modified": "geändert am {{date}}"
+      },
+      "deactivateDialog": {
+        "title": "Lager deaktivieren?",
+        "message": "«{{name}}» ({{code}}) wird deaktiviert und für neue Vorgänge nicht mehr angeboten. Dies kann nicht rückgängig gemacht werden."
+      },
+      "deactivated": "Lager deaktiviert",
+      "saved": "Änderungen gespeichert",
+      "created": "Lager angelegt",
+      "readOnlyNotice": "Sie können dieses Lager nur ansehen: Ihnen fehlt die Berechtigung zum Ändern."
     }
   },
   "access": {
@@ -291,8 +557,10 @@
       "warehouse": "Neues Lager",
       "user": "Neuer Benutzer",
       "party": "Neuer Partner",
-      "role": "Neue Rolle"
-    }
+      "role": "Neue Rolle",
+      "currency": "Neue Währung"
+    },
+    "unavailable": "Nicht verfügbar"
   },
   "shared": {
     "dataGrid": {
@@ -313,6 +581,9 @@
       },
       "confirm": {
         "confirm": "Bestätigen"
+      },
+      "detailSkeleton": {
+        "loading": "Wird geladen…"
       }
     },
     "emptyState": {
@@ -372,80 +643,23 @@
         "fr": "Französisch",
         "it": "Italienisch",
         "es": "Spanisch"
-      }
+      },
+      "moreLanguages": "Weitere Sprachen anzeigen",
+      "fewerLanguages": "Weniger Sprachen anzeigen"
     },
     "entityPicker": {
       "placeholder": "Suchen…",
       "noResults": "Keine Ergebnisse"
-    }
-  },
-  "locations": {
-    "title": "Standorte",
-    "actions": {
-      "create": "Neuer Standort"
     },
-    "list": {
-      "columns": {
-        "code": "Code",
-        "name": "Name",
-        "city": "Stadt",
-        "countryCode": "Land",
-        "isActive": "Status"
-      }
-    },
-    "detail": {
-      "title": {
-        "create": "Neuer Standort",
-        "edit": "Standort bearbeiten"
-      }
-    },
-    "fields": {
-      "code": "Code",
-      "name": "Name",
-      "street": "Strasse",
-      "postalCode": "PLZ",
-      "city": "Stadt",
-      "region": "Region",
-      "countryCode": "Ländercode"
-    }
-  },
-  "warehouses": {
-    "title": "Warehouses",
-    "actions": {
-      "create": "Neues Warehouse",
-      "deactivate": "Deaktivieren"
-    },
-    "filters": {
-      "search": "Suchen",
-      "legalEntity": "Legal Entity",
-      "businessUnit": "Business Unit",
-      "isActive": "Status",
-      "isActiveAll": "Alle"
-    },
-    "list": {
-      "columns": {
-        "code": "Code",
-        "caption": "Bezeichnung",
-        "isActive": "Status"
-      }
-    },
-    "detail": {
-      "title": {
-        "create": "Neues Warehouse",
-        "edit": "Warehouse bearbeiten"
-      }
-    },
-    "fields": {
-      "code": "Code",
-      "location": "Standort",
-      "legalEntity": "Legal Entity",
-      "businessUnit": "Business Unit",
-      "clear": "Entfernen",
-      "current": "Aktuell: {{value}}"
+    "form": {
+      "required": "Pflichtfeld",
+      "reviewFields": "Bitte prüfen Sie die {{count}} markierten Felder.",
+      "reviewFieldsOne": "Bitte prüfen Sie das markierte Feld.",
+      "invalidValue": "Ungültiger Wert"
     }
   },
   "audit": {
-    "summary": "{{count}} Ereignisse · neueste zuerst · Zeiten in Europe/Zurich",
+    "summary": "{{count}} Ereignisse · neueste zuerst · Schweizer Zeit",
     "refresh": "Aktualisieren",
     "loadMore": "Mehr laden",
     "empty": {
@@ -491,7 +705,7 @@
       "externalSubject": "Externe Kennung",
       "preferredLanguage": "Bevorzugte Sprache"
     },
-    "summaryOne": "1 Ereignis · Zeiten in Europe/Zurich",
+    "summaryOne": "1 Ereignis · Schweizer Zeit",
     "loading": "Audit wird geladen…",
     "previousUnavailable": "Vorherige Version nicht verfügbar: Es werden die aktuellen Werte angezeigt.",
     "noMore": "Keine weiteren Ereignisse"
@@ -499,14 +713,14 @@
   "events": {
     "org": {
       "legal-entity": {
-        "created": "Legal Entity erstellt",
-        "updated": "Legal Entity aktualisiert",
-        "deactivated": "Legal Entity deaktiviert"
+        "created": "Gesellschaft erstellt",
+        "updated": "Gesellschaft aktualisiert",
+        "deactivated": "Gesellschaft deaktiviert"
       },
       "business-unit": {
-        "created": "Business Unit erstellt",
-        "updated": "Business Unit aktualisiert",
-        "deactivated": "Business Unit deaktiviert"
+        "created": "Geschäftsbereich erstellt",
+        "updated": "Geschäftsbereich aktualisiert",
+        "deactivated": "Geschäftsbereich deaktiviert"
       },
       "warehouse": {
         "created": "Lager erstellt",

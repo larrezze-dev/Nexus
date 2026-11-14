@@ -104,4 +104,71 @@ describe('PartiesFacade', () => {
     const result = await deactivate;
     expect(result?.isActive).toBe(false);
   });
+
+  it('create() lets the HTTP error reach the caller (the page maps 400/422)', async () => {
+    const { facade, httpMock } = setup();
+
+    const create = facade.create({ partyType: 'ORGANIZATION', legalName: '' });
+    httpMock
+      .expectOne('/api/platform/v1/parties')
+      .flush({ status: 400, errors: { legalName: ['Required'] } }, { status: 400, statusText: 'Bad Request' });
+
+    await expect(create).rejects.toMatchObject({ status: 400 });
+  });
+
+  it('load() clears the record and sets error when the GET fails (retry state)', async () => {
+    const { facade, httpMock } = setup();
+
+    const load = facade.load(party.id);
+    httpMock.expectOne(`/api/platform/v1/parties/${party.id}`).flush(null, { status: 500, statusText: 'Server Error' });
+    await load;
+
+    expect(facade.selected()).toBeNull();
+    expect(facade.error()).toBeTruthy();
+  });
+
+  it('load(): a late response of an older load never overwrites the newer one', async () => {
+    const { facade, httpMock } = setup();
+    const older = { ...party, id: 'p-old', legalName: 'Old AG' };
+    const newer = { ...party, id: 'p-new', legalName: 'New AG' };
+
+    const first = facade.load(older.id);
+    const second = facade.load(newer.id);
+    httpMock.expectOne('/api/platform/v1/parties/p-new').flush(newer, { headers: { ETag: '"new"' } });
+    await second;
+    httpMock.expectOne('/api/platform/v1/parties/p-old').flush(older, { headers: { ETag: '"old"' } });
+    await first;
+
+    expect(facade.selected()?.legalName).toBe('New AG');
+    expect(facade.loading()).toBe(false);
+  });
+
+  it('a late failure of an older load does not flag the newer one as failed', async () => {
+    const { facade, httpMock } = setup();
+    const newer = { ...party, id: 'p-new', legalName: 'New AG' };
+
+    const first = facade.load('p-old');
+    const second = facade.load(newer.id);
+    httpMock.expectOne('/api/platform/v1/parties/p-new').flush(newer);
+    await second;
+    httpMock
+      .expectOne('/api/platform/v1/parties/p-old')
+      .flush({}, { status: 500, statusText: 'Server Error' });
+    await first;
+
+    expect(facade.selected()?.legalName).toBe('New AG');
+    expect(facade.error()).toBeNull();
+  });
+
+  it('reset() invalidates a load in flight: its response is ignored and loading() is false', async () => {
+    const { facade, httpMock } = setup();
+
+    const load = facade.load(party.id);
+    facade.reset();
+    expect(facade.loading()).toBe(false);
+    httpMock.expectOne(`/api/platform/v1/parties/${party.id}`).flush(party);
+    await load;
+
+    expect(facade.selected()).toBeNull();
+  });
 });

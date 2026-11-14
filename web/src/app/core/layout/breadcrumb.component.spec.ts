@@ -89,6 +89,26 @@ describe('BreadcrumbComponent', () => {
     expect(await crumbsAt('/locations/10')).toEqual(['nav.groups.org', 'nav.loc', 'breadcrumb.loading']);
   });
 
+  it('detail shows «unavailable» after a failed load, and forgets it on navigation', async () => {
+    expect(await crumbsAt('/locations/9')).toEqual(['nav.groups.org', 'nav.loc', 'breadcrumb.loading']);
+    TestBed.inject(NxBreadcrumbService).setLoadFailed();
+    expect(await crumbsAt('/locations/9')).toEqual(['nav.groups.org', 'nav.loc', 'breadcrumb.unavailable']);
+    await crumbsAt('/locations');
+    expect(await crumbsAt('/locations/10')).toEqual(['nav.groups.org', 'nav.loc', 'breadcrumb.loading']);
+  });
+
+  it('«unavailable» gives way to «loading» when a reload starts, and to the name once it loads', async () => {
+    expect(await crumbsAt('/locations/9')).toEqual(['nav.groups.org', 'nav.loc', 'breadcrumb.loading']);
+    const service = TestBed.inject(NxBreadcrumbService);
+    service.setLoadFailed();
+    expect(await crumbsAt('/locations/9')).toEqual(['nav.groups.org', 'nav.loc', 'breadcrumb.unavailable']);
+    service.clearLoadFailed();
+    expect(await crumbsAt('/locations/9')).toEqual(['nav.groups.org', 'nav.loc', 'breadcrumb.loading']);
+    service.setLoadFailed();
+    service.setCurrentLabel('Zurich');
+    expect(await crumbsAt('/locations/9')).toEqual(['nav.groups.org', 'nav.loc', 'Zurich']);
+  });
+
   it('flat routes: list and new have a trail (no empty breadcrumb)', async () => {
     expect(await crumbsAt('/locations')).toEqual(['nav.groups.org', 'nav.loc']);
     expect(await crumbsAt('/locations/new')).toEqual(['nav.groups.org', 'nav.loc', 'breadcrumb.new.loc']);

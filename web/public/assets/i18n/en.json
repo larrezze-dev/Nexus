@@ -8,7 +8,9 @@
     "tabs": {
       "general": "General",
       "audit": "Audit"
-    }
+    },
+    "saveChanges": "Save changes",
+    "retry": "Retry"
   },
   "errors": {
     "generic": "Something went wrong. Please try again.",
@@ -21,7 +23,10 @@
     "SAMPLE-R1": "Example business rule message — replace with the real text for rule SAMPLE-R1.",
     "ORG-R6": "The SYSTEM user cannot be edited or deactivated.",
     "ORG-R9": "A user with this email already exists.",
-    "ORG-R3": "A warehouse with a business unit must use a business unit that belongs to the same legal entity."
+    "ORG-R3": "The business unit must belong to the same legal entity as the warehouse.",
+    "CONFLICT": "A record with this code already exists.",
+    "ORG-R5": "The legal entity cannot be deactivated while it has active business units or warehouses.",
+    "ORG-R7": "The currency must be active; a currency used by an active legal entity or group cannot be deactivated."
   },
   "shell": {
     "skipToContent": "Skip to content",
@@ -145,8 +150,10 @@
       "warehouse": "New warehouse",
       "user": "New user",
       "party": "New third party",
-      "role": "New role"
-    }
+      "role": "New role",
+      "currency": "New currency"
+    },
+    "unavailable": "Not available"
   },
   "shared": {
     "dataGrid": {
@@ -167,6 +174,9 @@
       },
       "confirm": {
         "confirm": "Confirm"
+      },
+      "detailSkeleton": {
+        "loading": "Loading…"
       }
     },
     "emptyState": {
@@ -226,11 +236,19 @@
         "fr": "French",
         "it": "Italian",
         "es": "Spanish"
-      }
+      },
+      "moreLanguages": "Show more languages",
+      "fewerLanguages": "Show fewer languages"
     },
     "entityPicker": {
       "placeholder": "Search…",
       "noResults": "No results"
+    },
+    "form": {
+      "required": "Required field",
+      "reviewFields": "Check the {{count}} highlighted fields.",
+      "reviewFieldsOne": "Check the highlighted field.",
+      "invalidValue": "Invalid value"
     }
   },
   "org": {
@@ -291,161 +309,357 @@
     },
     "parties": {
       "title": "Parties",
-      "actions": {
-        "new": "New party",
-        "deactivate": "Deactivate"
+      "new": "New party",
+      "newTitle": "New party",
+      "loading": "Loading…",
+      "empty": "No parties yet",
+      "emptyHint": "Add customers, suppliers and other companies or people the group works with.",
+      "noResults": "No party matches the filters",
+      "deactivate": "Deactivate",
+      "columns": {
+        "name": "Name"
       },
-      "filters": {
-        "search": "Search",
+      "fields": {
         "partyType": "Type",
-        "isInternal": "Internal",
-        "any": "Any",
+        "legalName": "Legal name",
+        "legalNamePerson": "Full name",
+        "displayName": "Short name",
+        "taxId": "Tax ID / UID",
+        "erpCompanyCode": "ERP company code",
+        "isInternal": "Scope",
+        "isActive": "Status"
+      },
+      "type": {
+        "ORGANIZATION": "Organization",
+        "PERSON": "Person"
+      },
+      "scope": {
         "internal": "Internal",
         "external": "External"
       },
-      "partyType": {
-        "organization": "Organization",
-        "person": "Person"
+      "filters": {
+        "q": "Search by name",
+        "partyType": "Type",
+        "partyTypeAll": "All",
+        "isInternal": "Scope",
+        "isInternalAll": "All",
+        "internal": "Internal",
+        "external": "External"
+      },
+      "sections": {
+        "identification": "Identification",
+        "taxErp": "Tax and ERP"
+      },
+      "hints": {
+        "legalName": "Official name, as in the commercial register.",
+        "legalNamePerson": "First and last name.",
+        "displayName": "For lists and menus.",
+        "partyType": "Organization: a company or institution. Person: an individual.",
+        "taxId": "Tax identification number, e.g. CHE-123.456.789.",
+        "erpCompanyCode": "Code of this company in the ERP, if it has one.",
+        "lockedAfterCreate": "Set when the party is created."
+      },
+      "createSubtitle": "A customer, supplier or other company or person the group works with. Fields marked * are required.",
+      "actions": {
+        "create": "Create party"
       },
       "detail": {
-        "newTitle": "New party",
-        "editTitle": "Edit party",
-        "loading": "Loading…"
+        "modified": "modified on {{date}}"
       },
-      "fields": {
-        "partyType": "Party type",
-        "legalName": "Legal name",
-        "displayName": "Display name",
-        "taxId": "Tax ID",
-        "erpCompanyCode": "ERP company code",
-        "isInternal": "Internal",
-        "isActive": "Status"
-      }
+      "deactivateDialog": {
+        "title": "Deactivate the party?",
+        "message": "“{{name}}” will be deactivated. This cannot be undone."
+      },
+      "deactivated": "Party deactivated",
+      "saved": "Changes saved",
+      "created": "Party created",
+      "readOnlyNotice": "You can only view this party: you are not allowed to change it."
     },
     "legalEntities": {
       "title": "Legal entities",
       "new": "New legal entity",
       "newTitle": "New legal entity",
       "loading": "Loading…",
-      "empty": "No legal entities found.",
+      "empty": "No legal entities yet",
       "deactivate": "Deactivate",
-      "confirmDeactivate": "Deactivate this legal entity? This cannot be undone.",
       "fields": {
         "legalName": "Legal name",
-        "displayName": "Display name",
+        "displayName": "Short name",
         "groupId": "Group",
         "code": "Code",
         "currencyCode": "Currency",
         "countryCode": "Country",
         "isActive": "Status"
-      }
+      },
+      "filters": {
+        "q": "Search code or name",
+        "status": "Status",
+        "statusAll": "All",
+        "statusActive": "Active",
+        "statusInactive": "Inactive"
+      },
+      "emptyHint": "Create the first one to assign warehouses and staff to it.",
+      "noResults": "No legal entity matches the filters",
+      "sections": {
+        "company": "Company",
+        "countryCurrency": "Country and currency"
+      },
+      "hints": {
+        "legalName": "Official name, as in the commercial register.",
+        "displayName": "For lists and menus.",
+        "lockedAfterCreate": "Set when the legal entity is created."
+      },
+      "createSubtitle": "A company of the group: it invoices and has its own warehouses and staff. Fields marked * are required.",
+      "actions": {
+        "create": "Create legal entity"
+      },
+      "detail": {
+        "modified": "modified on {{date}}"
+      },
+      "deactivateDialog": {
+        "title": "Deactivate the legal entity?",
+        "message": "“{{name}}” ({{code}}) will be deactivated. This cannot be undone."
+      },
+      "deactivated": "Legal entity deactivated",
+      "saved": "Changes saved",
+      "created": "Legal entity created",
+      "readOnlyNotice": "You can only view this legal entity: you are not allowed to change it."
     },
     "businessUnits": {
       "title": "Business units",
       "new": "New business unit",
       "newTitle": "New business unit",
       "loading": "Loading…",
-      "empty": "No business units found.",
+      "empty": "No business units yet",
       "deactivate": "Deactivate",
-      "confirmDeactivate": "Deactivate this business unit? This cannot be undone.",
       "fields": {
         "legalName": "Legal name",
-        "displayName": "Display name",
+        "displayName": "Short name",
         "legalEntityId": "Legal entity",
-        "legalEntitySearch": "Search legal entity…",
         "code": "Code",
-        "caption": "Caption",
+        "caption": "Name",
         "costCenterCode": "Cost center",
         "isActive": "Status"
-      }
+      },
+      "emptyHint": "Create the first one to assign warehouses and staff to it.",
+      "sections": {
+        "identification": "Identification",
+        "names": "Name in each language",
+        "party": "Party record"
+      },
+      "sectionHints": {
+        "names": "German is required. If a language is missing, the German name is shown.",
+        "party": "The business unit is also listed as an internal party under these names."
+      },
+      "hints": {
+        "legalEntity": "Legal entity the unit belongs to.",
+        "costCenterCode": "For allocating costs in accounting.",
+        "displayName": "For lists and menus.",
+        "lockedAfterCreate": "Set when the business unit is created."
+      },
+      "createSubtitle": "A line of business of a legal entity (e.g. events or rental) that groups warehouses and staff. Fields marked * are required.",
+      "actions": {
+        "create": "Create business unit"
+      },
+      "detail": {
+        "modified": "modified on {{date}}"
+      },
+      "deactivateDialog": {
+        "title": "Deactivate the business unit?",
+        "message": "“{{name}}” ({{code}}) will be deactivated. This cannot be undone."
+      },
+      "deactivated": "Business unit deactivated",
+      "saved": "Changes saved",
+      "created": "Business unit created",
+      "readOnlyNotice": "You can only view this business unit: you are not allowed to change it."
     },
     "tree": {
-      "title": "Organization tree",
-      "empty": "No organization structure yet."
+      "title": "Organization structure",
+      "empty": "No organization structure yet.",
+      "subtitle": "How the group is organized: legal entities, business units and warehouses. Open an item to see its details.",
+      "emptyHint": "It appears here once legal entities, business units and warehouses are created.",
+      "treeLabel": "Organization structure",
+      "expand": "Expand «{{name}}»",
+      "collapse": "Collapse «{{name}}»",
+      "kind": {
+        "group": "Group",
+        "legalEntity": "Legal entity",
+        "businessUnit": "Business unit",
+        "warehouse": "Warehouse"
+      }
     },
     "currencies": {
       "title": "Currencies",
       "empty": "No currencies available.",
-      "columns": {
+      "loading": "Loading…",
+      "fields": {
         "code": "Code",
         "caption": "Name",
-        "minorUnits": "Minor units",
-        "status": "Status",
-        "action": "Action"
+        "minorUnits": "Decimal places",
+        "isActive": "Status"
       },
+      "sections": {
+        "currency": "Currency",
+        "names": "Name in each language"
+      },
+      "hints": {
+        "minorUnits": "Number of decimal places of amounts in this currency.",
+        "code": "Three capital letters (ISO 4217), e.g. SEK.",
+        "lockedAfterCreate": "Set when the currency is created."
+      },
+      "activate": "Activate",
+      "deactivate": "Deactivate",
+      "deactivateDialog": {
+        "title": "Deactivate the currency?",
+        "message": "«{{name}}» ({{code}}) can then no longer be chosen as the currency of a legal entity or group. You can activate it again at any time."
+      },
+      "activated": "Currency activated",
+      "deactivated": "Currency deactivated",
+      "errors": {
+        "inUse": "«{{name}}» cannot be deactivated: at least one active legal entity or group uses this currency.",
+        "codeFormat": "Enter three capital letters (A–Z).",
+        "minorUnitsRange": "A value between 0 and 4.",
+        "duplicateCode": "A currency with this code already exists."
+      },
+      "new": "New currency",
+      "newTitle": "New currency",
+      "createSubtitle": "An ISO 4217 currency that can be chosen for legal entities and groups. The code and the decimals cannot be changed later. Fields marked * are required.",
+      "created": "Currency created",
+      "renamed": "Name saved",
       "actions": {
-        "activate": "Activate",
-        "deactivate": "Deactivate"
-      }
-    }
-  },
-  "locations": {
-    "title": "Locations",
-    "actions": {
-      "create": "New location"
+        "create": "Create currency"
+      },
+      "readOnlyNotice": "You can only view this currency: you are not allowed to change it."
     },
-    "list": {
-      "columns": {
+    "locations": {
+      "title": "Locations",
+      "new": "New location",
+      "newTitle": "New location",
+      "createSubtitle": "A place with an address (hall, site, office) where warehouses can be. Fields marked * are required.",
+      "loading": "Loading…",
+      "empty": "No locations yet",
+      "emptyHint": "Create the first one to assign warehouses to it.",
+      "fields": {
         "code": "Code",
         "name": "Name",
+        "street": "Street and number",
+        "postalCode": "Postal code",
         "city": "City",
+        "region": "Region",
         "countryCode": "Country",
         "isActive": "Status"
-      }
+      },
+      "sections": {
+        "identification": "Identification",
+        "address": "Address"
+      },
+      "hints": {
+        "name": "Name the place is known by, e.g. «Lager Zug».",
+        "code": "Optional. For lists and reports.",
+        "region": "Canton, state or province."
+      },
+      "actions": {
+        "create": "Create location"
+      },
+      "detail": {
+        "modified": "modified on {{date}}"
+      },
+      "saved": "Changes saved",
+      "created": "Location created",
+      "readOnlyNotice": "You can only view this location: you are not allowed to change it."
     },
-    "detail": {
-      "title": {
-        "create": "New location",
-        "edit": "Edit location"
-      }
-    },
-    "fields": {
-      "code": "Code",
-      "name": "Name",
-      "street": "Street",
-      "postalCode": "Postal code",
-      "city": "City",
-      "region": "Region",
-      "countryCode": "Country code"
-    }
-  },
-  "warehouses": {
-    "title": "Warehouses",
-    "actions": {
-      "create": "New warehouse",
-      "deactivate": "Deactivate"
-    },
-    "filters": {
-      "search": "Search",
-      "legalEntity": "Legal entity",
-      "businessUnit": "Business unit",
-      "isActive": "Status",
-      "isActiveAll": "All"
-    },
-    "list": {
-      "columns": {
+    "warehouses": {
+      "title": "Warehouses",
+      "new": "New warehouse",
+      "newTitle": "New warehouse",
+      "createSubtitle": "A place where a legal entity's equipment is stored, with its address. Fields marked * are required.",
+      "loading": "Loading…",
+      "empty": "No warehouses yet",
+      "emptyHint": "Create the first one and give its address.",
+      "noResults": "No warehouse matches the filters",
+      "deactivate": "Deactivate",
+      "filters": {
+        "q": "Search code or name",
+        "legalEntity": "Legal entity",
+        "businessUnit": "Business unit",
+        "all": "All",
+        "status": "Status",
+        "statusAll": "All",
+        "statusActive": "Active",
+        "statusInactive": "Inactive"
+      },
+      "fields": {
         "code": "Code",
-        "caption": "Caption",
+        "caption": "Name",
+        "legalEntityId": "Legal entity",
+        "businessUnitId": "Business unit",
+        "location": "Location",
         "isActive": "Status"
-      }
-    },
-    "detail": {
-      "title": {
-        "create": "New warehouse",
-        "edit": "Edit warehouse"
-      }
-    },
-    "fields": {
-      "code": "Code",
-      "location": "Location",
-      "legalEntity": "Legal entity",
-      "businessUnit": "Business unit",
-      "clear": "Clear",
-      "current": "Current: {{value}}"
+      },
+      "sections": {
+        "identification": "Identification",
+        "names": "Name in each language",
+        "address": "Warehouse address"
+      },
+      "sectionHints": {
+        "names": "German is required. If a language is missing, the German name is shown.",
+        "address": "A warehouse can be at the address of its legal entity or anywhere else."
+      },
+      "hints": {
+        "legalEntity": "Legal entity that owns the warehouse.",
+        "lockedAfterCreate": "Set when the warehouse is created.",
+        "businessUnit": "Optional. Only units of the chosen legal entity.",
+        "chooseLegalEntityFirst": "Choose the legal entity first.",
+        "noBusinessUnits": "This legal entity has no active business units",
+        "location": "Type to search by code or name.",
+        "locationRequired": "Choose a location from the list."
+      },
+      "address": {
+        "sameAsLegalEntity": "Same as the legal entity",
+        "sameAsLegalEntityUnavailable": "Not available yet. Meanwhile, choose a registered location or type a new address.",
+        "existing": "Another registered location",
+        "existingHint": "Pick one from the location list (e.g. a hall shared with another warehouse).",
+        "new": "New address",
+        "newHint": "Typed by hand and saved as a new location.",
+        "locationCreated": "The location “{{value}}” has already been created, but the warehouse could not be saved. Retrying uses that same location, without duplicating it.",
+        "fields": {
+          "name": "Location name",
+          "code": "Location code",
+          "street": "Street and number",
+          "postalCode": "Postal code",
+          "city": "City",
+          "region": "Region",
+          "countryCode": "Country"
+        },
+        "hints": {
+          "name": "Name the place is known by, e.g. «Lager Zug».",
+          "code": "Optional. Short code for lists.",
+          "region": "Canton, state or province."
+        }
+      },
+      "progress": {
+        "creatingLocation": "Creating location…",
+        "savingWarehouse": "Saving warehouse…"
+      },
+      "actions": {
+        "create": "Create warehouse",
+        "clearBusinessUnit": "Remove the business unit"
+      },
+      "detail": {
+        "modified": "modified on {{date}}"
+      },
+      "deactivateDialog": {
+        "title": "Deactivate the warehouse?",
+        "message": "“{{name}}” ({{code}}) will be deactivated and no longer offered for new operations. This cannot be undone."
+      },
+      "deactivated": "Warehouse deactivated",
+      "saved": "Changes saved",
+      "created": "Warehouse created",
+      "readOnlyNotice": "You can only view this warehouse: you are not allowed to change it."
     }
   },
   "audit": {
-    "summary": "{{count}} events · most recent first · times in Europe/Zurich",
+    "summary": "{{count}} events · most recent first · Swiss time",
     "refresh": "Refresh",
     "loadMore": "Load more",
     "empty": {
@@ -491,7 +705,7 @@
       "externalSubject": "External subject",
       "preferredLanguage": "Preferred language"
     },
-    "summaryOne": "1 event · times in Europe/Zurich",
+    "summaryOne": "1 event · Swiss time",
     "loading": "Loading audit trail…",
     "previousUnavailable": "Previous version unavailable: showing current values.",
     "noMore": "No more events"

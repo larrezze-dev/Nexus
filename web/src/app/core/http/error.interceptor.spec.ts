@@ -34,11 +34,11 @@ describe('errorInterceptor', () => {
 
     http.post('/api/v1/asset-types', {}).subscribe({ error: (err) => (captured = err) });
 
-    const problem: Problem = { type: 'validation', status: 400, errors: { code: ['required'] } };
+    const problem: Problem = { type: 'validation', status: 400, errors: [{ field: 'code', message: 'required' }] };
     controller.expectOne('/api/v1/asset-types').flush(problem, { status: 400, statusText: 'Bad Request' });
 
     expect(captured?.status).toBe(400);
-    expect((captured?.error as Problem).errors?.['code']).toEqual(['required']);
+    expect((captured?.error as Problem).errors).toEqual([{ field: 'code', message: 'required' }]);
     expect(router.navigate).not.toHaveBeenCalled();
     expect(router.navigateByUrl).not.toHaveBeenCalled();
   });
@@ -105,7 +105,11 @@ describe('errorInterceptor', () => {
     const { http, controller, router, concurrencyDialog } = setup();
 
     http.put('/api/v1/asset-types/1', {}).subscribe({ error: () => undefined });
-    const problem: Problem = { type: 'concurrency', status: 409 };
+    const problem: Problem = {
+      type: 'https://nexus.nussli.ch/problems/conflict',
+      code: 'CONCURRENCY',
+      status: 409,
+    };
     controller.expectOne('/api/v1/asset-types/1').flush(problem, { status: 409, statusText: 'Conflict' });
 
     expect(concurrencyDialog.open).toHaveBeenCalledTimes(1);
@@ -118,11 +122,40 @@ describe('errorInterceptor', () => {
     let captured: HttpErrorResponse | undefined;
 
     http.post('/api/v1/asset-types', {}).subscribe({ error: (err) => (captured = err) });
-    const problem: Problem = { type: 'idempotency_conflict', status: 409 };
+    const problem: Problem = {
+      type: 'https://nexus.nussli.ch/problems/conflict',
+      code: 'CONFLICT',
+      status: 409,
+    };
     controller.expectOne('/api/v1/asset-types').flush(problem, { status: 409, statusText: 'Conflict' });
 
     expect(concurrencyDialog.open).not.toHaveBeenCalled();
     expect(captured?.status).toBe(409);
+  });
+
+  it('still accepts the legacy type "concurrency" for the concurrency dialog', () => {
+    const { http, controller, concurrencyDialog } = setup();
+
+    http.put('/api/v1/asset-types/1', {}).subscribe({ error: () => undefined });
+    controller
+      .expectOne('/api/v1/asset-types/1')
+      .flush({ type: 'concurrency', status: 409 } satisfies Problem, { status: 409, statusText: 'Conflict' });
+
+    expect(concurrencyDialog.open).toHaveBeenCalledTimes(1);
+  });
+
+  it('opens no dialog for a 409 CONFLICT (duplicate code): the form handles it', () => {
+    const { http, controller, concurrencyDialog } = setup();
+    let captured: HttpErrorResponse | undefined;
+
+    http.post('/api/v1/legal-entities', {}).subscribe({ error: (err) => (captured = err) });
+    controller.expectOne('/api/v1/legal-entities').flush(
+      { type: 'https://nexus.nussli.ch/problems/conflict', code: 'CONFLICT', status: 409 } satisfies Problem,
+      { status: 409, statusText: 'Conflict' },
+    );
+
+    expect(concurrencyDialog.open).not.toHaveBeenCalled();
+    expect((captured?.error as Problem).code).toBe('CONFLICT');
   });
 
   it('passes 422 business-rule errors through with the rule code intact', () => {

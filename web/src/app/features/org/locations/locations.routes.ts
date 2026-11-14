@@ -1,13 +1,13 @@
 import { Routes } from '@angular/router';
 
 /**
- * Location routes (ficha 0.4, track F). Exposed as a plain `Routes` array for the final
- * integration step (F6) to splice into `app.routes.ts`'s authenticated shell children —
- * this feature never touches `app.routes.ts` itself.
+ * Location routes (ficha 0.4, track F), spliced into `app.routes.ts`'s authenticated shell
+ * children.
  *
  * `locations/new` is declared before `locations/:id` so the Angular router matches the
- * literal segment first; both resolve to the same `LocationDetailPage`, which reads
- * `ActivatedRoute`'s `id` param to tell "new" apart from "edit existing".
+ * literal segment first; both resolve to the same `LocationDetailPage`, which tells the create
+ * form (no `id` param) apart from the detail page. The pages navigate with absolute paths
+ * (`/locations/…`) because these routes are flat, not children of `locations`.
  */
 export const locationsRoutes: Routes = [
   {

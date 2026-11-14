@@ -139,7 +139,7 @@ describe('RoleDetailPage', () => {
 
   it('maps a 400 response into per-field errors on create', async () => {
     const facade = createFacadeStub(null);
-    facade.create.mockRejectedValue({ status: 400, error: { errors: { code: ['Code already in use'] } } });
+    facade.create.mockRejectedValue({ status: 400, error: { errors: [{ field: 'Code', message: 'Code already in use' }] } });
     const fixture = await setupPage({}, facade);
     fixture.detectChanges();
     fixture.componentInstance['form'].controls.code.setValue('ADMIN');
@@ -147,8 +147,31 @@ describe('RoleDetailPage', () => {
 
     await fixture.componentInstance['onSave']();
 
-    expect(fixture.componentInstance['fieldErrors']()).toEqual({ code: ['Code already in use'] });
+    expect(fixture.componentInstance['fieldErrors']()).toEqual({ code: ['shared.form.invalidValue'] });
     expect(fixture.componentInstance['saveError']()).toBe('Fix the fields');
+  });
+
+  it('409 CONFLICT (duplicate code) marks the code field; 409 CONCURRENCY shows nothing', async () => {
+    const facade = createFacadeStub(null);
+    facade.create.mockRejectedValueOnce({
+      status: 409,
+      error: { type: 'https://nexus.nussli.ch/problems/conflict', code: 'CONFLICT', status: 409 },
+    });
+    const fixture = await setupPage({}, facade);
+    fixture.detectChanges();
+    fixture.componentInstance['form'].controls.code.setValue('ADMIN');
+    fixture.componentInstance['form'].controls.captionI18n.setValue({ de: 'Admin' });
+
+    await fixture.componentInstance['onSave']();
+    expect(fixture.componentInstance['fieldErrors']()).toEqual({ code: ['errors.CONFLICT'] });
+
+    facade.create.mockRejectedValueOnce({
+      status: 409,
+      error: { type: 'https://nexus.nussli.ch/problems/conflict', code: 'CONCURRENCY', status: 409 },
+    });
+    await fixture.componentInstance['onSave']();
+    expect(fixture.componentInstance['fieldErrors']()).toEqual({});
+    expect(fixture.componentInstance['saveError']()).toBeNull();
   });
 
   it('full-replaces permission grants on savePermissions with the toggled codes', async () => {

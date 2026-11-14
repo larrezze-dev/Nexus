@@ -1,340 +1,594 @@
-import { Component, OnInit, inject, signal } from '@angular/core';
-import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
-import { ActivatedRoute, Router } from '@angular/router';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  ElementRef,
+  OnInit,
+  computed,
+  effect,
+  inject,
+  signal,
+  viewChild,
+} from '@angular/core';
+import { NgTemplateOutlet } from '@angular/common';
+import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
+import { AbstractControl, FormControl, ReactiveFormsModule } from '@angular/forms';
+import {
+  MatAutocompleteModule,
+  MatAutocompleteSelectedEvent,
+} from '@angular/material/autocomplete';
 import { MatButtonModule } from '@angular/material/button';
+import { ErrorStateMatcher } from '@angular/material/core';
 import { MatFormFieldModule } from '@angular/material/form-field';
+import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
+import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
+import { MatRadioModule } from '@angular/material/radio';
+import { MatSelectModule } from '@angular/material/select';
+import { MatSnackBar } from '@angular/material/snack-bar';
 import { MatTabsModule } from '@angular/material/tabs';
-import { TranslocoModule } from '@jsverse/transloco';
-import { Observable } from 'rxjs';
+import { ActivatedRoute, Router } from '@angular/router';
+import { TranslocoModule, TranslocoService } from '@jsverse/transloco';
+import {
+  Subject,
+  catchError,
+  debounceTime,
+  distinctUntilChanged,
+  of,
+  startWith,
+  switchMap,
+} from 'rxjs';
 import { BusinessUnitListItem } from '../../../api/platform/models/business-unit-list-item';
 import { LegalEntityListItem } from '../../../api/platform/models/legal-entity-list-item';
 import { LocationListItem } from '../../../api/platform/models/location-list-item';
+import {
+  fieldErrorsOf,
+  isConcurrencyConflict,
+  isDuplicateConflict,
+  problemOf,
+} from '../../../core/http/problem';
+import { markServerErrors } from '../../../shared/forms/server-errors';
+import { NxFormatService } from '../../../core/i18n/nx-format.service';
+import { NxI18nService } from '../../../core/i18n/nx-i18n.service';
+import { NxBreadcrumbService } from '../../../core/layout/breadcrumb.service';
 import { NxCanDirective } from '../../../shared/auth/can.directive';
+import { PermissionsStore } from '../../../shared/auth/permissions.store';
 import { NxAuditTrailComponent } from '../../../shared/platform/nx-audit-trail/nx-audit-trail.component';
-import { emptyI18nText, I18nText } from '../../../shared/ui/i18n-text.model';
-import { NxEntityPickerComponent } from '../../../shared/ui/nx-entity-picker/nx-entity-picker.component';
+import { resolveCaption } from '../../../shared/ui/caption/caption.util';
+import { countryName, countryOptions } from '../../../shared/ui/country/country-names';
+import {
+  NxActionBarComponent,
+  NxConfirm,
+  NxDetailSkeletonComponent,
+  NxEmptyStateComponent,
+  NxFormGridComponent,
+  NxFormSectionComponent,
+  NxPageComponent,
+  NxPageHeaderComponent,
+  NxSpanDirective,
+} from '../../../shared/ui/layout';
 import { NxI18nCaptionEditorComponent } from '../../../shared/ui/nx-i18n-caption-editor/nx-i18n-caption-editor.component';
 import { NxStatusBadgeComponent } from '../../../shared/ui/nx-status-badge/nx-status-badge.component';
 import { WarehouseFacade } from './warehouse.facade';
-import { NxI18nService } from '../../../core/i18n/nx-i18n.service';
-import { resolveCaption } from '../../../shared/ui/caption/caption.util';
-import { NxBreadcrumbService } from '../../../core/layout/breadcrumb.service';
+import {
+  applyAddressMode,
+  createWarehouseForm,
+  patchWarehouseForm,
+  warehouseFormValue,
+} from './warehouse-form';
+import {
+  AddressMode,
+  SAME_AS_LEGAL_ENTITY_AVAILABLE,
+  WarehouseLocationRef,
+  WarehouseSaveError,
+} from './warehouse.models';
+
+/** Debounce of the location search box. */
+const LOCATION_SEARCH_DEBOUNCE_MS = 250;
+
+/** What the location field holds: the typed text, or the picked location. */
+type LocationSearchValue = string | WarehouseLocationRef | LocationListItem;
+
+/** Form controls in the order they appear on screen, with the element that gets the focus when invalid. */
+const FIELD_ORDER: readonly { readonly path: string; readonly testId: string }[] = [
+  { path: 'code', testId: 'warehouse-code-input' },
+  { path: 'legalEntityId', testId: 'warehouse-legal-entity' },
+  { path: 'businessUnitId', testId: 'warehouse-business-unit' },
+  { path: 'captionI18n', testId: 'warehouse-caption' },
+  { path: 'locationId', testId: 'warehouse-location-input' },
+  { path: 'newLocation.name', testId: 'warehouse-new-location-name' },
+  { path: 'newLocation.code', testId: 'warehouse-new-location-code' },
+  { path: 'newLocation.street', testId: 'warehouse-new-location-street' },
+  { path: 'newLocation.postalCode', testId: 'warehouse-new-location-postalCode' },
+  { path: 'newLocation.city', testId: 'warehouse-new-location-city' },
+  { path: 'newLocation.region', testId: 'warehouse-new-location-region' },
+  { path: 'newLocation.countryCode', testId: 'warehouse-new-location-countryCode' },
+];
 
 /**
- * Warehouse create/edit screen (ficha 0.4, track F): `nx-entity-picker` for
- * `locationId`/`legalEntityId`/`businessUnitId`, `nx-i18n-caption-editor` for `captionI18n`,
- * `If-Match` on save, deactivation.
+ * Warehouse detail and create page (`conventions-frontend.md §4.5–§4.6`), same structure as the
+ * legal-entity and business-unit pages. No `id` route param (`warehouses/new`) = create form
+ * template; an `id` = detail template: header with the name (`captionI18n` in the active
+ * language, also in the breadcrumb, following a language switch), «code · modified on …», status
+ * and «Deactivate», and the General · Audit tabs.
  *
- * ORG-R3 ("a `businessUnitId` must belong to the same `legalEntityId`") is shown right under
- * the `businessUnitId` field via `WarehouseFacade.businessUnitError()`, not just a generic
- * toast (ficha 0.4 Gate D requires this to be visible in the form).
+ * Form sections: «Identification» (code, legal entity, business unit), «Name in each language»
+ * (`captionI18n` editor) and «Warehouse address» with the three address modes (the «same as the
+ * legal entity» one is shown disabled with its note: it needs an API that does not exist yet).
+ * The legal entity is fixed once the warehouse exists (lock + hint). The business unit only
+ * offers units of the chosen legal entity; an ORG-R3 rejection is shown under that field.
  *
- * `legalEntityId` is immutable once a warehouse exists (`UpdateWarehouseRequest` in the 0.4
- * contract has no `legalEntityId`): the picker for it only shows up when creating; on edit it
- * is a disabled, read-only field.
- *
- * `nx-entity-picker` is a one-shot "pick a new value" control (not a `ControlValueAccessor`):
- * on edit, the picker starts empty and `WarehouseFacade.resolvedLocationLabel()` /
- * `resolvedBusinessUnitLabel()` show the *current* value as plain text above it, so the user
- * sees what is already set before deciding whether to change it.
+ * Saving with a new address is two calls (location, then warehouse): the page shows which step
+ * runs, and if the second one fails it says that the location already exists and offers «Retry»
+ * (the facade reuses that location). The API has no reactivate endpoint, so an inactive
+ * warehouse offers no status action.
  */
 @Component({
   selector: 'nx-warehouse-detail-page',
+  standalone: true,
   imports: [
+    NgTemplateOutlet,
     ReactiveFormsModule,
-    NxEntityPickerComponent,
-    NxI18nCaptionEditorComponent,
-    NxStatusBadgeComponent,
+    TranslocoModule,
+    MatAutocompleteModule,
+    MatButtonModule,
+    MatFormFieldModule,
+    MatIconModule,
+    MatInputModule,
+    MatProgressSpinnerModule,
+    MatRadioModule,
+    MatSelectModule,
+    MatTabsModule,
+    NxActionBarComponent,
     NxAuditTrailComponent,
     NxCanDirective,
-    MatTabsModule,
-    MatFormFieldModule,
-    MatInputModule,
-    MatButtonModule,
-    TranslocoModule,
+    NxDetailSkeletonComponent,
+    NxEmptyStateComponent,
+    NxFormGridComponent,
+    NxFormSectionComponent,
+    NxI18nCaptionEditorComponent,
+    NxPageComponent,
+    NxPageHeaderComponent,
+    NxSpanDirective,
+    NxStatusBadgeComponent,
   ],
-  template: `
-    <div class="nx-page-header">
-      <h1>
-        {{
-          (isNew() ? 'warehouses.detail.title.create' : 'warehouses.detail.title.edit') | transloco
-        }}
-      </h1>
-      @if (!isNew() && facade.selected(); as warehouse) {
-        <nx-status-badge [status]="warehouse.isActive ? 'active' : 'inactive'" />
-      }
-    </div>
-
-    <mat-tab-group mat-stretch-tabs="false" mat-align-tabs="start">
-      <mat-tab [label]="'common.tabs.general' | transloco">
-        <form [formGroup]="form" (ngSubmit)="save()">
-          <mat-form-field>
-            <mat-label>{{ 'warehouses.fields.code' | transloco }}</mat-label>
-            <input matInput formControlName="code" data-testid="warehouse-code-input" />
-          </mat-form-field>
-
-          <nx-i18n-caption-editor formControlName="captionI18n" />
-
-          <div class="nx-field-group">
-            <span class="nx-field-group__label">{{
-              'warehouses.fields.location' | transloco
-            }}</span>
-            @if (facade.resolvedLocationLabel(); as label) {
-              <p class="nx-field-current">
-                {{ 'warehouses.fields.current' | transloco: { value: label } }}
-              </p>
-            }
-            <nx-entity-picker
-              [search]="searchLocations"
-              [displayWith]="displayLocation"
-              (selected)="onLocationSelected($event)"
-            />
-          </div>
-
-          <div class="nx-field-group">
-            <span class="nx-field-group__label">{{
-              'warehouses.fields.legalEntity' | transloco
-            }}</span>
-            @if (isNew()) {
-              <nx-entity-picker
-                [search]="searchLegalEntities"
-                [displayWith]="displayCode"
-                (selected)="onLegalEntitySelected($event)"
-                data-testid="warehouse-legal-entity-picker"
-              />
-            } @else {
-              <p class="nx-field-current" data-testid="warehouse-legal-entity-current">
-                {{ facade.resolvedLegalEntityLabel() ?? form.controls.legalEntityId.value }}
-              </p>
-            }
-          </div>
-
-          <div class="nx-field-group">
-            <span class="nx-field-group__label">{{
-              'warehouses.fields.businessUnit' | transloco
-            }}</span>
-            @if (facade.resolvedBusinessUnitLabel(); as label) {
-              <p class="nx-field-current">
-                {{ 'warehouses.fields.current' | transloco: { value: label } }}
-              </p>
-            }
-            <nx-entity-picker
-              [search]="searchBusinessUnits"
-              [displayWith]="displayCode"
-              (selected)="onBusinessUnitSelected($event)"
-              data-testid="warehouse-business-unit-picker"
-            />
-            <button type="button" mat-button (click)="clearBusinessUnit()">
-              {{ 'warehouses.fields.clear' | transloco }}
-            </button>
-
-            @if (facade.businessUnitError(); as businessUnitError) {
-              <div class="nx-field-error" role="alert" data-testid="warehouse-business-unit-error">
-                {{ businessUnitError }}
-              </div>
-            }
-          </div>
-
-          @if (facade.error(); as error) {
-            <p role="alert" class="nx-form-error" data-testid="warehouse-form-error">{{ error }}</p>
-          }
-
-          <div class="nx-form-actions">
-            <button mat-button type="button" (click)="cancel()">
-              {{ 'common.cancel' | transloco }}
-            </button>
-            @if (!isNew()) {
-              <button
-                mat-button
-                color="warn"
-                type="button"
-                (click)="deactivate()"
-                [disabled]="facade.saving() || facade.selected()?.isActive === false"
-                data-testid="warehouse-deactivate-button"
-              >
-                {{ 'warehouses.actions.deactivate' | transloco }}
-              </button>
-            }
-            <button
-              mat-raised-button
-              color="primary"
-              type="submit"
-              [disabled]="facade.saving()"
-              data-testid="warehouse-save-button"
-            >
-              {{ 'common.save' | transloco }}
-            </button>
-          </div>
-        </form>
-      </mat-tab>
-
-      @if (!isNew() && facade.selected(); as current) {
-        @if (current.id === routeId()) {
-          <ng-container *nxCan="'AUDIT:READ'">
-            <mat-tab [label]="'common.tabs.audit' | transloco">
-              <ng-template matTabContent>
-                <nx-audit-trail
-                  data-testid="audit-tab"
-                  aggregateType="warehouse"
-                  [aggregateId]="current.id"
-                />
-              </ng-template>
-            </mat-tab>
-          </ng-container>
-        }
-      }
-    </mat-tab-group>
-  `,
-  styles: [
-    `
-      .nx-page-header {
-        display: flex;
-        align-items: center;
-        gap: 1rem;
-        margin-bottom: 1rem;
-      }
-      .nx-field-group {
-        margin: 1rem 0;
-      }
-      .nx-field-group__label {
-        display: block;
-        font-weight: 500;
-        margin-bottom: 0.25rem;
-      }
-      .nx-field-current {
-        margin: 0 0 0.25rem;
-        color: var(--mat-sys-on-surface-variant, rgba(0, 0, 0, 0.6));
-      }
-      .nx-field-error {
-        color: var(--mat-sys-error, #b3261e);
-        font-size: 0.75rem;
-        margin-top: 0.25rem;
-      }
-    `,
-  ],
+  templateUrl: './warehouse-detail.page.html',
+  styleUrl: './warehouse-detail.page.scss',
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class WarehouseDetailPage implements OnInit {
   protected readonly facade = inject(WarehouseFacade);
   private readonly route = inject(ActivatedRoute);
-  private readonly breadcrumb = inject(NxBreadcrumbService);
-  private readonly i18n = inject(NxI18nService);
   private readonly router = inject(Router);
+  private readonly i18n = inject(NxI18nService);
+  private readonly format = inject(NxFormatService);
+  private readonly transloco = inject(TranslocoService);
+  private readonly breadcrumb = inject(NxBreadcrumbService);
+  private readonly confirm = inject(NxConfirm);
+  private readonly snackBar = inject(MatSnackBar);
+  private readonly permissions = inject(PermissionsStore);
+  private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
 
-  protected readonly isNew = signal(true);
-  private warehouseId: string | null = null;
+  /** Emits once the active language's file is loaded (and on every switch): texts built in TS follow it. */
+  private readonly translation = toSignal(this.transloco.selectTranslation());
+
+  private readonly saveAlert = viewChild<ElementRef<HTMLElement>>('saveAlert');
+
+  protected readonly mode = signal<'create' | 'edit'>('create');
   /** Id from the route; the audit tab only shows for the record that matches it. */
   protected readonly routeId = signal<string | null>(null);
 
-  protected readonly form = new FormGroup({
-    locationId: new FormControl('', { nonNullable: true, validators: [Validators.required] }),
-    legalEntityId: new FormControl('', { nonNullable: true, validators: [Validators.required] }),
-    businessUnitId: new FormControl<string | null>(null),
-    code: new FormControl('', { nonNullable: true, validators: [Validators.required] }),
-    captionI18n: new FormControl<I18nText>(emptyI18nText(), { nonNullable: true }),
+  protected readonly form = createWarehouseForm();
+  protected readonly sameAsLegalEntityAvailable = SAME_AS_LEGAL_ENTITY_AVAILABLE;
+
+  /** Translated message of the last failed save or deactivation (alert above the form). */
+  protected readonly saveError = signal<string | null>(null);
+  /** The last save failed after creating the new location: say so and offer «Retry». */
+  protected readonly locationCreated = signal(false);
+  /** ORG-R3 message, shown under the business-unit field. */
+  protected readonly businessUnitError = signal<string | null>(null);
+  /** Number of invalid fields after a submit attempt (alert above the form); 0 = no alert. */
+  protected readonly invalidCount = signal(0);
+
+  protected readonly selected = this.facade.selected;
+
+  protected readonly canUpdate = computed(() => {
+    this.permissions.permissions(); // re-evaluate when permissions change
+    return this.permissions.has('ORG_STRUCTURE:UPDATE');
   });
 
-  protected readonly searchLocations = this.facade.searchLocations;
-  protected readonly searchLegalEntities = this.facade.searchLegalEntities;
+  /** Edit mode without the permission to change: every field read-only and Save disabled. */
+  protected readonly readOnly = computed(() => this.mode() === 'edit' && !this.canUpdate());
 
-  protected readonly searchBusinessUnits = (query: string): Observable<BusinessUnitListItem[]> =>
-    this.facade.searchBusinessUnits(this.form.controls.legalEntityId.value)(query);
+  /** Record name: the caption in the active language (→ de → en → first), the code without one. */
+  protected readonly name = computed(() => this.facade.title() ?? '');
 
-  protected readonly displayCode = (item: { code: string }): string => item.code;
-  protected readonly displayLocation = (item: LocationListItem): string =>
-    item.code ? `${item.code} — ${item.name}` : item.name;
+  /** «WH-CH-01 · modified on 11 Nov 2026», in the active language. */
+  protected readonly subtitle = computed(() => {
+    const warehouse = this.selected();
+    if (!warehouse) {
+      return '';
+    }
+    this.translation();
+    const lang = this.transloco.getActiveLang();
+    const date = this.format.formatDateMedium(warehouse.updatedAt);
+    const modified = date ? this.transloco.translate('org.warehouses.detail.modified', { date }, lang) : '';
+    return [warehouse.code, modified].filter(Boolean).join(' · ');
+  });
+
+  protected readonly addressMode = toSignal(this.form.controls.addressMode.valueChanges, {
+    initialValue: this.form.controls.addressMode.value,
+  });
+  private readonly legalEntityId = toSignal(this.form.controls.legalEntityId.valueChanges, {
+    initialValue: this.form.controls.legalEntityId.value,
+  });
+  private readonly businessUnitId = toSignal(this.form.controls.businessUnitId.valueChanges, {
+    initialValue: this.form.controls.businessUnitId.value,
+  });
+
+  /** Reference lists for the legal-entity and business-unit selects; empty if they cannot be read. */
+  private readonly legalEntities = toSignal(
+    this.facade.searchLegalEntities('').pipe(catchError(() => of<LegalEntityListItem[]>([]))),
+    { initialValue: [] as LegalEntityListItem[] },
+  );
+  private readonly businessUnits = toSignal(
+    this.facade
+      .searchBusinessUnits(null)('')
+      .pipe(catchError(() => of<BusinessUnitListItem[]>([]))),
+    { initialValue: [] as BusinessUnitListItem[] },
+  );
+
+  /** Create: the active legal entities. Edit: only the warehouse's own (the field is locked). */
+  protected readonly legalEntityChoices = computed<
+    readonly { id: string; code: string; legalName: string }[]
+  >(() => {
+    if (this.mode() === 'edit') {
+      const ref = this.facade.legalEntityRef();
+      return ref ? [{ id: ref.id, code: ref.code, legalName: ref.legalName ?? '' }] : [];
+    }
+    return this.legalEntities()
+      .filter((legalEntity) => legalEntity.isActive)
+      .map((legalEntity) => ({
+        id: legalEntity.id,
+        code: legalEntity.code,
+        legalName: legalEntity.legalName,
+      }));
+  });
+
+  protected readonly selectedLegalEntity = computed(
+    () => this.legalEntityChoices().find((option) => option.id === this.legalEntityId()) ?? null,
+  );
+
+  /** Active business units of the chosen legal entity, plus the current one if it is no longer active. */
+  protected readonly businessUnitChoices = computed<
+    readonly { id: string; code: string; label: string }[]
+  >(() => {
+    const lang = this.i18n.activeLang();
+    const legalEntityId = this.legalEntityId();
+    const current = this.mode() === 'edit' ? this.facade.businessUnitRef() : null;
+    const units = this.businessUnits()
+      .filter(
+        (unit) =>
+          unit.legalEntityId === legalEntityId && (unit.isActive || unit.id === current?.id),
+      )
+      .map((unit) => ({
+        id: unit.id,
+        code: unit.code,
+        label: resolveCaption(unit.captionI18n, lang, unit.code),
+      }));
+    if (current && !units.some((unit) => unit.id === current.id)) {
+      units.unshift({
+        id: current.id,
+        code: current.code,
+        label: resolveCaption(current.captionI18n, lang, current.code),
+      });
+    }
+    return units;
+  });
+
+  protected readonly selectedBusinessUnit = computed(
+    () => this.businessUnitChoices().find((option) => option.id === this.businessUnitId()) ?? null,
+  );
+
+  /** Countries by name in the UI language (the value stays the ISO code the API expects). */
+  protected readonly countries = computed(() => countryOptions(this.i18n.activeLang()));
+
+  /** Location field: free text to search, or the picked location (shown as «code — name»). */
+  protected readonly locationSearch = new FormControl<LocationSearchValue>('', {
+    nonNullable: true,
+  });
+  private readonly locationQuery = new Subject<string>();
+  protected readonly locationOptions = toSignal(
+    this.locationQuery.pipe(
+      startWith(''),
+      debounceTime(LOCATION_SEARCH_DEBOUNCE_MS),
+      distinctUntilChanged(),
+      switchMap((query) =>
+        this.facade.searchLocations(query).pipe(catchError(() => of<LocationListItem[]>([]))),
+      ),
+    ),
+    { initialValue: [] as LocationListItem[] },
+  );
+  /**
+   * The location field is in error when no location is picked (`locationId`), not when its text
+   * is empty: typed text that matches nothing is not a location.
+   */
+  protected readonly locationErrorState: ErrorStateMatcher = {
+    isErrorState: () => {
+      const locationId = this.form.controls.locationId;
+      return (
+        locationId.enabled &&
+        locationId.invalid &&
+        (locationId.touched || this.locationSearch.touched)
+      );
+    },
+  };
+
+  protected readonly displayLocation = (value: LocationSearchValue | null): string =>
+    !value ? '' : typeof value === 'string' ? value : this.facade.displayLocation(value);
+
+  /** Progress text of a running save («Creating location…», «Saving warehouse…»); `null` when idle. */
+  protected readonly saveProgressKey = computed(() => {
+    switch (this.facade.saveStep()) {
+      case 'creatingLocation':
+        return 'org.warehouses.progress.creatingLocation';
+      case 'savingWarehouse':
+        return 'org.warehouses.progress.savingWarehouse';
+      default:
+        return null;
+    }
+  });
+
+  constructor() {
+    // A record that failed to load never gets a name: the breadcrumb says so.
+    effect(() => {
+      if (this.mode() === 'edit' && this.facade.error()) {
+        this.breadcrumb.setLoadFailed();
+      }
+    });
+
+    // The breadcrumb names the record and follows a language switch (the name is a caption).
+    effect(() => {
+      const name = this.name();
+      if (this.mode() === 'edit' && name) {
+        this.breadcrumb.setCurrentLabel(name);
+      }
+    });
+
+    // Typing in the location field searches and drops the previous choice.
+    this.locationSearch.valueChanges.pipe(takeUntilDestroyed()).subscribe((value) => {
+      if (typeof value !== 'string') {
+        return;
+      }
+      const locationId = this.form.controls.locationId;
+      if (locationId.value !== null) {
+        locationId.setValue(null);
+        locationId.markAsDirty();
+      }
+      this.locationQuery.next(value.trim());
+    });
+
+    // Read-only (no permission): every control is disabled; otherwise only what applies.
+    effect(() => this.syncEnabledState(this.readOnly(), this.legalEntityId(), this.addressMode()));
+  }
 
   ngOnInit(): void {
+    this.facade.reset();
     const id = this.route.snapshot.paramMap.get('id');
     if (id && id !== 'new') {
-      this.isNew.set(false);
-      this.warehouseId = id;
+      this.mode.set('edit');
       this.routeId.set(id);
-      this.facade.reset();
-      void this.loadExisting(id);
-    } else {
-      this.facade.reset();
+      void this.load();
     }
   }
 
-  private async loadExisting(id: string): Promise<void> {
-    await this.facade.load(id);
-    const warehouse = this.facade.selected();
-    this.breadcrumb.setCurrentLabel(
-      warehouse
-        ? resolveCaption(warehouse.captionI18n, this.i18n.getActiveLanguage(), warehouse.code)
-        : null,
-    );
-    if (!warehouse) {
+  /** Loads the record (also the «Retry» of the error state) and fills the form. */
+  protected async load(): Promise<void> {
+    this.breadcrumb.clearLoadFailed();
+    const id = this.routeId();
+    if (!id) {
       return;
     }
-    this.form.patchValue({
-      locationId: warehouse.locationId,
-      legalEntityId: warehouse.legalEntityId,
-      businessUnitId: warehouse.businessUnitId ?? null,
-      code: warehouse.code,
-      captionI18n: warehouse.captionI18n as I18nText,
-    });
-    // ORG-R3/contract: `legalEntityId` is immutable once a warehouse exists.
-    this.form.controls.legalEntityId.disable();
+    await this.facade.load(id);
+    const warehouse = this.facade.selected();
+    if (warehouse) {
+      patchWarehouseForm(this.form, warehouse);
+      // The current location, by name, inside the location field.
+      this.locationSearch.setValue(this.facade.locationRef() ?? '', { emitEvent: false });
+      this.syncEnabledState(this.readOnly(), warehouse.legalEntityId, 'existingLocation');
+    }
   }
 
-  protected onLocationSelected(item: LocationListItem): void {
+  protected onLocationSelected(event: MatAutocompleteSelectedEvent): void {
+    const item = event.option.value as LocationListItem;
     this.form.controls.locationId.setValue(item.id);
+    this.form.controls.locationId.markAsDirty();
   }
 
-  protected onLegalEntitySelected(item: LegalEntityListItem): void {
-    this.form.controls.legalEntityId.setValue(item.id);
-    // Changing the legal entity invalidates any business unit chosen for the previous one (ORG-R3).
+  /** A business unit of the previous legal entity would break ORG-R3: it is cleared. */
+  protected onLegalEntityChange(): void {
     this.form.controls.businessUnitId.setValue(null);
   }
 
-  protected onBusinessUnitSelected(item: BusinessUnitListItem): void {
-    this.form.controls.businessUnitId.setValue(item.id);
+  protected clearBusinessUnit(event: Event): void {
+    event.stopPropagation();
+    this.form.controls.businessUnitId.setValue(null);
+    this.form.controls.businessUnitId.markAsDirty();
   }
 
-  protected clearBusinessUnit(): void {
-    this.form.controls.businessUnitId.setValue(null);
+  protected countryLabel(code: string): string {
+    return countryName(code, this.i18n.activeLang());
   }
 
   protected async save(): Promise<void> {
-    if (this.form.invalid) {
-      this.form.markAllAsTouched();
+    if (this.facade.saving() || this.readOnly()) {
       return;
     }
-    const value = this.form.getRawValue();
-    if (this.isNew()) {
-      const created = await this.facade.create({
-        locationId: value.locationId,
-        legalEntityId: value.legalEntityId,
-        businessUnitId: value.businessUnitId,
-        code: value.code,
-        captionI18n: value.captionI18n,
-      });
-      if (created) {
-        void this.router.navigateByUrl(`/warehouses/${created.id}`);
+    if (this.form.invalid) {
+      this.form.markAllAsTouched();
+      this.locationSearch.markAsTouched();
+      const invalid = FIELD_ORDER.filter((field) => this.isInvalid(this.form.get(field.path)));
+      this.invalidCount.set(invalid.length);
+      this.focusTestId(invalid[0]?.testId);
+      return;
+    }
+    this.invalidCount.set(0);
+    this.saveError.set(null);
+    this.locationCreated.set(false);
+    this.businessUnitError.set(null);
+    const id = this.mode() === 'edit' ? this.routeId() : null;
+    try {
+      const saved = await this.facade.save(id, warehouseFormValue(this.form));
+      this.resetNewLocation();
+      if (this.mode() === 'create') {
+        this.notify('org.warehouses.created');
+        void this.router.navigateByUrl(`/warehouses/${saved.id}`);
+      } else {
+        this.notify('org.warehouses.saved');
+        // Reload: a new address becomes the warehouse's location, shown by name.
+        await this.load();
       }
-    } else if (this.warehouseId) {
-      const updated = await this.facade.update(this.warehouseId, {
-        locationId: value.locationId,
-        businessUnitId: value.businessUnitId,
-        code: value.code,
-        captionI18n: value.captionI18n,
-      });
-      if (updated) {
-        this.form.markAsPristine();
-      }
+    } catch (error: unknown) {
+      this.showSaveError(error);
     }
   }
 
   protected async deactivate(): Promise<void> {
-    if (!this.warehouseId) {
+    const warehouse = this.selected();
+    if (!warehouse) {
       return;
     }
-    await this.facade.deactivate(this.warehouseId);
+    const confirmed = await this.confirm.confirm({
+      title: this.transloco.translate('org.warehouses.deactivateDialog.title'),
+      message: this.transloco.translate('org.warehouses.deactivateDialog.message', {
+        name: this.name() || warehouse.code,
+        code: warehouse.code,
+      }),
+      confirmLabel: this.transloco.translate('org.warehouses.deactivate'),
+      destructive: true,
+    });
+    if (!confirmed) {
+      return;
+    }
+    this.saveError.set(null);
+    this.locationCreated.set(false);
+    try {
+      await this.facade.deactivate(warehouse.id);
+      this.notify('org.warehouses.deactivated');
+    } catch (error: unknown) {
+      this.showSaveError(error);
+    }
   }
 
+  /** Cancel: back to the list, nothing is saved. */
   protected cancel(): void {
     void this.router.navigateByUrl('/warehouses');
+  }
+
+  /**
+   * After a save with «New address» the location exists and is the warehouse's: empty the
+   * sub-form and go back to «existing location» so a second save does not create it again.
+   */
+  private resetNewLocation(): void {
+    this.form.controls.newLocation.reset();
+    this.form.controls.addressMode.setValue('existingLocation');
+  }
+
+  private showSaveError(error: unknown): void {
+    const cause = error instanceof WarehouseSaveError ? error.cause : error;
+    const http = cause as { status?: number; error?: unknown } | null;
+    if (isConcurrencyConflict(http)) {
+      // `errorInterceptor` already opened the concurrency dialog for a stale version.
+      return;
+    }
+    if (isDuplicateConflict(http)) {
+      // 409 CONFLICT: the code is taken; the failing step says whose code (location or warehouse).
+      const onLocation = error instanceof WarehouseSaveError && error.step === 'location';
+      const control = onLocation
+        ? this.form.controls.newLocation.controls.code
+        : this.form.controls.code;
+      control.setErrors({ ...(control.errors ?? {}), conflict: true });
+      control.markAsTouched();
+      this.focusTestId(onLocation ? 'warehouse-new-location-code' : 'warehouse-code-input');
+      return;
+    }
+    if (http?.status === 400) {
+      // Validation: mark the fields the server named (of the step that failed) and say so above.
+      const fields = fieldErrorsOf(problemOf(http)?.errors);
+      const onLocation = error instanceof WarehouseSaveError && error.step === 'location';
+      markServerErrors(
+        onLocation ? this.form.controls.newLocation.controls : this.form.controls,
+        fields,
+      );
+      this.saveError.set(this.transloco.translate('errors.validation'));
+      this.locationCreated.set(false);
+      setTimeout(() => this.saveAlert()?.nativeElement.focus());
+      return;
+    }
+    const described = this.facade.describeError(cause);
+    if (described.code === 'ORG-R3') {
+      this.businessUnitError.set(described.message);
+      const control = this.form.controls.businessUnitId;
+      control.setErrors({ ...(control.errors ?? {}), orgR3: true });
+      control.markAsTouched();
+      this.focusTestId('warehouse-business-unit');
+      return;
+    }
+    this.saveError.set(described.message);
+    this.locationCreated.set(error instanceof WarehouseSaveError && error.locationCreated);
+    // Bring the alert into view: the button that failed is at the bottom of a long form.
+    setTimeout(() => this.saveAlert()?.nativeElement.focus());
+  }
+
+  /**
+   * Enables only the controls that apply: all disabled when read-only; otherwise the address
+   * controls of the chosen mode (`applyAddressMode`), the legal entity on create only, and the
+   * business unit once a legal entity is chosen.
+   */
+  private syncEnabledState(readOnly: boolean, legalEntityId: string, mode: AddressMode): void {
+    const controls = this.form.controls;
+    if (readOnly) {
+      this.form.disable({ emitEvent: false });
+      this.locationSearch.disable({ emitEvent: false });
+      return;
+    }
+    for (const control of [controls.code, controls.captionI18n, controls.addressMode]) {
+      this.setEnabled(control, true);
+    }
+    this.setEnabled(controls.legalEntityId, this.mode() === 'create');
+    this.setEnabled(controls.businessUnitId, !!legalEntityId);
+    applyAddressMode(this.form, mode);
+    this.setEnabled(this.locationSearch, mode === 'existingLocation');
+  }
+
+  private setEnabled(control: AbstractControl, enabled: boolean): void {
+    if (enabled && control.disabled) {
+      control.enable({ emitEvent: false });
+    } else if (!enabled && control.enabled) {
+      control.disable({ emitEvent: false });
+    }
+  }
+
+  private isInvalid(control: AbstractControl | null): boolean {
+    return !!control && control.enabled && control.invalid;
+  }
+
+  /** Focuses the field (or, for the caption editor, its German input) with that `data-testid`. */
+  private focusTestId(testId: string | undefined): void {
+    if (!testId) {
+      return;
+    }
+    setTimeout(() => {
+      const element = this.host.nativeElement.querySelector<HTMLElement>(
+        `[data-testid="${testId}"]`,
+      );
+      const target = element?.matches('input, textarea, mat-select, [tabindex]')
+        ? element
+        : element?.querySelector<HTMLElement>('input[data-lang="de"], input, mat-select');
+      target?.focus();
+    });
+  }
+
+  private notify(key: string): void {
+    this.snackBar.open(this.transloco.translate(key), undefined, { duration: 4000 });
   }
 }

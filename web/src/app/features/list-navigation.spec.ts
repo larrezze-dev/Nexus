@@ -58,9 +58,15 @@ describe.each<[string, string, Type<unknown>, Type<unknown>]>([
 
     const harness = await RouterTestingHarness.create(`/${section}`);
     const list = harness.routeDebugElement?.componentInstance as {
-      onSelectionChanged(rows: { id: string }[]): void;
+      onSelectionChanged?(rows: { id: string }[]): void;
+      open?(row: { id: string }): void;
     };
-    list.onSelectionChanged([{ id: 'abc-123' }]);
+    // Migrated pages open a row through `nx-data-grid (rowOpen)` → `open(row)`.
+    if (list.open) {
+      list.open({ id: 'abc-123' });
+    } else {
+      list.onSelectionChanged?.([{ id: 'abc-123' }]);
+    }
     await harness.fixture.whenStable();
 
     expect(TestBed.inject(Router).url).toBe(`/${section}/abc-123`);

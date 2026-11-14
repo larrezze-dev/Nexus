@@ -1,27 +1,52 @@
-import { ChangeDetectionStrategy, Component, OnInit, inject, signal } from '@angular/core';
-import { ActivatedRoute, Router } from '@angular/router';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  DestroyRef,
+  OnInit,
+  computed,
+  inject,
+  signal,
+} from '@angular/core';
+import { toSignal } from '@angular/core/rxjs-interop';
 import { MatButtonModule } from '@angular/material/button';
+import { MatIconModule } from '@angular/material/icon';
+import { MatSnackBar } from '@angular/material/snack-bar';
 import { MatTabsModule } from '@angular/material/tabs';
+import { ActivatedRoute, Router } from '@angular/router';
 import { TranslocoModule, TranslocoService } from '@jsverse/transloco';
-import { isProblem } from '../../../core/http/problem';
+import { CurrencyListItem } from '../../../api/platform/models/currency-list-item';
+import {
+  isConcurrencyConflict,
+  isDuplicateConflict,
+  isProblem,
+  localizedFieldErrors,
+} from '../../../core/http/problem';
+import { NxFormatService } from '../../../core/i18n/nx-format.service';
 import { NxI18nService } from '../../../core/i18n/nx-i18n.service';
-import { NxCanDirective } from '../../../shared/auth/can.directive';
-import { NxAuditTrailComponent } from '../../../shared/platform/nx-audit-trail/nx-audit-trail.component';
-import { NxStatusBadgeComponent } from '../../../shared/ui/nx-status-badge/nx-status-badge.component';
-import { LegalEntityFormComponent, LegalEntityFormValue } from './legal-entity-form.component';
-import { LegalEntitiesFacade } from './legal-entities.facade';
 import { NxBreadcrumbService } from '../../../core/layout/breadcrumb.service';
+import { NxCanDirective } from '../../../shared/auth/can.directive';
+import { PermissionsStore } from '../../../shared/auth/permissions.store';
+import { NxAuditTrailComponent } from '../../../shared/platform/nx-audit-trail/nx-audit-trail.component';
+import {
+  NxConfirm,
+  NxDetailSkeletonComponent,
+  NxEmptyStateComponent,
+  NxPageComponent,
+  NxPageHeaderComponent,
+} from '../../../shared/ui/layout';
+import { NxStatusBadgeComponent } from '../../../shared/ui/nx-status-badge/nx-status-badge.component';
+import { LegalEntitiesFacade, LegalEntityGroupOption } from './legal-entities.facade';
+import { LegalEntityFormComponent, LegalEntityFormValue } from './legal-entity-form.component';
 
 /**
- * `LegalEntity` detail/create page (`conventions-frontend.md §4`). No `id`
- * route param (mounted at `legal-entities/new`) means create mode; an `id`
- * param means edit mode and triggers `facade.load(id)`.
+ * Legal-entity detail and create page (`conventions-frontend.md §4.5–§4.6`). No `id` route param
+ * (`legal-entities/new`) = create form template; an `id` = detail template: header with the
+ * legal name, «code · modified on …», status and «Deactivate», and the General · Audit tabs.
  *
- * Error handling follows the ficha's hand-off with `errorInterceptor`: 401/
- * 403/404 navigation and the 409-concurrency dialog are already handled
- * there, so this page only needs to turn a 400 into per-field messages
- * (`Problem.errors`) and a 422 into a translated business-rule message
- * (`Problem.code` via `NxI18nService.translateErrorCode()`).
+ * Errors: `errorInterceptor` already handles 401/403/404 navigation and the 409 concurrency
+ * dialog; this page turns a 400 into per-field messages (`Problem.errors`) and a 422 into the
+ * translated business-rule message (`Problem.code`). The API has no reactivate endpoint, so an
+ * inactive entity offers no status action.
  */
 @Component({
   selector: 'nx-legal-entity-detail-page',
@@ -29,9 +54,14 @@ import { NxBreadcrumbService } from '../../../core/layout/breadcrumb.service';
   imports: [
     TranslocoModule,
     MatButtonModule,
+    MatIconModule,
     MatTabsModule,
     NxCanDirective,
     NxAuditTrailComponent,
+    NxDetailSkeletonComponent,
+    NxEmptyStateComponent,
+    NxPageComponent,
+    NxPageHeaderComponent,
     NxStatusBadgeComponent,
     LegalEntityFormComponent,
   ],
@@ -43,27 +73,80 @@ export class LegalEntityDetailPage implements OnInit {
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
   private readonly i18n = inject(NxI18nService);
+  private readonly format = inject(NxFormatService);
+  private destroyed = false;
   private readonly transloco = inject(TranslocoService);
   private readonly breadcrumb = inject(NxBreadcrumbService);
+  private readonly confirm = inject(NxConfirm);
+  private readonly snackBar = inject(MatSnackBar);
+  private readonly permissions = inject(PermissionsStore);
+
+  /** Emits once the active language's file is loaded (and on every switch): texts built in TS follow it. */
+  private readonly translation = toSignal(this.transloco.selectTranslation());
 
   protected readonly mode = signal<'create' | 'edit'>('create');
   protected readonly saving = signal(false);
   protected readonly saveError = signal<string | null>(null);
   protected readonly fieldErrors = signal<Readonly<Record<string, readonly string[]>>>({});
+  protected readonly groups = signal<readonly LegalEntityGroupOption[]>([]);
+  protected readonly currencies = signal<readonly CurrencyListItem[]>([]);
 
   protected readonly entity = this.facade.selected;
+  protected readonly party = this.facade.party;
   protected readonly loading = this.facade.loading;
+  protected readonly loadError = this.facade.error;
+
+  /** Record name: the party's legal name, the code if the party could not be read. */
+  protected readonly name = computed(() => this.party()?.legalName || this.entity()?.code || '');
+
+  protected readonly canUpdate = computed(() => {
+    this.permissions.permissions(); // re-evaluate when permissions change
+    return this.permissions.has('ORG_STRUCTURE:UPDATE');
+  });
+
+  /** «LE-CH · modified on 11 Nov 2026», in the active language. */
+  protected readonly subtitle = computed(() => {
+    const entity = this.entity();
+    if (!entity) {
+      return '';
+    }
+    this.translation();
+    const lang = this.transloco.getActiveLang();
+    const date = this.format.formatDateMedium(entity.updatedAt);
+    const modified = date ? this.transloco.translate('org.legalEntities.detail.modified', { date }, lang) : '';
+    return [entity.code, modified].filter(Boolean).join(' · ');
+  });
+
+  constructor() {
+    inject(DestroyRef).onDestroy(() => (this.destroyed = true));
+  }
 
   ngOnInit(): void {
     this.facade.reset();
     const id = this.route.snapshot.paramMap.get('id');
+    this.mode.set(id ? 'edit' : 'create');
     if (id) {
-      this.mode.set('edit');
-      void this.facade
-        .load(id)
-        .then(() => this.breadcrumb.setCurrentLabel(this.entity()?.code ?? null));
+      void this.load();
+    }
+    void this.loadOptions();
+  }
+
+  /** Loads the record (also the «Retry» of the error state) and names it in the breadcrumb. */
+  protected async load(): Promise<void> {
+    this.breadcrumb.clearLoadFailed();
+    const id = this.route.snapshot.paramMap.get('id');
+    if (!id) {
+      return;
+    }
+    await this.facade.load(id);
+    if (this.destroyed) {
+      // The user already left: a late response must not name the next page's breadcrumb.
+      return;
+    }
+    if (this.facade.error()) {
+      this.breadcrumb.setLoadFailed();
     } else {
-      this.mode.set('create');
+      this.breadcrumb.setCurrentLabel(this.name() || null);
     }
   }
 
@@ -82,6 +165,7 @@ export class LegalEntityDetailPage implements OnInit {
           currencyCode: value.currencyCode,
           countryCode: value.countryCode,
         });
+        this.notify('org.legalEntities.created');
         void this.router.navigate(['..', created.id], { relativeTo: this.route });
       } else {
         const id = this.route.snapshot.paramMap.get('id');
@@ -91,6 +175,7 @@ export class LegalEntityDetailPage implements OnInit {
             currencyCode: value.currencyCode,
             countryCode: value.countryCode,
           });
+          this.notify('org.legalEntities.saved');
         }
       }
     } catch (error: unknown) {
@@ -100,12 +185,25 @@ export class LegalEntityDetailPage implements OnInit {
     }
   }
 
+  /** Cancel: back to the list, nothing is saved. */
+  protected onCancel(): void {
+    void this.router.navigate(['..'], { relativeTo: this.route });
+  }
+
   protected async onDeactivate(): Promise<void> {
     const entity = this.entity();
     if (!entity) {
       return;
     }
-    const confirmed = globalThis.confirm(this.transloco.translate('org.legalEntities.confirmDeactivate'));
+    const confirmed = await this.confirm.confirm({
+      title: this.transloco.translate('org.legalEntities.deactivateDialog.title'),
+      message: this.transloco.translate('org.legalEntities.deactivateDialog.message', {
+        name: this.name(),
+        code: entity.code,
+      }),
+      confirmLabel: this.transloco.translate('org.legalEntities.deactivate'),
+      destructive: true,
+    });
     if (!confirmed) {
       return;
     }
@@ -114,6 +212,7 @@ export class LegalEntityDetailPage implements OnInit {
     this.saveError.set(null);
     try {
       await this.facade.deactivate(entity.id);
+      this.notify('org.legalEntities.deactivated');
     } catch (error: unknown) {
       this.handleSaveError(error);
     } finally {
@@ -121,12 +220,32 @@ export class LegalEntityDetailPage implements OnInit {
     }
   }
 
+  /** Group and currency choices; on failure the selects keep showing the current value only. */
+  private async loadOptions(): Promise<void> {
+    const [groups, currencies] = await Promise.allSettled([
+      this.facade.groupOptions(),
+      this.facade.currencyOptions(),
+    ]);
+    if (groups.status === 'fulfilled') {
+      this.groups.set(groups.value);
+    }
+    if (currencies.status === 'fulfilled') {
+      this.currencies.set(currencies.value);
+    }
+  }
+
+  private notify(key: string): void {
+    this.snackBar.open(this.transloco.translate(key), undefined, { duration: 4000 });
+  }
+
   private handleSaveError(error: unknown): void {
     const httpError = error as { status?: number; error?: unknown } | undefined;
     const body = httpError?.error;
 
-    if (httpError?.status === 400 && isProblem(body) && body.errors) {
-      this.fieldErrors.set(body.errors);
+    if (httpError?.status === 400) {
+      this.fieldErrors.set(
+        localizedFieldErrors(isProblem(body) ? body.errors : undefined, this.transloco.translate('shared.form.invalidValue')),
+      );
       this.saveError.set(this.transloco.translate('errors.validation'));
       return;
     }
@@ -136,8 +255,13 @@ export class LegalEntityDetailPage implements OnInit {
       return;
     }
 
-    if (httpError?.status === 409) {
+    if (isConcurrencyConflict(error)) {
       // `errorInterceptor` already opened the concurrency dialog; nothing else to show here.
+      return;
+    }
+
+    if (isDuplicateConflict(error)) {
+      this.fieldErrors.set({ code: [this.transloco.translate('errors.CONFLICT')] });
       return;
     }
 

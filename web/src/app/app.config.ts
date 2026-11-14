@@ -5,7 +5,7 @@ import { provideNexusHttp } from './core/http/provide-nexus-http';
 import { provideNexusI18n } from './core/i18n/provide-nexus-i18n';
 import { provideNexusMaterialI18n } from './core/i18n/provide-nexus-material-i18n';
 import { provideMeLanguageSaver } from './shared/auth/me-language-saver';
-import { provideNexusFormFieldDefaults } from './shared/ui/layout';
+import { provideNexusFormFieldDefaults } from './shared/ui/layout/form-field-defaults';
 import { provideNexusTitleStrategy } from './core/layout/page-title.strategy';
 import { provideMeLanguageSync } from './shared/auth/me-language-sync';
 import { routes } from './app.routes';

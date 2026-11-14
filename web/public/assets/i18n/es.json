@@ -8,7 +8,9 @@
     "tabs": {
       "general": "General",
       "audit": "Auditoría"
-    }
+    },
+    "saveChanges": "Guardar cambios",
+    "retry": "Reintentar"
   },
   "errors": {
     "generic": "Algo salió mal. Inténtalo de nuevo.",
@@ -21,7 +23,10 @@
     "SAMPLE-R1": "Mensaje de ejemplo para la regla de negocio SAMPLE-R1 — sustituir por el texto real.",
     "ORG-R6": "El usuario SYSTEM no se puede editar ni desactivar.",
     "ORG-R9": "Ya existe un usuario con este email.",
-    "ORG-R3": "Un warehouse con una business unit debe usar una business unit que pertenezca a la misma legal entity."
+    "ORG-R3": "La unidad de negocio debe pertenecer a la misma entidad legal que el almacén.",
+    "CONFLICT": "Ya existe un registro con este código.",
+    "ORG-R5": "La entidad legal no se puede desactivar mientras tenga unidades de negocio o almacenes activos.",
+    "ORG-R7": "La moneda debe estar activa; una moneda en uso por una entidad legal o un grupo activos no se puede desactivar."
   },
   "shell": {
     "skipToContent": "Saltar al contenido",
@@ -145,8 +150,10 @@
       "warehouse": "Nuevo almacén",
       "user": "Nuevo usuario",
       "party": "Nuevo tercero",
-      "role": "Nuevo rol"
-    }
+      "role": "Nuevo rol",
+      "currency": "Nueva moneda"
+    },
+    "unavailable": "No disponible"
   },
   "shared": {
     "dataGrid": {
@@ -167,6 +174,9 @@
       },
       "confirm": {
         "confirm": "Confirmar"
+      },
+      "detailSkeleton": {
+        "loading": "Cargando…"
       }
     },
     "emptyState": {
@@ -226,11 +236,19 @@
         "fr": "Francés",
         "it": "Italiano",
         "es": "Español"
-      }
+      },
+      "moreLanguages": "Mostrar más idiomas",
+      "fewerLanguages": "Mostrar menos idiomas"
     },
     "entityPicker": {
       "placeholder": "Buscar…",
       "noResults": "Sin resultados"
+    },
+    "form": {
+      "required": "Campo obligatorio",
+      "reviewFields": "Revisa los {{count}} campos marcados.",
+      "reviewFieldsOne": "Revisa el campo marcado.",
+      "invalidValue": "Valor no válido"
     }
   },
   "org": {
@@ -285,167 +303,363 @@
         "fullName": "Nombre completo",
         "email": "Correo electrónico",
         "preferredLanguage": "Idioma preferido",
-        "businessUnit": "Business unit",
+        "businessUnit": "Unidad de negocio",
         "isActive": "Estado"
       }
     },
     "parties": {
       "title": "Terceros",
-      "actions": {
-        "new": "Nuevo tercero",
-        "deactivate": "Desactivar"
+      "new": "Nuevo tercero",
+      "newTitle": "Nuevo tercero",
+      "loading": "Cargando…",
+      "empty": "Todavía no hay terceros",
+      "emptyHint": "Da de alta clientes, proveedores y otras empresas o personas con las que trabaja el grupo.",
+      "noResults": "Ningún tercero coincide con los filtros",
+      "deactivate": "Desactivar",
+      "columns": {
+        "name": "Nombre"
       },
-      "filters": {
-        "search": "Buscar",
+      "fields": {
         "partyType": "Tipo",
-        "isInternal": "Interno",
-        "any": "Cualquiera",
+        "legalName": "Razón social",
+        "legalNamePerson": "Nombre completo",
+        "displayName": "Nombre corto",
+        "taxId": "NIF / UID",
+        "erpCompanyCode": "Código de sociedad ERP",
+        "isInternal": "Ámbito",
+        "isActive": "Estado"
+      },
+      "type": {
+        "ORGANIZATION": "Organización",
+        "PERSON": "Persona"
+      },
+      "scope": {
         "internal": "Interno",
         "external": "Externo"
       },
-      "partyType": {
-        "organization": "Organización",
-        "person": "Persona"
+      "filters": {
+        "q": "Buscar por nombre",
+        "partyType": "Tipo",
+        "partyTypeAll": "Todos",
+        "isInternal": "Ámbito",
+        "isInternalAll": "Todos",
+        "internal": "Internos",
+        "external": "Externos"
+      },
+      "sections": {
+        "identification": "Identificación",
+        "taxErp": "Datos fiscales y ERP"
+      },
+      "hints": {
+        "legalName": "Nombre oficial, tal como figura en el registro mercantil.",
+        "legalNamePerson": "Nombre y apellidos.",
+        "displayName": "Para listas y menús.",
+        "partyType": "Organización: empresa o institución. Persona: una persona física.",
+        "taxId": "Número de identificación fiscal, p. ej. CHE-123.456.789.",
+        "erpCompanyCode": "Código de esta empresa en el ERP, si lo tiene.",
+        "lockedAfterCreate": "Se fija al crear el tercero."
+      },
+      "createSubtitle": "Un cliente, proveedor u otra empresa o persona con la que trabaja el grupo. Los campos con * son obligatorios.",
+      "actions": {
+        "create": "Crear tercero"
       },
       "detail": {
-        "newTitle": "Nuevo tercero",
-        "editTitle": "Editar tercero",
-        "loading": "Cargando…"
+        "modified": "modificado el {{date}}"
       },
-      "fields": {
-        "partyType": "Tipo de tercero",
-        "legalName": "Razón social",
-        "displayName": "Nombre visible",
-        "taxId": "NIF/CIF",
-        "erpCompanyCode": "Código de sociedad ERP",
-        "isInternal": "Interno",
-        "isActive": "Estado"
-      }
+      "deactivateDialog": {
+        "title": "¿Desactivar el tercero?",
+        "message": "«{{name}}» quedará desactivado. Esta acción no se puede deshacer."
+      },
+      "deactivated": "Tercero desactivado",
+      "saved": "Cambios guardados",
+      "created": "Tercero creado",
+      "readOnlyNotice": "Solo puedes consultar este tercero: no tienes permiso para modificarlo."
     },
     "legalEntities": {
       "title": "Entidades legales",
       "new": "Nueva entidad legal",
       "newTitle": "Nueva entidad legal",
       "loading": "Cargando…",
-      "empty": "No se encontraron entidades legales.",
+      "empty": "Todavía no hay entidades legales",
       "deactivate": "Desactivar",
-      "confirmDeactivate": "¿Desactivar esta entidad legal? Esta acción no se puede deshacer.",
       "fields": {
         "legalName": "Razón social",
-        "displayName": "Nombre visible",
+        "displayName": "Nombre corto",
         "groupId": "Grupo",
         "code": "Código",
         "currencyCode": "Moneda",
         "countryCode": "País",
         "isActive": "Estado"
-      }
+      },
+      "filters": {
+        "q": "Buscar por código o nombre",
+        "status": "Estado",
+        "statusAll": "Todas",
+        "statusActive": "Activas",
+        "statusInactive": "Inactivas"
+      },
+      "emptyHint": "Crea la primera para asignarle almacenes y personal.",
+      "noResults": "Ninguna entidad legal coincide con los filtros",
+      "sections": {
+        "company": "Empresa",
+        "countryCurrency": "País y moneda"
+      },
+      "hints": {
+        "legalName": "Nombre oficial, tal como figura en el registro mercantil.",
+        "displayName": "Para listas y menús.",
+        "lockedAfterCreate": "Se fija al crear la entidad legal."
+      },
+      "createSubtitle": "Una empresa del grupo: factura y tiene almacenes y personal propios. Los campos con * son obligatorios.",
+      "actions": {
+        "create": "Crear entidad legal"
+      },
+      "detail": {
+        "modified": "modificada el {{date}}"
+      },
+      "deactivateDialog": {
+        "title": "¿Desactivar la entidad legal?",
+        "message": "«{{name}}» ({{code}}) quedará desactivada. Esta acción no se puede deshacer."
+      },
+      "deactivated": "Entidad legal desactivada",
+      "saved": "Cambios guardados",
+      "created": "Entidad legal creada",
+      "readOnlyNotice": "Solo puedes consultar esta entidad legal: no tienes permiso para modificarla."
     },
     "businessUnits": {
       "title": "Unidades de negocio",
       "new": "Nueva unidad de negocio",
       "newTitle": "Nueva unidad de negocio",
       "loading": "Cargando…",
-      "empty": "No se encontraron unidades de negocio.",
+      "empty": "Todavía no hay unidades de negocio",
       "deactivate": "Desactivar",
-      "confirmDeactivate": "¿Desactivar esta unidad de negocio? Esta acción no se puede deshacer.",
       "fields": {
         "legalName": "Razón social",
-        "displayName": "Nombre visible",
+        "displayName": "Nombre corto",
         "legalEntityId": "Entidad legal",
-        "legalEntitySearch": "Buscar entidad legal…",
         "code": "Código",
-        "caption": "Etiqueta",
-        "costCenterCode": "Centro de costo",
+        "caption": "Nombre",
+        "costCenterCode": "Centro de coste",
         "isActive": "Estado"
-      }
+      },
+      "emptyHint": "Crea la primera para asignarle almacenes y personal.",
+      "sections": {
+        "identification": "Identificación",
+        "names": "Nombre en cada idioma",
+        "party": "Ficha de tercero"
+      },
+      "sectionHints": {
+        "names": "El alemán es obligatorio. Si falta un idioma, se muestra el nombre en alemán.",
+        "party": "La unidad de negocio figura también como tercero interno, con estos nombres."
+      },
+      "hints": {
+        "legalEntity": "Entidad legal a la que pertenece la unidad.",
+        "costCenterCode": "Para imputar costes en contabilidad.",
+        "displayName": "Para listas y menús.",
+        "lockedAfterCreate": "Se fija al crear la unidad de negocio."
+      },
+      "createSubtitle": "Un área de negocio de una entidad legal (p. ej. eventos o alquiler) que agrupa almacenes y personal. Los campos con * son obligatorios.",
+      "actions": {
+        "create": "Crear unidad de negocio"
+      },
+      "detail": {
+        "modified": "modificada el {{date}}"
+      },
+      "deactivateDialog": {
+        "title": "¿Desactivar la unidad de negocio?",
+        "message": "«{{name}}» ({{code}}) quedará desactivada. Esta acción no se puede deshacer."
+      },
+      "deactivated": "Unidad de negocio desactivada",
+      "saved": "Cambios guardados",
+      "created": "Unidad de negocio creada",
+      "readOnlyNotice": "Solo puedes consultar esta unidad de negocio: no tienes permiso para modificarla."
     },
     "tree": {
-      "title": "Árbol de la organización",
-      "empty": "Todavía no hay estructura organizativa."
+      "title": "Estructura de la organización",
+      "empty": "Todavía no hay estructura organizativa.",
+      "subtitle": "Cómo se organiza el grupo: entidades legales, unidades de negocio y almacenes. Abre un elemento para ver su ficha.",
+      "emptyHint": "Aparecerá aquí cuando se creen entidades legales, unidades de negocio y almacenes.",
+      "treeLabel": "Estructura de la organización",
+      "expand": "Desplegar «{{name}}»",
+      "collapse": "Plegar «{{name}}»",
+      "kind": {
+        "group": "Grupo",
+        "legalEntity": "Entidad legal",
+        "businessUnit": "Unidad de negocio",
+        "warehouse": "Almacén"
+      }
     },
     "currencies": {
       "title": "Monedas",
       "empty": "No hay monedas disponibles.",
-      "columns": {
+      "loading": "Cargando…",
+      "fields": {
         "code": "Código",
         "caption": "Nombre",
         "minorUnits": "Decimales",
-        "status": "Estado",
-        "action": "Acción"
+        "isActive": "Estado"
       },
+      "sections": {
+        "currency": "Moneda",
+        "names": "Nombre en cada idioma"
+      },
+      "hints": {
+        "minorUnits": "Número de decimales de los importes en esta moneda.",
+        "code": "Tres letras mayúsculas (ISO 4217), p. ej. SEK.",
+        "lockedAfterCreate": "Se fija al crear la moneda."
+      },
+      "activate": "Activar",
+      "deactivate": "Desactivar",
+      "deactivateDialog": {
+        "title": "¿Desactivar la moneda?",
+        "message": "«{{name}}» ({{code}}) dejará de poder elegirse como moneda de una entidad legal o de un grupo. Puedes volver a activarla en cualquier momento."
+      },
+      "activated": "Moneda activada",
+      "deactivated": "Moneda desactivada",
+      "errors": {
+        "inUse": "No se puede desactivar «{{name}}»: la usa al menos una entidad legal o un grupo activos.",
+        "codeFormat": "Introduce tres letras mayúsculas (A–Z).",
+        "minorUnitsRange": "Un valor entre 0 y 4.",
+        "duplicateCode": "Ya existe una moneda con este código."
+      },
+      "new": "Nueva moneda",
+      "newTitle": "Nueva moneda",
+      "createSubtitle": "Una moneda ISO 4217 que se podrá elegir en entidades legales y grupos. El código y los decimales no se pueden cambiar después. Los campos con * son obligatorios.",
+      "created": "Moneda creada",
+      "renamed": "Nombre guardado",
       "actions": {
-        "activate": "Activar",
-        "deactivate": "Desactivar"
-      }
-    }
-  },
-  "locations": {
-    "title": "Ubicaciones",
-    "actions": {
-      "create": "Nueva ubicación"
+        "create": "Crear moneda"
+      },
+      "readOnlyNotice": "Solo puedes consultar esta moneda: no tienes permiso para modificarla."
     },
-    "list": {
-      "columns": {
+    "locations": {
+      "title": "Ubicaciones",
+      "new": "Nueva ubicación",
+      "newTitle": "Nueva ubicación",
+      "createSubtitle": "Un lugar con dirección (nave, recinto, oficina) donde puede haber almacenes. Los campos con * son obligatorios.",
+      "loading": "Cargando…",
+      "empty": "Todavía no hay ubicaciones",
+      "emptyHint": "Crea la primera para asignarle almacenes.",
+      "fields": {
         "code": "Código",
         "name": "Nombre",
+        "street": "Calle y número",
+        "postalCode": "Código postal",
         "city": "Ciudad",
+        "region": "Región",
         "countryCode": "País",
         "isActive": "Estado"
-      }
+      },
+      "sections": {
+        "identification": "Identificación",
+        "address": "Dirección"
+      },
+      "hints": {
+        "name": "Nombre con que se conoce el lugar, p. ej. «Lager Zug».",
+        "code": "Opcional. Para listas e informes.",
+        "region": "Cantón, provincia o estado."
+      },
+      "actions": {
+        "create": "Crear ubicación"
+      },
+      "detail": {
+        "modified": "modificada el {{date}}"
+      },
+      "saved": "Cambios guardados",
+      "created": "Ubicación creada",
+      "readOnlyNotice": "Solo puedes consultar esta ubicación: no tienes permiso para modificarla."
     },
-    "detail": {
-      "title": {
-        "create": "Nueva ubicación",
-        "edit": "Editar ubicación"
-      }
-    },
-    "fields": {
-      "code": "Código",
-      "name": "Nombre",
-      "street": "Calle",
-      "postalCode": "Código postal",
-      "city": "Ciudad",
-      "region": "Región",
-      "countryCode": "Código de país"
-    }
-  },
-  "warehouses": {
-    "title": "Almacenes",
-    "actions": {
-      "create": "Nuevo almacén",
-      "deactivate": "Desactivar"
-    },
-    "filters": {
-      "search": "Buscar",
-      "legalEntity": "Legal entity",
-      "businessUnit": "Business unit",
-      "isActive": "Estado",
-      "isActiveAll": "Todos"
-    },
-    "list": {
-      "columns": {
+    "warehouses": {
+      "title": "Almacenes",
+      "new": "Nuevo almacén",
+      "newTitle": "Nuevo almacén",
+      "createSubtitle": "Un lugar donde se guarda el material de una entidad legal, con su dirección. Los campos con * son obligatorios.",
+      "loading": "Cargando…",
+      "empty": "Todavía no hay almacenes",
+      "emptyHint": "Crea el primero e indica su dirección.",
+      "noResults": "Ningún almacén coincide con los filtros",
+      "deactivate": "Desactivar",
+      "filters": {
+        "q": "Buscar código o nombre",
+        "legalEntity": "Entidad legal",
+        "businessUnit": "Unidad de negocio",
+        "all": "Todas",
+        "status": "Estado",
+        "statusAll": "Todos",
+        "statusActive": "Activos",
+        "statusInactive": "Inactivos"
+      },
+      "fields": {
         "code": "Código",
-        "caption": "Título",
+        "caption": "Nombre",
+        "legalEntityId": "Entidad legal",
+        "businessUnitId": "Unidad de negocio",
+        "location": "Ubicación",
         "isActive": "Estado"
-      }
-    },
-    "detail": {
-      "title": {
-        "create": "Nuevo almacén",
-        "edit": "Editar almacén"
-      }
-    },
-    "fields": {
-      "code": "Código",
-      "location": "Ubicación",
-      "legalEntity": "Legal entity",
-      "businessUnit": "Business unit",
-      "clear": "Quitar",
-      "current": "Actual: {{value}}"
+      },
+      "sections": {
+        "identification": "Identificación",
+        "names": "Nombre en cada idioma",
+        "address": "Dirección del almacén"
+      },
+      "sectionHints": {
+        "names": "El alemán es obligatorio. Si falta un idioma, se muestra el nombre en alemán.",
+        "address": "Un almacén puede estar en la misma dirección que su entidad legal o en cualquier otra."
+      },
+      "hints": {
+        "legalEntity": "Entidad legal propietaria del almacén.",
+        "lockedAfterCreate": "Se fija al crear el almacén.",
+        "businessUnit": "Opcional. Solo unidades de la entidad legal elegida.",
+        "chooseLegalEntityFirst": "Elige primero la entidad legal.",
+        "noBusinessUnits": "Esta entidad legal no tiene unidades de negocio activas",
+        "location": "Escribe para buscar por código o nombre.",
+        "locationRequired": "Elige una ubicación de la lista."
+      },
+      "address": {
+        "sameAsLegalEntity": "La misma que la entidad legal",
+        "sameAsLegalEntityUnavailable": "Todavía no disponible. Mientras tanto, elige una ubicación registrada o escribe una dirección nueva.",
+        "existing": "Otra ubicación ya registrada",
+        "existingHint": "Elegir de la lista de ubicaciones (p. ej. una nave compartida con otro almacén).",
+        "new": "Nueva dirección",
+        "newHint": "Se escribe a mano y se guarda como ubicación nueva.",
+        "locationCreated": "La ubicación «{{value}}» ya se ha creado, pero el almacén no se ha podido guardar. Al reintentar se usará esa misma ubicación, sin duplicarla.",
+        "fields": {
+          "name": "Nombre de la ubicación",
+          "code": "Código de la ubicación",
+          "street": "Calle y número",
+          "postalCode": "Código postal",
+          "city": "Ciudad",
+          "region": "Región",
+          "countryCode": "País"
+        },
+        "hints": {
+          "name": "Nombre con que se conoce el lugar, p. ej. «Nave Getafe».",
+          "code": "Opcional. Código corto para listas.",
+          "region": "Cantón, provincia o estado."
+        }
+      },
+      "progress": {
+        "creatingLocation": "Creando ubicación…",
+        "savingWarehouse": "Guardando almacén…"
+      },
+      "actions": {
+        "create": "Crear almacén",
+        "clearBusinessUnit": "Quitar la unidad de negocio"
+      },
+      "detail": {
+        "modified": "modificado el {{date}}"
+      },
+      "deactivateDialog": {
+        "title": "¿Desactivar el almacén?",
+        "message": "«{{name}}» ({{code}}) quedará desactivado y ya no se ofrecerá para nuevas operaciones. Esta acción no se puede deshacer."
+      },
+      "deactivated": "Almacén desactivado",
+      "saved": "Cambios guardados",
+      "created": "Almacén creado",
+      "readOnlyNotice": "Solo puedes consultar este almacén: no tienes permiso para modificarlo."
     }
   },
   "audit": {
-    "summary": "{{count}} eventos · el más reciente primero · horas en Europe/Zurich",
+    "summary": "{{count}} eventos · el más reciente primero · hora de Suiza",
     "refresh": "Actualizar",
     "loadMore": "Cargar más",
     "empty": {
@@ -491,7 +705,7 @@
       "externalSubject": "Identificador externo",
       "preferredLanguage": "Idioma preferido"
     },
-    "summaryOne": "1 evento · horas en Europe/Zurich",
+    "summaryOne": "1 evento · hora de Suiza",
     "loading": "Cargando auditoría…",
     "previousUnavailable": "Versión anterior no disponible: se muestran los valores actuales.",
     "noMore": "No hay más eventos"
@@ -499,14 +713,14 @@
   "events": {
     "org": {
       "legal-entity": {
-        "created": "Legal entity creada",
-        "updated": "Legal entity actualizada",
-        "deactivated": "Legal entity desactivada"
+        "created": "Entidad legal creada",
+        "updated": "Entidad legal actualizada",
+        "deactivated": "Entidad legal desactivada"
       },
       "business-unit": {
-        "created": "Business unit creada",
-        "updated": "Business unit actualizada",
-        "deactivated": "Business unit desactivada"
+        "created": "Unidad de negocio creada",
+        "updated": "Unidad de negocio actualizada",
+        "deactivated": "Unidad de negocio desactivada"
       },
       "warehouse": {
         "created": "Almacén creado",

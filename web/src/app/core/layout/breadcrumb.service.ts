@@ -36,7 +36,7 @@ export function leafRouteData(router: Router): Data {
   return snapshot.data;
 }
 
-export function buildTrail(data: Data, label: string | null): NxCrumb[] {
+export function buildTrail(data: Data, label: string | null, loadFailed = false): NxCrumb[] {
   const trail: NxCrumb[] = [];
   const groupKey = navGroupTitleKey(data['navGroup'] as string | undefined);
   if (groupKey) {
@@ -53,7 +53,12 @@ export function buildTrail(data: Data, label: string | null): NxCrumb[] {
   } else if (crumbKey) {
     trail.push({ key: crumbKey });
   } else if (data['detail']) {
-    trail.push(label ? { text: label } : { key: 'breadcrumb.loading' });
+    if (label) {
+      trail.push({ text: label });
+    } else {
+      // A record that failed to load never gets a name: «Not available», not «Loading…» forever.
+      trail.push({ key: loadFailed ? 'breadcrumb.unavailable' : 'breadcrumb.loading' });
+    }
   }
   return trail;
 }
@@ -77,9 +82,16 @@ export class NxBreadcrumbService {
 
   private readonly routeData = signal<Data>(leafRouteData(this.router));
   private readonly label = signal<string | null>(null);
+  private readonly loadFailed = signal(false);
+  private readonly pageOwners = signal(0);
 
   readonly currentLabel = this.label.asReadonly();
-  readonly trail = computed(() => buildTrail(this.routeData(), this.label()));
+  /**
+   * `true` while a page renders the trail itself (`<nx-page-header [breadcrumb]="true">`); the
+   * shell then does not render its own copy, so there is never a double breadcrumb.
+   */
+  readonly ownedByPage = computed(() => this.pageOwners() > 0);
+  readonly trail = computed(() => buildTrail(this.routeData(), this.label(), this.loadFailed()));
   readonly pageTitle = computed(() => pageTitleSource(this.routeData(), this.label()));
 
   constructor() {
@@ -88,14 +100,47 @@ export class NxBreadcrumbService {
       .subscribe((event) => {
         if (event instanceof NavigationStart) {
           this.label.set(null);
+          this.loadFailed.set(false);
         } else {
           this.routeData.set(leafRouteData(this.router));
         }
       });
   }
 
+  /**
+   * Called by `nx-page-header` when it renders the breadcrumb. Returns the release function to
+   * call when it stops (destroy, or `[breadcrumb]` flips to `false`). A counter, not a flag: on a
+   * navigation the next page's header may claim before the previous one releases.
+   */
+  claimForPage(): () => void {
+    this.pageOwners.update((count) => count + 1);
+    let released = false;
+    return () => {
+      if (!released) {
+        released = true;
+        this.pageOwners.update((count) => Math.max(0, count - 1));
+      }
+    };
+  }
+
+  /**
+   * Detail pages call this when their record could not be loaded: the last crumb then reads
+   * «Not available» instead of «Loading…». Cleared on the next navigation start.
+   */
+  setLoadFailed(): void {
+    this.loadFailed.set(true);
+  }
+
+  /** Detail pages call this when a (re)load starts: «Not available» gives way to «Loading…» during «Retry». */
+  clearLoadFailed(): void {
+    this.loadFailed.set(false);
+  }
+
   /** Detail pages call this once their record loaded (record name), `null` to clear it. */
   setCurrentLabel(text: string | null): void {
+    if (text && text.trim()) {
+      this.loadFailed.set(false);
+    }
     this.label.set(text && text.trim() ? text : null);
   }
 }

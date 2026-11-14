@@ -2,10 +2,8 @@
   display: block;
 }
 
-.nx-audit {
-  max-width: 960px;
-  color: var(--nx-color-text);
-}
+/* .nx-audit takes the full page width (the detail page caps it at --nx-page-max-width-form);
+   text colour and the 14 px size come from body. */
 
 .nx-audit__bar {
   display: flex;
@@ -15,22 +13,13 @@
 }
 
 .nx-audit__summary {
-  font-size: 14px;
   color: var(--nx-color-text-muted);
-}
-
-.nx-audit__alert-text {
-  flex: 1 1 auto;
 }
 
 .nx-audit .nx-empty-state strong {
   color: var(--nx-color-text);
   font-size: 1rem;
   font-weight: 500;
-}
-
-.nx-audit .nx-mono {
-  font-size: 13px;
 }
 
 .nx-audit__end {
@@ -40,6 +29,7 @@
   color: var(--nx-color-text-muted);
 }
 
+.nx-audit__alert-text,
 .nx-audit__spacer {
   flex: 1 1 auto;
 }
@@ -54,33 +44,14 @@
   background: var(--nx-color-surface-raised);
 }
 
-.nx-audit__skeleton-line {
-  display: block;
-  height: 14px;
-  border-radius: var(--nx-radius-sm);
-  background: var(--nx-color-surface-muted);
-  animation: nx-audit-pulse 1.4s ease-in-out infinite;
-
-  &--title {
-    width: 40%;
-    height: 18px;
-  }
-
-  &--short {
-    width: 60%;
-  }
+/* Bars: .nx-skeleton-bar (components.css), shared with the other skeletons. */
+.nx-audit__skeleton-title {
+  width: 40%;
+  height: var(--nx-space-4);
 }
 
-@keyframes nx-audit-pulse {
-  50% {
-    opacity: 0.5;
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .nx-audit__skeleton-line {
-    animation: none;
-  }
+.nx-audit__skeleton-short {
+  width: 60%;
 }
 
 .nx-audit__timeline {
@@ -179,7 +150,6 @@
 }
 
 .nx-audit__meta {
-  font-size: 14px;
   color: var(--nx-color-text-muted);
 }
 
@@ -198,7 +168,6 @@
   border-radius: var(--nx-radius-md);
   background: var(--nx-color-surface-muted);
   color: var(--nx-color-text-muted);
-  font-size: 14px;
 
   mat-icon {
     flex: 0 0 auto;
@@ -217,7 +186,6 @@
     text-align: left;
     vertical-align: top;
     border-bottom: 1px solid var(--nx-color-border);
-    font-size: 14px;
     overflow-wrap: anywhere;
   }
 
@@ -229,7 +197,9 @@
     background: var(--nx-color-surface-muted);
   }
 
+  // Field names break between words only («Währung» stays whole at 390 px); values may break anywhere.
   tbody th {
+    overflow-wrap: break-word;
     font-size: 14px;
     font-weight: 400;
     letter-spacing: normal;

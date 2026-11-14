@@ -74,7 +74,9 @@
     <mat-sidenav-content class="nx-shell__content-area">
       <main #main id="nx-main" class="nx-shell__content" tabindex="-1">
         <!-- TODO(PR-5): remove once every page renders its breadcrumb through nx-page-header [breadcrumb]. -->
-        <app-breadcrumb />
+        @if (!breadcrumbOwnedByPage()) {
+          <app-breadcrumb class="nx-shell__breadcrumb" />
+        }
         <router-outlet />
       </main>
     </mat-sidenav-content>

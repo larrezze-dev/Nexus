@@ -135,6 +135,13 @@
   outline: none;
 }
 
+// The shell's own breadcrumb (pages not yet migrated to nx-page-header [breadcrumb]): spaced from
+// the page below it. Inside nx-page-header the header's gap does that instead.
+.nx-shell__breadcrumb {
+  display: block;
+  margin-bottom: var(--nx-space-4);
+}
+
 .nx-shell__content ::ng-deep > :not(router-outlet):not(app-breadcrumb) {
   flex: 1 0 auto;
   min-width: 0;

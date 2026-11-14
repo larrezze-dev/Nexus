@@ -8,7 +8,9 @@
     "tabs": {
       "general": "Général",
       "audit": "Audit"
-    }
+    },
+    "saveChanges": "Enregistrer les modifications",
+    "retry": "Réessayer"
   },
   "errors": {
     "generic": "Une erreur est survenue. Veuillez réessayer.",
@@ -21,7 +23,10 @@
     "SAMPLE-R1": "Exemple de message pour la règle métier SAMPLE-R1 — à remplacer par le vrai texte.",
     "ORG-R6": "L'utilisateur SYSTEM ne peut pas être modifié ni désactivé.",
     "ORG-R9": "Un utilisateur avec cet e-mail existe déjà.",
-    "ORG-R3": "Un entrepôt avec une unité d'affaires doit utiliser une unité d'affaires qui appartient à la même entité juridique."
+    "ORG-R3": "L'unité d'affaires doit appartenir à la même entité juridique que l'entrepôt.",
+    "CONFLICT": "Un enregistrement avec ce code existe déjà.",
+    "ORG-R5": "L'entité juridique ne peut pas être désactivée tant qu'elle a des unités d'affaires ou des entrepôts actifs.",
+    "ORG-R7": "La devise doit être active ; une devise utilisée par une entité juridique ou un groupe actifs ne peut pas être désactivée."
   },
   "shell": {
     "skipToContent": "Aller au contenu",
@@ -145,8 +150,10 @@
       "warehouse": "Nouvel entrepôt",
       "user": "Nouvel utilisateur",
       "party": "Nouveau partenaire",
-      "role": "Nouveau rôle"
-    }
+      "role": "Nouveau rôle",
+      "currency": "Nouvelle devise"
+    },
+    "unavailable": "Indisponible"
   },
   "shared": {
     "dataGrid": {
@@ -167,6 +174,9 @@
       },
       "confirm": {
         "confirm": "Confirmer"
+      },
+      "detailSkeleton": {
+        "loading": "Chargement…"
       }
     },
     "emptyState": {
@@ -226,11 +236,19 @@
         "fr": "Français",
         "it": "Italien",
         "es": "Espagnol"
-      }
+      },
+      "moreLanguages": "Afficher plus de langues",
+      "fewerLanguages": "Afficher moins de langues"
     },
     "entityPicker": {
       "placeholder": "Rechercher…",
       "noResults": "Aucun résultat"
+    },
+    "form": {
+      "required": "Champ obligatoire",
+      "reviewFields": "Vérifiez les {{count}} champs signalés.",
+      "reviewFieldsOne": "Vérifiez le champ signalé.",
+      "invalidValue": "Valeur non valide"
     }
   },
   "org": {
@@ -285,167 +303,363 @@
         "fullName": "Nom complet",
         "email": "E-mail",
         "preferredLanguage": "Langue préférée",
-        "businessUnit": "Business unit",
+        "businessUnit": "Unité d'affaires",
         "isActive": "Statut"
       }
     },
     "parties": {
       "title": "Partenaires",
-      "actions": {
-        "new": "Nouveau partenaire",
-        "deactivate": "Désactiver"
+      "new": "Nouveau partenaire",
+      "newTitle": "Nouveau partenaire",
+      "loading": "Chargement…",
+      "empty": "Aucun partenaire pour l'instant",
+      "emptyHint": "Ajoutez les clients, fournisseurs et autres entreprises ou personnes avec qui le groupe travaille.",
+      "noResults": "Aucun partenaire ne correspond aux filtres",
+      "deactivate": "Désactiver",
+      "columns": {
+        "name": "Nom"
       },
-      "filters": {
-        "search": "Rechercher",
+      "fields": {
         "partyType": "Type",
-        "isInternal": "Interne",
-        "any": "Tous",
+        "legalName": "Raison sociale",
+        "legalNamePerson": "Nom complet",
+        "displayName": "Nom court",
+        "taxId": "N° fiscal / IDE",
+        "erpCompanyCode": "Code société ERP",
+        "isInternal": "Appartenance",
+        "isActive": "Statut"
+      },
+      "type": {
+        "ORGANIZATION": "Organisation",
+        "PERSON": "Personne"
+      },
+      "scope": {
         "internal": "Interne",
         "external": "Externe"
       },
-      "partyType": {
-        "organization": "Organisation",
-        "person": "Personne"
+      "filters": {
+        "q": "Rechercher par nom",
+        "partyType": "Type",
+        "partyTypeAll": "Tous",
+        "isInternal": "Appartenance",
+        "isInternalAll": "Tous",
+        "internal": "Internes",
+        "external": "Externes"
+      },
+      "sections": {
+        "identification": "Identification",
+        "taxErp": "Fiscalité et ERP"
+      },
+      "hints": {
+        "legalName": "Nom officiel, tel qu'inscrit au registre du commerce.",
+        "legalNamePerson": "Prénom et nom.",
+        "displayName": "Pour les listes et les menus.",
+        "partyType": "Organisation : entreprise ou institution. Personne : une personne physique.",
+        "taxId": "Numéro d'identification fiscale, p. ex. CHE-123.456.789.",
+        "erpCompanyCode": "Code de cette entreprise dans l'ERP, s'il existe.",
+        "lockedAfterCreate": "Fixé à la création du partenaire."
+      },
+      "createSubtitle": "Un client, un fournisseur ou une autre entreprise ou personne avec qui le groupe travaille. Les champs marqués * sont obligatoires.",
+      "actions": {
+        "create": "Créer le partenaire"
       },
       "detail": {
-        "newTitle": "Nouveau partenaire",
-        "editTitle": "Modifier le partenaire",
-        "loading": "Chargement…"
+        "modified": "modifié le {{date}}"
       },
-      "fields": {
-        "partyType": "Type de partenaire",
-        "legalName": "Raison sociale",
-        "displayName": "Nom affiché",
-        "taxId": "Numéro fiscal",
-        "erpCompanyCode": "Code société ERP",
-        "isInternal": "Interne",
-        "isActive": "Statut"
-      }
+      "deactivateDialog": {
+        "title": "Désactiver le partenaire ?",
+        "message": "« {{name}} » sera désactivé. Cette action est irréversible."
+      },
+      "deactivated": "Partenaire désactivé",
+      "saved": "Modifications enregistrées",
+      "created": "Partenaire créé",
+      "readOnlyNotice": "Vous pouvez seulement consulter ce partenaire : vous n'avez pas le droit de le modifier."
     },
     "legalEntities": {
       "title": "Entités juridiques",
       "new": "Nouvelle entité juridique",
       "newTitle": "Nouvelle entité juridique",
       "loading": "Chargement…",
-      "empty": "Aucune entité juridique trouvée.",
+      "empty": "Aucune entité juridique pour l'instant",
       "deactivate": "Désactiver",
-      "confirmDeactivate": "Désactiver cette entité juridique ? Cette action est irréversible.",
       "fields": {
         "legalName": "Raison sociale",
-        "displayName": "Nom affiché",
+        "displayName": "Nom court",
         "groupId": "Groupe",
         "code": "Code",
         "currencyCode": "Devise",
         "countryCode": "Pays",
         "isActive": "Statut"
-      }
+      },
+      "filters": {
+        "q": "Rechercher code ou nom",
+        "status": "Statut",
+        "statusAll": "Toutes",
+        "statusActive": "Actives",
+        "statusInactive": "Inactives"
+      },
+      "emptyHint": "Créez la première pour y rattacher des entrepôts et du personnel.",
+      "noResults": "Aucune entité juridique ne correspond aux filtres",
+      "sections": {
+        "company": "Entreprise",
+        "countryCurrency": "Pays et devise"
+      },
+      "hints": {
+        "legalName": "Nom officiel, tel qu'inscrit au registre du commerce.",
+        "displayName": "Pour les listes et les menus.",
+        "lockedAfterCreate": "Fixé à la création de l'entité juridique."
+      },
+      "createSubtitle": "Une société du groupe : elle facture et possède ses propres entrepôts et son personnel. Les champs marqués * sont obligatoires.",
+      "actions": {
+        "create": "Créer l'entité juridique"
+      },
+      "detail": {
+        "modified": "modifiée le {{date}}"
+      },
+      "deactivateDialog": {
+        "title": "Désactiver l'entité juridique ?",
+        "message": "« {{name}} » ({{code}}) sera désactivée. Cette action est irréversible."
+      },
+      "deactivated": "Entité juridique désactivée",
+      "saved": "Modifications enregistrées",
+      "created": "Entité juridique créée",
+      "readOnlyNotice": "Vous pouvez seulement consulter cette entité juridique : vous n'avez pas le droit de la modifier."
     },
     "businessUnits": {
       "title": "Unités d'affaires",
       "new": "Nouvelle unité d'affaires",
       "newTitle": "Nouvelle unité d'affaires",
       "loading": "Chargement…",
-      "empty": "Aucune unité d'affaires trouvée.",
+      "empty": "Aucune unité d'affaires pour l'instant",
       "deactivate": "Désactiver",
-      "confirmDeactivate": "Désactiver cette unité d'affaires ? Cette action est irréversible.",
       "fields": {
         "legalName": "Raison sociale",
-        "displayName": "Nom affiché",
+        "displayName": "Nom court",
         "legalEntityId": "Entité juridique",
-        "legalEntitySearch": "Rechercher une entité juridique…",
         "code": "Code",
-        "caption": "Libellé",
+        "caption": "Nom",
         "costCenterCode": "Centre de coûts",
         "isActive": "Statut"
-      }
+      },
+      "emptyHint": "Créez la première pour y rattacher des entrepôts et du personnel.",
+      "sections": {
+        "identification": "Identification",
+        "names": "Nom dans chaque langue",
+        "party": "Fiche partenaire"
+      },
+      "sectionHints": {
+        "names": "L'allemand est obligatoire. Si une langue manque, le nom allemand est affiché.",
+        "party": "L'unité d'affaires figure aussi comme partenaire interne sous ces noms."
+      },
+      "hints": {
+        "legalEntity": "Entité juridique à laquelle appartient l'unité.",
+        "costCenterCode": "Pour imputer les coûts en comptabilité.",
+        "displayName": "Pour les listes et les menus.",
+        "lockedAfterCreate": "Fixé à la création de l'unité d'affaires."
+      },
+      "createSubtitle": "Un domaine d'activité d'une entité juridique (p. ex. événements ou location) qui regroupe entrepôts et personnel. Les champs marqués * sont obligatoires.",
+      "actions": {
+        "create": "Créer l'unité d'affaires"
+      },
+      "detail": {
+        "modified": "modifiée le {{date}}"
+      },
+      "deactivateDialog": {
+        "title": "Désactiver l'unité d'affaires ?",
+        "message": "« {{name}} » ({{code}}) sera désactivée. Cette action est irréversible."
+      },
+      "deactivated": "Unité d'affaires désactivée",
+      "saved": "Modifications enregistrées",
+      "created": "Unité d'affaires créée",
+      "readOnlyNotice": "Vous pouvez seulement consulter cette unité d'affaires : vous n'avez pas le droit de la modifier."
     },
     "tree": {
-      "title": "Arborescence de l'organisation",
-      "empty": "Aucune structure organisationnelle pour le moment."
+      "title": "Structure de l'organisation",
+      "empty": "Aucune structure organisationnelle pour le moment.",
+      "subtitle": "Organisation du groupe : entités juridiques, unités d'affaires et entrepôts. Ouvrez un élément pour voir sa fiche.",
+      "emptyHint": "Elle apparaîtra ici dès que des entités juridiques, unités d'affaires et entrepôts seront créés.",
+      "treeLabel": "Structure de l'organisation",
+      "expand": "Déplier «{{name}}»",
+      "collapse": "Replier «{{name}}»",
+      "kind": {
+        "group": "Groupe",
+        "legalEntity": "Entité juridique",
+        "businessUnit": "Unité d'affaires",
+        "warehouse": "Entrepôt"
+      }
     },
     "currencies": {
       "title": "Devises",
       "empty": "Aucune devise disponible.",
-      "columns": {
+      "loading": "Chargement…",
+      "fields": {
         "code": "Code",
         "caption": "Nom",
         "minorUnits": "Décimales",
-        "status": "Statut",
-        "action": "Action"
+        "isActive": "Statut"
       },
+      "sections": {
+        "currency": "Devise",
+        "names": "Nom dans chaque langue"
+      },
+      "hints": {
+        "minorUnits": "Nombre de décimales des montants dans cette devise.",
+        "code": "Trois lettres majuscules (ISO 4217), p. ex. SEK.",
+        "lockedAfterCreate": "Fixé à la création de la devise."
+      },
+      "activate": "Activer",
+      "deactivate": "Désactiver",
+      "deactivateDialog": {
+        "title": "Désactiver la devise ?",
+        "message": "«{{name}}» ({{code}}) ne pourra plus être choisie comme devise d'une entité juridique ou d'un groupe. Vous pouvez la réactiver à tout moment."
+      },
+      "activated": "Devise activée",
+      "deactivated": "Devise désactivée",
+      "errors": {
+        "inUse": "Impossible de désactiver «{{name}}» : au moins une entité juridique ou un groupe actif utilise cette devise.",
+        "codeFormat": "Saisissez trois lettres majuscules (A–Z).",
+        "minorUnitsRange": "Une valeur entre 0 et 4.",
+        "duplicateCode": "Une devise avec ce code existe déjà."
+      },
+      "new": "Nouvelle devise",
+      "newTitle": "Nouvelle devise",
+      "createSubtitle": "Une devise ISO 4217 qui pourra être choisie pour les entités juridiques et les groupes. Le code et les décimales ne peuvent plus être modifiés ensuite. Les champs marqués * sont obligatoires.",
+      "created": "Devise créée",
+      "renamed": "Nom enregistré",
       "actions": {
-        "activate": "Activer",
-        "deactivate": "Désactiver"
-      }
-    }
-  },
-  "locations": {
-    "title": "Sites",
-    "actions": {
-      "create": "Nouveau site"
+        "create": "Créer la devise"
+      },
+      "readOnlyNotice": "Vous pouvez seulement consulter cette devise : vous n'avez pas le droit de la modifier."
     },
-    "list": {
-      "columns": {
+    "locations": {
+      "title": "Sites",
+      "new": "Nouveau site",
+      "newTitle": "Nouveau site",
+      "createSubtitle": "Un lieu avec une adresse (halle, terrain, bureau) où peuvent se trouver des entrepôts. Les champs marqués * sont obligatoires.",
+      "loading": "Chargement…",
+      "empty": "Aucun site pour l'instant",
+      "emptyHint": "Créez le premier pour y rattacher des entrepôts.",
+      "fields": {
         "code": "Code",
         "name": "Nom",
+        "street": "Rue et numéro",
+        "postalCode": "Code postal",
         "city": "Ville",
+        "region": "Région",
         "countryCode": "Pays",
         "isActive": "Statut"
-      }
+      },
+      "sections": {
+        "identification": "Identification",
+        "address": "Adresse"
+      },
+      "hints": {
+        "name": "Nom sous lequel le lieu est connu, p. ex. «Lager Zug».",
+        "code": "Facultatif. Pour listes et rapports.",
+        "region": "Canton, État ou province."
+      },
+      "actions": {
+        "create": "Créer le site"
+      },
+      "detail": {
+        "modified": "modifié le {{date}}"
+      },
+      "saved": "Modifications enregistrées",
+      "created": "Site créé",
+      "readOnlyNotice": "Vous pouvez seulement consulter ce site : vous n'avez pas le droit de le modifier."
     },
-    "detail": {
-      "title": {
-        "create": "Nouveau site",
-        "edit": "Modifier le site"
-      }
-    },
-    "fields": {
-      "code": "Code",
-      "name": "Nom",
-      "street": "Rue",
-      "postalCode": "Code postal",
-      "city": "Ville",
-      "region": "Région",
-      "countryCode": "Code pays"
-    }
-  },
-  "warehouses": {
-    "title": "Entrepôts",
-    "actions": {
-      "create": "Nouvel entrepôt",
-      "deactivate": "Désactiver"
-    },
-    "filters": {
-      "search": "Rechercher",
-      "legalEntity": "Entité juridique",
-      "businessUnit": "Unité d'affaires",
-      "isActive": "Statut",
-      "isActiveAll": "Tous"
-    },
-    "list": {
-      "columns": {
+    "warehouses": {
+      "title": "Entrepôts",
+      "new": "Nouvel entrepôt",
+      "newTitle": "Nouvel entrepôt",
+      "createSubtitle": "Un lieu où est stocké le matériel d'une entité juridique, avec son adresse. Les champs marqués * sont obligatoires.",
+      "loading": "Chargement…",
+      "empty": "Aucun entrepôt pour l'instant",
+      "emptyHint": "Créez le premier et indiquez son adresse.",
+      "noResults": "Aucun entrepôt ne correspond aux filtres",
+      "deactivate": "Désactiver",
+      "filters": {
+        "q": "Rechercher code ou nom",
+        "legalEntity": "Entité juridique",
+        "businessUnit": "Unité d'affaires",
+        "all": "Toutes",
+        "status": "Statut",
+        "statusAll": "Tous",
+        "statusActive": "Actifs",
+        "statusInactive": "Inactifs"
+      },
+      "fields": {
         "code": "Code",
-        "caption": "Légende",
+        "caption": "Nom",
+        "legalEntityId": "Entité juridique",
+        "businessUnitId": "Unité d'affaires",
+        "location": "Emplacement",
         "isActive": "Statut"
-      }
-    },
-    "detail": {
-      "title": {
-        "create": "Nouvel entrepôt",
-        "edit": "Modifier l'entrepôt"
-      }
-    },
-    "fields": {
-      "code": "Code",
-      "location": "Site",
-      "legalEntity": "Entité juridique",
-      "businessUnit": "Unité d'affaires",
-      "clear": "Effacer",
-      "current": "Actuel : {{value}}"
+      },
+      "sections": {
+        "identification": "Identification",
+        "names": "Nom dans chaque langue",
+        "address": "Adresse de l'entrepôt"
+      },
+      "sectionHints": {
+        "names": "L'allemand est obligatoire. Si une langue manque, le nom allemand est affiché.",
+        "address": "Un entrepôt peut se trouver à l'adresse de son entité juridique ou à toute autre adresse."
+      },
+      "hints": {
+        "legalEntity": "Entité juridique propriétaire de l'entrepôt.",
+        "lockedAfterCreate": "Fixé à la création de l'entrepôt.",
+        "businessUnit": "Facultatif. Uniquement les unités de l'entité juridique choisie.",
+        "chooseLegalEntityFirst": "Choisissez d'abord l'entité juridique.",
+        "noBusinessUnits": "Cette entité juridique n'a aucune unité d'affaires active",
+        "location": "Tapez pour chercher par code ou nom.",
+        "locationRequired": "Choisissez un emplacement dans la liste."
+      },
+      "address": {
+        "sameAsLegalEntity": "La même que l'entité juridique",
+        "sameAsLegalEntityUnavailable": "Pas encore disponible. En attendant, choisissez un emplacement enregistré ou saisissez une nouvelle adresse.",
+        "existing": "Un autre emplacement enregistré",
+        "existingHint": "Choisir dans la liste des emplacements (p. ex. une halle partagée avec un autre entrepôt).",
+        "new": "Nouvelle adresse",
+        "newHint": "Saisie à la main et enregistrée comme nouvel emplacement.",
+        "locationCreated": "L'emplacement « {{value}} » a déjà été créé, mais l'entrepôt n'a pas pu être enregistré. En réessayant, ce même emplacement sera utilisé, sans doublon.",
+        "fields": {
+          "name": "Nom de l'emplacement",
+          "code": "Code de l'emplacement",
+          "street": "Rue et numéro",
+          "postalCode": "Code postal",
+          "city": "Ville",
+          "region": "Région",
+          "countryCode": "Pays"
+        },
+        "hints": {
+          "name": "Nom sous lequel le lieu est connu, p. ex. «Lager Zug».",
+          "code": "Facultatif. Code court pour les listes.",
+          "region": "Canton, État ou province."
+        }
+      },
+      "progress": {
+        "creatingLocation": "Création de l'emplacement…",
+        "savingWarehouse": "Enregistrement de l'entrepôt…"
+      },
+      "actions": {
+        "create": "Créer l'entrepôt",
+        "clearBusinessUnit": "Retirer l'unité d'affaires"
+      },
+      "detail": {
+        "modified": "modifié le {{date}}"
+      },
+      "deactivateDialog": {
+        "title": "Désactiver l'entrepôt ?",
+        "message": "« {{name}} » ({{code}}) sera désactivé et ne sera plus proposé pour de nouvelles opérations. Cette action est irréversible."
+      },
+      "deactivated": "Entrepôt désactivé",
+      "saved": "Modifications enregistrées",
+      "created": "Entrepôt créé",
+      "readOnlyNotice": "Vous pouvez seulement consulter cet entrepôt : vous n'avez pas le droit de le modifier."
     }
   },
   "audit": {
-    "summary": "{{count}} événements · le plus récent en premier · heures en Europe/Zurich",
+    "summary": "{{count}} événements · le plus récent en premier · heure suisse",
     "refresh": "Actualiser",
     "loadMore": "Charger plus",
     "empty": {
@@ -491,7 +705,7 @@
       "externalSubject": "Identifiant externe",
       "preferredLanguage": "Langue préférée"
     },
-    "summaryOne": "1 événement · heures en Europe/Zurich",
+    "summaryOne": "1 événement · heure suisse",
     "loading": "Chargement de l'audit…",
     "previousUnavailable": "Version précédente indisponible : affichage des valeurs actuelles.",
     "noMore": "Plus d'événements"
@@ -504,9 +718,9 @@
         "deactivated": "Entité juridique désactivée"
       },
       "business-unit": {
-        "created": "Unité opérationnelle créée",
-        "updated": "Unité opérationnelle mise à jour",
-        "deactivated": "Unité opérationnelle désactivée"
+        "created": "Unité d'affaires créée",
+        "updated": "Unité d'affaires mise à jour",
+        "deactivated": "Unité d'affaires désactivée"
       },
       "warehouse": {
         "created": "Entrepôt créé",

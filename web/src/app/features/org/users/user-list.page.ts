@@ -57,7 +57,7 @@ export class UserListPage {
     {
       field: 'isActive',
       headerKey: 'org.users.fields.isActive',
-      sortable: false,
+      sortable: true,
       flex: 1,
       cellRenderer: UserStatusCellRendererComponent,
     },

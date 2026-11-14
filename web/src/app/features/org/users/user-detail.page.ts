@@ -8,7 +8,7 @@ import { MatSelectModule } from '@angular/material/select';
 import { MatTabsModule } from '@angular/material/tabs';
 import { TranslocoModule, TranslocoService } from '@jsverse/transloco';
 import { LANGUAGE_OPTIONS } from '../../../core/i18n/supported-languages';
-import { isProblem } from '../../../core/http/problem';
+import { fieldErrorsOf, isProblem } from '../../../core/http/problem';
 import { NxI18nService } from '../../../core/i18n/nx-i18n.service';
 import { NxCanDirective } from '../../../shared/auth/can.directive';
 import { NxAuditTrailComponent } from '../../../shared/platform/nx-audit-trail/nx-audit-trail.component';
@@ -352,8 +352,8 @@ export class UserDetailPage implements OnInit {
     const httpError = error as { status?: number; error?: unknown } | undefined;
     const body = httpError?.error;
 
-    if (httpError?.status === 400 && isProblem(body) && body.errors) {
-      this.assignmentFieldErrors.set(body.errors);
+    if (httpError?.status === 400) {
+      this.assignmentFieldErrors.set(fieldErrorsOf(isProblem(body) ? body.errors : undefined));
       this.assignmentSaveError.set(this.transloco.translate('errors.validation'));
       return;
     }

@@ -5,13 +5,31 @@ import { Api } from '../../../api/platform/api';
 import { createLegalEntity } from '../../../api/platform/fn/legal-entities/create-legal-entity';
 import { deactivateLegalEntity } from '../../../api/platform/fn/legal-entities/deactivate-legal-entity';
 import { getLegalEntity } from '../../../api/platform/fn/legal-entities/get-legal-entity';
+import { listCurrencies } from '../../../api/platform/fn/currencies/list-currencies';
+import { listGroups } from '../../../api/platform/fn/groups/list-groups';
 import { listLegalEntities } from '../../../api/platform/fn/legal-entities/list-legal-entities';
+import { getParty } from '../../../api/platform/fn/parties/get-party';
 import { updateLegalEntity } from '../../../api/platform/fn/legal-entities/update-legal-entity';
 import { CreateLegalEntityRequest } from '../../../api/platform/models/create-legal-entity-request';
+import { CurrencyListItem } from '../../../api/platform/models/currency-list-item';
 import { LegalEntity } from '../../../api/platform/models/legal-entity';
 import { LegalEntityListItem } from '../../../api/platform/models/legal-entity-list-item';
+import { Party } from '../../../api/platform/models/party';
 import { UpdateLegalEntityRequest } from '../../../api/platform/models/update-legal-entity-request';
 import { NxSortModel, Page } from '../../../shared/ui/page.model';
+
+/** List filters supported by `GET /v1/legal-entities` (`q` matches `code` or `legalName`). */
+export interface LegalEntityListFilters {
+  readonly q?: string;
+  readonly isActive?: boolean;
+}
+
+/** A group to pick when creating a legal entity: its code and the legal name of its party. */
+export interface LegalEntityGroupOption {
+  readonly id: string;
+  readonly code: string;
+  readonly name: string | null;
+}
 
 /**
  * Facade for `LegalEntity` master data (`FE-R1`, `conventions-frontend.md
@@ -34,21 +52,35 @@ export class LegalEntitiesFacade {
   private readonly api = inject(Api);
 
   private readonly selectedSignal = signal<LegalEntity | null>(null);
+  private readonly partySignal = signal<Party | null>(null);
   private readonly loadingSignal = signal(false);
   private readonly errorSignal = signal<string | null>(null);
   private etag: string | null = null;
 
   readonly selected = this.selectedSignal.asReadonly();
+  /** `Party` of the selected entity (legal name, display name), loaded by `load()`. */
+  readonly party = this.partySignal.asReadonly();
   readonly loading = this.loadingSignal.asReadonly();
   readonly error = this.errorSignal.asReadonly();
 
+  /** Monotonic sequence: only the latest `load()` (and none issued before a `reset()`) may apply its result. */
+  private loadSeq = 0;
+
   /** `nx-data-grid`'s `fetch` callback. `page` is 0-based; the API's `page` query param is 1-based. */
-  list(page: number, pageSize: number, sort: NxSortModel | null): Observable<Page<LegalEntityListItem>> {
+  list(
+    page: number,
+    pageSize: number,
+    sort: NxSortModel | null,
+    filters: LegalEntityListFilters = {},
+  ): Observable<Page<LegalEntityListItem>> {
+    const q = filters.q?.trim();
     return from(
       this.api.invoke(listLegalEntities, {
         page: page + 1,
         pageSize,
         sort: sort ? `${sort.direction === 'desc' ? '-' : ''}${sort.colId}` : undefined,
+        q: q ? q : undefined,
+        isActive: filters.isActive,
       }),
     ).pipe(
       map((response) => ({
@@ -61,37 +93,45 @@ export class LegalEntitiesFacade {
   }
 
   /**
-   * `nx-entity-picker`'s `search` callback, used when picking a
-   * `BusinessUnit.legalEntityId`. `GET /v1/legal-entities` has no `q` query
-   * parameter in the contract (only `page`/`pageSize`/`sort`), so this
-   * fetches one page sorted by `code` and filters client-side on a
-   * substring match of `code` — acceptable while the number of legal
-   * entities per group stays small; revisit (back to Gate C) if that
-   * stops being true.
+   * `nx-entity-picker`'s `search` callback, used when picking a `BusinessUnit.legalEntityId`.
+   * The server filters (`q` matches `code` or `legalName`); one page sorted by `code` is enough
+   * for a picker.
    */
   search(query: string): Observable<LegalEntityListItem[]> {
-    return from(this.api.invoke(listLegalEntities, { page: 1, pageSize: 100, sort: 'code' })).pipe(
-      map((response) => {
-        const needle = query.trim().toLowerCase();
-        const items = response.items ?? [];
-        return needle ? items.filter((item) => item.code.toLowerCase().includes(needle)) : items;
-      }),
-    );
+    const q = query.trim();
+    return from(
+      this.api.invoke(listLegalEntities, { page: 1, pageSize: 100, sort: 'code', q: q ? q : undefined }),
+    ).pipe(map((response) => response.items ?? []));
   }
 
+  /** Loads the entity (and its ETag) plus its `Party`, whose legal name is the record's title. */
   async load(id: string): Promise<void> {
+    const seq = ++this.loadSeq;
     this.loadingSignal.set(true);
     this.errorSignal.set(null);
     try {
       const response = await this.api.invoke$Response(getLegalEntity, { id });
+      if (seq !== this.loadSeq) {
+        return;
+      }
       this.selectedSignal.set(response.body);
       this.etag = response.headers.get('ETag');
+      const party = await this.fetchParty(response.body.partyId);
+      if (seq !== this.loadSeq) {
+        return;
+      }
+      this.partySignal.set(party);
     } catch {
-      this.selectedSignal.set(null);
-      this.etag = null;
-      this.errorSignal.set('load_failed');
+      if (seq === this.loadSeq) {
+        this.selectedSignal.set(null);
+        this.partySignal.set(null);
+        this.etag = null;
+        this.errorSignal.set('load_failed');
+      }
     } finally {
-      this.loadingSignal.set(false);
+      if (seq === this.loadSeq) {
+        this.loadingSignal.set(false);
+      }
     }
   }
 
@@ -123,9 +163,40 @@ export class LegalEntitiesFacade {
     return response.body;
   }
 
+  /** Groups for the create form's «Group» select, each with the legal name of its party. */
+  async groupOptions(): Promise<LegalEntityGroupOption[]> {
+    const response = await this.api.invoke(listGroups, { page: 1, pageSize: 200 });
+    const groups = response.items ?? [];
+    return Promise.all(
+      groups.map(async (group) => ({
+        id: group.id,
+        code: group.code,
+        name: (await this.fetchParty(group.partyId))?.legalName ?? null,
+      })),
+    );
+  }
+
+  /** Active currencies for the «Currency» select. */
+  async currencyOptions(): Promise<CurrencyListItem[]> {
+    const response = await this.api.invoke(listCurrencies, { page: 1, pageSize: 200, sort: 'code' });
+    return (response.items ?? []).filter((currency) => currency.isActive);
+  }
+
+  /** The party is display data only: if it cannot be read, the page falls back to the code. */
+  private async fetchParty(id: string): Promise<Party | null> {
+    try {
+      return await this.api.invoke(getParty, { id });
+    } catch {
+      return null;
+    }
+  }
+
   /** Clears `selected`/`error`/the stored `ETag` — call when entering the detail page fresh. */
   reset(): void {
+    this.loadSeq++;
+    this.loadingSignal.set(false);
     this.selectedSignal.set(null);
+    this.partySignal.set(null);
     this.errorSignal.set(null);
     this.etag = null;
   }

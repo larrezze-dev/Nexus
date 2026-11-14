@@ -1,5 +1,6 @@
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, TestRequest, provideHttpClientTesting } from '@angular/common/http/testing';
+import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import type { Warehouse } from '../../../api/platform/models/warehouse';
 import { NxI18nService } from '../../../core/i18n/nx-i18n.service';
@@ -31,7 +32,7 @@ describe('WarehouseFacade load() sequencing', () => {
       providers: [
         provideHttpClient(),
         provideHttpClientTesting(),
-        { provide: NxI18nService, useValue: { translateErrorCode: (code: string | null) => code ?? 'generic' } },
+        { provide: NxI18nService, useValue: { translateErrorCode: (code: string | null) => code ?? 'generic', activeLang: signal('de') } },
       ],
     });
     return { facade: TestBed.inject(WarehouseFacade), httpMock: TestBed.inject(HttpTestingController) };
@@ -47,7 +48,17 @@ describe('WarehouseFacade load() sequencing', () => {
   function answerLabelLookups(requests: TestRequest[]): void {
     for (const r of requests) {
       const id = r.request.url.split('/').pop() ?? '';
-      r.flush({ id, code: `C-${id.slice(-2)}`, name: `N-${id.slice(-2)}` });
+      r.flush({ id, code: `C-${id.slice(-2)}`, name: `N-${id.slice(-2)}`, partyId: id, legalName: `L-${id.slice(-2)}` });
+    }
+  }
+
+  /** Awaits `promise`, answering follow-up lookups (the legal entity's `Party`) until it settles. */
+  async function finish(httpMock: HttpTestingController, promise: Promise<void>): Promise<void> {
+    let done = false;
+    void promise.then(() => (done = true));
+    while (!done) {
+      await tick();
+      answerLabelLookups(httpMock.match((r) => !r.url.includes('/warehouses/')));
     }
   }
 
@@ -60,10 +71,10 @@ describe('WarehouseFacade load() sequencing', () => {
 
     reqB.flush(warehouseB, { headers: { ETag: '"b"' } });
     answerLabelLookups(await takeLabelLookups(httpMock));
-    await loadB;
+    await finish(httpMock, loadB);
     reqA.flush(warehouseA, { headers: { ETag: '"a"' } });
     answerLabelLookups(await takeLabelLookups(httpMock));
-    await loadA;
+    await finish(httpMock, loadA);
 
     expect(facade.selected()?.id).toBe(warehouseB.id);
     expect(facade.loading()).toBe(false);
@@ -82,7 +93,7 @@ describe('WarehouseFacade load() sequencing', () => {
     facade.reset();
     req.flush(warehouseA, { headers: { ETag: '"a"' } });
     answerLabelLookups(await takeLabelLookups(httpMock));
-    await load;
+    await finish(httpMock, load);
 
     expect(facade.selected()).toBeNull();
     expect(facade.loading()).toBe(false);
@@ -96,9 +107,9 @@ describe('WarehouseFacade load() sequencing', () => {
     const reqA = httpMock.expectOne(url(warehouseA.id));
     httpMock.expectOne(url(warehouseB.id)).flush(warehouseB, { headers: { ETag: '"b"' } });
     answerLabelLookups(await takeLabelLookups(httpMock));
-    await loadB;
+    await finish(httpMock, loadB);
     reqA.flush({}, { status: 500, statusText: 'err' });
-    await loadA;
+    await finish(httpMock, loadA);
 
     expect(facade.selected()?.id).toBe(warehouseB.id);
     expect(facade.error()).toBeNull();
@@ -113,7 +124,7 @@ describe('WarehouseFacade load() sequencing', () => {
 
     const loadB = facade.load(warehouseB.id); // B starts before A's label lookups resolve
     answerLabelLookups(labelLookupsA);
-    await loadA;
+    await finish(httpMock, loadA);
 
     expect(facade.resolvedLocationLabel()).toBeNull();
     expect(facade.resolvedLegalEntityLabel()).toBeNull();
@@ -121,7 +132,7 @@ describe('WarehouseFacade load() sequencing', () => {
 
     httpMock.expectOne(url(warehouseB.id)).flush(warehouseB, { headers: { ETag: '"b"' } });
     answerLabelLookups(await takeLabelLookups(httpMock));
-    await loadB;
+    await finish(httpMock, loadB);
     expect(facade.resolvedLocationLabel()).toBe('C-63 — N-63');
   });
 
@@ -132,7 +143,7 @@ describe('WarehouseFacade load() sequencing', () => {
     const labelLookups = await takeLabelLookups(httpMock);
     facade.reset();
     answerLabelLookups(labelLookups);
-    await load;
+    await finish(httpMock, load);
 
     expect(facade.resolvedLocationLabel()).toBeNull();
     expect(facade.resolvedLegalEntityLabel()).toBeNull();

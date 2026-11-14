@@ -46,4 +46,21 @@ describe('NxFormatService', () => {
     expect(formatted).toContain('12:00');
     expect(formatted).toContain('18.06.2026');
   });
+
+  it('formats a medium date in Europe/Zurich with the regional locale of the language', () => {
+    const { service, transloco } = setup();
+    transloco.setActiveLang('de');
+    // 2026-12-31T23:30:00Z is already 1 Jan 2027 in Zurich (UTC+1).
+    expect(service.formatDateMedium('2026-12-31T23:30:00Z')).toBe('01.01.2027');
+    transloco.setActiveLang('en');
+    expect(service.formatDateMedium('2026-11-11T10:00:00Z')).toBe('11 Nov 2026');
+  });
+
+  it('returns an empty string for a missing or invalid date', () => {
+    const { service } = setup();
+    expect(service.formatDateMedium('not a date')).toBe('');
+    expect(service.formatDateMedium('')).toBe('');
+    expect(service.formatDateMedium(null)).toBe('');
+    expect(service.formatDateMedium(undefined)).toBe('');
+  });
 });

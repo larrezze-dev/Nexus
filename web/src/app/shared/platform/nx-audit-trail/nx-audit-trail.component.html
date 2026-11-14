@@ -24,9 +24,9 @@
 
     @if (facade.loading() && views().length === 0) {
       <div class="nx-audit__skeleton" aria-hidden="true" data-testid="audit-skeleton">
-        <span class="nx-audit__skeleton-line nx-audit__skeleton-line--title"></span>
-        <span class="nx-audit__skeleton-line"></span>
-        <span class="nx-audit__skeleton-line nx-audit__skeleton-line--short"></span>
+        <span class="nx-skeleton-bar nx-audit__skeleton-title"></span>
+        <span class="nx-skeleton-bar"></span>
+        <span class="nx-skeleton-bar nx-audit__skeleton-short"></span>
       </div>
     } @else if (!facade.loading() && !facade.error() && views().length === 0) {
       <div class="nx-empty-state" data-testid="audit-empty">

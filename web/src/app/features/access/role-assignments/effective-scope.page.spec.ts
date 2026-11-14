@@ -3,7 +3,7 @@ import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { ActivatedRoute, convertToParamMap } from '@angular/router';
 import { provideNoopAnimations } from '@angular/platform-browser/animations';
-import { provideTransloco } from '@jsverse/transloco';
+import { TranslocoService, provideTransloco } from '@jsverse/transloco';
 import { OrgTreeFacade } from '../../org/tree/org-tree.facade';
 import { OrgTreeNode } from '../../org/tree/org-tree.model';
 import { EffectiveScopePage } from './effective-scope.page';
@@ -29,7 +29,7 @@ function setup(
     imports: [EffectiveScopePage],
     providers: [
       provideNoopAnimations(),
-      ...provideTransloco({ config: { availableLangs: ['en'], defaultLang: 'en' } }),
+      ...provideTransloco({ config: { availableLangs: ['en', 'es'], defaultLang: 'en' } }),
       { provide: OrgTreeFacade, useValue: orgTreeFacade },
       { provide: RoleAssignmentsFacade, useValue: assignmentsFacade },
       { provide: ActivatedRoute, useValue: { snapshot: { paramMap: convertToParamMap({ id: userId }) } } },
@@ -60,9 +60,9 @@ async function flushUntilLoaded(fixture: ComponentFixture<EffectiveScopePage>): 
 
 describe('EffectiveScopePage', () => {
   it('loads the org tree and the effective scope for the user id in the route', async () => {
-    const warehouse: OrgTreeNode = { id: 'wh1', kind: 'warehouse', code: 'WH-01', label: 'Zürich', isActive: true, children: [] };
-    const legalEntity: OrgTreeNode = { id: 'le1', kind: 'legalEntity', code: 'LE-CH', label: 'LE-CH', isActive: true, children: [warehouse] };
-    const group: OrgTreeNode = { id: 'g1', kind: 'group', code: 'NUSSLI', label: 'NUSSLI', isActive: null, children: [legalEntity] };
+    const warehouse: OrgTreeNode = { id: 'wh1', kind: 'warehouse', code: 'WH-01', captionI18n: { de: 'Zürich' }, isActive: true, children: [] };
+    const legalEntity: OrgTreeNode = { id: 'le1', kind: 'legalEntity', code: 'LE-CH', isActive: true, children: [warehouse] };
+    const group: OrgTreeNode = { id: 'g1', kind: 'group', code: 'NUSSLI', isActive: null, children: [legalEntity] };
 
     const { fixture, orgTreeFacade, assignmentsFacade } = setup([group], {
       legalEntityIds: ['le1'],
@@ -86,6 +86,44 @@ describe('EffectiveScopePage', () => {
     expect(fixture.componentInstance['isVisible'](group)).toBe(true);
   });
 
+  it('names the nodes in the active language and follows a language switch', async () => {
+    const warehouse: OrgTreeNode = {
+      id: 'wh1',
+      kind: 'warehouse',
+      code: 'WH-01',
+      captionI18n: { de: 'Lager Zug', es: 'Almacén Zug' },
+      isActive: true,
+      children: [],
+    };
+    const group: OrgTreeNode = {
+      id: 'g1',
+      kind: 'group',
+      code: 'SSB',
+      name: 'SAPE Holding',
+      isActive: null,
+      children: [warehouse],
+    };
+    const { fixture } = setup([group], {
+      legalEntityIds: [],
+      businessUnitIds: [],
+      warehouseIds: ['wh1'],
+      projectIds: [],
+    });
+    fixture.detectChanges();
+    await flushUntilLoaded(fixture);
+    const labels = () =>
+      Array.from((fixture.nativeElement as HTMLElement).querySelectorAll('.nx-effective-scope-tree__label')).map(
+        (node) => node.textContent?.trim(),
+      );
+
+    // en is not a caption language of the node: de is the fallback; the group shows its name.
+    expect(labels()).toEqual(['SAPE Holding', 'Lager Zug']);
+
+    TestBed.inject(TranslocoService).setActiveLang('es');
+    fixture.detectChanges();
+    expect(labels()).toEqual(['SAPE Holding', 'Almacén Zug']);
+  });
+
   it('shows the overall empty-state message, not an error, when nothing is visible at all', async () => {
     const { fixture } = setup([]);
 
@@ -98,7 +136,7 @@ describe('EffectiveScopePage', () => {
   });
 
   it('shows the projects-specific empty-state message when only projectIds is empty', async () => {
-    const legalEntity: OrgTreeNode = { id: 'le1', kind: 'legalEntity', code: 'LE-CH', label: 'LE-CH', isActive: true, children: [] };
+    const legalEntity: OrgTreeNode = { id: 'le1', kind: 'legalEntity', code: 'LE-CH', isActive: true, children: [] };
 
     const { fixture } = setup([legalEntity], {
       legalEntityIds: ['le1'],

@@ -89,6 +89,11 @@
   min-width: 0;
 }
 
+/* El icono no se encoge cuando el texto ocupa varias líneas (se veía cortado a 390 px). */
+.nx-alert > .mat-icon {
+  flex: none;
+}
+
 .nx-alert--error {
   background: var(--nx-alert-error-bg);
   color: var(--nx-alert-error-fg);
@@ -130,4 +135,127 @@
 .nx-mono {
   font-family: var(--nx-font-mono);
   font-size: var(--nx-text-mono-size);
+}
+
+/*
+ * Code typed in a Material field (`<input matInput class="nx-mono">`): Material resets the input
+ * with `font: inherit` at a higher specificity, so `.nx-mono` alone lost. Only the family changes;
+ * the size stays the field's, so it lines up with the fields next to it.
+ */
+.mat-mdc-form-field .mat-mdc-form-field-input-control.nx-mono {
+  font-family: var(--nx-font-mono);
+}
+
+/*
+ * «New X» on list pages (`nx-ui-page-templates`, Móvil): the header button (`.nx-create--header`)
+ * becomes an extended FAB fixed at the bottom right below 600 px — a second
+ * `<a mat-flat-button class="nx-create--fab">` shaped as a FAB (56 px, radius 16, level-3 shadow;
+ * not `mat-fab`, which would add 16 kB to the initial bundle). The page keeps room under its
+ * last row so the FAB never hides it.
+ */
+.nx-page .nx-create--fab {
+  display: none;
+}
+
+@media (max-width: 599.98px) {
+  /* Scoped to .nx-page to win over Material's own `display` on buttons. */
+  .nx-page .nx-create--header {
+    display: none;
+  }
+
+  .nx-page .nx-create--fab {
+    --mat-button-filled-container-height: calc(2 * var(--nx-space-5) + var(--nx-space-2)); /* 56 */
+    --mat-button-filled-container-shape: var(--nx-space-4); /* 16, M3 FAB */
+    --mat-button-filled-horizontal-padding: var(--nx-space-4);
+    display: inline-flex;
+    box-shadow: var(--mat-sys-level3);
+    position: fixed;
+    right: var(--nx-space-4);
+    bottom: var(--nx-space-4);
+    z-index: 4;
+  }
+
+  .nx-page:has(.nx-create--fab) {
+    padding-bottom: calc(2 * var(--nx-space-6) + var(--nx-space-5)); /* FAB 56 + margin */
+  }
+}
+
+/* Content of a detail-page tab (`mat-tab`): spaced from the tab bar, sections stacked. */
+.nx-tab-panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--nx-space-5);
+  padding-top: var(--nx-space-5);
+  min-width: 0;
+}
+
+/*
+ * Read-only field that cannot change after creation (`nx-ui-page-templates`: immutable fields):
+ * a disabled `mat-form-field` that stays legible — muted background, normal text — with a lock
+ * icon (`matSuffix`) and a `mat-hint` saying why. Material's disabled look is too faint to read.
+ *
+ * Same look, without the lock, for every disabled field inside a read-only form (decision of
+ * Luciano, 2026-11-14): put `.nx-readonly` on the `<form>` (or any container) when the user may
+ * not change the record (no UPDATE permission, SYSTEM record). Text 14.9:1 and label 5.6:1 on
+ * the muted background (AA). Fields disabled for another reason outside `.nx-readonly` keep
+ * Material's look.
+ */
+.mat-mdc-form-field.nx-field--locked,
+.nx-readonly .mat-mdc-form-field.mat-form-field-disabled {
+  --mat-form-field-outlined-disabled-input-text-color: var(--nx-color-text);
+  --mat-form-field-outlined-disabled-label-text-color: var(--nx-color-text-muted);
+  --mat-form-field-outlined-disabled-outline-color: var(--nx-color-border);
+  --mat-form-field-disabled-trailing-icon-color: var(--nx-color-text-muted);
+  --mat-form-field-disabled-leading-icon-color: var(--nx-color-text-muted);
+  --mat-select-disabled-trigger-text-color: var(--nx-color-text);
+  --mat-select-disabled-arrow-color: transparent;
+}
+
+.mat-mdc-form-field.nx-field--locked .mat-mdc-text-field-wrapper,
+.nx-readonly .mat-mdc-form-field.mat-form-field-disabled .mat-mdc-text-field-wrapper {
+  background: var(--nx-color-surface-muted);
+  border-radius: var(--nx-radius-sm);
+}
+
+/* Choices of a read-only form: the label stays as legible as the text fields. */
+.nx-readonly {
+  --mat-checkbox-disabled-label-color: var(--nx-color-text);
+  --mat-radio-disabled-label-color: var(--nx-color-text);
+  --mat-slide-toggle-disabled-label-text-color: var(--nx-color-text);
+}
+
+/*
+ * Loading skeleton bar (§4.7: skeleton, never «Loading…»): a grey rounded bar standing in for a
+ * line of text. Width is set by the user (`[style.width.%]`); same look as the grid skeleton.
+ */
+.nx-skeleton-bar {
+  display: block;
+  height: var(--nx-skeleton-bar-height);
+  border-radius: calc(var(--nx-skeleton-bar-height) / 2);
+  background: var(--nx-color-skeleton);
+  animation: nx-skeleton-bar-pulse 1.4s ease-in-out infinite;
+}
+
+@keyframes nx-skeleton-bar-pulse {
+  50% {
+    opacity: 0.55;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .nx-skeleton-bar {
+    animation: none;
+  }
+}
+
+/*
+ * A form made of stacked sections (`<form class="nx-form-stack">`: alert, `nx-form-section`s,
+ * `nx-action-bar`), spaced like the page (`--nx-space-5`). The older org forms still carry a local
+ * copy of this block (`.nx-le-form`, `.nx-bu-form`, …).
+ */
+.nx-form-stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--nx-space-5);
+  min-width: 0;
 }

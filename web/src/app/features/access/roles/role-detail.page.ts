@@ -8,7 +8,12 @@ import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatTabsModule } from '@angular/material/tabs';
 import { TranslocoModule, TranslocoService } from '@jsverse/transloco';
 import { Permission } from '../../../api/platform/models/permission';
-import { isProblem } from '../../../core/http/problem';
+import {
+  isConcurrencyConflict,
+  isDuplicateConflict,
+  isProblem,
+  localizedFieldErrors,
+} from '../../../core/http/problem';
 import { NxI18nService } from '../../../core/i18n/nx-i18n.service';
 import { NxCanDirective } from '../../../shared/auth/can.directive';
 import { PermissionsStore } from '../../../shared/auth/permissions.store';
@@ -306,8 +311,10 @@ export class RoleDetailPage implements OnInit {
     const httpError = error as { status?: number; error?: unknown } | undefined;
     const body = httpError?.error;
 
-    if (httpError?.status === 400 && isProblem(body) && body.errors) {
-      this.fieldErrors.set(body.errors);
+    if (httpError?.status === 400) {
+      this.fieldErrors.set(
+        localizedFieldErrors(isProblem(body) ? body.errors : undefined, this.transloco.translate('shared.form.invalidValue')),
+      );
       this.saveError.set(this.transloco.translate('errors.validation'));
       return;
     }
@@ -317,8 +324,13 @@ export class RoleDetailPage implements OnInit {
       return;
     }
 
-    if (httpError?.status === 409) {
+    if (isConcurrencyConflict(error)) {
       // `errorInterceptor` already opened the concurrency dialog; nothing else to show here.
+      return;
+    }
+
+    if (isDuplicateConflict(error)) {
+      this.fieldErrors.set({ code: [this.transloco.translate('errors.CONFLICT')] });
       return;
     }
 

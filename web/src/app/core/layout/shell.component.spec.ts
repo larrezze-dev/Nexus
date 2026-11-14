@@ -10,6 +10,7 @@ import { of } from 'rxjs';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { PermissionsStore } from '../../shared/auth/permissions.store';
 import { NxI18nService } from '../i18n/nx-i18n.service';
+import { NxBreadcrumbService } from './breadcrumb.service';
 import { NavigationBuilderService } from './navigation-builder.service';
 import { NxNavGroup } from './nav-item.model';
 import { SIDENAV_STORAGE_KEY, ShellComponent } from './shell.component';
@@ -93,6 +94,31 @@ describe('ShellComponent', () => {
       expect(el(fixture).textContent).not.toContain('notifications');
       const main = el(fixture).querySelector('main#nx-main') as HTMLElement;
       expect(main.firstElementChild?.tagName.toLowerCase()).toBe('app-breadcrumb');
+    });
+
+    it('drops its breadcrumb while the page renders it in nx-page-header, and brings it back after', () => {
+      const fixture = setup(true);
+      const release = TestBed.inject(NxBreadcrumbService).claimForPage();
+      fixture.detectChanges();
+      expect(el(fixture).querySelector('main#nx-main app-breadcrumb')).toBeNull();
+
+      release();
+      release(); // idempotent: a second call must not un-claim another page's header
+      fixture.detectChanges();
+      expect(el(fixture).querySelector('main#nx-main app-breadcrumb')).toBeTruthy();
+    });
+
+    it('keeps the breadcrumb hidden when the next page claims before the previous one releases', () => {
+      const fixture = setup(true);
+      const service = TestBed.inject(NxBreadcrumbService);
+      const releasePrevious = service.claimForPage();
+      const releaseNext = service.claimForPage();
+      releasePrevious();
+      fixture.detectChanges();
+      expect(el(fixture).querySelector('main#nx-main app-breadcrumb')).toBeNull();
+      releaseNext();
+      fixture.detectChanges();
+      expect(el(fixture).querySelector('main#nx-main app-breadcrumb')).toBeTruthy();
     });
 
     it('offers a skip link to the main content', () => {
