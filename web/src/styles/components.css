@@ -89,6 +89,11 @@
   min-width: 0;
 }
 
+/* El icono no se encoge cuando el texto ocupa varias líneas (se veía cortado a 390 px). */
+.nx-alert > .mat-icon {
+  flex: none;
+}
+
 .nx-alert--error {
   background: var(--nx-alert-error-bg);
   color: var(--nx-alert-error-fg);
