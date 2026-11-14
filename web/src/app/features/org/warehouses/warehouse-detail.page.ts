@@ -40,7 +40,13 @@ import {
 import { BusinessUnitListItem } from '../../../api/platform/models/business-unit-list-item';
 import { LegalEntityListItem } from '../../../api/platform/models/legal-entity-list-item';
 import { LocationListItem } from '../../../api/platform/models/location-list-item';
-import { isConcurrencyConflict, isDuplicateConflict } from '../../../core/http/problem';
+import {
+  fieldErrorsOf,
+  isConcurrencyConflict,
+  isDuplicateConflict,
+  problemOf,
+} from '../../../core/http/problem';
+import { markServerErrors } from '../../../shared/forms/server-errors';
 import { NxFormatService } from '../../../core/i18n/nx-format.service';
 import { NxI18nService } from '../../../core/i18n/nx-i18n.service';
 import { NxBreadcrumbService } from '../../../core/layout/breadcrumb.service';
@@ -503,6 +509,19 @@ export class WarehouseDetailPage implements OnInit {
       control.setErrors({ ...(control.errors ?? {}), conflict: true });
       control.markAsTouched();
       this.focusTestId(onLocation ? 'warehouse-new-location-code' : 'warehouse-code-input');
+      return;
+    }
+    if (http?.status === 400) {
+      // Validation: mark the fields the server named (of the step that failed) and say so above.
+      const fields = fieldErrorsOf(problemOf(http)?.errors);
+      const onLocation = error instanceof WarehouseSaveError && error.step === 'location';
+      markServerErrors(
+        onLocation ? this.form.controls.newLocation.controls : this.form.controls,
+        fields,
+      );
+      this.saveError.set(this.transloco.translate('errors.validation'));
+      this.locationCreated.set(false);
+      setTimeout(() => this.saveAlert()?.nativeElement.focus());
       return;
     }
     const described = this.facade.describeError(cause);

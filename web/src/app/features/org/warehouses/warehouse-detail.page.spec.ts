@@ -45,7 +45,7 @@ const wh = {
   progress: { creatingLocation: 'Creating location…', savingWarehouse: 'Saving warehouse…' },
   address: { locationCreated: 'Location {{value}} was already created.' },
 };
-const translations = { en: { org: { warehouses: wh } } };
+const translations = { en: { org: { warehouses: wh }, errors: { validation: 'Fix the fields' } } };
 
 function createFacadeStub(selected: Warehouse | null) {
   return {
@@ -454,5 +454,55 @@ describe('WarehouseDetailPage address options and saving', () => {
     expect(form.controls.addressMode.value).toBe('existingLocation');
     expect(form.controls.newLocation.controls.name.value).toBe('');
     expect(form.controls.newLocation.controls.city.value).toBe('');
+  });
+
+  it('a 400 on the warehouse step shows errors.validation and marks the named field', async () => {
+    const facade = createFacadeStub(warehouse);
+    const cause = new HttpErrorResponse({
+      status: 400,
+      error: { code: 'VALIDATION', status: 400, errors: [{ field: 'Code', message: 'too long' }] },
+    });
+    facade.save.mockRejectedValue(new WarehouseSaveError('warehouse', cause, null));
+    const fixture = await setupPage({ id: warehouse.id }, facade);
+    await fixture.componentInstance['load']();
+    fixture.componentInstance['form'].markAsDirty();
+
+    await fixture.componentInstance['save']();
+    await settle(fixture);
+
+    expect(fixture.componentInstance['saveError']()).toBe('Fix the fields');
+    expect(fixture.componentInstance['form'].controls.code.hasError('server')).toBe(true);
+    expect(facade.describeError).not.toHaveBeenCalled();
+  });
+
+  it('a 400 on the location step marks the new-location field, and a 400 without errors still says validation', async () => {
+    const facade = createFacadeStub(null);
+    const withErrors = new HttpErrorResponse({
+      status: 400,
+      error: { code: 'VALIDATION', errors: [{ field: 'CountryCode', message: 'bad' }] },
+    });
+    facade.save.mockRejectedValueOnce(new WarehouseSaveError('location', withErrors, null));
+    const fixture = await setupPage({}, facade);
+    const form = fixture.componentInstance['form'];
+    form.controls.addressMode.setValue('newLocation');
+    form.controls.code.setValue('WH-09');
+    form.controls.captionI18n.setValue({ de: 'Lager' } as never);
+    form.controls.legalEntityId.setValue(LE_ID);
+    form.controls.newLocation.patchValue({ name: 'Depot', countryCode: 'CH' });
+    await settle(fixture);
+
+    await fixture.componentInstance['save']();
+    await settle(fixture);
+    expect(form.controls.newLocation.controls.countryCode.hasError('server')).toBe(true);
+    expect(fixture.componentInstance['saveError']()).toBe('Fix the fields');
+
+    facade.save.mockRejectedValueOnce(
+      new WarehouseSaveError('warehouse', new HttpErrorResponse({ status: 400, error: { code: 'VALIDATION' } }), null),
+    );
+    // Editing the field clears the server mark, so the form can be submitted again.
+    form.controls.newLocation.controls.countryCode.setValue('CH');
+    fixture.componentInstance['saveError'].set(null);
+    await fixture.componentInstance['save']();
+    expect(fixture.componentInstance['saveError']()).toBe('Fix the fields');
   });
 });
