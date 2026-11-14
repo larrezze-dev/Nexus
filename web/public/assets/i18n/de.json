@@ -234,7 +234,7 @@
         "fullName": "Vollständiger Name",
         "email": "E-Mail",
         "preferredLanguage": "Bevorzugte Sprache",
-        "businessUnit": "Business Unit",
+        "businessUnit": "Geschäftsbereich",
         "isActive": "Status"
       }
     },
@@ -576,6 +576,9 @@
       },
       "confirm": {
         "confirm": "Bestätigen"
+      },
+      "detailSkeleton": {
+        "loading": "Wird geladen…"
       }
     },
     "emptyState": {
@@ -635,7 +638,9 @@
         "fr": "Französisch",
         "it": "Italienisch",
         "es": "Spanisch"
-      }
+      },
+      "moreLanguages": "Weitere Sprachen anzeigen",
+      "fewerLanguages": "Weniger Sprachen anzeigen"
     },
     "entityPicker": {
       "placeholder": "Suchen…",
@@ -649,7 +654,7 @@
     }
   },
   "audit": {
-    "summary": "{{count}} Ereignisse · neueste zuerst · Zeiten in Europe/Zurich",
+    "summary": "{{count}} Ereignisse · neueste zuerst · Schweizer Zeit",
     "refresh": "Aktualisieren",
     "loadMore": "Mehr laden",
     "empty": {
@@ -695,7 +700,7 @@
       "externalSubject": "Externe Kennung",
       "preferredLanguage": "Bevorzugte Sprache"
     },
-    "summaryOne": "1 Ereignis · Zeiten in Europe/Zurich",
+    "summaryOne": "1 Ereignis · Schweizer Zeit",
     "loading": "Audit wird geladen…",
     "previousUnavailable": "Vorherige Version nicht verfügbar: Es werden die aktuellen Werte angezeigt.",
     "noMore": "Keine weiteren Ereignisse"
@@ -703,14 +708,14 @@
   "events": {
     "org": {
       "legal-entity": {
-        "created": "Legal Entity erstellt",
-        "updated": "Legal Entity aktualisiert",
-        "deactivated": "Legal Entity deaktiviert"
+        "created": "Gesellschaft erstellt",
+        "updated": "Gesellschaft aktualisiert",
+        "deactivated": "Gesellschaft deaktiviert"
       },
       "business-unit": {
-        "created": "Business Unit erstellt",
-        "updated": "Business Unit aktualisiert",
-        "deactivated": "Business Unit deaktiviert"
+        "created": "Geschäftsbereich erstellt",
+        "updated": "Geschäftsbereich aktualisiert",
+        "deactivated": "Geschäftsbereich deaktiviert"
       },
       "warehouse": {
         "created": "Lager erstellt",

@@ -174,6 +174,9 @@
       },
       "confirm": {
         "confirm": "Conferma"
+      },
+      "detailSkeleton": {
+        "loading": "Caricamento…"
       }
     },
     "emptyState": {
@@ -233,7 +236,9 @@
         "fr": "Francese",
         "it": "Italiano",
         "es": "Spagnolo"
-      }
+      },
+      "moreLanguages": "Mostra altre lingue",
+      "fewerLanguages": "Mostra meno lingue"
     },
     "entityPicker": {
       "placeholder": "Cerca…",
@@ -298,7 +303,7 @@
         "fullName": "Nome completo",
         "email": "Email",
         "preferredLanguage": "Lingua preferita",
-        "businessUnit": "Business unit",
+        "businessUnit": "Unità di business",
         "isActive": "Stato"
       }
     },
@@ -649,7 +654,7 @@
     }
   },
   "audit": {
-    "summary": "{{count}} eventi · il più recente per primo · orari in Europe/Zurich",
+    "summary": "{{count}} eventi · il più recente per primo · ora svizzera",
     "refresh": "Aggiorna",
     "loadMore": "Carica altro",
     "empty": {
@@ -695,7 +700,7 @@
       "externalSubject": "Identificativo esterno",
       "preferredLanguage": "Lingua preferita"
     },
-    "summaryOne": "1 evento · orari in Europe/Zurich",
+    "summaryOne": "1 evento · ora svizzera",
     "loading": "Caricamento audit…",
     "previousUnavailable": "Versione precedente non disponibile: vengono mostrati i valori attuali.",
     "noMore": "Nessun altro evento"
@@ -703,14 +708,14 @@
   "events": {
     "org": {
       "legal-entity": {
-        "created": "Entità giuridica creata",
-        "updated": "Entità giuridica aggiornata",
-        "deactivated": "Entità giuridica disattivata"
+        "created": "Entità legale creata",
+        "updated": "Entità legale aggiornata",
+        "deactivated": "Entità legale disattivata"
       },
       "business-unit": {
-        "created": "Business unit creata",
-        "updated": "Business unit aggiornata",
-        "deactivated": "Business unit disattivata"
+        "created": "Unità di business creata",
+        "updated": "Unità di business aggiornata",
+        "deactivated": "Unità di business disattivata"
       },
       "warehouse": {
         "created": "Magazzino creato",

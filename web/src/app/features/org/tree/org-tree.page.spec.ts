@@ -46,7 +46,7 @@ const group: OrgTreeNode = {
 };
 
 const tree = {
-  title: 'Organization tree',
+  title: 'Organization structure',
   subtitle: 'How the group is organized.',
   empty: 'No organization structure yet.',
   emptyHint: 'It appears here later.',
@@ -66,7 +66,7 @@ const langs = {
     org: {
       tree: {
         ...tree,
-        title: 'Árbol de la organización',
+        title: 'Estructura de la organización',
         kind: { ...tree.kind, warehouse: 'Almacén' },
       },
     },
@@ -130,7 +130,7 @@ describe('OrgTreePage', () => {
     expect(load).toHaveBeenCalledOnce();
     expect(root(fixture).querySelector('nx-page-header app-breadcrumb')).toBeTruthy();
     expect(root(fixture).querySelectorAll('h1').length).toBe(1);
-    expect(root(fixture).querySelector('h1')?.textContent?.trim()).toBe('Organization tree');
+    expect(root(fixture).querySelector('h1')?.textContent?.trim()).toBe('Organization structure');
     expect(root(fixture).querySelector('.nx-page-header__subtitle')?.textContent?.trim()).toBe(
       'How the group is organized.',
     );

@@ -174,6 +174,9 @@
       },
       "confirm": {
         "confirm": "Confirmar"
+      },
+      "detailSkeleton": {
+        "loading": "Cargando…"
       }
     },
     "emptyState": {
@@ -233,7 +236,9 @@
         "fr": "Francés",
         "it": "Italiano",
         "es": "Español"
-      }
+      },
+      "moreLanguages": "Mostrar más idiomas",
+      "fewerLanguages": "Mostrar menos idiomas"
     },
     "entityPicker": {
       "placeholder": "Buscar…",
@@ -298,7 +303,7 @@
         "fullName": "Nombre completo",
         "email": "Correo electrónico",
         "preferredLanguage": "Idioma preferido",
-        "businessUnit": "Business unit",
+        "businessUnit": "Unidad de negocio",
         "isActive": "Estado"
       }
     },
@@ -469,7 +474,7 @@
       "readOnlyNotice": "Solo puedes consultar esta unidad de negocio: no tienes permiso para modificarla."
     },
     "tree": {
-      "title": "Árbol de la organización",
+      "title": "Estructura de la organización",
       "empty": "Todavía no hay estructura organizativa.",
       "subtitle": "Cómo se organiza el grupo: entidades legales, unidades de negocio y almacenes. Abre un elemento para ver su ficha.",
       "emptyHint": "Aparecerá aquí cuando se creen entidades legales, unidades de negocio y almacenes.",
@@ -649,7 +654,7 @@
     }
   },
   "audit": {
-    "summary": "{{count}} eventos · el más reciente primero · horas en Europe/Zurich",
+    "summary": "{{count}} eventos · el más reciente primero · hora de Suiza",
     "refresh": "Actualizar",
     "loadMore": "Cargar más",
     "empty": {
@@ -695,7 +700,7 @@
       "externalSubject": "Identificador externo",
       "preferredLanguage": "Idioma preferido"
     },
-    "summaryOne": "1 evento · horas en Europe/Zurich",
+    "summaryOne": "1 evento · hora de Suiza",
     "loading": "Cargando auditoría…",
     "previousUnavailable": "Versión anterior no disponible: se muestran los valores actuales.",
     "noMore": "No hay más eventos"
@@ -703,14 +708,14 @@
   "events": {
     "org": {
       "legal-entity": {
-        "created": "Legal entity creada",
-        "updated": "Legal entity actualizada",
-        "deactivated": "Legal entity desactivada"
+        "created": "Entidad legal creada",
+        "updated": "Entidad legal actualizada",
+        "deactivated": "Entidad legal desactivada"
       },
       "business-unit": {
-        "created": "Business unit creada",
-        "updated": "Business unit actualizada",
-        "deactivated": "Business unit desactivada"
+        "created": "Unidad de negocio creada",
+        "updated": "Unidad de negocio actualizada",
+        "deactivated": "Unidad de negocio desactivada"
       },
       "warehouse": {
         "created": "Almacén creado",
