@@ -187,7 +187,7 @@
       "userId": "ID utilisateur",
       "partyId": "ID de party",
       "businessUnitId": "ID de l'unité commerciale",
-      "businessUnit": "Unité commerciale"
+      "businessUnit": "Unité d'affaires"
     },
     "notProvisioned": "Votre compte n'est pas encore lié à un utilisateur NEXUS. Contactez votre administrateur.",
     "permissions": {
@@ -208,6 +208,15 @@
         "APPROVE": "Approuver",
         "EXPORT": "Exporter"
       }
+    },
+    "subtitle": "Vos données, votre langue et ce que vous pouvez faire dans NEXUS.",
+    "sections": {
+      "personal": "Données personnelles",
+      "personalHint": "Repris de votre compte Microsoft et de votre utilisateur NEXUS.",
+      "language": "Langue",
+      "languageHint": "Langue de l'interface. Le changement s'applique tout de suite et est enregistré pour votre compte.",
+      "permissions": "Permissions",
+      "permissionsHint": "Ce que vous pouvez faire dans NEXUS, par domaine. Votre administrateur attribue les rôles."
     }
   },
   "breadcrumb": {
@@ -313,13 +322,31 @@
     },
     "entityPicker": {
       "placeholder": "Rechercher…",
-      "noResults": "Aucun résultat"
+      "noResults": "Aucun résultat",
+      "clear": "Retirer la sélection"
     },
     "form": {
       "required": "Champ obligatoire",
       "reviewFields": "Vérifiez les {{count}} champs signalés.",
       "reviewFieldsOne": "Vérifiez le champ signalé.",
       "invalidValue": "Valeur non valide"
+    },
+    "datepicker": {
+      "calendar": "Calendrier",
+      "openCalendar": "Ouvrir le calendrier",
+      "closeCalendar": "Fermer le calendrier",
+      "prevMonth": "Mois précédent",
+      "nextMonth": "Mois suivant",
+      "prevYear": "Année précédente",
+      "nextYear": "Année suivante",
+      "prevMultiYear": "24 années précédentes",
+      "nextMultiYear": "24 années suivantes",
+      "switchToMonthView": "Choisir une date",
+      "switchToMultiYearView": "Choisir le mois et l'année",
+      "startDate": "Date de début",
+      "endDate": "Date de fin",
+      "comparisonDate": "Date de comparaison",
+      "yearRange": "{{start}} à {{end}}"
     }
   },
   "org": {
@@ -328,13 +355,14 @@
       "actions": {
         "new": "Nouvel utilisateur",
         "deactivate": "Désactiver",
-        "clearBusinessUnit": "Changer"
+        "clearBusinessUnit": "Retirer l'unité d'affaires",
+        "create": "Créer l'utilisateur"
       },
       "detail": {
         "newTitle": "Nouvel utilisateur",
         "editTitle": "Modifier l'utilisateur",
         "loading": "Chargement…",
-        "systemUserNotice": "L'utilisateur SYSTEM ne peut pas être modifié ni désactivé.",
+        "systemUserNotice": "Utilisateur interne de la plateforme pour les traitements automatiques. Il ne peut être ni modifié ni désactivé.",
         "tabs": {
           "general": "Général",
           "assignments": "Attributions"
@@ -345,14 +373,14 @@
           "change": "Changer",
           "fields": {
             "role": "Rôle",
-            "scopeType": "Type de périmètre",
+            "scopeType": "Périmètre",
             "scopeEntity": "Entité",
             "validFrom": "Valide à partir de",
             "validTo": "Valide jusqu'à"
           },
           "scopeTypes": {
             "LEGAL_ENTITY": "Entité juridique",
-            "BUSINESS_UNIT": "Unité commerciale",
+            "BUSINESS_UNIT": "Unité d'affaires",
             "WAREHOUSE": "Entrepôt",
             "GLOBAL": "Global",
             "GROUP": "Groupe",
@@ -364,7 +392,7 @@
           "sources": {
             "MANUAL": "Manuel",
             "RESOURCE_ASSIGNMENT": "Attribution de ressource",
-            "SEED": "Données d'amorçage"
+            "SEED": "Configuration initiale"
           },
           "revoke": "Révoquer",
           "granted": "Attribution accordée.",
@@ -377,11 +405,30 @@
           "revokeDialog": {
             "title": "Révoquer l'attribution ?",
             "message": "Le rôle «{{role}}» ({{scope}}) prendra fin maintenant. L'attribution reste dans l'historique."
-          }
-        }
+          },
+          "listHint": "Rôles de cet utilisateur et où ils s'appliquent.",
+          "grantHint": "Le rôle s'applique du premier au dernier jour inclus.",
+          "columns": {
+            "scope": "Périmètre",
+            "validity": "Validité",
+            "source": "Origine",
+            "status": "Statut",
+            "actions": "Actions"
+          },
+          "openEnd": "sans fin",
+          "hints": {
+            "search": "Recherche par code ou nom.",
+            "global": "Global : le rôle s'applique à toute l'organisation.",
+            "validTo": "Laisser vide s'il n'y a pas de fin."
+          },
+          "clearRole": "Retirer le rôle",
+          "revokeAria": "Révoquer {{role}} ({{scope}})"
+        },
+        "modified": "modifié le {{date}}",
+        "readOnlyNotice": "Vous pouvez seulement consulter cet utilisateur : vous n'avez pas le droit de le modifier."
       },
       "fields": {
-        "oid": "ID d'objet (oid)",
+        "oid": "ID Microsoft Entra",
         "fullName": "Nom complet",
         "email": "E-mail",
         "preferredLanguage": "Langue préférée",
@@ -397,6 +444,18 @@
       "deactivateDialog": {
         "title": "Désactiver l'utilisateur ?",
         "message": "{{name}} ne pourra plus se connecter. Cette action ne peut pas être annulée ici."
+      },
+      "newSubtitle": "Donnez accès à NEXUS à une personne : liez son compte Microsoft et choisissez sa langue.",
+      "empty": "Aucun utilisateur pour le moment",
+      "sections": {
+        "person": "Données personnelles",
+        "access": "Connexion et organisation"
+      },
+      "hints": {
+        "oid": "Identifiant de la personne dans Microsoft Entra ID (portail Azure). Nécessaire pour se connecter.",
+        "oidSystem": "Ne se connecte jamais.",
+        "preferredLanguage": "Langue dans laquelle la personne voit NEXUS.",
+        "businessUnit": "Facultatif. Recherche par code ou nom."
       }
     },
     "parties": {

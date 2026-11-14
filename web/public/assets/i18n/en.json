@@ -208,6 +208,15 @@
         "APPROVE": "Approve",
         "EXPORT": "Export"
       }
+    },
+    "subtitle": "Your details, your language and what you may do in NEXUS.",
+    "sections": {
+      "personal": "Personal details",
+      "personalHint": "Taken from your Microsoft account and your NEXUS user.",
+      "language": "Language",
+      "languageHint": "Language of the interface. The change applies at once and is saved for your account.",
+      "permissions": "Permissions",
+      "permissionsHint": "What you may do in NEXUS, by area. Your administrator assigns the roles."
     }
   },
   "breadcrumb": {
@@ -313,13 +322,31 @@
     },
     "entityPicker": {
       "placeholder": "Search…",
-      "noResults": "No results"
+      "noResults": "No results",
+      "clear": "Remove selection"
     },
     "form": {
       "required": "Required field",
       "reviewFields": "Check the {{count}} highlighted fields.",
       "reviewFieldsOne": "Check the highlighted field.",
       "invalidValue": "Invalid value"
+    },
+    "datepicker": {
+      "calendar": "Calendar",
+      "openCalendar": "Open calendar",
+      "closeCalendar": "Close calendar",
+      "prevMonth": "Previous month",
+      "nextMonth": "Next month",
+      "prevYear": "Previous year",
+      "nextYear": "Next year",
+      "prevMultiYear": "Previous 24 years",
+      "nextMultiYear": "Next 24 years",
+      "switchToMonthView": "Choose date",
+      "switchToMultiYearView": "Choose month and year",
+      "startDate": "Start date",
+      "endDate": "End date",
+      "comparisonDate": "Comparison date",
+      "yearRange": "{{start}} to {{end}}"
     }
   },
   "org": {
@@ -328,13 +355,14 @@
       "actions": {
         "new": "New user",
         "deactivate": "Deactivate",
-        "clearBusinessUnit": "Change"
+        "clearBusinessUnit": "Remove business unit",
+        "create": "Create user"
       },
       "detail": {
         "newTitle": "New user",
         "editTitle": "Edit user",
         "loading": "Loading…",
-        "systemUserNotice": "The SYSTEM user cannot be edited or deactivated.",
+        "systemUserNotice": "Internal platform user for automatic processes. It cannot be edited or deactivated.",
         "tabs": {
           "general": "General",
           "assignments": "Assignments"
@@ -345,7 +373,7 @@
           "change": "Change",
           "fields": {
             "role": "Role",
-            "scopeType": "Scope type",
+            "scopeType": "Scope",
             "scopeEntity": "Entity",
             "validFrom": "Valid from",
             "validTo": "Valid to"
@@ -364,7 +392,7 @@
           "sources": {
             "MANUAL": "Manual",
             "RESOURCE_ASSIGNMENT": "Resource assignment",
-            "SEED": "Seed data"
+            "SEED": "Initial setup"
           },
           "revoke": "Revoke",
           "granted": "Assignment granted.",
@@ -377,11 +405,30 @@
           "revokeDialog": {
             "title": "Revoke assignment?",
             "message": "The role «{{role}}» ({{scope}}) will end now. The assignment stays in the history."
-          }
-        }
+          },
+          "listHint": "This user's roles and where they apply.",
+          "grantHint": "The role applies from the first day up to and including the last day.",
+          "columns": {
+            "scope": "Scope",
+            "validity": "Validity",
+            "source": "Origin",
+            "status": "Status",
+            "actions": "Actions"
+          },
+          "openEnd": "no end",
+          "hints": {
+            "search": "Search by code or name.",
+            "global": "Global: the role applies across the whole organisation.",
+            "validTo": "Leave empty if it has no end."
+          },
+          "clearRole": "Remove role",
+          "revokeAria": "Revoke {{role}} ({{scope}})"
+        },
+        "modified": "modified on {{date}}",
+        "readOnlyNotice": "You can only view this user: you are not allowed to change it."
       },
       "fields": {
-        "oid": "Object ID (oid)",
+        "oid": "Microsoft Entra ID",
         "fullName": "Full name",
         "email": "Email",
         "preferredLanguage": "Preferred language",
@@ -397,6 +444,18 @@
       "deactivateDialog": {
         "title": "Deactivate user?",
         "message": "{{name}} will no longer be able to sign in. This cannot be undone here."
+      },
+      "newSubtitle": "Give a person access to NEXUS: link their Microsoft account and choose their language.",
+      "empty": "No users yet",
+      "sections": {
+        "person": "Personal details",
+        "access": "Sign-in and organisation"
+      },
+      "hints": {
+        "oid": "The person's identifier in Microsoft Entra ID (Azure portal). Needed to sign in.",
+        "oidSystem": "Never signs in.",
+        "preferredLanguage": "Language in which the person sees NEXUS.",
+        "businessUnit": "Optional. Search by code or name."
       }
     },
     "parties": {

@@ -193,13 +193,14 @@
       "actions": {
         "new": "Neuer Benutzer",
         "deactivate": "Deaktivieren",
-        "clearBusinessUnit": "Ändern"
+        "clearBusinessUnit": "Geschäftsbereich entfernen",
+        "create": "Benutzer anlegen"
       },
       "detail": {
         "newTitle": "Neuer Benutzer",
         "editTitle": "Benutzer bearbeiten",
         "loading": "Wird geladen…",
-        "systemUserNotice": "Der SYSTEM-Benutzer kann nicht bearbeitet oder deaktiviert werden.",
+        "systemUserNotice": "Interner Benutzer der Plattform für automatische Abläufe. Er kann nicht bearbeitet oder deaktiviert werden.",
         "tabs": {
           "general": "Allgemein",
           "assignments": "Zuweisungen"
@@ -211,13 +212,13 @@
           "fields": {
             "role": "Rolle",
             "scopeType": "Geltungsbereich",
-            "scopeEntity": "Objekt",
+            "scopeEntity": "Organisationseinheit",
             "validFrom": "Gültig von",
             "validTo": "Gültig bis"
           },
           "scopeTypes": {
-            "LEGAL_ENTITY": "Rechtseinheit",
-            "BUSINESS_UNIT": "Business Unit",
+            "LEGAL_ENTITY": "Gesellschaft",
+            "BUSINESS_UNIT": "Geschäftsbereich",
             "WAREHOUSE": "Lager",
             "GLOBAL": "Global",
             "GROUP": "Gruppe",
@@ -229,9 +230,9 @@
           "sources": {
             "MANUAL": "Manuell",
             "RESOURCE_ASSIGNMENT": "Ressourcenzuweisung",
-            "SEED": "Saatdaten"
+            "SEED": "Ersteinrichtung"
           },
-          "revoke": "Entziehen",
+          "revoke": "Widerrufen",
           "granted": "Zuweisung erteilt.",
           "revoked": "Zuweisung widerrufen.",
           "noEnd": "Unbefristet",
@@ -242,11 +243,30 @@
           "revokeDialog": {
             "title": "Zuweisung widerrufen?",
             "message": "Die Rolle «{{role}}» ({{scope}}) wird ab jetzt beendet. Die Zuweisung bleibt im Verlauf erhalten."
-          }
-        }
+          },
+          "listHint": "Rollen dieses Benutzers und wo sie gelten.",
+          "grantHint": "Die Rolle gilt vom ersten bis einschliesslich zum letzten Tag.",
+          "columns": {
+            "scope": "Geltungsbereich",
+            "validity": "Gültigkeit",
+            "source": "Herkunft",
+            "status": "Status",
+            "actions": "Aktionen"
+          },
+          "openEnd": "unbefristet",
+          "hints": {
+            "search": "Suche nach Code oder Name.",
+            "global": "Global: Die Rolle gilt in der ganzen Organisation.",
+            "validTo": "Leer lassen, wenn sie unbefristet gilt."
+          },
+          "clearRole": "Rolle entfernen",
+          "revokeAria": "{{role}} ({{scope}}) widerrufen"
+        },
+        "modified": "geändert am {{date}}",
+        "readOnlyNotice": "Sie können diesen Benutzer nur ansehen: Ihnen fehlt die Berechtigung zum Ändern."
       },
       "fields": {
-        "oid": "Objekt-ID (oid)",
+        "oid": "Microsoft-Entra-ID",
         "fullName": "Vollständiger Name",
         "email": "E-Mail",
         "preferredLanguage": "Bevorzugte Sprache",
@@ -262,6 +282,18 @@
       "deactivateDialog": {
         "title": "Benutzer deaktivieren?",
         "message": "{{name}} kann sich nicht mehr anmelden. Dies kann hier nicht rückgängig gemacht werden."
+      },
+      "newSubtitle": "Geben Sie einer Person Zugang zu NEXUS: mit ihrem Microsoft-Konto verknüpfen und die Sprache wählen.",
+      "empty": "Noch keine Benutzer",
+      "sections": {
+        "person": "Persönliche Daten",
+        "access": "Anmeldung und Organisation"
+      },
+      "hints": {
+        "oid": "Kennung der Person in Microsoft Entra ID (Azure-Portal). Ohne sie kann sie sich nicht anmelden.",
+        "oidSystem": "Meldet sich nie an.",
+        "preferredLanguage": "Sprache, in der die Person NEXUS sieht.",
+        "businessUnit": "Optional. Suche nach Code oder Name."
       }
     },
     "parties": {
@@ -615,7 +647,7 @@
       "userId": "Benutzer-ID",
       "partyId": "Party-ID",
       "businessUnitId": "Geschäftsbereich-ID",
-      "businessUnit": "Geschäftseinheit"
+      "businessUnit": "Geschäftsbereich"
     },
     "notProvisioned": "Ihr Konto ist noch keinem Benutzer in NEXUS zugeordnet. Wenden Sie sich an Ihre Administration.",
     "permissions": {
@@ -636,6 +668,15 @@
         "APPROVE": "Genehmigen",
         "EXPORT": "Exportieren"
       }
+    },
+    "subtitle": "Ihre Daten, Ihre Sprache und was Sie in NEXUS tun dürfen.",
+    "sections": {
+      "personal": "Persönliche Daten",
+      "personalHint": "Aus Ihrem Microsoft-Konto und Ihrem NEXUS-Benutzer übernommen.",
+      "language": "Sprache",
+      "languageHint": "Sprache der Oberfläche. Die Änderung gilt sofort und wird für Ihr Konto gespeichert.",
+      "permissions": "Berechtigungen",
+      "permissionsHint": "Was Sie in NEXUS tun dürfen, nach Bereich. Die Rollen vergibt Ihre Administration."
     }
   },
   "breadcrumb": {
@@ -741,13 +782,31 @@
     },
     "entityPicker": {
       "placeholder": "Suchen…",
-      "noResults": "Keine Ergebnisse"
+      "noResults": "Keine Ergebnisse",
+      "clear": "Auswahl entfernen"
     },
     "form": {
       "required": "Pflichtfeld",
       "reviewFields": "Bitte prüfen Sie die {{count}} markierten Felder.",
       "reviewFieldsOne": "Bitte prüfen Sie das markierte Feld.",
       "invalidValue": "Ungültiger Wert"
+    },
+    "datepicker": {
+      "calendar": "Kalender",
+      "openCalendar": "Kalender öffnen",
+      "closeCalendar": "Kalender schliessen",
+      "prevMonth": "Vorheriger Monat",
+      "nextMonth": "Nächster Monat",
+      "prevYear": "Vorheriges Jahr",
+      "nextYear": "Nächstes Jahr",
+      "prevMultiYear": "Vorherige 24 Jahre",
+      "nextMultiYear": "Nächste 24 Jahre",
+      "switchToMonthView": "Datum wählen",
+      "switchToMultiYearView": "Monat und Jahr wählen",
+      "startDate": "Startdatum",
+      "endDate": "Enddatum",
+      "comparisonDate": "Vergleichsdatum",
+      "yearRange": "{{start}} bis {{end}}"
     }
   },
   "audit": {
