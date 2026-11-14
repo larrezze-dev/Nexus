@@ -3,6 +3,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideNoopAnimations } from '@angular/platform-browser/animations';
 import { ActivatedRoute, Router, convertToParamMap, provideRouter } from '@angular/router';
 import { provideTransloco } from '@jsverse/transloco';
+import { NxFormatService } from '../../../core/i18n/nx-format.service';
 import { NxBreadcrumbService } from '../../../core/layout/breadcrumb.service';
 import { NxConfirm } from '../../../shared/ui/layout';
 import { stubAuditTrail } from '../audit-tab.testing';
@@ -13,9 +14,11 @@ import { SYSTEM_USER_ID, SystemUserReadOnlyError, UsersFacade, type UserErrorInf
 @Component({ selector: 'nx-user-assignments', template: '<p data-testid="assignments-stub"></p>' })
 class UserAssignmentsStubComponent {
   readonly userId = input.required<string>();
+  readonly readOnly = input(false);
 }
 
 const user = {
+  updatedAt: '2026-11-11T10:00:00Z',
   id: 'u-1',
   fullName: 'Jane Doe',
   email: 'jane@example.com',
@@ -46,7 +49,13 @@ function setup(paramMap: Record<string, string>, selected: object | null = null,
     formatBusinessUnit: (bu: { code: string }) => bu.code,
     ...overrides,
   };
-  const breadcrumb = { setCurrentLabel: vi.fn(), setLoadFailed: vi.fn(), clearLoadFailed: vi.fn() };
+  const breadcrumb = {
+    setCurrentLabel: vi.fn(),
+    setLoadFailed: vi.fn(),
+    clearLoadFailed: vi.fn(),
+    claimForPage: () => () => undefined,
+    trail: signal([]),
+  };
   const confirm = { confirm: vi.fn().mockResolvedValue(true) };
 
   TestBed.configureTestingModule({
@@ -58,6 +67,7 @@ function setup(paramMap: Record<string, string>, selected: object | null = null,
       { provide: UsersFacade, useValue: facade },
       { provide: NxBreadcrumbService, useValue: breadcrumb },
       { provide: NxConfirm, useValue: confirm },
+      { provide: NxFormatService, useValue: { formatDateMedium: () => '11.11.2026' } },
       { provide: ActivatedRoute, useValue: { snapshot: { paramMap: convertToParamMap(paramMap) } } },
     ],
   });
@@ -91,11 +101,19 @@ describe('UserDetailPage', () => {
     const root = await render(fixture);
 
     expect(facade.load).not.toHaveBeenCalled();
-    expect(root.querySelector('[role="tab"]')).not.toBeNull();
+    // Create template: no tabs, header «New user», «Create user» at the bottom.
+    expect(root.querySelector('[role="tab"]')).toBeNull();
+    expect(root.querySelector('nx-page-header h1')?.textContent).toContain('org.users.detail.newTitle');
+    expect(q(root, 'user-save-button')?.textContent).toContain('org.users.actions.create');
 
     q(root, 'user-save-button')?.click();
     await fixture.whenStable();
+    fixture.detectChanges();
     expect(facade.create).not.toHaveBeenCalled();
+    // Invalid submit: alert with the number of fields to review, focus on the first one.
+    expect(q(root, 'user-form-invalid')?.textContent).toContain('shared.form.reviewFields');
+    await new Promise((resolve) => setTimeout(resolve));
+    expect(document.activeElement).toBe(q(root, 'user-full-name-input'));
 
     type(root, 'user-oid-input', 'oid-9');
     type(root, 'user-full-name-input', 'New Person');
@@ -113,6 +131,17 @@ describe('UserDetailPage', () => {
     expect(facade.load).toHaveBeenCalledWith('u-1');
     expect((q(root, 'user-full-name-input') as HTMLInputElement).value).toBe('Jane Doe');
     expect(breadcrumb.setCurrentLabel).toHaveBeenCalledWith('Jane Doe');
+    // Detail header: name as title, email · modified date, status badge.
+    expect(root.querySelector('nx-page-header h1')?.textContent).toContain('Jane Doe');
+    expect(root.querySelector('.nx-page-header__subtitle')?.textContent).toContain('jane@example.com · org.users.detail.modified');
+    expect(root.querySelector('nx-page-header nx-status-badge')).not.toBeNull();
+    expect(q(root, 'user-save-button')?.hasAttribute('disabled')).toBe(true); // nothing changed yet
+  });
+
+  it('shows the skeleton while loading', async () => {
+    const { fixture } = setup({ id: 'u-1' }, null);
+    const root = await render(fixture);
+    expect(root.querySelector('nx-detail-skeleton')).not.toBeNull();
   });
 
   it('a failed load shows the error with Retry, marks the breadcrumb and Retry loads again', async () => {
@@ -120,10 +149,10 @@ describe('UserDetailPage', () => {
     facade.error.set('Could not load');
     const root = await render(fixture);
 
-    expect(q(root, 'user-load-error')?.textContent).toContain('Could not load');
+    expect(q(root, 'user-load-error')).not.toBeNull();
     expect(breadcrumb.setLoadFailed).toHaveBeenCalled();
 
-    root.querySelector<HTMLButtonElement>('[data-testid="user-load-error"] + button')?.click();
+    q(root, 'user-retry-button')?.click();
     await fixture.whenStable();
     expect(facade.load).toHaveBeenCalledTimes(2);
     expect(breadcrumb.clearLoadFailed).toHaveBeenCalled();
@@ -138,7 +167,10 @@ describe('UserDetailPage', () => {
 
       expect(q(root, 'user-system-notice')).not.toBeNull();
       expect(q(root, 'user-save-button')).toBeNull();
+      expect(q(root, 'user-cancel-button')).toBeNull();
       expect(q(root, 'user-deactivate-button')).toBeNull();
+      expect(root.querySelector('form')?.classList).toContain('nx-readonly');
+      expect(q(root, 'nx-entity-picker-clear')).toBeNull();
       expect((q(root, 'user-full-name-input') as HTMLInputElement).disabled).toBe(true);
       expect(fixture.componentInstance['form'].disabled).toBe(true);
     });
@@ -160,6 +192,8 @@ describe('UserDetailPage', () => {
       facade.describeError.mockReturnValue({ kind: 'rule', message: 'errors.ORG-R6', fields: {} });
       const root = await render(fixture);
 
+      type(root, 'user-full-name-input', 'Jane Q. Doe');
+      fixture.detectChanges();
       q(root, 'user-save-button')?.click();
       await fixture.whenStable();
       fixture.detectChanges();
@@ -174,6 +208,8 @@ describe('UserDetailPage', () => {
       ctx.facade.update.mockRejectedValue(new Error('http'));
       ctx.facade.describeError.mockReturnValue(info);
       const root = await render(ctx.fixture);
+      type(root, 'user-email-input', 'jane.doe@example.com');
+      ctx.fixture.detectChanges();
       q(root, 'user-save-button')?.click();
       await ctx.fixture.whenStable();
       ctx.fixture.detectChanges();

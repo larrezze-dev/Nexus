@@ -54,4 +54,16 @@ describe('UserListPage', () => {
     expect(value('businessUnit', row)).toBe('Montaje');
     expect(value('businessUnit', { ...row, businessUnitId: null })).toBe('—');
   });
+
+  it('list template: header with breadcrumb, count after the load, cards with name/email/status', async () => {
+    const { fixture, list } = setup();
+    list.mockReturnValue(of({ items: [], page: 0, pageSize: 25, total: 5 }));
+    fixture.componentInstance['fetchFn'](0, 25, null, {}).subscribe();
+    fixture.detectChanges();
+    const root = fixture.nativeElement as HTMLElement;
+
+    expect(root.querySelector('nx-page-header h1')?.textContent).toContain('org.users.title');
+    expect(root.querySelector('[data-testid="nx-page-header-count"]')).not.toBeNull();
+    expect(fixture.componentInstance['cardFields']).toEqual({ title: 'fullName', subtitle: 'email', status: 'isActive' });
+  });
 });

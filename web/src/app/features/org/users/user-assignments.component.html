@@ -1,154 +1,236 @@
-<div class="nx-user-assignments">
-  <a mat-button [routerLink]="effectiveScopeLink()" data-testid="effective-scope-link">
+<nx-form-section
+  [title]="'org.users.detail.assignments.listTitle' | transloco"
+  [hint]="'org.users.detail.assignments.listHint' | transloco"
+>
+  <a nxSectionActions mat-stroked-button [routerLink]="effectiveScopeLink()" data-testid="effective-scope-link">
+    <mat-icon aria-hidden="true">visibility</mat-icon>
     {{ 'org.users.detail.assignments.effectiveScopeLink' | transloco }}
   </a>
 
-  <form *nxCan="'ROLE_ASSIGNMENT:CREATE'" [formGroup]="form" (ngSubmit)="grant()">
-    <h2>{{ 'org.users.detail.assignments.grantTitle' | transloco }}</h2>
+  @if (facade.loading()) {
+    <div class="nx-ua-skeleton" aria-hidden="true" data-testid="assignments-loading">
+      @for (bar of [72, 64, 56]; track $index) {
+        <span class="nx-skeleton-bar" [style.width.%]="bar"></span>
+      }
+    </div>
+  } @else if (facade.error()) {
+    <div class="nx-alert nx-alert--error" role="alert" data-testid="assignments-load-error">
+      <mat-icon aria-hidden="true">error</mat-icon>
+      <span class="nx-alert__text">{{ facade.error() }}</span>
+      <button mat-button type="button" data-testid="assignments-retry" (click)="retryList()">
+        {{ 'common.retry' | transloco }}
+      </button>
+    </div>
+  } @else if (facade.rows().length === 0) {
+    <p class="nx-empty-state" data-testid="assignments-empty">
+      <mat-icon aria-hidden="true">badge</mat-icon>
+      {{ 'org.users.detail.assignments.empty' | transloco }}
+    </p>
+  } @else {
+    <!-- Explicit roles: below 600 px the rows become cards and CSS `display` would drop the table semantics. -->
+    <table class="nx-ua-table" role="table" data-testid="assignments-list">
+      <thead role="rowgroup">
+        <tr role="row">
+          <th role="columnheader" scope="col">{{ 'org.users.detail.assignments.fields.role' | transloco }}</th>
+          <th role="columnheader" scope="col">{{ 'org.users.detail.assignments.columns.scope' | transloco }}</th>
+          <th role="columnheader" scope="col">{{ 'org.users.detail.assignments.columns.validity' | transloco }}</th>
+          <th role="columnheader" scope="col">{{ 'org.users.detail.assignments.columns.source' | transloco }}</th>
+          <th role="columnheader" scope="col">{{ 'org.users.detail.assignments.columns.status' | transloco }}</th>
+          <th role="columnheader" scope="col">
+            <span class="cdk-visually-hidden">{{ 'org.users.detail.assignments.columns.actions' | transloco }}</span>
+          </th>
+        </tr>
+      </thead>
+      <tbody role="rowgroup">
+        @for (row of facade.rows(); track row.id) {
+          <tr role="row" class="nx-ua-table__row" [attr.data-testid]="'assignment-' + row.id">
+            <td role="cell" class="nx-ua-table__role" data-testid="assignment-role">{{ row.roleLabel }}</td>
+            <td role="cell" class="nx-ua-table__scope" data-testid="assignment-scope">{{ scopeText(row) }}</td>
+            <td
+              role="cell"
+              class="nx-ua-table__validity"
+              data-testid="assignment-validity"
+              [attr.data-label]="'org.users.detail.assignments.columns.validity' | transloco"
+            >
+              {{ row.validFromLabel }} –
+              {{ row.validToLabel ?? ('org.users.detail.assignments.openEnd' | transloco) }}
+            </td>
+            <td
+              role="cell"
+              class="nx-ua-table__source"
+              data-testid="assignment-source"
+              [attr.data-label]="'org.users.detail.assignments.columns.source' | transloco"
+            >
+              {{ 'org.users.detail.assignments.sources.' + row.source | transloco }}
+            </td>
+            <td role="cell" class="nx-ua-table__status">
+              <nx-status-badge [status]="row.isActive ? 'active' : 'inactive'" />
+            </td>
+            <td role="cell" class="nx-ua-table__actions">
+              @if (row.canRevoke && !readOnly()) {
+                <button
+                  mat-button
+                  type="button"
+                  class="nx-btn--danger"
+                  *nxCan="'ROLE_ASSIGNMENT:UPDATE'"
+                  [disabled]="facade.saving()"
+                  [attr.aria-label]="
+                    'org.users.detail.assignments.revokeAria' | transloco: { role: row.roleLabel, scope: scopeText(row) }
+                  "
+                  [attr.data-testid]="'assignment-revoke-' + row.id"
+                  (click)="revoke(row)"
+                >
+                  {{ 'org.users.detail.assignments.revoke' | transloco }}
+                </button>
+              }
+            </td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  }
+</nx-form-section>
 
-    @if (saveError()) {
-      <p role="alert" data-testid="assignment-save-error">{{ saveError() }}</p>
-    }
+@if (!readOnly()) {
+  <form
+    *nxCan="'ROLE_ASSIGNMENT:CREATE'"
+    class="nx-form-stack"
+    data-testid="assignment-grant-form"
+    [formGroup]="form"
+    (ngSubmit)="grant()"
+    novalidate
+  >
+    <nx-form-section
+      [title]="'org.users.detail.assignments.grantTitle' | transloco"
+      [hint]="'org.users.detail.assignments.grantHint' | transloco"
+    >
+      @if (invalidCount() > 0) {
+        <div class="nx-alert nx-alert--error" role="alert" data-testid="assignment-form-invalid">
+          <mat-icon aria-hidden="true">error</mat-icon>
+          <span class="nx-alert__text">{{
+            invalidCount() === 1
+              ? ('shared.form.reviewFieldsOne' | transloco)
+              : ('shared.form.reviewFields' | transloco: { count: invalidCount() })
+          }}</span>
+        </div>
+      }
 
-    <div>
-      <p>{{ 'org.users.detail.assignments.fields.role' | transloco }}</p>
-      @if (form.controls.role.value; as role) {
-        <p data-testid="assignment-role-current">{{ displayRole(role) }}</p>
-        <button mat-button type="button" (click)="clearRole()">
-          {{ 'org.users.detail.assignments.change' | transloco }}
-        </button>
-      } @else {
+      @if (saveError(); as message) {
+        <div #saveAlert class="nx-alert nx-alert--error" role="alert" tabindex="-1" data-testid="assignment-save-error">
+          <mat-icon aria-hidden="true">error</mat-icon>
+          <span class="nx-alert__text">{{ message }}</span>
+        </div>
+      }
+
+      <nx-form-grid>
         <nx-entity-picker
+          nxSpan="l"
+          data-testid="assignment-role-picker"
+          [label]="'org.users.detail.assignments.fields.role' | transloco"
+          [hint]="'org.users.detail.assignments.hints.search' | transloco"
+          [error]="pickerError('role')"
+          [required]="true"
+          [value]="form.controls.role.value"
+          [clearable]="true"
+          [clearLabel]="'org.users.detail.assignments.clearRole' | transloco"
           [search]="searchRoles"
           [displayWith]="displayRole"
           (selected)="onRoleSelected($event)"
-          data-testid="assignment-role-picker"
+          (cleared)="clearRole()"
         />
-      }
-      @if (form.controls.role.touched && form.controls.role.hasError('required')) {
-        <p role="alert">{{ 'shared.form.required' | transloco }}</p>
-      }
-      @for (message of errorsFor('role'); track message) {
-        <p role="alert">{{ message }}</p>
-      }
-    </div>
+      </nx-form-grid>
 
-    <mat-form-field>
-      <mat-label>{{ 'org.users.detail.assignments.fields.scopeType' | transloco }}</mat-label>
-      <mat-select formControlName="scopeType" data-testid="assignment-scope-type-select">
-        @for (type of scopeTypes; track type) {
-          <mat-option [value]="type">{{ 'org.users.detail.assignments.scopeTypes.' + type | transloco }}</mat-option>
-        }
-      </mat-select>
-    </mat-form-field>
+      <nx-form-grid>
+        <mat-form-field nxSpan="m" subscriptSizing="dynamic">
+          <mat-label>{{ 'org.users.detail.assignments.fields.scopeType' | transloco }}</mat-label>
+          <mat-select formControlName="scopeType" data-testid="assignment-scope-type-select">
+            @for (type of scopeTypes; track type) {
+              <mat-option [value]="type">{{ 'org.users.detail.assignments.scopeTypes.' + type | transloco }}</mat-option>
+            }
+          </mat-select>
+        </mat-form-field>
 
-    @if (scopeType() !== 'GLOBAL') {
-      <div>
-        <p>{{ 'org.users.detail.assignments.fields.scopeEntity' | transloco }}</p>
-        @if (form.controls.scopeEntity.value; as entity) {
-          <p data-testid="assignment-scope-entity-current">{{ entity.label }}</p>
-          <button mat-button type="button" (click)="clearScopeEntity()">
-            {{ 'org.users.detail.assignments.change' | transloco }}
-          </button>
-        } @else if (scopeType() === 'LEGAL_ENTITY') {
+        <!-- One picker per scope type (`track`): a new type starts a fresh search with its own list. -->
+        @for (type of [scopeType()]; track type) {
           <nx-entity-picker
-            [search]="searchLegalEntities"
-            [displayWith]="displayLegalEntity"
-            (selected)="onLegalEntitySelected($event)"
+            nxSpan="l"
             data-testid="assignment-scope-entity-picker"
-          />
-        } @else if (scopeType() === 'BUSINESS_UNIT') {
-          <nx-entity-picker
-            [search]="searchBusinessUnits"
-            [displayWith]="displayBusinessUnit"
-            (selected)="onBusinessUnitSelected($event)"
-            data-testid="assignment-scope-entity-picker"
-          />
-        } @else {
-          <nx-entity-picker
-            [search]="searchWarehouses"
-            [displayWith]="displayWarehouse"
-            (selected)="onWarehouseSelected($event)"
-            data-testid="assignment-scope-entity-picker"
+            [label]="'org.users.detail.assignments.fields.scopeEntity' | transloco"
+            [hint]="
+              (type === 'GLOBAL'
+                ? 'org.users.detail.assignments.hints.global'
+                : 'org.users.detail.assignments.hints.search'
+              ) | transloco
+            "
+            [error]="pickerError('scopeEntity')"
+            [required]="type !== 'GLOBAL'"
+            [disabled]="type === 'GLOBAL'"
+            [value]="form.controls.scopeEntity.value"
+            [clearable]="true"
+            [search]="scopeEntitySearch()"
+            [displayWith]="displayScopeEntity"
+            (selected)="onScopeEntitySelected($event)"
+            (cleared)="clearScopeEntity()"
           />
         }
-        @if (form.controls.scopeEntity.touched && form.controls.scopeEntity.hasError('required')) {
-          <p role="alert">{{ 'shared.form.required' | transloco }}</p>
-        }
-        @for (message of errorsFor('scopeEntity'); track message) {
-          <p role="alert" data-testid="assignment-scope-entity-error">{{ message }}</p>
-        }
-      </div>
-    }
+      </nx-form-grid>
 
-    <mat-form-field>
-      <mat-label>{{ 'org.users.detail.assignments.fields.validFrom' | transloco }}</mat-label>
-      <input matInput [matDatepicker]="fromPicker" formControlName="validFrom" data-testid="assignment-valid-from-input" />
-      <mat-datepicker-toggle matIconSuffix [for]="fromPicker" />
-      <mat-datepicker #fromPicker />
-    </mat-form-field>
-    @if (form.controls.validFrom.touched && form.controls.validFrom.hasError('required')) {
-      <p role="alert" data-testid="assignment-valid-from-error">{{ 'shared.form.required' | transloco }}</p>
-    }
-    @for (message of errorsFor('validFrom'); track message) {
-      <p role="alert">{{ message }}</p>
-    }
-
-    <mat-form-field>
-      <mat-label>{{ 'org.users.detail.assignments.fields.validTo' | transloco }}</mat-label>
-      <input matInput [matDatepicker]="toPicker" formControlName="validTo" data-testid="assignment-valid-to-input" />
-      <mat-datepicker-toggle matIconSuffix [for]="toPicker" />
-      <mat-datepicker #toPicker />
-    </mat-form-field>
-    @if (form.controls.validTo.hasError('dateRange')) {
-      <p role="alert" data-testid="assignment-date-range-error">
-        {{ 'org.users.detail.assignments.errors.dateRange' | transloco }}
-      </p>
-    }
-    @for (message of errorsFor('validTo'); track message) {
-      <p role="alert">{{ message }}</p>
-    }
-
-    <button mat-flat-button color="primary" type="submit" [disabled]="facade.saving()" data-testid="assignment-grant-button">
-      {{ 'org.users.detail.assignments.grant' | transloco }}
-    </button>
-  </form>
-
-  <h2>{{ 'org.users.detail.assignments.listTitle' | transloco }}</h2>
-  @if (facade.loading()) {
-    <p>{{ 'org.users.detail.loading' | transloco }}</p>
-  } @else if (facade.error()) {
-    <p role="alert" data-testid="assignments-load-error">{{ facade.error() }}</p>
-  } @else if (facade.rows().length === 0) {
-    <p data-testid="assignments-empty">{{ 'org.users.detail.assignments.empty' | transloco }}</p>
-  } @else {
-    <ul data-testid="assignments-list">
-      @for (row of facade.rows(); track row.id) {
-        <li [attr.data-testid]="'assignment-' + row.id">
-          <span data-testid="assignment-role">{{ row.roleLabel }}</span>
-          <span data-testid="assignment-scope">{{
-            row.scopeLabel ?? ('org.users.detail.assignments.scopeTypes.GLOBAL' | transloco)
-          }}</span>
-          <span data-testid="assignment-from">{{ row.validFromLabel }}</span>
-          <span data-testid="assignment-to">{{
-            row.validToLabel ?? ('org.users.detail.assignments.noEnd' | transloco)
-          }}</span>
-          <span>{{ 'org.users.detail.assignments.sources.' + row.source | transloco }}</span>
-          @if (row.canRevoke) {
-            <button
-              mat-button
-              type="button"
-              color="warn"
-              *nxCan="'ROLE_ASSIGNMENT:UPDATE'"
-              [disabled]="facade.saving()"
-              (click)="revoke(row)"
-              [attr.data-testid]="'assignment-revoke-' + row.id"
-            >
-              {{ 'org.users.detail.assignments.revoke' | transloco }}
-            </button>
+      <nx-form-grid>
+        <mat-form-field nxSpan="s" subscriptSizing="dynamic">
+          <mat-label>{{ 'org.users.detail.assignments.fields.validFrom' | transloco }}</mat-label>
+          <input
+            matInput
+            required
+            autocomplete="off"
+            [matDatepicker]="fromPicker"
+            formControlName="validFrom"
+            data-testid="assignment-valid-from-input"
+          />
+          <mat-datepicker-toggle matIconSuffix [for]="fromPicker" />
+          <mat-datepicker #fromPicker />
+          @if (form.controls.validFrom.hasError('required')) {
+            <mat-error data-testid="assignment-valid-from-error">{{ 'shared.form.required' | transloco }}</mat-error>
+          } @else if (form.controls.validFrom.hasError('matDatepickerParse')) {
+            <mat-error>{{ 'shared.form.invalidValue' | transloco }}</mat-error>
           }
-        </li>
-      }
-    </ul>
-  }
-</div>
+          @for (message of errorsFor('validFrom'); track message) {
+            <mat-error>{{ message }}</mat-error>
+          }
+        </mat-form-field>
+
+        <mat-form-field nxSpan="s" subscriptSizing="dynamic">
+          <mat-label>{{ 'org.users.detail.assignments.fields.validTo' | transloco }}</mat-label>
+          <input
+            matInput
+            autocomplete="off"
+            [matDatepicker]="toPicker"
+            [min]="form.controls.validFrom.value"
+            [errorStateMatcher]="validToErrorState"
+            formControlName="validTo"
+            data-testid="assignment-valid-to-input"
+          />
+          <mat-datepicker-toggle matIconSuffix [for]="toPicker" />
+          <mat-datepicker #toPicker />
+          <mat-hint>{{ 'org.users.detail.assignments.hints.validTo' | transloco }}</mat-hint>
+          @if (form.controls.validTo.hasError('dateRange')) {
+            <mat-error data-testid="assignment-date-range-error">
+              {{ 'org.users.detail.assignments.errors.dateRange' | transloco }}
+            </mat-error>
+          } @else if (form.controls.validTo.hasError('matDatepickerParse')) {
+            <mat-error>{{ 'shared.form.invalidValue' | transloco }}</mat-error>
+          }
+          @for (message of errorsFor('validTo'); track message) {
+            <mat-error>{{ message }}</mat-error>
+          }
+        </mat-form-field>
+      </nx-form-grid>
+    </nx-form-section>
+
+    <nx-action-bar>
+      <button mat-flat-button type="submit" [disabled]="facade.saving()" data-testid="assignment-grant-button">
+        <mat-icon aria-hidden="true">add</mat-icon>
+        {{ 'org.users.detail.assignments.grant' | transloco }}
+      </button>
+    </nx-action-bar>
+  </form>
+}

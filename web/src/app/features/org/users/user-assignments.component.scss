@@ -1,0 +1,148 @@
+/* The tab panel stacks this host's two blocks (list section, grant form) like the General tab. */
+:host {
+  display: flex;
+  flex-direction: column;
+  gap: var(--nx-space-5);
+  min-width: 0;
+}
+
+.nx-ua-skeleton {
+  display: flex;
+  flex-direction: column;
+  gap: var(--nx-space-3);
+}
+
+/* Current assignments: a plain table in the section card, header like the data grid's. */
+.nx-ua-table {
+  width: 100%;
+  border-collapse: collapse;
+  font: var(--nx-text-body);
+  color: var(--nx-color-text);
+}
+
+.nx-ua-table th {
+  padding: var(--nx-space-2) var(--nx-space-3);
+  border-bottom: 1px solid var(--nx-color-border);
+  font: var(--nx-text-label);
+  font-weight: 500;
+  color: var(--nx-color-text-muted);
+  text-align: left;
+  white-space: nowrap;
+}
+
+.nx-ua-table td {
+  padding: var(--nx-space-2) var(--nx-space-3);
+  border-bottom: 1px solid var(--nx-color-border);
+  vertical-align: middle;
+}
+
+.nx-ua-table tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+/* Same left edge as the section title; actions flush right. */
+.nx-ua-table th:first-child,
+.nx-ua-table td:first-child {
+  padding-left: 0;
+}
+
+.nx-ua-table th:last-child,
+.nx-ua-table td:last-child {
+  padding-right: 0;
+  text-align: right;
+}
+
+.nx-ua-table__role {
+  font-weight: 500;
+}
+
+.nx-ua-table__validity,
+.nx-ua-table__status {
+  white-space: nowrap;
+}
+
+.nx-ua-table__actions {
+  width: 1%;
+  white-space: nowrap;
+}
+
+/* Below 600 px each assignment is a card: role + status, scope, validity, origin + «Revoke». */
+@media (max-width: 599.98px) {
+  .nx-ua-table thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+  }
+
+  .nx-ua-table,
+  .nx-ua-table tbody {
+    display: block;
+  }
+
+  .nx-ua-table__row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas:
+      'role status'
+      'scope scope'
+      'validity validity'
+      'source actions';
+    column-gap: var(--nx-space-3);
+    row-gap: var(--nx-space-1);
+    padding: var(--nx-space-3) 0;
+    border-bottom: 1px solid var(--nx-color-border);
+  }
+
+  .nx-ua-table tbody tr:last-child {
+    border-bottom: 0;
+  }
+
+  .nx-ua-table td,
+  .nx-ua-table td:first-child,
+  .nx-ua-table td:last-child {
+    padding: 0;
+    border-bottom: 0;
+    text-align: left;
+  }
+
+  .nx-ua-table__role {
+    grid-area: role;
+    align-self: center;
+  }
+
+  .nx-ua-table__status {
+    grid-area: status;
+  }
+
+  .nx-ua-table__scope {
+    grid-area: scope;
+  }
+
+  .nx-ua-table__validity {
+    grid-area: validity;
+    white-space: normal;
+  }
+
+  .nx-ua-table__source {
+    grid-area: source;
+    align-self: center;
+  }
+
+  .nx-ua-table__actions {
+    grid-area: actions;
+    width: auto;
+  }
+
+  /* Validity and origin read without their column header: «Vigencia: …». */
+  .nx-ua-table__validity::before,
+  .nx-ua-table__source::before {
+    content: attr(data-label) ': ';
+    color: var(--nx-color-text-muted);
+  }
+
+  .nx-ua-table__actions:empty {
+    display: none;
+  }
+}

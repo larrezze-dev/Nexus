@@ -1,22 +1,48 @@
-import { ChangeDetectionStrategy, Component, DestroyRef, OnInit, computed, effect, inject, signal } from '@angular/core';
-import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
+import { NgTemplateOutlet } from '@angular/common';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  DestroyRef,
+  ElementRef,
+  OnInit,
+  computed,
+  effect,
+  inject,
+  signal,
+  viewChild,
+} from '@angular/core';
+import { toSignal } from '@angular/core/rxjs-interop';
+import { AbstractControl, FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatFormFieldModule } from '@angular/material/form-field';
+import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
 import { MatSelectModule } from '@angular/material/select';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { MatTabsModule } from '@angular/material/tabs';
-import { ActivatedRoute, Router, RouterLink } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
 import { TranslocoModule, TranslocoService } from '@jsverse/transloco';
 import type { BusinessUnitListItem } from '../../../api/platform/models/business-unit-list-item';
+import { NxFormatService } from '../../../core/i18n/nx-format.service';
 import { LANGUAGE_OPTIONS, type SupportedLanguage } from '../../../core/i18n/supported-languages';
 import { NxBreadcrumbService } from '../../../core/layout/breadcrumb.service';
 import { NxCanDirective } from '../../../shared/auth/can.directive';
 import { PermissionsStore } from '../../../shared/auth/permissions.store';
 import { markServerErrors } from '../../../shared/forms/server-errors';
 import { NxAuditTrailComponent } from '../../../shared/platform/nx-audit-trail/nx-audit-trail.component';
-import { NxConfirm } from '../../../shared/ui/layout';
+import {
+  NxActionBarComponent,
+  NxConfirm,
+  NxDetailSkeletonComponent,
+  NxEmptyStateComponent,
+  NxFormGridComponent,
+  NxFormSectionComponent,
+  NxPageComponent,
+  NxPageHeaderComponent,
+  NxSpanDirective,
+} from '../../../shared/ui/layout';
 import { NxEntityPickerComponent } from '../../../shared/ui/nx-entity-picker/nx-entity-picker.component';
+import { NxStatusBadgeComponent } from '../../../shared/ui/nx-status-badge/nx-status-badge.component';
 import { UserAssignmentsComponent } from './user-assignments.component';
 import { SystemUserReadOnlyError, UsersFacade } from './users.facade';
 
@@ -31,9 +57,20 @@ type UserForm = {
   businessUnit: FormControl<BusinessUnitOption | null>;
 };
 
+/** Form controls in screen order, with the element that gets the focus when invalid. */
+const FIELD_ORDER: readonly { readonly control: keyof UserForm; readonly testId: string }[] = [
+  { control: 'fullName', testId: 'user-full-name-input' },
+  { control: 'email', testId: 'user-email-input' },
+  { control: 'preferredLanguage', testId: 'user-language-select' },
+  { control: 'oid', testId: 'user-oid-input' },
+  { control: 'businessUnit', testId: 'user-business-unit' },
+];
+
 /**
- * User detail/create page. A «General» tab plus «Assignments» (own component, once the user
- * exists) and «Audit».
+ * User detail/create page (`conventions-frontend.md §4.5–§4.6`), same structure as the org
+ * detail pages. `users/new` = create template (header «New user», sections, «Cancel · Create
+ * user»); an `id` = detail template: header with the name, email · modified date, status badge
+ * and «Deactivate», tabs «General» · «Assignments» (own component) · «Audit».
  *
  * ORG-R6: the SYSTEM user is read-only for real: the form is disabled, there is no save or
  * deactivate button, and the facade refuses the writes anyway. Errors: a 409 `CONCURRENCY`
@@ -44,17 +81,27 @@ type UserForm = {
   selector: 'nx-user-detail-page',
   standalone: true,
   imports: [
+    NgTemplateOutlet,
     ReactiveFormsModule,
-    RouterLink,
     TranslocoModule,
     MatButtonModule,
     MatFormFieldModule,
+    MatIconModule,
     MatInputModule,
     MatSelectModule,
     MatTabsModule,
-    NxCanDirective,
+    NxActionBarComponent,
     NxAuditTrailComponent,
+    NxCanDirective,
+    NxDetailSkeletonComponent,
+    NxEmptyStateComponent,
     NxEntityPickerComponent,
+    NxFormGridComponent,
+    NxFormSectionComponent,
+    NxPageComponent,
+    NxPageHeaderComponent,
+    NxSpanDirective,
+    NxStatusBadgeComponent,
     UserAssignmentsComponent,
   ],
   templateUrl: './user-detail.page.html',
@@ -69,7 +116,12 @@ export class UserDetailPage implements OnInit {
   private readonly confirm = inject(NxConfirm);
   private readonly snackBar = inject(MatSnackBar);
   private readonly permissions = inject(PermissionsStore);
+  private readonly format = inject(NxFormatService);
+  private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
   private readonly destroyRef = inject(DestroyRef);
+  private readonly saveAlert = viewChild<ElementRef<HTMLElement>>('saveAlert');
+  /** Re-evaluates the translated subtitle when the language (or its file) changes. */
+  private readonly translation = toSignal(this.transloco.selectTranslation());
   private destroyed = false;
 
   protected readonly languageOptions = LANGUAGE_OPTIONS;
@@ -79,6 +131,8 @@ export class UserDetailPage implements OnInit {
   protected readonly saveError = signal<string | null>(null);
   /** Server messages per form control (400/409/422), shown under the field. */
   protected readonly fieldErrors = signal<Readonly<Record<string, readonly string[]>>>({});
+  /** Fields to review after a submit with errors («Review the N marked fields»); 0 = no alert. */
+  protected readonly invalidCount = signal(0);
 
   protected readonly form = new FormGroup<UserForm>({
     oid: new FormControl('', { nonNullable: true }),
@@ -103,6 +157,18 @@ export class UserDetailPage implements OnInit {
   protected readonly readOnly = computed(() => !this.isNew() && (this.isSystemUser() || !this.canUpdate()));
 
   protected readonly current = this.facade.selected;
+
+  /** «jane@example.com · modified on 11.11.2026», in the active language. */
+  protected readonly subtitle = computed(() => {
+    const user = this.current();
+    if (!user) {
+      return '';
+    }
+    this.translation();
+    const date = this.format.formatDateMedium(user.updatedAt);
+    const modified = date ? this.transloco.translate('org.users.detail.modified', { date }) : '';
+    return [user.email, modified].filter(Boolean).join(' · ');
+  });
 
   constructor() {
     this.destroyRef.onDestroy(() => (this.destroyed = true));
@@ -157,7 +223,7 @@ export class UserDetailPage implements OnInit {
     this.form.controls.businessUnit.markAsDirty();
   }
 
-  protected onBusinessUnitSelected(bu: BusinessUnitListItem): void {
+  protected onBusinessUnitSelected(bu: BusinessUnitOption): void {
     this.form.controls.businessUnit.setValue(bu);
     this.form.controls.businessUnit.markAsDirty();
   }
@@ -168,8 +234,12 @@ export class UserDetailPage implements OnInit {
     }
     if (this.form.invalid) {
       this.form.markAllAsTouched();
+      const invalid = FIELD_ORDER.filter((field) => this.isInvalid(this.form.controls[field.control]));
+      this.invalidCount.set(invalid.length);
+      this.focusTestId(invalid[0]?.testId);
       return;
     }
+    this.invalidCount.set(0);
     this.saveError.set(null);
     this.fieldErrors.set({});
     const value = this.form.getRawValue();
@@ -229,6 +299,11 @@ export class UserDetailPage implements OnInit {
     }
   }
 
+  /** Cancel: back to the list, nothing is saved. */
+  protected cancel(): void {
+    void this.router.navigateByUrl('/users');
+  }
+
   private patchForm(): void {
     const user = this.facade.selected();
     if (!user) {
@@ -249,6 +324,7 @@ export class UserDetailPage implements OnInit {
   private showError(error: unknown): void {
     if (error instanceof SystemUserReadOnlyError) {
       this.saveError.set(this.facade.describeError(error).message);
+      setTimeout(() => this.saveAlert()?.nativeElement.focus());
       return;
     }
     const info = this.facade.describeError(error);
@@ -259,6 +335,28 @@ export class UserDetailPage implements OnInit {
     markServerErrors(this.form.controls, info.fields);
     this.fieldErrors.set(info.fields);
     this.saveError.set(info.message);
+    if (info.message) {
+      // Bring the alert into view: the button that failed is at the bottom of the form.
+      setTimeout(() => this.saveAlert()?.nativeElement.focus());
+    } else {
+      this.focusTestId(FIELD_ORDER.find((field) => info.fields[field.control]?.length)?.testId);
+    }
+  }
+
+  private isInvalid(control: AbstractControl): boolean {
+    return control.enabled && control.invalid;
+  }
+
+  /** Focuses the field (or the input inside the business-unit picker) with that `data-testid`. */
+  private focusTestId(testId: string | undefined): void {
+    if (!testId) {
+      return;
+    }
+    setTimeout(() => {
+      const element = this.host.nativeElement.querySelector<HTMLElement>(`[data-testid="${testId}"]`);
+      const target = element?.matches('input, mat-select') ? element : element?.querySelector<HTMLElement>('input');
+      target?.focus();
+    });
   }
 
   protected errorsFor(field: string): readonly string[] {

@@ -76,11 +76,21 @@ describe('UserAssignmentsComponent', () => {
     const root = await render(fixture);
 
     expect(facade.list).toHaveBeenCalledWith('u-1');
-    const items = root.querySelectorAll('[data-testid="assignments-list"] li');
+    const items = root.querySelectorAll('[data-testid="assignments-list"] tbody tr');
     expect(items).toHaveLength(2);
     expect(items[0].textContent).toContain('Org-Admin');
-    expect(items[0].textContent).toContain('Nüssli AG');
-    expect(items[0].textContent).toContain('1 Jan 2026');
+    // Scope reads «type · name»; GLOBAL has no name; validity «from – to» or «from – no end».
+    expect(q(items[0] as HTMLElement, 'assignment-scope')?.textContent).toBe(
+      'org.users.detail.assignments.scopeTypes.LEGAL_ENTITY · Nüssli AG',
+    );
+    expect(q(items[1] as HTMLElement, 'assignment-scope')?.textContent).toBe('org.users.detail.assignments.scopeTypes.GLOBAL');
+    expect(q(items[0] as HTMLElement, 'assignment-validity')?.textContent).toContain('1 Jan 2026 –');
+    expect(q(items[0] as HTMLElement, 'assignment-validity')?.textContent).toContain('org.users.detail.assignments.openEnd');
+    expect(q(items[1] as HTMLElement, 'assignment-validity')?.textContent).toContain('31 Dec 2026');
+    expect(q(items[0] as HTMLElement, 'assignment-source')?.textContent).toContain('org.users.detail.assignments.sources.MANUAL');
+    expect(items[0].querySelector('nx-status-badge')).not.toBeNull();
+    // Column headers are translated keys, the actions column is named for screen readers.
+    expect(root.querySelectorAll('[data-testid="assignments-list"] th')).toHaveLength(6);
     expect(q(root, 'effective-scope-link')?.getAttribute('href')).toBe('/access/users/u-1/effective-scope');
   });
 
@@ -157,7 +167,9 @@ describe('UserAssignmentsComponent', () => {
     await cmp.grant();
     fixture.detectChanges();
 
-    expect(q(root, 'assignment-scope-entity-error')?.textContent).toContain('errors.ACC-R2');
+    expect(
+      root.querySelector('[data-testid="assignment-scope-entity-picker"] [data-testid="nx-entity-picker-error"]')?.textContent,
+    ).toContain('errors.ACC-R2');
     expect(cmp.form.controls.scopeEntity.hasError('server')).toBe(true);
   });
 
@@ -186,5 +198,44 @@ describe('UserAssignmentsComponent', () => {
     fixture.detectChanges();
 
     expect(q(root, 'assignment-date-range-error')).not.toBeNull();
+  });
+
+  it('invalid submit: alert with the number of fields, and the required texts under the pickers', async () => {
+    const { fixture } = setup([]);
+    const root = await render(fixture);
+
+    q(root, 'assignment-grant-button')?.click();
+    fixture.detectChanges();
+
+    expect(q(root, 'assignment-form-invalid')?.textContent).toContain('shared.form.reviewFields');
+    expect(
+      root.querySelector('[data-testid="assignment-role-picker"] [data-testid="nx-entity-picker-error"]')?.textContent,
+    ).toContain('shared.form.required');
+    expect(q(root, 'assignment-valid-from-error')).not.toBeNull();
+  });
+
+  it('GLOBAL: the entity field stays visible but disabled, with a hint', async () => {
+    const { fixture } = setup([]);
+    const root = await render(fixture);
+    const cmp = fixture.componentInstance as unknown as { form: ReturnType<typeof import('../../access/role-assignments/role-assignment-form').createRoleAssignmentForm> };
+
+    cmp.form.controls.scopeType.setValue('GLOBAL');
+    fixture.detectChanges();
+
+    const input = root.querySelector<HTMLInputElement>('[data-testid="assignment-scope-entity-picker"] input');
+    expect(input?.disabled).toBe(true);
+    expect(root.querySelector('[data-testid="assignment-scope-entity-picker"] mat-hint')?.textContent).toContain(
+      'org.users.detail.assignments.hints.global',
+    );
+  });
+
+  it('read-only (SYSTEM user): no grant form and no revoke', async () => {
+    const { fixture } = setup();
+    fixture.componentRef.setInput('readOnly', true);
+    const root = await render(fixture);
+
+    expect(q(root, 'assignment-grant-form')).toBeNull();
+    expect(q(root, 'assignment-revoke-a-1')).toBeNull();
+    expect(q(root, 'effective-scope-link')).not.toBeNull();
   });
 });
