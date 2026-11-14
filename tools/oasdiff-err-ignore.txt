@@ -54,7 +54,7 @@ GET /v1/business-units/{id} the endpoint no longer allows anonymous access and n
 PUT /v1/business-units/{id} the endpoint no longer allows anonymous access and now only accepts `bearerAuth`
 POST /v1/business-units/{id}/deactivate the endpoint no longer allows anonymous access and now only accepts `bearerAuth`
 
-# Currencies (x-permission CURRENCY:READ/UPDATE; no create, currencies are seeded)
+# Currencies (x-permission CURRENCY:READ/CREATE/UPDATE; POST has its own line in the UI contract 2 section below)
 GET /v1/currencies the endpoint no longer allows anonymous access and now only accepts `bearerAuth`
 GET /v1/currencies/{code} the endpoint no longer allows anonymous access and now only accepts `bearerAuth`
 PUT /v1/currencies/{code} the endpoint no longer allows anonymous access and now only accepts `bearerAuth`
