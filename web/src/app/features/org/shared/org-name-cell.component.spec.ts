@@ -7,12 +7,17 @@ interface Row {
   displayName: string | null;
 }
 
-function render(row: Row, secondary?: (r: Row | undefined) => string | null): HTMLElement {
+function render(
+  row: Row,
+  secondary?: (r: Row | undefined) => string | null,
+  secondaryMono?: boolean,
+): HTMLElement {
   const fixture = TestBed.createComponent(OrgNameCellComponent);
   fixture.componentInstance.agInit({
     data: row,
     primary: (r: Row | undefined) => r?.legalName ?? '',
     secondary,
+    secondaryMono,
   } as unknown as OrgNameCellParams);
   fixture.detectChanges();
   return fixture.nativeElement as HTMLElement;
@@ -23,6 +28,14 @@ describe('OrgNameCellComponent', () => {
     const el = render({ legalName: 'SAPE smart bud AG', displayName: 'SSB Schweiz' }, secondaryName);
     expect(el.querySelector('.nx-org-name')?.textContent).toBe('SAPE smart bud AG');
     expect(el.querySelector('.nx-org-name__secondary')?.textContent).toBe('SSB Schweiz');
+  });
+
+  it('draws the second line in mono only when it is a code (secondaryMono)', () => {
+    const row = { legalName: 'SAPE smart bud AG', displayName: 'LE-CH' };
+    const code = render(row, (r) => r?.displayName ?? null, true).querySelector('.nx-org-name__secondary');
+    expect(code?.classList).toContain('nx-org-name__secondary--mono');
+    const name = render(row, secondaryName).querySelector('.nx-org-name__secondary');
+    expect(name?.classList).not.toContain('nx-org-name__secondary--mono');
   });
 
   it('draws no second line when it is empty or missing', () => {

@@ -15,6 +15,8 @@ export function secondaryName(row: { legalName?: string | null; displayName?: st
 export interface OrgNameCellParams<T = unknown> extends ICellRendererParams<T> {
   primary: (row: T | undefined) => string;
   secondary?: (row: T | undefined) => string | null | undefined;
+  /** The second line is a code: drawn in mono (`conventions-frontend.md §4.4`, «Códigos en mono»). */
+  secondaryMono?: boolean;
 }
 
 /**
@@ -28,7 +30,9 @@ export interface OrgNameCellParams<T = unknown> extends ICellRendererParams<T> {
   template: `
     <span class="nx-org-name">{{ primary() }}</span>
     @if (secondary(); as second) {
-      <span class="nx-org-name__secondary">{{ second }}</span>
+      <span class="nx-org-name__secondary" [class.nx-org-name__secondary--mono]="secondaryMono()">{{
+        second
+      }}</span>
     }
   `,
   styles: `
@@ -52,12 +56,17 @@ export interface OrgNameCellParams<T = unknown> extends ICellRendererParams<T> {
       font: var(--nx-text-label);
       color: var(--nx-color-text-muted);
     }
+
+    .nx-org-name__secondary--mono {
+      font-family: var(--nx-font-mono);
+    }
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class OrgNameCellComponent implements ICellRendererAngularComp {
   protected readonly primary = signal('');
   protected readonly secondary = signal<string | null>(null);
+  protected readonly secondaryMono = signal(false);
 
   agInit(params: OrgNameCellParams): void {
     this.refresh(params);
@@ -66,6 +75,7 @@ export class OrgNameCellComponent implements ICellRendererAngularComp {
   refresh(params: OrgNameCellParams): boolean {
     this.primary.set(params.primary(params.data) ?? '');
     this.secondary.set(params.secondary?.(params.data) || null);
+    this.secondaryMono.set(params.secondaryMono === true);
     return true;
   }
 }

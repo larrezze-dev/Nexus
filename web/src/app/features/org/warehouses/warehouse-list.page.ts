@@ -312,6 +312,7 @@ export class WarehouseListPage {
             (row && legalEntities.get(row.legalEntityId)?.legalName) || '—',
           secondary: (row: WarehouseListItem | undefined) =>
             (row && legalEntities.get(row.legalEntityId)?.code) || null,
+          secondaryMono: true,
         },
         flex: 2,
         sortable: false,
@@ -327,6 +328,7 @@ export class WarehouseListPage {
           },
           secondary: (row: WarehouseListItem | undefined) =>
             (row?.businessUnitId && businessUnits.get(row.businessUnitId)?.code) || null,
+          secondaryMono: true,
         },
         flex: 2,
         sortable: false,

@@ -123,7 +123,11 @@ export class BusinessUnitListPage {
         colId: 'legalEntity',
         headerKey: 'org.businessUnits.fields.legalEntityId',
         cellRenderer: OrgNameCellComponent,
-        cellRendererParams: { primary: legalEntityName, secondary: legalEntityCode },
+        cellRendererParams: {
+          primary: legalEntityName,
+          secondary: legalEntityCode,
+          secondaryMono: true,
+        },
         flex: 2,
         sortable: false,
       },
