@@ -156,6 +156,7 @@ public sealed class CurrencyApiTests : IClassFixture<PlatformApiFixture>
     [InlineData("DKK", "{\"de\":\"x\"}", -1)]
     [InlineData("DKK", "{\"en\":\"x\"}", 2)]
     [InlineData("DKK", "{\"de\":\" \"}", 2)]
+    [InlineData("SEK\\n", "{\"de\":\"x\"}", 2)]
     public async Task Create_currency_with_invalid_shape_is_400(string code, string captionJson, int minorUnits)
     {
         using var admin = _fixture.CreateClientFor(Org.Admin.Oid);
@@ -224,6 +225,7 @@ public sealed class CurrencyApiTests : IClassFixture<PlatformApiFixture>
 
         var stale = await PutAsync(admin, "HUF", etag, new { isActive = true });
         stale.StatusCode.ShouldBe(HttpStatusCode.Conflict);
+        (await ReadAsync(stale)).GetProperty("code").GetString().ShouldBe("CONCURRENCY");
     }
 
     [Fact(DisplayName = "ORG-R7: renaming a currency still referenced does not block, but deactivating it still does")]
@@ -240,6 +242,34 @@ public sealed class CurrencyApiTests : IClassFixture<PlatformApiFixture>
         (await ReadAsync(deactivate)).GetProperty("code").GetString().ShouldBe("ORG-R7");
         var read = await ReadAsync(await admin.GetAsync(new Uri("/v1/currencies/CHF", UriKind.Relative), Ct));
         read.GetProperty("captionI18n").GetProperty("de").GetString().ShouldBe("Schweizer Franken");
+    }
+
+    [Fact(DisplayName = "ORG-R7: renaming an already inactive currency that is still referenced is not blocked")]
+    public async Task Rename_of_an_inactive_referenced_currency_is_not_blocked()
+    {
+        using var admin = _fixture.CreateClientFor(Org.Admin.Oid);
+        var created = await PostCurrencyAsync(admin, new { code = "AUD", captionI18n = new { de = "Australischer Dollar" }, minorUnits = 2 });
+        created.StatusCode.ShouldBe(HttpStatusCode.Created);
+        var tag = Guid.NewGuid().ToString("N")[..8].ToUpperInvariant();
+        (await admin.PostAsJsonAsync(
+            new Uri("/v1/groups", UriKind.Relative),
+            new { legalName = "Aussie " + tag, code = "AU-" + tag, consolidationMethod = "FULL", reportingCurrencyCode = "AUD" },
+            Ct)).StatusCode.ShouldBe(HttpStatusCode.Created);
+
+        // Inactive while referenced can only be reached behind the API's back (ORG-R7 forbids it).
+        await using (var owner = await _fixture.Database.OpenAsOwnerAsync(Ct))
+        await using (var cmd = new Npgsql.NpgsqlCommand("UPDATE org.currency SET is_active = false WHERE code = 'AUD'", owner))
+        {
+            await cmd.ExecuteNonQueryAsync(Ct);
+        }
+
+        var (etag, isActive) = await GetCurrencyAsync(admin, "AUD");
+        isActive.ShouldBeFalse();
+
+        var response = await PutAsync(admin, "AUD", etag, new { isActive = false, captionI18n = new { de = "Australischer Dollar (AUD)" } });
+
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
+        (await ReadAsync(response)).GetProperty("captionI18n").GetProperty("de").GetString().ShouldBe("Australischer Dollar (AUD)");
     }
 
     private static Task<HttpResponseMessage> PostCurrencyAsync(HttpClient client, object body) =>

@@ -21,6 +21,9 @@ internal sealed class CreateCurrencyValidator : AbstractValidator<CreateCurrency
     public CreateCurrencyValidator()
     {
         RuleFor(c => c.Code)
+            // .NET's `$` also matches before a trailing "\n" ("SEK\n" would hit char(3) → 500):
+            // Length(3) closes that without changing the pattern the OpenAPI projection copies.
+            .Length(3)
             .Matches("^[A-Z]{3}$")
             .WithMessage("'code' must be 3 upper-case letters (ISO 4217).");
         RuleFor(c => c.CaptionI18n).MustHaveGermanCaption();

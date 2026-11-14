@@ -3,11 +3,11 @@ using Nexus.BuildingBlocks.Domain;
 namespace Nexus.Platform.Domain.Currencies;
 
 /// <summary>
-/// <c>org.currency</c> (domain/org.md §3). Seeded once by <c>db/seed/common</c> (<c>CHF</c>,
-/// <c>EUR</c>, <c>USD</c>, <c>GBP</c>) — there is no create through the API
-/// (<c>contracts/openapi/platform.yaml</c>, <c>/v1/currencies</c>: <c>GET</c> only plus
-/// <c>PUT .../{code}</c> to flip <see cref="IsActive"/>). <see cref="Activate"/> and
-/// <see cref="Deactivate"/> are plain state mutations with no domain event: unlike every other
+/// <c>org.currency</c> (domain/org.md §3). Seeded by <c>db/seed/common</c> (<c>CHF</c>,
+/// <c>EUR</c>, <c>USD</c>, <c>GBP</c>) and created through <c>POST /v1/currencies</c>
+/// (<see cref="Create"/>, born active); <c>PUT .../{code}</c> flips <see cref="IsActive"/> and/or
+/// replaces the name (<see cref="Rename"/>). <c>code</c> and <c>minorUnits</c> never change.
+/// <see cref="Activate"/>, <see cref="Deactivate"/> and <see cref="Rename"/> are plain state mutations with no domain event: unlike every other
 /// aggregate here, <c>org.currency</c>'s natural key is a 3-letter ISO code
 /// (<see cref="AggregateRoot{TId}"/>'s <c>TId</c> is <see cref="string"/>, not <see cref="Guid"/>),
 /// and <see cref="IDomainEvent.AggregateId"/> requires a <see cref="Guid"/> — minting a synthetic

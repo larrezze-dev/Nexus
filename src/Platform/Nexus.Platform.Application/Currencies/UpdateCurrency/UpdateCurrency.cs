@@ -20,6 +20,8 @@ internal sealed class UpdateCurrencyValidator : AbstractValidator<UpdateCurrency
     public UpdateCurrencyValidator()
     {
         RuleFor(c => c.Code)
+            // Length(3): .NET's `$` also matches before a trailing "\n" (see CreateCurrencyValidator).
+            .Length(3)
             .Matches("^[A-Z]{3}$")
             .WithMessage("'code' must be 3 upper-case letters (ISO 4217).");
         // Optional: null passes (unchanged). Unconditional so the OpenAPI projection shows `de`
@@ -65,8 +67,10 @@ internal sealed class UpdateCurrencyHandler : ICommandHandler<UpdateCurrencyComm
         }
         else
         {
-            // Rule ORG-R7: never deactivate a currency a Group/LegalEntity still uses.
-            if (await _readDb.IsReferencedByActiveEntityAsync(command.Code, cancellationToken))
+            // Rule ORG-R7: never deactivate a currency a Group/LegalEntity still uses. Only
+            // evaluated on an actual active -> inactive transition: renaming an already
+            // inactive currency (isActive: false again) must not be blocked.
+            if (currency.IsActive && await _readDb.IsReferencedByActiveEntityAsync(command.Code, cancellationToken))
             {
                 return Result.Failure<CurrencyDetails>(CurrencyErrors.InUse);
             }
