@@ -2,8 +2,8 @@
   display: block;
 }
 
+/* Full width of the page (the detail page already caps it at --nx-page-max-width-form). */
 .nx-audit {
-  max-width: 960px;
   color: var(--nx-color-text);
 }
 
