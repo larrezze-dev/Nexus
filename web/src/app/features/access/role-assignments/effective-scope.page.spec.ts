@@ -1,156 +1,121 @@
-import { ComponentFixture } from '@angular/core/testing';
-import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
+import { signal } from '@angular/core';
 import { ActivatedRoute, convertToParamMap } from '@angular/router';
 import { provideNoopAnimations } from '@angular/platform-browser/animations';
 import { TranslocoService, provideTransloco } from '@jsverse/transloco';
-import { OrgTreeFacade } from '../../org/tree/org-tree.facade';
+import { NxBreadcrumbService } from '../../../core/layout/breadcrumb.service';
 import { OrgTreeNode } from '../../org/tree/org-tree.model';
+import { ScopeNodeState } from './effective-scope.model';
+import { EffectiveScopeFacade } from './effective-scope.facade';
 import { EffectiveScopePage } from './effective-scope.page';
-import { RoleAssignmentsFacade } from './role-assignments.facade';
 
 const userId = '018f1a3c-7e3b-7c5a-9c2e-6a2f8e9b0001';
 
-function setup(
-  nodes: OrgTreeNode[],
-  effectiveScope = { legalEntityIds: [] as string[], businessUnitIds: [] as string[], warehouseIds: [] as string[], projectIds: [] as string[] },
-) {
-  const orgTreeFacade = {
-    load: vi.fn().mockResolvedValue(undefined),
-    nodes: signal(nodes),
+function setup(options: { nodes?: OrgTreeNode[]; states?: Record<string, ScopeNodeState>; empty?: boolean; error?: string | null; userName?: string | null; projectIds?: string[]; directKnown?: boolean } = {}) {
+  const facade = {
     loading: signal(false),
-    error: signal<string | null>(null),
+    error: signal<string | null>(options.error ?? null),
+    loaded: signal(!options.error),
+    userName: signal<string | null>(options.userName ?? null),
+    nodes: signal(options.nodes ?? []),
+    projectIds: signal(options.projectIds ?? []),
+    directKnown: signal(options.directKnown ?? true),
+    isEmpty: signal(options.empty ?? false),
+    stateOf: (node: OrgTreeNode): ScopeNodeState => options.states?.[node.id] ?? 'none',
+    reset: vi.fn(),
+    load: vi.fn().mockResolvedValue(undefined),
   };
-  const assignmentsFacade = {
-    getEffectiveScope: vi.fn().mockResolvedValue(effectiveScope),
-  };
-
+  const breadcrumb = { setCurrentLabel: vi.fn(), setLoadFailed: vi.fn(), clearLoadFailed: vi.fn() };
   TestBed.configureTestingModule({
     imports: [EffectiveScopePage],
     providers: [
       provideNoopAnimations(),
       ...provideTransloco({ config: { availableLangs: ['en', 'es'], defaultLang: 'en' } }),
-      { provide: OrgTreeFacade, useValue: orgTreeFacade },
-      { provide: RoleAssignmentsFacade, useValue: assignmentsFacade },
+      { provide: EffectiveScopeFacade, useValue: facade },
+      { provide: NxBreadcrumbService, useValue: breadcrumb },
       { provide: ActivatedRoute, useValue: { snapshot: { paramMap: convertToParamMap({ id: userId }) } } },
     ],
   });
-
   const fixture = TestBed.createComponent(EffectiveScopePage);
-  return { fixture, orgTreeFacade, assignmentsFacade };
+  return { fixture, facade, breadcrumb };
 }
 
-/**
- * `ngOnInit`'s two sequential `await`s (`orgTreeFacade.load()` then
- * `assignmentsFacade.getEffectiveScope()`) don't reliably settle within a single
- * `fixture.whenStable()` wait in this test environment, unlike zone-tracked HTTP calls
- * elsewhere in the app — so this polls a few microtask/macrotask turns instead of asserting
- * on the very next tick.
- */
-async function flushUntilLoaded(fixture: ComponentFixture<EffectiveScopePage>): Promise<void> {
-  for (let i = 0; i < 10; i++) {
-    await Promise.resolve();
-    await new Promise((resolve) => setTimeout(resolve, 0));
-    fixture.detectChanges();
-    if (!fixture.componentInstance['loading']()) {
-      return;
-    }
-  }
-}
+const warehouse: OrgTreeNode = { id: 'wh1', kind: 'warehouse', code: 'WH-01', captionI18n: { de: 'Lager Zug', es: 'Almacén Zug' }, isActive: true, children: [] };
+const group: OrgTreeNode = { id: 'g1', kind: 'group', code: 'SSB', name: 'SAPE Holding', isActive: null, children: [warehouse] };
 
 describe('EffectiveScopePage', () => {
-  it('loads the org tree and the effective scope for the user id in the route', async () => {
-    const warehouse: OrgTreeNode = { id: 'wh1', kind: 'warehouse', code: 'WH-01', captionI18n: { de: 'Zürich' }, isActive: true, children: [] };
-    const legalEntity: OrgTreeNode = { id: 'le1', kind: 'legalEntity', code: 'LE-CH', isActive: true, children: [warehouse] };
-    const group: OrgTreeNode = { id: 'g1', kind: 'group', code: 'NUSSLI', isActive: null, children: [legalEntity] };
-
-    const { fixture, orgTreeFacade, assignmentsFacade } = setup([group], {
-      legalEntityIds: ['le1'],
-      businessUnitIds: [],
-      warehouseIds: [],
-      projectIds: [],
-    });
-
+  it('resets and loads the facade for the user id in the route', () => {
+    const { fixture, facade } = setup();
     fixture.detectChanges();
-    await flushUntilLoaded(fixture);
-
-    expect(orgTreeFacade.load).toHaveBeenCalledOnce();
-    expect(assignmentsFacade.getEffectiveScope).toHaveBeenCalledWith(userId);
-
-    const text = (fixture.nativeElement as HTMLElement).textContent ?? '';
-    expect(text).toContain('LE-CH');
-    expect(fixture.componentInstance['isVisible'](legalEntity)).toBe(true);
-    expect(fixture.componentInstance['isVisible'](warehouse)).toBe(false);
-    // A Group is visible when at least one descendant is, even though it isn't itself a
-    // grantable scope type.
-    expect(fixture.componentInstance['isVisible'](group)).toBe(true);
+    expect(facade.reset).toHaveBeenCalled();
+    expect(facade.load).toHaveBeenCalledWith(userId);
   });
 
-  it('names the nodes in the active language and follows a language switch', async () => {
-    const warehouse: OrgTreeNode = {
-      id: 'wh1',
-      kind: 'warehouse',
-      code: 'WH-01',
-      captionI18n: { de: 'Lager Zug', es: 'Almacén Zug' },
-      isActive: true,
-      children: [],
-    };
-    const group: OrgTreeNode = {
-      id: 'g1',
-      kind: 'group',
-      code: 'SSB',
-      name: 'SAPE Holding',
-      isActive: null,
-      children: [warehouse],
-    };
-    const { fixture } = setup([group], {
-      legalEntityIds: [],
-      businessUnitIds: [],
-      warehouseIds: ['wh1'],
-      projectIds: [],
-    });
+  it('names the nodes in the active language and follows a language switch', () => {
+    const { fixture } = setup({ nodes: [group], states: { wh1: 'direct', g1: 'context' } });
     fixture.detectChanges();
-    await flushUntilLoaded(fixture);
     const labels = () =>
-      Array.from((fixture.nativeElement as HTMLElement).querySelectorAll('.nx-effective-scope-tree__label')).map(
-        (node) => node.textContent?.trim(),
-      );
+      Array.from((fixture.nativeElement as HTMLElement).querySelectorAll('.nx-effective-scope-tree__label')).map((n) => n.textContent?.trim());
 
-    // en is not a caption language of the node: de is the fallback; the group shows its name.
     expect(labels()).toEqual(['SAPE Holding', 'Lager Zug']);
-
     TestBed.inject(TranslocoService).setActiveLang('es');
     fixture.detectChanges();
     expect(labels()).toEqual(['SAPE Holding', 'Almacén Zug']);
   });
 
-  it('shows the overall empty-state message, not an error, when nothing is visible at all', async () => {
-    const { fixture } = setup([]);
-
+  it('marks each node with its state and shows the legend', () => {
+    const { fixture } = setup({ nodes: [group], states: { g1: 'context', wh1: 'inherited' } });
     fixture.detectChanges();
-    await flushUntilLoaded(fixture);
+    const el: HTMLElement = fixture.nativeElement;
 
-    const empty = (fixture.nativeElement as HTMLElement).querySelector('[data-testid="effective-scope-empty"]');
-    expect(empty).not.toBeNull();
+    const states = Array.from(el.querySelectorAll('[data-state]')).map((n) => n.getAttribute('data-state'));
+    expect(states).toEqual(['context', 'inherited']);
+    expect(el.querySelector('[data-testid="effective-scope-legend"]')).not.toBeNull();
+    for (const state of ['direct', 'inherited', 'context', 'none']) {
+      expect(el.querySelector(`[data-testid="effective-scope-legend-${state}"]`)).not.toBeNull();
+    }
+  });
+
+  it('leaves the inherited entry out of the legend when the assignments could not be read', () => {
+    const { fixture } = setup({ nodes: [group], directKnown: false });
+    fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('[data-testid="effective-scope-legend-inherited"]')).toBeNull();
+    expect(fixture.nativeElement.querySelector('[data-testid="effective-scope-legend-direct"]')).not.toBeNull();
+  });
+
+  it('puts the user name in the breadcrumb and the page', () => {
+    const { fixture, breadcrumb } = setup({ nodes: [group], userName: 'Ada Lovelace' });
+    fixture.detectChanges();
+    expect(breadcrumb.setCurrentLabel).toHaveBeenCalledWith(expect.stringContaining('Ada Lovelace'));
+    expect(fixture.nativeElement.querySelector('[data-testid="effective-scope-user"]').textContent).toContain('Ada Lovelace');
+  });
+
+  it('shows an error with a retry (not the empty state) when the load failed, and retries', async () => {
+    const { fixture, facade, breadcrumb } = setup({ error: 'load_failed' });
+    fixture.detectChanges();
+    const el: HTMLElement = fixture.nativeElement;
+
+    expect(el.querySelector('[data-testid="effective-scope-error"]')).not.toBeNull();
+    expect(el.querySelector('[data-testid="effective-scope-empty"]')).toBeNull();
+    expect(breadcrumb.setLoadFailed).toHaveBeenCalled();
+
+    facade.load.mockClear();
+    (el.querySelector('[data-testid="effective-scope-retry"]') as HTMLButtonElement).click();
+    expect(breadcrumb.clearLoadFailed).toHaveBeenCalled();
+    expect(facade.load).toHaveBeenCalledWith(userId);
+  });
+
+  it('shows the overall empty-state message, not an error, when nothing is visible at all', () => {
+    const { fixture } = setup({ empty: true });
+    fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('[data-testid="effective-scope-empty"]')).not.toBeNull();
     expect(fixture.nativeElement.querySelector('[role="alert"]')).toBeNull();
   });
 
-  it('shows the projects-specific empty-state message when only projectIds is empty', async () => {
-    const legalEntity: OrgTreeNode = { id: 'le1', kind: 'legalEntity', code: 'LE-CH', isActive: true, children: [] };
-
-    const { fixture } = setup([legalEntity], {
-      legalEntityIds: ['le1'],
-      businessUnitIds: [],
-      warehouseIds: [],
-      projectIds: [],
-    });
-
+  it('shows the projects-specific empty message when only projectIds is empty', () => {
+    const { fixture } = setup({ nodes: [group], states: { wh1: 'direct' } });
     fixture.detectChanges();
-    await flushUntilLoaded(fixture);
-
-    const empty = (fixture.nativeElement as HTMLElement).querySelector('[data-testid="effective-scope-projects-empty"]');
-    expect(empty).not.toBeNull();
+    expect(fixture.nativeElement.querySelector('[data-testid="effective-scope-projects-empty"]')).not.toBeNull();
     expect(fixture.nativeElement.querySelector('[data-testid="effective-scope-empty"]')).toBeNull();
-    expect(fixture.nativeElement.querySelector('[role="alert"]')).toBeNull();
   });
 });

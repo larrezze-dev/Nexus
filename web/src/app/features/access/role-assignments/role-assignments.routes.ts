@@ -17,7 +17,7 @@ export const accessRoleAssignmentsRoutes: Routes = [
       navGroup: 'people',
       listTitleKey: 'nav.users',
       listPath: '/users',
-      crumbKey: 'breadcrumb.effectiveScope',
+      detail: true,
       permission: 'ROLE_ASSIGNMENT:READ',
     },
     loadComponent: () => import('./effective-scope.page').then((m) => m.EffectiveScopePage),

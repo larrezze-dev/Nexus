@@ -1,15 +1,17 @@
 import { NestedTreeControl } from '@angular/cdk/tree';
-import { ChangeDetectionStrategy, Component, OnInit, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, OnInit, computed, effect, inject } from '@angular/core';
+import { toSignal } from '@angular/core/rxjs-interop';
 import { RouterLink, ActivatedRoute } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatTreeModule, MatTreeNestedDataSource } from '@angular/material/tree';
-import { TranslocoModule } from '@jsverse/transloco';
-import { OrgTreeFacade } from '../../org/tree/org-tree.facade';
+import { TranslocoModule, TranslocoService } from '@jsverse/transloco';
 import { NxI18nService } from '../../../core/i18n/nx-i18n.service';
+import { NxBreadcrumbService } from '../../../core/layout/breadcrumb.service';
 import { OrgTreeNode, OrgTreeNodeKind, orgTreeNodeLabel } from '../../org/tree/org-tree.model';
-import { RoleAssignmentsFacade } from './role-assignments.facade';
+import { ScopeNodeState } from './effective-scope.model';
+import { EffectiveScopeFacade } from './effective-scope.facade';
 
 const ICON_BY_KIND: Readonly<Record<OrgTreeNodeKind, string>> = {
   group: 'corporate_fare',
@@ -18,23 +20,16 @@ const ICON_BY_KIND: Readonly<Record<OrgTreeNodeKind, string>> = {
   warehouse: 'warehouse',
 };
 
+/** Marks shown in the legend, in this order. */
+export const SCOPE_STATES: readonly ScopeNodeState[] = ['direct', 'inherited', 'context', 'none'];
+
 /**
- * "¿Qué ve este usuario?" (`GET /v1/users/{id}/effective-scope`, `EffectiveScope`,
- * `domain/access.md §4`).
+ * "¿Qué ve este usuario?" (`GET /v1/users/{id}/effective-scope`, `domain/access.md §4`).
  *
- * Reuses `OrgTreeFacade`/`OrgTreeNode` (built for `features/org/tree`'s read-only
- * Group -> LegalEntity -> BusinessUnit -> Warehouse tree) instead of a second tree renderer:
- * `EffectiveScope` only returns flat id lists per dimension (`legalEntityIds`/
- * `businessUnitIds`/`warehouseIds`), with no nested shape of its own, so this page loads the
- * full org tree once and marks each `LegalEntity`/`BusinessUnit`/`Warehouse` node as visible or
- * not by checking its id against those lists. A `Group` node is marked visible when at least
- * one descendant is (it is not itself a grantable scope type, `ACC-R1`, but showing it greyed
- * out while every child is visible would be confusing).
- *
- * `projectIds` has no tree to fit into (projects don't exist as an org-tree concept, and don't
- * exist at all before step 2.1): rendered as a separate flat list below the tree, with an
- * empty-state message rather than an error when it's empty, which is simply the universal
- * case before step 2.1.
+ * `EffectiveScopeFacade` loads the effective scope, the org tree, the user's name and their valid
+ * assignments; this page marks each tree node as direct / inherited / context / none (legend on top)
+ * and lists `projectIds` apart (projects are not org-tree nodes; empty before step 2.1).
+ * The breadcrumb carries the user's name; states: loading, error with retry, empty.
  */
 @Component({
   selector: 'nx-effective-scope-page',
@@ -43,22 +38,42 @@ const ICON_BY_KIND: Readonly<Record<OrgTreeNodeKind, string>> = {
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <h1>{{ 'access.effectiveScope.title' | transloco }}</h1>
+    @if (facade.userName(); as userName) {
+      <p data-testid="effective-scope-user">{{ userName }}</p>
+    }
 
-    <a mat-button [routerLink]="['/users', userId()]">{{ 'access.effectiveScope.back' | transloco }}</a>
+    <a mat-button [routerLink]="['/users', userId]">{{ 'access.effectiveScope.back' | transloco }}</a>
 
-    @if (loading()) {
+    @if (facade.loading()) {
       <mat-spinner diameter="32" />
       <p>{{ 'access.effectiveScope.loading' | transloco }}</p>
-    } @else if (error()) {
-      <p role="alert">{{ error() }}</p>
-    } @else if (isEmpty()) {
+    } @else if (facade.error()) {
+      <p role="alert" data-testid="effective-scope-error">{{ 'access.effectiveScope.loadError' | transloco }}</p>
+      <button mat-stroked-button type="button" data-testid="effective-scope-retry" (click)="reload()">
+        {{ 'common.retry' | transloco }}
+      </button>
+    } @else if (facade.loaded() && facade.isEmpty()) {
       <p data-testid="effective-scope-empty">{{ 'access.effectiveScope.empty' | transloco }}</p>
-    } @else {
+    } @else if (facade.loaded()) {
+      <section data-testid="effective-scope-legend" [attr.aria-label]="'access.effectiveScope.legend.title' | transloco">
+        <h2>{{ 'access.effectiveScope.legend.title' | transloco }}</h2>
+        <ul>
+          @for (state of legendStates(); track state) {
+            <li [attr.data-testid]="'effective-scope-legend-' + state">
+              <mat-icon aria-hidden="true">{{ iconForState(state) }}</mat-icon>
+              <strong>{{ 'access.effectiveScope.state.' + state | transloco }}</strong>
+              — {{ 'access.effectiveScope.legend.' + state | transloco }}
+            </li>
+          }
+        </ul>
+      </section>
+
       <mat-tree [dataSource]="dataSource" [treeControl]="treeControl" class="nx-effective-scope-tree">
         <mat-nested-tree-node *matTreeNodeDef="let node">
           <div
             class="nx-effective-scope-tree__node"
-            [class.nx-effective-scope-tree__node--visible]="isVisible(node)"
+            [attr.data-state]="stateOf(node)"
+            [class.nx-effective-scope-tree__node--visible]="stateOf(node) === 'direct' || stateOf(node) === 'inherited'"
           >
             <button
               mat-icon-button
@@ -71,9 +86,12 @@ const ICON_BY_KIND: Readonly<Record<OrgTreeNodeKind, string>> = {
             </button>
             <mat-icon [attr.aria-hidden]="true">{{ iconFor(node) }}</mat-icon>
             <span class="nx-effective-scope-tree__label">{{ labelOf(node) }}</span>
-            @if (isVisible(node)) {
-              <mat-icon class="nx-effective-scope-tree__check" [attr.aria-label]="'access.effectiveScope.visible' | transloco">
-                visibility
+            @if (stateOf(node) !== 'none') {
+              <mat-icon
+                class="nx-effective-scope-tree__check"
+                [attr.aria-label]="'access.effectiveScope.state.' + stateOf(node) | transloco"
+              >
+                {{ iconForState(stateOf(node)) }}
               </mat-icon>
             }
           </div>
@@ -84,11 +102,11 @@ const ICON_BY_KIND: Readonly<Record<OrgTreeNodeKind, string>> = {
       </mat-tree>
 
       <h2>{{ 'access.effectiveScope.projects' | transloco }}</h2>
-      @if (projectIds().length === 0) {
+      @if (facade.projectIds().length === 0) {
         <p data-testid="effective-scope-projects-empty">{{ 'access.effectiveScope.projectsEmpty' | transloco }}</p>
       } @else {
         <ul data-testid="effective-scope-projects-list">
-          @for (projectId of projectIds(); track projectId) {
+          @for (projectId of facade.projectIds(); track projectId) {
             <li>{{ projectId }}</li>
           }
         </ul>
@@ -113,75 +131,87 @@ const ICON_BY_KIND: Readonly<Record<OrgTreeNodeKind, string>> = {
 })
 export class EffectiveScopePage implements OnInit {
   private readonly route = inject(ActivatedRoute);
-  protected readonly orgTreeFacade = inject(OrgTreeFacade);
-  private readonly assignmentsFacade = inject(RoleAssignmentsFacade);
+  protected readonly facade = inject(EffectiveScopeFacade);
   private readonly i18n = inject(NxI18nService);
+  private readonly transloco = inject(TranslocoService);
+  private readonly breadcrumb = inject(NxBreadcrumbService);
+  private readonly translation = toSignal(this.transloco.selectTranslation());
 
   protected readonly treeControl = new NestedTreeControl<OrgTreeNode>((node) => node.children);
   protected readonly dataSource = new MatTreeNestedDataSource<OrgTreeNode>();
+  protected userId = '';
 
-  protected readonly loading = signal(true);
-  protected readonly error = signal<string | null>(null);
-  protected readonly userId = signal('');
-  protected readonly projectIds = signal<string[]>([]);
+  /** Without the assignments the direct / inherited distinction is unknown, so the legend leaves it out. */
+  protected readonly legendStates = computed<readonly ScopeNodeState[]>(() =>
+    this.facade.directKnown() ? SCOPE_STATES : ['direct', 'context', 'none'],
+  );
 
-  private visibleIds = new Set<string>();
+  constructor() {
+    effect(() => {
+      // Tree data follows the facade; every group/entity starts expanded.
+      const nodes = this.facade.nodes();
+      this.dataSource.data = nodes;
+      for (const node of this.flatten(nodes)) {
+        this.treeControl.expand(node);
+      }
+    });
+
+    effect(() => {
+      // Breadcrumb: «<user name> · What this user sees», in the active language.
+      this.translation();
+      this.i18n.activeLang();
+      if (this.facade.error()) {
+        this.breadcrumb.setLoadFailed();
+        return;
+      }
+      const name = this.facade.userName();
+      const base = this.transloco.translate('breadcrumb.effectiveScope');
+      if (this.facade.loaded()) {
+        this.breadcrumb.setCurrentLabel(name ? `${name} · ${base}` : base);
+      }
+    });
+  }
 
   /** Node name in the active language; reads the language signal, so it follows a switch. */
   protected labelOf(node: OrgTreeNode): string {
     return orgTreeNodeLabel(node, this.i18n.activeLang());
   }
 
+  protected stateOf(node: OrgTreeNode): ScopeNodeState {
+    return this.facade.stateOf(node);
+  }
+
   protected readonly hasChild = (_: number, node: OrgTreeNode): boolean => node.children.length > 0;
 
-  async ngOnInit(): Promise<void> {
-    const id = this.route.snapshot.paramMap.get('id');
-    if (!id) {
-      this.error.set('missing_user_id');
-      this.loading.set(false);
+  ngOnInit(): void {
+    this.facade.reset();
+    this.userId = this.route.snapshot.paramMap.get('id') ?? '';
+    void this.reload();
+  }
+
+  protected async reload(): Promise<void> {
+    this.breadcrumb.clearLoadFailed();
+    if (!this.userId) {
       return;
     }
-    this.userId.set(id);
-
-    try {
-      await this.orgTreeFacade.load();
-      const scope = await this.assignmentsFacade.getEffectiveScope(id);
-      this.visibleIds = new Set([...scope.legalEntityIds, ...scope.businessUnitIds, ...scope.warehouseIds]);
-      this.projectIds.set([...scope.projectIds]);
-
-      const nodes = this.orgTreeFacade.nodes();
-      this.dataSource.data = nodes;
-      for (const node of this.flatten(nodes)) {
-        this.treeControl.expand(node);
-      }
-    } catch {
-      this.error.set('load_failed');
-    } finally {
-      this.loading.set(false);
-    }
+    await this.facade.load(this.userId);
   }
 
   protected iconFor(node: OrgTreeNode): string {
     return ICON_BY_KIND[node.kind];
   }
 
-  /** True when the user has zero visible entities across every dimension
-   * (`legalEntityIds`/`businessUnitIds`/`warehouseIds`/`projectIds` all empty) — shown as an
-   * explicit empty-state message instead of a tree that is entirely greyed out. */
-  protected isEmpty(): boolean {
-    return this.visibleIds.size === 0 && this.projectIds().length === 0;
-  }
-
-  /** `GROUP` is not offered as a grant option in this repo yet — no Groups picker/facade
-   * exists to back it (see the `GrantableScopeType` doc comment in
-   * `features/org/users/user-detail.page.ts`) — but a `Group` node can still appear here from
-   * the org tree itself, so it reads as visible when at least one descendant does, rather
-   * than greying out a group whose entire content is in scope. */
-  protected isVisible(node: OrgTreeNode): boolean {
-    if (node.kind === 'group') {
-      return node.children.some((child) => this.isVisible(child));
+  protected iconForState(state: ScopeNodeState): string {
+    switch (state) {
+      case 'direct':
+        return 'verified_user';
+      case 'inherited':
+        return 'subdirectory_arrow_right';
+      case 'context':
+        return 'account_tree';
+      default:
+        return 'visibility_off';
     }
-    return this.visibleIds.has(node.id);
   }
 
   private flatten(nodes: readonly OrgTreeNode[]): OrgTreeNode[] {
