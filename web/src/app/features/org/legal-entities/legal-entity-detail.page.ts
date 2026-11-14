@@ -29,6 +29,7 @@ import { PermissionsStore } from '../../../shared/auth/permissions.store';
 import { NxAuditTrailComponent } from '../../../shared/platform/nx-audit-trail/nx-audit-trail.component';
 import {
   NxConfirm,
+  NxDetailSkeletonComponent,
   NxEmptyStateComponent,
   NxPageComponent,
   NxPageHeaderComponent,
@@ -57,6 +58,7 @@ import { LegalEntityFormComponent, LegalEntityFormValue } from './legal-entity-f
     MatTabsModule,
     NxCanDirective,
     NxAuditTrailComponent,
+    NxDetailSkeletonComponent,
     NxEmptyStateComponent,
     NxPageComponent,
     NxPageHeaderComponent,

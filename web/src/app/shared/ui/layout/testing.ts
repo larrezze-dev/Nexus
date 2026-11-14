@@ -10,6 +10,7 @@ export const LAYOUT_TEST_EN = {
       filterBar: { clear: 'Clear filters', ariaLabel: 'Filters' },
       sectionIndex: { title: 'On this page' },
       confirm: { confirm: 'Confirm' },
+      detailSkeleton: { loading: 'Loading…' },
     },
     emptyState: {
       empty: { title: 'No records yet', message: 'Once records are created, they appear here.' },

@@ -52,6 +52,7 @@ import { countryName, countryOptions } from '../../../shared/ui/country/country-
 import {
   NxActionBarComponent,
   NxConfirm,
+  NxDetailSkeletonComponent,
   NxEmptyStateComponent,
   NxFormGridComponent,
   NxFormSectionComponent,
@@ -134,6 +135,7 @@ const FIELD_ORDER: readonly { readonly path: string; readonly testId: string }[]
     NxActionBarComponent,
     NxAuditTrailComponent,
     NxCanDirective,
+    NxDetailSkeletonComponent,
     NxEmptyStateComponent,
     NxFormGridComponent,
     NxFormSectionComponent,

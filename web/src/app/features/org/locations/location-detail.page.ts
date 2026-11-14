@@ -15,7 +15,12 @@ import { NxFormatService } from '../../../core/i18n/nx-format.service';
 import { NxI18nService } from '../../../core/i18n/nx-i18n.service';
 import { NxBreadcrumbService } from '../../../core/layout/breadcrumb.service';
 import { PermissionsStore } from '../../../shared/auth/permissions.store';
-import { NxEmptyStateComponent, NxPageComponent, NxPageHeaderComponent } from '../../../shared/ui/layout';
+import {
+  NxDetailSkeletonComponent,
+  NxEmptyStateComponent,
+  NxPageComponent,
+  NxPageHeaderComponent,
+} from '../../../shared/ui/layout';
 import { NxStatusBadgeComponent } from '../../../shared/ui/nx-status-badge/nx-status-badge.component';
 import { LocationFormComponent, LocationFormValue } from './location-form.component';
 import { LocationFacade } from './location.facade';
@@ -41,6 +46,7 @@ import { LocationFacade } from './location.facade';
     TranslocoModule,
     MatButtonModule,
     MatIconModule,
+    NxDetailSkeletonComponent,
     NxEmptyStateComponent,
     NxPageComponent,
     NxPageHeaderComponent,

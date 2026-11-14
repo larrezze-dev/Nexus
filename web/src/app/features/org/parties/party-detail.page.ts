@@ -25,6 +25,7 @@ import { NxBreadcrumbService } from '../../../core/layout/breadcrumb.service';
 import { PermissionsStore } from '../../../shared/auth/permissions.store';
 import {
   NxConfirm,
+  NxDetailSkeletonComponent,
   NxEmptyStateComponent,
   NxPageComponent,
   NxPageHeaderComponent,
@@ -54,6 +55,7 @@ import { partyScopeKey, partyTypeKey } from './party-labels';
     TranslocoModule,
     MatButtonModule,
     MatIconModule,
+    NxDetailSkeletonComponent,
     NxEmptyStateComponent,
     NxPageComponent,
     NxPageHeaderComponent,

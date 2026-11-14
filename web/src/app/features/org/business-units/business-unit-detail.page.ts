@@ -21,6 +21,7 @@ import { NxAuditTrailComponent } from '../../../shared/platform/nx-audit-trail/n
 import { resolveCaption } from '../../../shared/ui/caption/caption.util';
 import {
   NxConfirm,
+  NxDetailSkeletonComponent,
   NxEmptyStateComponent,
   NxPageComponent,
   NxPageHeaderComponent,
@@ -51,6 +52,7 @@ import { BusinessUnitLegalEntityOption, BusinessUnitsFacade } from './business-u
     MatTabsModule,
     NxCanDirective,
     NxAuditTrailComponent,
+    NxDetailSkeletonComponent,
     NxEmptyStateComponent,
     NxPageComponent,
     NxPageHeaderComponent,

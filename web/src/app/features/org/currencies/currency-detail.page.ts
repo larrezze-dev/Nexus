@@ -25,6 +25,7 @@ import { PermissionsStore } from '../../../shared/auth/permissions.store';
 import { resolveCaption } from '../../../shared/ui/caption/caption.util';
 import {
   NxConfirm,
+  NxDetailSkeletonComponent,
   NxEmptyStateComponent,
   NxPageComponent,
   NxPageHeaderComponent,
@@ -50,6 +51,7 @@ import { CurrencyFormComponent, CurrencyFormValue } from './currency-form.compon
     TranslocoModule,
     MatButtonModule,
     MatIconModule,
+    NxDetailSkeletonComponent,
     NxEmptyStateComponent,
     NxPageComponent,
     NxPageHeaderComponent,
@@ -122,7 +124,7 @@ import { CurrencyFormComponent, CurrencyFormValue } from './currency-form.compon
       </nx-page>
     } @else {
       <nx-page width="form">
-        <nx-page-header [breadcrumb]="true" [title]="'org.currencies.loading' | transloco" />
+        <nx-detail-skeleton />
       </nx-page>
     }
   `,

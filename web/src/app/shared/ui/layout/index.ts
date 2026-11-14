@@ -1,6 +1,7 @@
 export * from './form-field-defaults';
 export * from './nx-action-bar.component';
 export * from './nx-confirm.service';
+export * from './nx-detail-skeleton.component';
 export * from './nx-empty-state.component';
 export * from './nx-filter-bar.component';
 export * from './nx-form-grid.component';
