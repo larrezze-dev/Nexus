@@ -95,9 +95,9 @@ export class CurrencyCreatePage {
       this.fieldErrors.set({ code: [this.transloco.translate('org.currencies.errors.duplicateCode')] });
       return;
     }
-    if (http?.status === 400 && problem?.errors) {
+    if (http?.status === 400) {
       this.fieldErrors.set(
-        localizedFieldErrors(problem.errors, this.transloco.translate('shared.form.invalidValue')),
+        localizedFieldErrors(problem?.errors, this.transloco.translate('shared.form.invalidValue')),
       );
       this.saveError.set(this.transloco.translate('errors.validation'));
       return;

@@ -133,6 +133,7 @@ export class LegalEntityDetailPage implements OnInit {
 
   /** Loads the record (also the «Retry» of the error state) and names it in the breadcrumb. */
   protected async load(): Promise<void> {
+    this.breadcrumb.clearLoadFailed();
     const id = this.route.snapshot.paramMap.get('id');
     if (!id) {
       return;
@@ -241,9 +242,9 @@ export class LegalEntityDetailPage implements OnInit {
     const httpError = error as { status?: number; error?: unknown } | undefined;
     const body = httpError?.error;
 
-    if (httpError?.status === 400 && isProblem(body) && body.errors) {
+    if (httpError?.status === 400) {
       this.fieldErrors.set(
-        localizedFieldErrors(body.errors, this.transloco.translate('shared.form.invalidValue')),
+        localizedFieldErrors(isProblem(body) ? body.errors : undefined, this.transloco.translate('shared.form.invalidValue')),
       );
       this.saveError.set(this.transloco.translate('errors.validation'));
       return;

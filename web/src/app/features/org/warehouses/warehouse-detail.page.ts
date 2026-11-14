@@ -377,6 +377,7 @@ export class WarehouseDetailPage implements OnInit {
 
   /** Loads the record (also the «Retry» of the error state) and fills the form. */
   protected async load(): Promise<void> {
+    this.breadcrumb.clearLoadFailed();
     const id = this.routeId();
     if (!id) {
       return;

@@ -131,8 +131,16 @@ export class NxBreadcrumbService {
     this.loadFailed.set(true);
   }
 
+  /** Detail pages call this when a (re)load starts: «Not available» gives way to «Loading…» during «Retry». */
+  clearLoadFailed(): void {
+    this.loadFailed.set(false);
+  }
+
   /** Detail pages call this once their record loaded (record name), `null` to clear it. */
   setCurrentLabel(text: string | null): void {
+    if (text && text.trim()) {
+      this.loadFailed.set(false);
+    }
     this.label.set(text && text.trim() ? text : null);
   }
 }

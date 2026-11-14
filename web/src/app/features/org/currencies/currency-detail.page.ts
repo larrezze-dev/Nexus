@@ -184,6 +184,7 @@ export class CurrencyDetailPage implements OnInit {
 
   /** Loads the currency (also the «Retry» of the error state). */
   protected async load(): Promise<void> {
+    this.breadcrumb.clearLoadFailed();
     const code = this.route.snapshot.paramMap.get('code');
     if (!code) {
       return;
@@ -238,9 +239,9 @@ export class CurrencyDetailPage implements OnInit {
       // `errorInterceptor` already opened the concurrency dialog.
       return;
     }
-    if (http?.status === 400 && problem?.errors) {
+    if (http?.status === 400) {
       this.fieldErrors.set(
-        localizedFieldErrors(problem.errors, this.transloco.translate('shared.form.invalidValue')),
+        localizedFieldErrors(problem?.errors, this.transloco.translate('shared.form.invalidValue')),
       );
       this.actionError.set(this.transloco.translate('errors.validation'));
       return;

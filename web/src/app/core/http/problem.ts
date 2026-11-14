@@ -1,3 +1,9 @@
+/** One entry of `Problem.errors`. */
+export interface ProblemFieldError {
+  readonly field: string;
+  readonly message: string;
+}
+
 /**
  * RFC 9457 `Problem` body, as returned by every NEXUS service on error
  * (conventions-api.md §6, conventions-backend.md §7).
@@ -10,8 +16,11 @@ export interface Problem {
   readonly title?: string;
   readonly status?: number;
   readonly detail?: string;
-  /** 400: field name → list of translated or translatable messages. */
-  readonly errors?: Readonly<Record<string, readonly string[]>>;
+  /**
+   * 400: per-field detail, as the contract and `NexusExceptionHandler` send it (`[{field, message}]`).
+   * A `field → messages` map is still accepted (see `fieldErrorsOf`).
+   */
+  readonly errors?: readonly ProblemFieldError[] | Readonly<Record<string, readonly string[]>>;
   /** 422: business-rule id (`XXX-Rn`) the client can map to an `errors.<code>` i18n key. */
   readonly code?: string;
   /** 403: permission the caller was missing, e.g. `ASSET_TYPE:CREATE`. */
@@ -57,18 +66,44 @@ export function isDuplicateConflict(error: unknown): boolean {
   return statusOf(error) === 409 && problemOf(error)?.code === 'CONFLICT';
 }
 
+/** `field → messages` of a `Problem.errors` (array or map); field names start in lower case like the form controls. */
+export function fieldErrorsOf(
+  errors: Problem['errors'] | null | undefined,
+): Readonly<Record<string, readonly string[]>> {
+  const result: Record<string, string[]> = {};
+  const add = (field: string, message: string) => {
+    const key = field ? field.charAt(0).toLowerCase() + field.slice(1) : field;
+    (result[key] ??= []).push(message);
+  };
+  if (Array.isArray(errors)) {
+    for (const entry of errors as readonly ProblemFieldError[]) {
+      add(entry.field, entry.message);
+    }
+  } else if (errors && typeof errors === 'object') {
+    for (const [field, messages] of Object.entries(errors as Record<string, readonly string[]>)) {
+      for (const message of messages) {
+        add(field, message);
+      }
+    }
+  }
+  return result;
+}
+
 /**
  * Field errors of a 400 as the user should see them: the server messages are in English, so each
  * invalid field gets `message` (a translated generic text) and the server detail only goes to the
- * console for support.
+ * console. Accepts the real array shape and the legacy map; no errors gives `{}`.
  */
 export function localizedFieldErrors(
-  errors: Readonly<Record<string, readonly string[]>>,
+  errors: Problem['errors'] | null | undefined,
   message: string,
 ): Readonly<Record<string, readonly string[]>> {
-  console.warn('Validation errors from the server', errors);
+  const fields = fieldErrorsOf(errors);
+  if (Object.keys(fields).length > 0) {
+    console.warn('Validation errors from the server', errors);
+  }
   const result: Record<string, readonly string[]> = {};
-  for (const field of Object.keys(errors)) {
+  for (const field of Object.keys(fields)) {
     result[field] = [message];
   }
   return result;

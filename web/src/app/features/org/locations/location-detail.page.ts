@@ -124,6 +124,7 @@ export class LocationDetailPage implements OnInit {
 
   /** Loads the record (also the «Retry» of the error state). */
   protected async load(): Promise<void> {
+    this.breadcrumb.clearLoadFailed();
     const id = this.route.snapshot.paramMap.get('id');
     if (id) {
       await this.facade.load(id);
@@ -167,9 +168,9 @@ export class LocationDetailPage implements OnInit {
     const httpError = error as { status?: number; error?: unknown } | undefined;
     const body = httpError?.error;
 
-    if (httpError?.status === 400 && isProblem(body) && body.errors) {
+    if (httpError?.status === 400) {
       this.fieldErrors.set(
-        localizedFieldErrors(body.errors, this.transloco.translate('shared.form.invalidValue')),
+        localizedFieldErrors(isProblem(body) ? body.errors : undefined, this.transloco.translate('shared.form.invalidValue')),
       );
       this.saveError.set(this.transloco.translate('errors.validation'));
       return;

@@ -82,7 +82,7 @@ async function setupPage(options: Setup = {}) {
   const confirm = { confirm: vi.fn().mockResolvedValue(options.confirmed ?? true) };
   const snackBar = { open: vi.fn() };
   const breadcrumb = {
-    setCurrentLabel: vi.fn(), setLoadFailed: vi.fn(),
+    setCurrentLabel: vi.fn(), setLoadFailed: vi.fn(), clearLoadFailed: vi.fn(),
     claimForPage: () => () => undefined,
     trail: signal([]),
   };

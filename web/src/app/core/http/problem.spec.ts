@@ -1,4 +1,4 @@
-import { isConcurrencyConflict, isDuplicateConflict, localizedFieldErrors, problemOf } from './problem';
+import { fieldErrorsOf, isConcurrencyConflict, isDuplicateConflict, localizedFieldErrors, problemOf } from './problem';
 
 const conflictType = 'https://nexus.nussli.ch/problems/conflict';
 
@@ -32,11 +32,34 @@ describe('problem helpers', () => {
 
   it('localizedFieldErrors replaces every server message with the translated one', () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
-    const result = localizedFieldErrors({ code: ['must not be empty'], name: ['too long', 'x'] }, 'Invalid value');
+    const result = localizedFieldErrors(
+      [
+        { field: 'Code', message: 'must not be empty' },
+        { field: 'Name', message: 'too long' },
+        { field: 'Name', message: 'x' },
+      ],
+      'Invalid value',
+    );
 
     expect(result).toEqual({ code: ['Invalid value'], name: ['Invalid value'] });
     // The English detail only goes to the console.
     expect(warn).toHaveBeenCalled();
     warn.mockRestore();
+  });
+
+  it('fieldErrorsOf reads the real array shape, lower-casing the field like the form controls', () => {
+    expect(
+      fieldErrorsOf([
+        { field: 'LegalName', message: 'a' },
+        { field: 'LegalName', message: 'b' },
+        { field: 'code', message: 'c' },
+      ]),
+    ).toEqual({ legalName: ['a', 'b'], code: ['c'] });
+  });
+
+  it('fieldErrorsOf still accepts the legacy map and tolerates no errors', () => {
+    expect(fieldErrorsOf({ code: ['x'] })).toEqual({ code: ['x'] });
+    expect(fieldErrorsOf(undefined)).toEqual({});
+    expect(localizedFieldErrors(undefined, 'Invalid')).toEqual({});
   });
 });

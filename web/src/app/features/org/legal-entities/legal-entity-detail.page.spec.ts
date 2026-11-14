@@ -100,7 +100,7 @@ async function setupPage(paramMap: Record<string, string>, facade: ReturnType<ty
       { provide: Router, useValue: { navigate: vi.fn().mockResolvedValue(true) } },
       {
         provide: NxBreadcrumbService,
-        useValue: { setCurrentLabel: vi.fn(), setLoadFailed: vi.fn(), claimForPage: () => () => undefined, trail: signal([]) },
+        useValue: { setCurrentLabel: vi.fn(), setLoadFailed: vi.fn(), clearLoadFailed: vi.fn(), claimForPage: () => () => undefined, trail: signal([]) },
       },
       { provide: NxConfirm, useValue: confirmStub },
     ],
@@ -131,7 +131,7 @@ describe('LegalEntityDetailPage', () => {
 
   it('maps a 400 response into per-field errors and a validation message', async () => {
     const facade = createFacadeStub(null);
-    facade.create.mockRejectedValue({ status: 400, error: { errors: { code: ['Code already in use'] } } });
+    facade.create.mockRejectedValue({ status: 400, error: { errors: [{ field: 'Code', message: 'Code already in use' }] } });
     const fixture = await setupPage({}, facade);
     fixture.detectChanges();
 
@@ -357,5 +357,24 @@ describe('LegalEntityDetailPage', () => {
 
     const subtitle = (fixture.nativeElement as HTMLElement).querySelector('.nx-page-header__subtitle');
     expect(subtitle?.textContent?.trim()).toBe('LE-CH');
+  });
+
+  it('a 400 without errors still says the form is invalid (errors.validation), not the generic error', async () => {
+    const facade = createFacadeStub(null);
+    facade.create.mockRejectedValue({ status: 400, error: { code: 'VALIDATION', status: 400 } });
+    const fixture = await setupPage({}, facade);
+    fixture.detectChanges();
+
+    await fixture.componentInstance['onSave']({
+      legalName: 'Nexus Event AG',
+      displayName: '',
+      groupId: legalEntity.groupId,
+      code: 'LE-CH',
+      currencyCode: 'CHF',
+      countryCode: 'CH',
+    });
+
+    expect(fixture.componentInstance['saveError']()).toBe('Fix the fields');
+    expect(fixture.componentInstance['fieldErrors']()).toEqual({});
   });
 });

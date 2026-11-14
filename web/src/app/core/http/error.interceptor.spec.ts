@@ -34,11 +34,11 @@ describe('errorInterceptor', () => {
 
     http.post('/api/v1/asset-types', {}).subscribe({ error: (err) => (captured = err) });
 
-    const problem: Problem = { type: 'validation', status: 400, errors: { code: ['required'] } };
+    const problem: Problem = { type: 'validation', status: 400, errors: [{ field: 'code', message: 'required' }] };
     controller.expectOne('/api/v1/asset-types').flush(problem, { status: 400, statusText: 'Bad Request' });
 
     expect(captured?.status).toBe(400);
-    expect((captured?.error as Problem).errors?.['code']).toEqual(['required']);
+    expect((captured?.error as Problem).errors).toEqual([{ field: 'code', message: 'required' }]);
     expect(router.navigate).not.toHaveBeenCalled();
     expect(router.navigateByUrl).not.toHaveBeenCalled();
   });

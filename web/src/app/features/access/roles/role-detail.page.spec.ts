@@ -139,7 +139,7 @@ describe('RoleDetailPage', () => {
 
   it('maps a 400 response into per-field errors on create', async () => {
     const facade = createFacadeStub(null);
-    facade.create.mockRejectedValue({ status: 400, error: { errors: { code: ['Code already in use'] } } });
+    facade.create.mockRejectedValue({ status: 400, error: { errors: [{ field: 'Code', message: 'Code already in use' }] } });
     const fixture = await setupPage({}, facade);
     fixture.detectChanges();
     fixture.componentInstance['form'].controls.code.setValue('ADMIN');

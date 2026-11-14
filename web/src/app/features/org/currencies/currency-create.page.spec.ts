@@ -84,7 +84,7 @@ describe('CurrencyCreatePage', () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
     const create = vi.fn().mockRejectedValue({
       status: 400,
-      error: { errors: { minorUnits: ['must be between 0 and 4'] } },
+      error: { errors: [{ field: 'MinorUnits', message: 'must be between 0 and 4' }] },
     });
     const { fixture } = await setup(create);
 

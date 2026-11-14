@@ -10,7 +10,7 @@ import {
   output,
   signal,
 } from '@angular/core';
-import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
+import { FormBuilder, ReactiveFormsModule, ValidatorFn, Validators } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
@@ -30,6 +30,10 @@ import { NxI18nCaptionEditorComponent } from '../../../shared/ui/nx-i18n-caption
 
 /** ISO 4217 code as the contract requires it: exactly three capital letters. */
 export const CURRENCY_CODE_PATTERN = /^[A-Z]{3}$/;
+
+/** Whole numbers only: 2.5 decimals makes no sense. */
+const integerValidator: ValidatorFn = (control) =>
+  Number.isInteger(Number(control.value)) ? null : { integer: true };
 
 /** Form output: on edit only `captionI18n` matters (code and decimals are fixed after creation). */
 export interface CurrencyFormValue {
@@ -199,7 +203,7 @@ export class CurrencyFormComponent {
   protected readonly form = inject(FormBuilder).nonNullable.group({
     code: ['', [Validators.required, Validators.pattern(CURRENCY_CODE_PATTERN)]],
     captionI18n: [emptyI18nText() as I18nText],
-    minorUnits: [2, [Validators.required, Validators.min(0), Validators.max(4)]],
+    minorUnits: [2, [Validators.required, Validators.min(0), Validators.max(4), integerValidator]],
   });
 
   /** Number of invalid fields after a submit attempt (alert above the form); 0 = no alert. */

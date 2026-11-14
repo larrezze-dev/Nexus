@@ -93,7 +93,7 @@ async function setupPage(
       { provide: Router, useValue: { navigate: vi.fn().mockResolvedValue(true) } },
       {
         provide: NxBreadcrumbService,
-        useValue: { setCurrentLabel: vi.fn(), setLoadFailed: vi.fn(), claimForPage: () => () => undefined, trail: signal([]) },
+        useValue: { setCurrentLabel: vi.fn(), setLoadFailed: vi.fn(), clearLoadFailed: vi.fn(), claimForPage: () => () => undefined, trail: signal([]) },
       },
       { provide: NxConfirm, useValue: confirmStub },
     ],
@@ -172,7 +172,7 @@ describe('PartyDetailPage', () => {
 
   it('maps a 400 response into per-field errors and a validation message', async () => {
     const facade = createFacadeStub(null);
-    facade.create.mockRejectedValue({ status: 400, error: { errors: { legalName: ['Too long'] } } });
+    facade.create.mockRejectedValue({ status: 400, error: { errors: [{ field: 'LegalName', message: 'Too long' }] } });
     const fixture = await setupPage({}, facade);
     fixture.detectChanges();
 

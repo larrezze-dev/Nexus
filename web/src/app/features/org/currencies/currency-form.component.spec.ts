@@ -124,6 +124,18 @@ describe('CurrencyFormComponent', () => {
     expect((fixture.nativeElement as HTMLElement).querySelector('[data-testid="currency-form-invalid"]')).toBeTruthy();
   });
 
+  it('create: refuses fractional decimals such as 2.5', async () => {
+    const fixture = await setup();
+    type(fixture, el(fixture, 'currency-form-code'), 'SEK');
+    type(fixture, german(fixture), 'Krone');
+    type(fixture, el(fixture, 'currency-form-minor-units'), '2.5');
+
+    submit(fixture);
+
+    expect(fixture.componentInstance.saved).toBeNull();
+    expect(el(fixture, 'currency-form-minor-units-range')).toBeTruthy();
+  });
+
   it('create: emits code, names and decimals as a number when valid', async () => {
     const fixture = await setup();
     type(fixture, el(fixture, 'currency-form-code'), 'sek');
