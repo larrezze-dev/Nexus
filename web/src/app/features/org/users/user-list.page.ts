@@ -1,8 +1,13 @@
-import { Component, inject } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
+import { toSignal } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { TranslocoModule } from '@jsverse/transloco';
+import { catchError, of } from 'rxjs';
+import type { BusinessUnitListItem } from '../../../api/platform/models/business-unit-list-item';
+import { NxI18nService } from '../../../core/i18n/nx-i18n.service';
+import { resolveCaption } from '../../../shared/ui/caption/caption.util';
 import { NxCanDirective } from '../../../shared/auth/can.directive';
 import { NxColDef, NxDataGridComponent } from '../../../shared/ui/nx-data-grid/nx-data-grid.component';
 import type { NxDataGridFetchFn } from '../../../shared/ui/page.model';
@@ -29,11 +34,12 @@ import { UsersFacade } from './users.facade';
     </div>
 
     <nx-data-grid
-      [columns]="columns"
+      [columns]="columns()"
       [fetch]="fetchFn"
       (selectionChanged)="onSelectionChanged($event)"
     />
   `,
+  changeDetection: ChangeDetectionStrategy.OnPush,
   styles: [
     `
       .nx-user-list-page__header {
@@ -50,18 +56,52 @@ export class UserListPage {
   private readonly router = inject(Router);
   private readonly route = inject(ActivatedRoute);
 
-  protected readonly columns: NxColDef<UserListItem>[] = [
-    { field: 'fullName', headerKey: 'org.users.fields.fullName', sortable: true, flex: 2 },
-    { field: 'email', headerKey: 'org.users.fields.email', sortable: true, flex: 2 },
-    { field: 'preferredLanguage', headerKey: 'org.users.fields.preferredLanguage', sortable: false, flex: 1 },
-    {
-      field: 'isActive',
-      headerKey: 'org.users.fields.isActive',
-      sortable: true,
-      flex: 1,
-      cellRenderer: UserStatusCellRendererComponent,
-    },
-  ];
+  private readonly i18n = inject(NxI18nService);
+
+  /** Business units for the name column; empty if they cannot be read (the cell then shows «—»). */
+  private readonly businessUnits = toSignal(
+    this.facade.businessUnits().pipe(catchError(() => of<BusinessUnitListItem[]>([]))),
+    { initialValue: [] as BusinessUnitListItem[] },
+  );
+  private readonly businessUnitById = computed(() => new Map(this.businessUnits().map((bu) => [bu.id, bu])));
+
+  /**
+   * Re-built when the language or the business-unit list change: the preferred language reads
+   * by its name in the active language («Spanisch»/«Español»), never the code, and the business
+   * unit by its caption.
+   */
+  protected readonly columns = computed<NxColDef<UserListItem>[]>(() => {
+    const language = this.i18n.activeLang();
+    const units = this.businessUnitById();
+    return [
+      { field: 'fullName', headerKey: 'org.users.fields.fullName', sortable: true, flex: 2 },
+      { field: 'email', headerKey: 'org.users.fields.email', sortable: true, flex: 2 },
+      {
+        colId: 'preferredLanguage',
+        headerKey: 'org.users.fields.preferredLanguage',
+        valueGetter: (params) => this.facade.languageName(params.data?.preferredLanguage),
+        sortable: false,
+        flex: 1,
+      },
+      {
+        colId: 'businessUnit',
+        headerKey: 'org.users.fields.businessUnit',
+        valueGetter: (params) => {
+          const unit = params.data?.businessUnitId ? units.get(params.data.businessUnitId) : undefined;
+          return unit ? resolveCaption(unit.captionI18n, language, unit.code) : '—';
+        },
+        sortable: false,
+        flex: 1,
+      },
+      {
+        field: 'isActive',
+        headerKey: 'org.users.fields.isActive',
+        sortable: true,
+        flex: 1,
+        cellRenderer: UserStatusCellRendererComponent,
+      },
+    ];
+  });
 
   protected readonly fetchFn: NxDataGridFetchFn<UserListItem> = (page, pageSize, sort) =>
     this.facade.list(page, pageSize, sort);

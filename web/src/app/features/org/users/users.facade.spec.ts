@@ -1,11 +1,13 @@
-import { provideHttpClient } from '@angular/common/http';
+import { HttpErrorResponse, provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
+import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
+import { provideTransloco } from '@jsverse/transloco';
 import { firstValueFrom } from 'rxjs';
 import type { User } from '../../../api/platform/models/user';
 import type { UserListItem } from '../../../api/platform/models/user-list-item';
 import { NxI18nService } from '../../../core/i18n/nx-i18n.service';
-import { UsersFacade } from './users.facade';
+import { SYSTEM_USER_ID, SystemUserReadOnlyError, UsersFacade } from './users.facade';
 
 const user: User = {
   id: '018f1a3c-7e3b-7c5a-9c2e-6a2f8e9b0c80',
@@ -19,26 +21,47 @@ const user: User = {
   createdAt: '2026-10-18T16:20:00Z',
   updatedAt: '2026-10-18T16:20:00Z',
 };
+const otherUser: User = { ...user, id: '018f1a3c-7e3b-7c5a-9c2e-6a2f8e9b0c81', fullName: 'John Roe' };
+const businessUnit = {
+  id: '018f1a3c-7e3b-7c5a-9c2e-6a2f8e9b0c90',
+  code: 'BU-1',
+  captionI18n: { de: 'Montage', es: 'Montaje' },
+  legalEntityId: '018f1a3c-7e3b-7c5a-9c2e-6a2f8e9b0c91',
+  isActive: true,
+};
+
+const userUrl = (id: string) => `/api/platform/v1/users/${id}`;
+const tick = () => new Promise((resolve) => setTimeout(resolve, 0));
 
 describe('UsersFacade', () => {
-  function setup() {
+  function setup(language = 'de') {
+    const activeLang = signal(language);
     TestBed.configureTestingModule({
       providers: [
         provideHttpClient(),
         provideHttpClientTesting(),
-        { provide: NxI18nService, useValue: { translateErrorCode: (code: string | null) => code ?? 'generic', getActiveLanguage: () => 'de' } },
+        ...provideTransloco({ config: { availableLangs: ['en'], defaultLang: 'en' } }),
+        {
+          provide: NxI18nService,
+          useValue: {
+            translateErrorCode: (code: string | null) => (code ? `errors.${code}` : 'errors.generic'),
+            getActiveLanguage: () => activeLang(),
+            activeLang,
+          },
+        },
       ],
     });
-
     return {
       facade: TestBed.inject(UsersFacade),
       httpMock: TestBed.inject(HttpTestingController),
+      activeLang,
     };
   }
 
+  afterEach(() => TestBed.inject(HttpTestingController).verify());
+
   it('list() maps the 1-based API page response to the 0-based grid Page envelope', async () => {
     const { facade, httpMock } = setup();
-
     const items: UserListItem[] = [
       { id: user.id, fullName: user.fullName, email: user.email, preferredLanguage: 'en', businessUnitId: null, isActive: true },
     ];
@@ -49,136 +72,188 @@ describe('UsersFacade', () => {
     expect(req.request.params.get('pageSize')).toBe('25');
     req.flush({ items, page: 1, pageSize: 25, total: 1 });
 
-    const page = await result;
-    expect(page).toEqual({ items, page: 0, pageSize: 25, total: 1 });
+    expect(await result).toEqual({ items, page: 0, pageSize: 25, total: 1 });
   });
 
-  it('load() captures the body and the ETag header', async () => {
+  it('languageName() reads the language by name in the active language, never the code', () => {
+    const { facade, activeLang } = setup('es');
+    expect(facade.languageName('de')).toBe('alemán');
+    activeLang.set('de');
+    expect(facade.languageName('es')).toBe('Spanisch');
+    expect(facade.languageName(null)).toBe('');
+  });
+
+  it('load() captures the body, the ETag and resolves the business unit by name', async () => {
     const { facade, httpMock } = setup();
 
     const load = facade.load(user.id);
-    httpMock.expectOne(`/api/platform/v1/users/${user.id}`).flush(user, { headers: { ETag: '"v1"' } });
+    httpMock
+      .expectOne(userUrl(user.id))
+      .flush({ ...user, businessUnitId: businessUnit.id }, { headers: { ETag: '"v1"' } });
+    await tick();
+    httpMock.expectOne(`/api/platform/v1/business-units/${businessUnit.id}`).flush(businessUnit);
     await load;
 
-    expect(facade.selected()).toEqual(user);
+    expect(facade.selected()?.fullName).toBe('Jane Doe');
+    expect(facade.title()).toBe('Jane Doe');
+    expect(facade.resolvedBusinessUnitLabel()).toBe('BU-1 — Montage');
     expect(facade.error()).toBeNull();
+    expect(facade.isSystem()).toBe(false);
   });
 
-  it('create() attributes an ORG-R9 (duplicate email) 422 to the email field', async () => {
+  it('a late response of an older load() never overwrites the newer one', async () => {
     const { facade, httpMock } = setup();
 
-    const create = facade.create({ oid: 'new-oid', fullName: 'New User', preferredLanguage: 'de' });
-    httpMock.expectOne('/api/platform/v1/users').flush(
-      { code: 'ORG-R9', detail: 'Email already in use' },
-      { status: 422, statusText: 'Unprocessable Entity' },
-    );
+    const first = facade.load(user.id);
+    const second = facade.load(otherUser.id);
+    httpMock.expectOne(userUrl(otherUser.id)).flush(otherUser);
+    await second;
+    httpMock.expectOne(userUrl(user.id)).flush(user);
+    await first;
 
-    const result = await create;
-    expect(result).toBeNull();
-    expect(facade.fieldErrors()).toEqual({ email: 'ORG-R9' });
-    expect(facade.error()).toBeNull();
+    expect(facade.selected()?.id).toBe(otherUser.id);
+    expect(facade.loading()).toBe(false);
   });
 
-  it('update() sends the ETag captured by load() as If-Match', async () => {
+  it('a late failure of an older load() leaves no error behind', async () => {
+    const { facade, httpMock } = setup();
+
+    const first = facade.load(user.id);
+    const second = facade.load(otherUser.id);
+    httpMock.expectOne(userUrl(otherUser.id)).flush(otherUser);
+    await second;
+    httpMock.expectOne(userUrl(user.id)).flush({ code: 'x' }, { status: 500, statusText: 'err' });
+    await first;
+
+    expect(facade.error()).toBeNull();
+    expect(facade.selected()?.id).toBe(otherUser.id);
+  });
+
+  it('reset() drops a load still in flight', async () => {
     const { facade, httpMock } = setup();
 
     const load = facade.load(user.id);
-    httpMock.expectOne(`/api/platform/v1/users/${user.id}`).flush(user, { headers: { ETag: '"v1"' } });
+    facade.reset();
+    httpMock.expectOne(userUrl(user.id)).flush(user);
     await load;
 
-    const update = facade.update(user.id, {
-      fullName: 'Jane Updated',
-      preferredLanguage: 'en',
-      email: user.email,
-      businessUnitId: null,
-    });
-    const req = httpMock.expectOne(`/api/platform/v1/users/${user.id}`);
+    expect(facade.selected()).toBeNull();
+  });
+
+  it('a failed load() keeps selected null and exposes the error so the page can offer Retry', async () => {
+    const { facade, httpMock } = setup();
+
+    const load = facade.load(user.id);
+    httpMock.expectOne(userUrl(user.id)).flush({ title: 'boom' }, { status: 500, statusText: 'err' });
+    await load;
+
+    expect(facade.selected()).toBeNull();
+    expect(facade.error()).toBe('errors.generic');
+  });
+
+  it('update() sends the loaded ETag as If-Match and propagates the HTTP error', async () => {
+    const { facade, httpMock } = setup();
+    const load = facade.load(user.id);
+    httpMock.expectOne(userUrl(user.id)).flush(user, { headers: { ETag: '"v1"' } });
+    await load;
+
+    const update = facade.update(user.id, { fullName: 'Jane D.', preferredLanguage: 'en' });
+    const req = httpMock.expectOne(userUrl(user.id));
+    expect(req.request.method).toBe('PUT');
     expect(req.request.headers.get('If-Match')).toBe('"v1"');
-    req.flush({ ...user, fullName: 'Jane Updated' }, { headers: { ETag: '"v2"' } });
+    req.flush({ code: 'CONCURRENCY' }, { status: 409, statusText: 'Conflict' });
 
-    const result = await update;
-    expect(result?.fullName).toBe('Jane Updated');
+    const error = await update.then(
+      () => null,
+      (e: unknown) => e,
+    );
+    expect(error).toBeInstanceOf(HttpErrorResponse);
+    expect(facade.saving()).toBe(false);
   });
 
-  it('deactivate() returns the deactivated user on success', async () => {
+  it('create() sends a client-generated id and reuses it for a retry of the same content', async () => {
     const { facade, httpMock } = setup();
+    const request = { oid: 'oid-9', fullName: 'New', preferredLanguage: 'de' as const };
 
-    const deactivate = facade.deactivate(user.id);
-    httpMock.expectOne(`/api/platform/v1/users/${user.id}/deactivate`).flush({ ...user, isActive: false });
+    const first = facade.create(request).catch(() => null);
+    const r1 = httpMock.expectOne('/api/platform/v1/users');
+    const id = (r1.request.body as { id: string }).id;
+    expect(id).toMatch(/^[0-9a-f-]{36}$/);
+    r1.flush({ code: 'x' }, { status: 500, statusText: 'err' });
+    await first;
 
-    const result = await deactivate;
-    expect(result?.isActive).toBe(false);
+    const retry = facade.create(request);
+    const r2 = httpMock.expectOne('/api/platform/v1/users');
+    expect((r2.request.body as { id: string }).id).toBe(id);
+    r2.flush(user);
+    expect((await retry).id).toBe(user.id);
   });
 
-  it('searchBusinessUnits() filters the fetched page client-side by code/caption', async () => {
-    const { facade, httpMock } = setup();
+  describe('ORG-R6: SYSTEM user is read-only for real', () => {
+    it('update() and deactivate() refuse before any request', async () => {
+      const { facade, httpMock } = setup();
 
-    const search = firstValueFrom(facade.searchBusinessUnits('ops'));
-    httpMock.expectOne((r) => r.url === '/api/platform/v1/business-units').flush({
-      items: [
-        { id: 'bu-1', code: 'OPS-01', isActive: true, legalEntityId: 'le-1', captionI18n: { de: 'Operations' } },
-        { id: 'bu-2', code: 'FIN-01', isActive: true, legalEntityId: 'le-1', captionI18n: { de: 'Finance' } },
-      ],
-      page: 1,
-      pageSize: 100,
-      total: 2,
+      await expect(facade.update(SYSTEM_USER_ID, { fullName: 'x', preferredLanguage: 'de' })).rejects.toBeInstanceOf(
+        SystemUserReadOnlyError,
+      );
+      await expect(facade.deactivate(SYSTEM_USER_ID)).rejects.toBeInstanceOf(SystemUserReadOnlyError);
+      httpMock.expectNone(() => true);
     });
 
-    const results = await search;
-    expect(results).toHaveLength(1);
-    expect(results[0].code).toBe('OPS-01');
-  });
-
-  describe('load() sequencing', () => {
-    const userB: User = { ...user, id: '018f1a3c-7e3b-7c5a-9c2e-6a2f8e9b0c81', fullName: 'Bob' };
-    const url = (id: string) => `/api/platform/v1/users/${id}`;
-
-    it('ignores an older load() that resolves after a newer one (selected and ETag stay B)', async () => {
+    it('isSystem() is true once the SYSTEM user is loaded', async () => {
       const { facade, httpMock } = setup();
-      const loadA = facade.load(user.id);
-      const loadB = facade.load(userB.id);
-      const reqA = httpMock.expectOne(url(user.id));
-      const reqB = httpMock.expectOne(url(userB.id));
-
-      reqB.flush(userB, { headers: { ETag: '"b"' } });
-      await loadB;
-      reqA.flush(user, { headers: { ETag: '"a"' } });
-      await loadA;
-
-      expect(facade.selected()?.id).toBe(userB.id);
-      expect(facade.loading()).toBe(false);
-
-      const update = facade.update(userB.id, { fullName: 'Bob 2' } as never);
-      const put = httpMock.expectOne(url(userB.id));
-      expect(put.request.headers.get('If-Match')).toBe('"b"');
-      put.flush(userB);
-      await update;
-    });
-
-    it('ignores a late failure of an older load()', async () => {
-      const { facade, httpMock } = setup();
-      const loadA = facade.load(user.id);
-      const loadB = facade.load(userB.id);
-      const reqA = httpMock.expectOne(url(user.id));
-      httpMock.expectOne(url(userB.id)).flush(userB, { headers: { ETag: '"b"' } });
-      await loadB;
-      reqA.flush({}, { status: 500, statusText: 'err' });
-      await loadA;
-
-      expect(facade.selected()?.id).toBe(userB.id);
-      expect(facade.error()).toBeNull();
-    });
-
-    it('discards the result of a load() still in flight when reset() is called', async () => {
-      const { facade, httpMock } = setup();
-      const load = facade.load(user.id);
-      const req = httpMock.expectOne(url(user.id));
-      facade.reset();
-      req.flush(user, { headers: { ETag: '"a"' } });
+      const load = facade.load(SYSTEM_USER_ID);
+      httpMock.expectOne(userUrl(SYSTEM_USER_ID)).flush({ ...user, id: SYSTEM_USER_ID, fullName: 'SYSTEM', oid: null });
       await load;
 
-      expect(facade.selected()).toBeNull();
-      expect(facade.loading()).toBe(false);
+      expect(facade.isSystem()).toBe(true);
+    });
+
+    it('describeError() gives the translated ORG-R6 rule text', () => {
+      const { facade } = setup();
+      expect(facade.describeError(new SystemUserReadOnlyError())).toMatchObject({
+        kind: 'rule',
+        message: 'errors.ORG-R6',
+      });
+    });
+  });
+
+  describe('describeError()', () => {
+    const http = (status: number, body: unknown) => new HttpErrorResponse({ status, error: body });
+
+    it('409 CONCURRENCY: nothing to show (the interceptor already did)', () => {
+      const { facade } = setup();
+      expect(facade.describeError(http(409, { code: 'CONCURRENCY' }))).toEqual({ kind: 'concurrency', message: null, fields: {} });
+    });
+
+    it('409 CONFLICT marks the oid field', () => {
+      const { facade } = setup();
+      const info = facade.describeError(http(409, { code: 'CONFLICT' }));
+      expect(info.kind).toBe('duplicate');
+      expect(info.fields['oid']).toEqual(['org.users.errors.oidTaken']);
+    });
+
+    it('422 ORG-R9 marks the email field', () => {
+      const { facade } = setup();
+      const info = facade.describeError(http(422, { code: 'ORG-R9' }));
+      expect(info.fields['email']).toEqual(['errors.ORG-R9']);
+    });
+
+    it('400 with the real [{field,message}] shape marks those fields and says errors.validation', () => {
+      const { facade } = setup();
+      const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+      const info = facade.describeError(
+        http(400, { errors: [{ field: 'FullName', message: 'must not be empty' }, { field: 'businessUnitId', message: 'bad' }] }),
+      );
+      expect(info.kind).toBe('validation');
+      expect(info.message).toBe('errors.validation');
+      expect(Object.keys(info.fields).sort()).toEqual(['businessUnit', 'fullName']);
+      warn.mockRestore();
+    });
+
+    it('other failures give the generic message', () => {
+      const { facade } = setup();
+      expect(facade.describeError(http(500, null))).toMatchObject({ kind: 'generic', message: 'errors.generic' });
     });
   });
 });
