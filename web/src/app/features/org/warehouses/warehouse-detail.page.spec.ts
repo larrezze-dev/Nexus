@@ -210,6 +210,8 @@ describe('WarehouseDetailPage header and states', () => {
     facade.load.mockClear();
 
     expect(byTestId(fixture, 'warehouse-load-error')).toBeTruthy();
+    // The default user text of the error state, not the facade's technical message.
+    expect(byTestId(fixture, 'warehouse-load-error')?.textContent).not.toContain('Something went wrong');
     expect(TestBed.inject(NxBreadcrumbService).setLoadFailed).toHaveBeenCalled();
     byTestId(fixture, 'warehouse-retry-button')?.click();
     expect(facade.load).toHaveBeenCalledWith(warehouse.id);

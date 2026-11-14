@@ -58,15 +58,11 @@
       }
     </mat-tab-group>
   </nx-page>
-} @else if (facade.error(); as loadError) {
+} @else if (facade.error()) {
   <nx-page width="form">
     <nx-page-header [breadcrumb]="true" [title]="'org.warehouses.title' | transloco" />
-    <nx-empty-state
-      kind="error"
-      class="nx-card"
-      [message]="loadError"
-      data-testid="warehouse-load-error"
-    >
+    <!-- Default error texts, like the other detail pages (the facade's message is technical). -->
+    <nx-empty-state kind="error" class="nx-card" data-testid="warehouse-load-error">
       <button
         mat-stroked-button
         type="button"
@@ -80,7 +76,7 @@
   </nx-page>
 } @else {
   <nx-page width="form">
-    <nx-page-header [breadcrumb]="true" [title]="'org.warehouses.loading' | transloco" />
+    <nx-detail-skeleton [tabs]="true" />
   </nx-page>
 }
 
