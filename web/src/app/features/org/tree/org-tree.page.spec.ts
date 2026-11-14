@@ -165,6 +165,12 @@ describe('OrgTreePage', () => {
     expect(node(fixture, 'g1').querySelector('.nx-org-tree__name')?.textContent?.trim()).toBe(
       'SSB',
     );
+    // The group is labelled by its code: the meta line does not repeat it.
+    expect(
+      node(fixture, 'g1')
+        .querySelector(':scope > .nx-org-tree__row .nx-org-tree__meta')
+        ?.textContent?.trim(),
+    ).toBe('Group');
     expect(node(fixture, 'le1').querySelector('.nx-org-tree__name')?.textContent?.trim()).toBe(
       'SSB Schweiz',
     );

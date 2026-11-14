@@ -80,7 +80,7 @@ const SKELETON_ROWS = [0, 1, 2, 3, 4];
         [subtitle]="'org.tree.subtitle' | transloco"
       />
 
-      <section class="nx-card nx-card--flush nx-org-tree-card">
+      <section class="nx-card nx-org-tree-card">
         @if (facade.loading()) {
           <div class="nx-org-tree__skeleton" aria-hidden="true" data-testid="org-tree-loading">
             @for (row of skeletonRows; track row) {
@@ -88,10 +88,7 @@ const SKELETON_ROWS = [0, 1, 2, 3, 4];
                 class="nx-org-tree__skeleton-row"
                 [style.padding-inline-start.px]="16 + (row % 3) * 32"
               >
-                <span
-                  class="nx-data-grid__skeleton-bar"
-                  [style.width.%]="40 - (row % 3) * 6"
-                ></span>
+                <span class="nx-org-tree__skeleton-bar" [style.width.%]="40 - (row % 3) * 6"></span>
               </div>
             }
           </div>
@@ -159,8 +156,11 @@ const SKELETON_ROWS = [0, 1, 2, 3, 4];
                     <span class="nx-org-tree__name">{{ label(node) }}</span>
                   }
                   <span class="nx-org-tree__meta">
-                    {{ t('org.tree.kind.' + node.kind) }} ·
-                    <span class="nx-mono">{{ node.code }}</span>
+                    {{ t('org.tree.kind.' + node.kind) }}
+                    <!-- No «· SSB» after «SSB»: a group is already labelled by its code. -->
+                    @if (label(node) !== node.code) {
+                      · <span class="nx-mono nx-org-tree__code">{{ node.code }}</span>
+                    }
                   </span>
                 </span>
                 @if (node.isActive !== null) {
@@ -180,8 +180,10 @@ const SKELETON_ROWS = [0, 1, 2, 3, 4];
     </nx-page>
   `,
   styles: `
+    /* A plain card (not the list's flush card, which turns transparent on mobile). */
     .nx-org-tree-card {
-      padding-block: var(--nx-space-2);
+      padding: var(--nx-space-2) 0;
+      overflow: hidden;
     }
     .nx-org-tree {
       background: transparent;
@@ -237,6 +239,9 @@ const SKELETON_ROWS = [0, 1, 2, 3, 4];
       color: var(--nx-color-text-muted);
       font: var(--nx-text-label);
     }
+    .nx-org-tree__code {
+      white-space: nowrap;
+    }
     .nx-org-tree__status {
       flex: none;
     }
@@ -247,6 +252,28 @@ const SKELETON_ROWS = [0, 1, 2, 3, 4];
       display: flex;
       align-items: center;
       height: 52px;
+    }
+    /* Same bar as the grid skeleton (tokens.css --nx-color-skeleton, tablero 5). */
+    .nx-org-tree__skeleton-bar {
+      display: block;
+      height: 12px;
+      border-radius: 6px;
+      background: var(--nx-color-skeleton);
+      animation: nx-org-tree-pulse 1.4s ease-in-out infinite;
+    }
+    @keyframes nx-org-tree-pulse {
+      0%,
+      100% {
+        opacity: 1;
+      }
+      50% {
+        opacity: 0.5;
+      }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .nx-org-tree__skeleton-bar {
+        animation: none;
+      }
     }
     @media (max-width: 599.98px) {
       .nx-org-tree__children {
