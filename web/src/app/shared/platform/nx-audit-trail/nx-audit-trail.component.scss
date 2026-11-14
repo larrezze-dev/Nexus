@@ -197,7 +197,9 @@
     background: var(--nx-color-surface-muted);
   }
 
+  // Field names break between words only («Währung» stays whole at 390 px); values may break anywhere.
   tbody th {
+    overflow-wrap: break-word;
     font-size: 14px;
     font-weight: 400;
     letter-spacing: normal;
