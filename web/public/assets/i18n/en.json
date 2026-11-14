@@ -91,7 +91,6 @@
       "newTitle": "New role",
       "loading": "Loading…",
       "empty": "No roles found.",
-      "confirmDeactivate": "Deactivate this role? This cannot be undone.",
       "fields": {
         "code": "Code",
         "captionI18n": "Caption",
@@ -101,25 +100,71 @@
       },
       "tabs": {
         "general": "General",
-        "permissionHistory": "Permission history"
+        "permissions": "Permissions"
       },
       "actions": {
         "deactivate": "Deactivate",
-        "save": "Save"
+        "save": "Save",
+        "savePermissions": "Save permissions"
       },
       "permissionMatrix": {
         "asOf": "As of",
-        "resource": "Resource"
+        "resource": "Resource",
+        "historyNote": "Permissions as of this date (read-only).",
+        "diff": "{{added}} to add, {{removed}} to remove",
+        "discard": "Discard changes"
+      },
+      "saved": "Role saved.",
+      "deactivated": "Role deactivated.",
+      "permissionsSaved": "Permissions saved.",
+      "systemNotice": "This is a system role: it cannot be deactivated, but its name and permissions can be edited.",
+      "readOnlyNotice": "You can only view this role: you are not allowed to change it.",
+      "deactivateDialog": {
+        "title": "Deactivate role",
+        "message": "Deactivate “{{name}}” ({{code}})? It will no longer be assignable. This cannot be undone."
       }
     },
     "effectiveScope": {
       "title": "What does this user see?",
       "back": "Back to user",
       "loading": "Loading…",
-      "visible": "Visible",
       "projects": "Projects",
       "projectsEmpty": "No projects (not part of the model yet before step 2.1).",
-      "empty": "No scope is visible for this user."
+      "empty": "No scope is visible for this user.",
+      "loadError": "The effective scope could not be loaded.",
+      "legend": {
+        "title": "Legend",
+        "direct": "The user has a role assignment on exactly this item (or a global one).",
+        "inherited": "Visible because an assignment on a higher level covers it.",
+        "context": "Not visible itself, shown because something below it is.",
+        "none": "The user cannot see this item."
+      },
+      "state": {
+        "direct": "Direct access",
+        "inherited": "Inherited",
+        "context": "Contains visible items",
+        "none": "Not visible"
+      }
+    },
+    "permissions": {
+      "resources": {
+        "ASSET_TYPE": "Asset types",
+        "AUDIT": "Audit",
+        "CURRENCY": "Currencies",
+        "ORG_STRUCTURE": "Organisation structure",
+        "PARTY": "Parties",
+        "ROLE": "Roles",
+        "ROLE_ASSIGNMENT": "Role assignments",
+        "USER": "Users"
+      },
+      "actions": {
+        "READ": "View",
+        "CREATE": "Create",
+        "UPDATE": "Edit",
+        "DELETE": "Delete",
+        "APPROVE": "Approve",
+        "EXPORT": "Export"
+      }
     }
   },
   "account": {

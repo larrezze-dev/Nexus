@@ -498,7 +498,6 @@
       "newTitle": "Neue Rolle",
       "loading": "Wird geladen…",
       "empty": "Keine Rollen gefunden.",
-      "confirmDeactivate": "Diese Rolle deaktivieren? Dies kann nicht widerrufen werden.",
       "fields": {
         "code": "Code",
         "captionI18n": "Bezeichnung",
@@ -508,25 +507,71 @@
       },
       "tabs": {
         "general": "Allgemein",
-        "permissionHistory": "Berechtigungsverlauf"
+        "permissions": "Berechtigungen"
       },
       "actions": {
         "deactivate": "Deaktivieren",
-        "save": "Speichern"
+        "save": "Speichern",
+        "savePermissions": "Berechtigungen speichern"
       },
       "permissionMatrix": {
         "asOf": "Stand am",
-        "resource": "Ressource"
+        "resource": "Ressource",
+        "historyNote": "Berechtigungen zum gewählten Datum (nur lesbar).",
+        "diff": "{{added}} hinzuzufügen, {{removed}} zu entfernen",
+        "discard": "Änderungen verwerfen"
+      },
+      "saved": "Rolle gespeichert.",
+      "deactivated": "Rolle deaktiviert.",
+      "permissionsSaved": "Berechtigungen gespeichert.",
+      "systemNotice": "Dies ist eine Systemrolle: Sie kann nicht deaktiviert werden, Name und Berechtigungen können aber bearbeitet werden.",
+      "readOnlyNotice": "Sie können diese Rolle nur ansehen: Sie dürfen sie nicht ändern.",
+      "deactivateDialog": {
+        "title": "Rolle deaktivieren",
+        "message": "«{{name}}» ({{code}}) deaktivieren? Sie kann dann nicht mehr zugewiesen werden. Dies kann nicht rückgängig gemacht werden."
       }
     },
     "effectiveScope": {
       "title": "Was sieht dieser Benutzer?",
       "back": "Zurück zum Benutzer",
       "loading": "Wird geladen…",
-      "visible": "Sichtbar",
       "projects": "Projekte",
       "projectsEmpty": "Keine Projekte (noch nicht Teil des Modells vor Schritt 2.1).",
-      "empty": "Für diesen Benutzer ist kein Geltungsbereich sichtbar."
+      "empty": "Für diesen Benutzer ist kein Geltungsbereich sichtbar.",
+      "loadError": "Der effektive Zugriffsbereich konnte nicht geladen werden.",
+      "legend": {
+        "title": "Legende",
+        "direct": "Der Benutzer hat eine Rollenzuweisung genau für dieses Element (oder eine globale).",
+        "inherited": "Sichtbar, weil eine Zuweisung auf höherer Ebene es abdeckt.",
+        "context": "Selbst nicht sichtbar, wird angezeigt, weil darunter etwas sichtbar ist.",
+        "none": "Der Benutzer sieht dieses Element nicht."
+      },
+      "state": {
+        "direct": "Direkter Zugriff",
+        "inherited": "Geerbt",
+        "context": "Enthält sichtbare Elemente",
+        "none": "Nicht sichtbar"
+      }
+    },
+    "permissions": {
+      "resources": {
+        "ASSET_TYPE": "Materialtypen",
+        "AUDIT": "Audit",
+        "CURRENCY": "Währungen",
+        "ORG_STRUCTURE": "Organisationsstruktur",
+        "PARTY": "Geschäftspartner",
+        "ROLE": "Rollen",
+        "ROLE_ASSIGNMENT": "Rollenzuweisungen",
+        "USER": "Benutzer"
+      },
+      "actions": {
+        "READ": "Ansehen",
+        "CREATE": "Anlegen",
+        "UPDATE": "Bearbeiten",
+        "DELETE": "Löschen",
+        "APPROVE": "Genehmigen",
+        "EXPORT": "Exportieren"
+      }
     }
   },
   "account": {

@@ -91,7 +91,6 @@
       "newTitle": "Nuovo ruolo",
       "loading": "Caricamento…",
       "empty": "Nessun ruolo trovato.",
-      "confirmDeactivate": "Disattivare questo ruolo? Questa azione non può essere annullata.",
       "fields": {
         "code": "Codice",
         "captionI18n": "Denominazione",
@@ -101,25 +100,71 @@
       },
       "tabs": {
         "general": "Generale",
-        "permissionHistory": "Storico permessi"
+        "permissions": "Autorizzazioni"
       },
       "actions": {
         "deactivate": "Disattiva",
-        "save": "Salva"
+        "save": "Salva",
+        "savePermissions": "Salva autorizzazioni"
       },
       "permissionMatrix": {
         "asOf": "Alla data del",
-        "resource": "Risorsa"
+        "resource": "Risorsa",
+        "historyNote": "Autorizzazioni alla data scelta (sola lettura).",
+        "diff": "{{added}} da aggiungere, {{removed}} da rimuovere",
+        "discard": "Annulla modifiche"
+      },
+      "saved": "Ruolo salvato.",
+      "deactivated": "Ruolo disattivato.",
+      "permissionsSaved": "Autorizzazioni salvate.",
+      "systemNotice": "Questo è un ruolo di sistema: non può essere disattivato, ma nome e autorizzazioni possono essere modificati.",
+      "readOnlyNotice": "Puoi solo visualizzare questo ruolo: non hai il permesso di modificarlo.",
+      "deactivateDialog": {
+        "title": "Disattiva ruolo",
+        "message": "Disattivare «{{name}}» ({{code}})? Non potrà più essere assegnato. L’operazione non può essere annullata."
       }
     },
     "effectiveScope": {
       "title": "Cosa vede questo utente?",
       "back": "Torna all'utente",
       "loading": "Caricamento…",
-      "visible": "Visibile",
       "projects": "Progetti",
       "projectsEmpty": "Nessun progetto (non ancora parte del modello prima del passo 2.1).",
-      "empty": "Nessun ambito visibile per questo utente."
+      "empty": "Nessun ambito visibile per questo utente.",
+      "loadError": "Impossibile caricare l’ambito effettivo.",
+      "legend": {
+        "title": "Legenda",
+        "direct": "L’utente ha un’assegnazione di ruolo esattamente su questo elemento (o una globale).",
+        "inherited": "Visibile perché un’assegnazione a un livello superiore lo copre.",
+        "context": "Non visibile di per sé, mostrato perché lo è qualcosa al di sotto.",
+        "none": "L’utente non vede questo elemento."
+      },
+      "state": {
+        "direct": "Accesso diretto",
+        "inherited": "Ereditato",
+        "context": "Contiene elementi visibili",
+        "none": "Non visibile"
+      }
+    },
+    "permissions": {
+      "resources": {
+        "ASSET_TYPE": "Tipi di materiale",
+        "AUDIT": "Audit",
+        "CURRENCY": "Valute",
+        "ORG_STRUCTURE": "Struttura organizzativa",
+        "PARTY": "Terze parti",
+        "ROLE": "Ruoli",
+        "ROLE_ASSIGNMENT": "Assegnazioni di ruolo",
+        "USER": "Utenti"
+      },
+      "actions": {
+        "READ": "Visualizzare",
+        "CREATE": "Creare",
+        "UPDATE": "Modificare",
+        "DELETE": "Eliminare",
+        "APPROVE": "Approvare",
+        "EXPORT": "Esportare"
+      }
     }
   },
   "account": {
