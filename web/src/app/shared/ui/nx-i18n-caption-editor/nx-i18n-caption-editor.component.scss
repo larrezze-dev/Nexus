@@ -13,7 +13,23 @@
     min-width: 0;
   }
 
+  // «Show more languages»: only below 600 px.
+  &__toggle {
+    display: none;
+  }
+
+  // Below 600 px (§4.6, board 7): de/en visible, fr/it/es folded behind the toggle until opened
+  // (the component opens it itself when one of them already has a value).
   @media (max-width: 599.98px) {
     grid-template-columns: minmax(0, 1fr);
+
+    .nx-i18n-caption-editor__toggle {
+      display: inline-flex;
+      justify-self: start;
+    }
+
+    &:not(.nx-i18n-caption-editor--expanded) .nx-i18n-caption-editor__row--extra {
+      display: none;
+    }
   }
 }
