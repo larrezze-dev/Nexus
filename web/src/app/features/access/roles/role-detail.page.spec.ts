@@ -1,6 +1,7 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { ActivatedRoute, Router, convertToParamMap } from '@angular/router';
 import { provideNoopAnimations } from '@angular/platform-browser/animations';
+import { provideNativeDateAdapter } from '@angular/material/core';
 import { TranslocoTestingModule } from '@jsverse/transloco';
 import { signal } from '@angular/core';
 import { PermissionGrant } from '../../../api/platform/models/permission-grant';
@@ -82,6 +83,7 @@ async function setupPage(paramMap: Record<string, string>, facade: ReturnType<ty
     ],
     providers: [
       provideNoopAnimations(),
+      provideNativeDateAdapter(),
       { provide: RolesFacade, useValue: facade },
       { provide: NxI18nService, useValue: {
           activeLang: () => 'en',
@@ -287,6 +289,49 @@ describe('RoleDetailPage', () => {
     page['toggleGrant']({ code: 'ORG_STRUCTURE:READ' });
     page['onDiscardPermissions']();
     expect(page['permissionsDirty']()).toBe(false);
+  });
+
+  /** Opens the «Permissions» tab (tab bodies render only when selected). */
+  async function openPermissionsTab(fixture: ComponentFixture<RoleDetailPage>): Promise<HTMLElement> {
+    fixture.detectChanges();
+    (fixture.nativeElement as HTMLElement).querySelectorAll<HTMLElement>('[role="tab"]')[1].click();
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+    return fixture.nativeElement;
+  }
+
+  it('renders the matrix with labelled Material checkboxes, a dash where the permission does not exist, and a date picker', async () => {
+    const { fixture } = await setupMatrix(['AUDIT:READ']);
+    const el = await openPermissionsTab(fixture);
+
+    const cell = el.querySelector('mat-checkbox[data-testid="role-permission-cell-ORG_STRUCTURE:CREATE"]');
+    expect(cell).not.toBeNull();
+    expect(cell?.querySelector('input')?.getAttribute('aria-label')).toBe('Organisation structure — Create');
+    expect(el.querySelectorAll('.nx-perm-matrix__cell--none').length).toBe(1); // AUDIT has no CREATE
+    expect(el.querySelector('input[type="date"]')).toBeNull();
+    expect(el.querySelector('[data-testid="role-permissions-as-of"]')?.hasAttribute('aria-haspopup')).toBe(true);
+  });
+
+  it('marks a pending change on the cell (icon + screen-reader text, not only colour)', async () => {
+    const { fixture } = await setupMatrix([]);
+    const page = fixture.componentInstance;
+    page['toggleGrant']({ code: 'ORG_STRUCTURE:READ' });
+    const el = await openPermissionsTab(fixture);
+
+    expect(page['changeOf']('ORG_STRUCTURE:READ')).toBe('added');
+    expect(el.querySelectorAll('.nx-perm-matrix__cell--added').length).toBe(1);
+    expect(el.querySelector('.nx-perm-matrix__cell--added .nx-perm-matrix__change')?.textContent?.trim()).toBe('add');
+  });
+
+  it('shows the matrix with the read-only look and no save bar for a past date', async () => {
+    const { fixture } = await setupMatrix(['AUDIT:READ']);
+    await fixture.componentInstance['onAsOfChange']('2026-01-01');
+    const el = await openPermissionsTab(fixture);
+
+    expect(el.querySelector('.nx-perm-matrix')?.classList.contains('nx-readonly')).toBe(true);
+    expect(el.querySelector('[data-testid="role-permissions-history-note"]')).not.toBeNull();
+    expect(el.querySelector('[data-testid="role-permissions-save"]')).toBeNull();
   });
 
   it('does not call the server when nothing changed', async () => {

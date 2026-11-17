@@ -1,6 +1,10 @@
 @if (mode() === 'create') {
   <nx-page width="form">
-    <nx-page-header [breadcrumb]="true" [title]="'access.roles.newTitle' | transloco" />
+    <nx-page-header
+      [breadcrumb]="true"
+      [title]="'access.roles.newTitle' | transloco"
+      [subtitle]="'access.roles.createSubtitle' | transloco"
+    />
     @if (saveError()) {
       <div class="nx-alert nx-alert--error" role="alert" data-testid="role-detail-save-error">
         <mat-icon aria-hidden="true">error</mat-icon>
@@ -11,7 +15,7 @@
   </nx-page>
 } @else if (entity(); as current) {
   <nx-page width="form">
-    <nx-page-header [breadcrumb]="true" [title]="name()" [subtitle]="current.code">
+    <nx-page-header [breadcrumb]="true" [title]="name()" [subtitle]="subtitle()">
       <nx-status-badge nxHeaderStatus [status]="current.isActive ? 'active' : 'inactive'" />
       @if (current.isActive && !current.isSystem && canUpdate()) {
         <button
@@ -56,22 +60,18 @@
       </mat-tab>
 
       <mat-tab [label]="'access.roles.tabs.permissions' | transloco">
-        <div class="nx-tab-panel nx-role-detail-page__permissions">
-          <div class="nx-role-detail-page__permissions-toolbar">
-            <label for="role-permissions-as-of">{{ 'access.roles.permissionMatrix.asOf' | transloco }}</label>
-            <input
-              id="role-permissions-as-of"
-              type="date"
-              data-testid="role-permissions-as-of"
-              #asOfInput
-              [value]="asOf()"
-              (change)="onAsOfChange(asOfInput.value)"
-            />
-            @if (readOnlyMatrix()) {
-              <span data-testid="role-permissions-history-note">{{ 'access.roles.permissionMatrix.historyNote' | transloco }}</span>
-            }
-          </div>
-
+        <div class="nx-tab-panel">
+          @if (readOnlyMatrix()) {
+            <div class="nx-alert nx-alert--info" role="status" data-testid="role-permissions-history-note">
+              <mat-icon aria-hidden="true">history</mat-icon>
+              <span class="nx-alert__text">{{
+                'access.roles.permissionMatrix.historyNote' | transloco: { date: asOfLabel() }
+              }}</span>
+              <button mat-button type="button" data-testid="role-permissions-today" (click)="onAsOfPicked(null)">
+                {{ 'access.roles.permissionMatrix.backToToday' | transloco }}
+              </button>
+            </div>
+          }
           @if (permissionsError()) {
             <div class="nx-alert nx-alert--error" role="alert" data-testid="role-permissions-error">
               <mat-icon aria-hidden="true">error</mat-icon>
@@ -79,73 +79,137 @@
             </div>
           }
 
-          @if (loadingPermissions()) {
-            <p>{{ 'access.roles.loading' | transloco }}</p>
-          } @else {
-            <table class="nx-role-detail-page__matrix" data-testid="role-permission-matrix">
-              <thead>
-                <tr>
-                  <th scope="col">{{ 'access.roles.permissionMatrix.resource' | transloco }}</th>
-                  @for (column of matrix().columns; track column.action) {
-                    <th scope="col">{{ column.label }}</th>
-                  }
-                </tr>
-              </thead>
-              <tbody>
-                @for (row of matrix().rows; track row.resourceType) {
+          <nx-form-section
+            [title]="'access.roles.sections.permissions' | transloco"
+            [hint]="'access.roles.sectionHints.permissions' | transloco"
+          >
+            <nx-form-grid>
+              <mat-form-field nxSpan="m" subscriptSizing="dynamic">
+                <mat-label>{{ 'access.roles.permissionMatrix.asOf' | transloco }}</mat-label>
+                <input
+                  matInput
+                  data-testid="role-permissions-as-of"
+                  [matDatepicker]="asOfPicker"
+                  [max]="today"
+                  [value]="asOfDate()"
+                  (dateChange)="onAsOfPicked($event.value)"
+                />
+                <mat-datepicker-toggle matIconSuffix [for]="asOfPicker" />
+                <mat-datepicker #asOfPicker />
+                <mat-hint>{{ 'access.roles.permissionMatrix.asOfHint' | transloco }}</mat-hint>
+              </mat-form-field>
+            </nx-form-grid>
+
+            <div
+              class="nx-perm-matrix"
+              [class.nx-readonly]="!canEditPermissions()"
+              role="region"
+              tabindex="0"
+              [attr.aria-label]="'access.roles.sections.permissions' | transloco"
+              [attr.aria-busy]="showMatrixSkeleton()"
+            >
+              <table class="nx-perm-matrix__table" data-testid="role-permission-matrix">
+                <thead>
                   <tr>
-                    <th scope="row">{{ row.label }}</th>
+                    <th scope="col" class="nx-perm-matrix__resource">
+                      {{ 'access.roles.permissionMatrix.resource' | transloco }}
+                    </th>
                     @for (column of matrix().columns; track column.action) {
-                      <td>
-                        @if (row.cells.get(column.action); as cell) {
-                          <input
-                            type="checkbox"
-                            [attr.data-testid]="'role-permission-cell-' + cell.code"
-                            [attr.aria-label]="cell.label"
-                            [attr.title]="cell.caption"
-                            [checked]="isGranted(cell.code)"
-                            [disabled]="!canEditPermissions()"
-                            (change)="toggleGrant(cell)"
-                          />
-                        }
-                      </td>
+                      <th scope="col" class="nx-perm-matrix__action">{{ column.label }}</th>
                     }
                   </tr>
-                }
-              </tbody>
-            </table>
-
-            @if (canEditPermissions()) {
-              <div class="nx-role-detail-page__permissions-actions">
-                @if (permissionsDirty()) {
-                  <span data-testid="role-permissions-diff">
-                    {{ 'access.roles.permissionMatrix.diff' | transloco: { added: permissionDiff().added.length, removed: permissionDiff().removed.length } }}
-                  </span>
-                }
-                <button
-                  mat-button
-                  type="button"
-                  data-testid="role-permissions-discard"
-                  [disabled]="!permissionsDirty() || savingPermissions()"
-                  (click)="onDiscardPermissions()"
-                >
-                  {{ 'access.roles.permissionMatrix.discard' | transloco }}
-                </button>
-                <button
-                  mat-flat-button
-                  type="button"
-                  data-testid="role-permissions-save"
-                  [disabled]="!permissionsDirty() || savingPermissions()"
-                  (click)="onSavePermissions()"
-                >
-                  @if (savingPermissions()) {
-                    <mat-progress-spinner diameter="18" mode="indeterminate" />
+                </thead>
+                <tbody>
+                  @if (showMatrixSkeleton()) {
+                    @for (row of skeletonRows; track row) {
+                      <tr aria-hidden="true" data-testid="role-permissions-loading">
+                        <th scope="row" class="nx-perm-matrix__resource">
+                          <span class="nx-skeleton-bar" [style.width.%]="60 - (row % 3) * 12"></span>
+                        </th>
+                        @for (column of skeletonColumns(); track column) {
+                          <td class="nx-perm-matrix__cell">
+                            <span class="nx-skeleton-bar nx-perm-matrix__skeleton-box"></span>
+                          </td>
+                        }
+                      </tr>
+                    }
                   } @else {
-                    {{ 'access.roles.actions.savePermissions' | transloco }}
+                    @for (row of matrix().rows; track row.resourceType) {
+                      <tr>
+                        <th scope="row" class="nx-perm-matrix__resource">{{ row.label }}</th>
+                        @for (column of matrix().columns; track column.action) {
+                          @if (row.cells.get(column.action); as cell) {
+                            @let change = changeOf(cell.code);
+                            <td
+                              class="nx-perm-matrix__cell"
+                              [class.nx-perm-matrix__cell--added]="change === 'added'"
+                              [class.nx-perm-matrix__cell--removed]="change === 'removed'"
+                            >
+                              <mat-checkbox
+                                [attr.data-testid]="'role-permission-cell-' + cell.code"
+                                [aria-label]="cellAriaLabel(cell.label, change)"
+                                [attr.title]="cell.caption"
+                                [checked]="isGranted(cell.code)"
+                                [disabled]="!canEditPermissions()"
+                                (change)="toggleGrant(cell)"
+                              />
+                              @if (change) {
+                                <mat-icon class="nx-perm-matrix__change" aria-hidden="true">{{
+                                  change === 'added' ? 'add' : 'remove'
+                                }}</mat-icon>
+                              }
+                            </td>
+                          } @else {
+                            <td class="nx-perm-matrix__cell nx-perm-matrix__cell--none">
+                              <span aria-hidden="true">—</span>
+                              <span class="cdk-visually-hidden">{{
+                                'access.roles.permissionMatrix.notApplicable' | transloco
+                              }}</span>
+                            </td>
+                          }
+                        }
+                      </tr>
+                    }
                   }
-                </button>
-              </div>
-            }
+                </tbody>
+              </table>
+            </div>
+          </nx-form-section>
+
+          @if (canEditPermissions()) {
+            <nx-action-bar>
+              <span class="nx-perm-matrix__summary" role="status" data-testid="role-permissions-diff">
+                @if (permissionsDirty()) {
+                  {{
+                    'access.roles.permissionMatrix.diff'
+                      | transloco: { added: permissionDiff().added.length, removed: permissionDiff().removed.length }
+                  }}
+                } @else {
+                  {{ 'access.roles.permissionMatrix.noChanges' | transloco }}
+                }
+              </span>
+              <button
+                mat-button
+                type="button"
+                data-testid="role-permissions-discard"
+                [disabled]="!permissionsDirty() || savingPermissions()"
+                (click)="onDiscardPermissions()"
+              >
+                {{ 'access.roles.permissionMatrix.discard' | transloco }}
+              </button>
+              <button
+                mat-flat-button
+                type="button"
+                data-testid="role-permissions-save"
+                [disabled]="!permissionsDirty() || savingPermissions()"
+                (click)="onSavePermissions()"
+              >
+                @if (savingPermissions()) {
+                  <mat-progress-spinner diameter="18" mode="indeterminate" aria-hidden="true" />
+                }
+                {{ 'access.roles.actions.savePermissions' | transloco }}
+              </button>
+            </nx-action-bar>
           }
         </div>
       </mat-tab>
@@ -173,37 +237,100 @@
   </nx-page>
 } @else {
   <nx-page width="form">
-    <p>{{ 'access.roles.loading' | transloco }}</p>
+    <nx-detail-skeleton [tabs]="true" />
   </nx-page>
 }
 
 <ng-template #generalForm>
-  <form class="nx-role-detail-page__form" [formGroup]="form" (ngSubmit)="onSave()">
-    <mat-form-field subscriptSizing="dynamic">
-      <mat-label>{{ 'access.roles.fields.code' | transloco }}</mat-label>
-      <input matInput type="text" data-testid="role-form-code" formControlName="code" required />
-      @for (message of errorsFor('code'); track message) {
-        <mat-error>{{ message }}</mat-error>
-      }
-    </mat-form-field>
-
-    <nx-i18n-caption-editor formControlName="captionI18n" data-testid="role-form-caption" />
-
-    <mat-form-field subscriptSizing="dynamic">
-      <mat-label>{{ 'access.roles.fields.description' | transloco }}</mat-label>
-      <textarea matInput data-testid="role-form-description" formControlName="description"></textarea>
-    </mat-form-field>
-
-    @if (mode() === 'create' || canUpdate()) {
-      <div class="nx-role-detail-page__actions">
-        <button mat-flat-button type="submit" data-testid="role-form-submit" [disabled]="saving()">
-          @if (saving()) {
-            <mat-progress-spinner diameter="18" mode="indeterminate" />
-          } @else {
-            {{ 'access.roles.actions.save' | transloco }}
-          }
-        </button>
+  @let isEdit = mode() === 'edit';
+  <form
+    class="nx-form-stack"
+    [class.nx-readonly]="readOnly()"
+    [formGroup]="form"
+    (ngSubmit)="onSave()"
+    novalidate
+  >
+    @if (invalidCount() > 0) {
+      <div class="nx-alert nx-alert--error" role="alert" data-testid="role-form-invalid">
+        <mat-icon aria-hidden="true">error</mat-icon>
+        <span class="nx-alert__text">{{
+          invalidCount() === 1
+            ? ('shared.form.reviewFieldsOne' | transloco)
+            : ('shared.form.reviewFields' | transloco: { count: invalidCount() })
+        }}</span>
       </div>
     }
+
+    <nx-form-section [title]="'access.roles.sections.identification' | transloco">
+      <nx-form-grid>
+        <mat-form-field nxSpan="m" subscriptSizing="dynamic" [class.nx-field--locked]="isEdit">
+          <mat-label>{{ 'access.roles.fields.code' | transloco }}</mat-label>
+          <input
+            matInput
+            class="nx-mono"
+            type="text"
+            data-testid="role-form-code"
+            formControlName="code"
+            autocomplete="off"
+            [required]="!isEdit"
+          />
+          @if (isEdit) {
+            <mat-icon matSuffix class="nx-role-form__lock" aria-hidden="true">lock</mat-icon>
+          }
+          <mat-hint>{{ (isEdit ? 'access.roles.hints.lockedAfterCreate' : 'access.roles.hints.code') | transloco }}</mat-hint>
+          @if (form.controls.code.hasError('required')) {
+            <mat-error>{{ 'shared.form.required' | transloco }}</mat-error>
+          }
+          @for (message of errorsFor('code'); track message) {
+            <mat-error>{{ message }}</mat-error>
+          }
+        </mat-form-field>
+
+        <mat-form-field nxSpan="xl" subscriptSizing="dynamic">
+          <mat-label>{{ 'access.roles.fields.description' | transloco }}</mat-label>
+          <textarea matInput rows="3" data-testid="role-form-description" formControlName="description"></textarea>
+          <mat-hint>{{ 'access.roles.hints.description' | transloco }}</mat-hint>
+          @for (message of errorsFor('description'); track message) {
+            <mat-error>{{ message }}</mat-error>
+          }
+        </mat-form-field>
+      </nx-form-grid>
+    </nx-form-section>
+
+    <nx-form-section
+      [title]="'access.roles.sections.names' | transloco"
+      [hint]="'access.roles.sectionHints.names' | transloco"
+    >
+      <nx-form-grid>
+        <nx-i18n-caption-editor nxSpan="xl" formControlName="captionI18n" data-testid="role-form-caption" />
+        @if (errorsFor('captionI18n').length > 0) {
+          <div nxSpan="xl" class="nx-alert nx-alert--error" role="alert">
+            <mat-icon aria-hidden="true">error</mat-icon>
+            <span class="nx-alert__text">
+              @for (message of errorsFor('captionI18n'); track message) {
+                {{ message }}
+              }
+            </span>
+          </div>
+        }
+      </nx-form-grid>
+    </nx-form-section>
+
+    <nx-action-bar>
+      <button mat-button type="button" data-testid="role-form-cancel" (click)="onCancel()">
+        {{ 'common.cancel' | transloco }}
+      </button>
+      <button
+        mat-flat-button
+        type="submit"
+        data-testid="role-form-submit"
+        [disabled]="saving() || readOnly() || (isEdit && form.pristine)"
+      >
+        @if (saving()) {
+          <mat-progress-spinner diameter="18" mode="indeterminate" aria-hidden="true" />
+        }
+        {{ (isEdit ? 'common.saveChanges' : 'access.roles.actions.create') | transloco }}
+      </button>
+    </nx-action-bar>
   </form>
 </ng-template>

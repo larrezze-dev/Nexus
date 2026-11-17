@@ -570,14 +570,23 @@
       "actions": {
         "deactivate": "Deaktivieren",
         "save": "Speichern",
-        "savePermissions": "Berechtigungen speichern"
+        "savePermissions": "Berechtigungen speichern",
+        "create": "Rolle anlegen"
       },
       "permissionMatrix": {
         "asOf": "Stand am",
         "resource": "Ressource",
-        "historyNote": "Berechtigungen zum gewählten Datum (nur lesbar).",
+        "historyNote": "Berechtigungen am {{date}}. Nur Ansicht: Zum Ändern zurück zu heute wechseln.",
         "diff": "{{added}} hinzuzufügen, {{removed}} zu entfernen",
-        "discard": "Änderungen verwerfen"
+        "discard": "Änderungen verwerfen",
+        "asOfHint": "Leer = heute. Ein früheres Datum zeigt die damaligen Berechtigungen.",
+        "backToToday": "Zurück zu heute",
+        "notApplicable": "Gibt es für diesen Bereich nicht",
+        "noChanges": "Keine offenen Änderungen",
+        "pending": {
+          "added": "wird hinzugefügt",
+          "removed": "wird entfernt"
+        }
       },
       "saved": "Rolle gespeichert.",
       "deactivated": "Rolle deaktiviert.",
@@ -587,6 +596,24 @@
       "deactivateDialog": {
         "title": "Rolle deaktivieren",
         "message": "«{{name}}» ({{code}}) deaktivieren? Sie kann dann nicht mehr zugewiesen werden. Dies kann nicht rückgängig gemacht werden."
+      },
+      "createSubtitle": "Eine Rolle fasst Berechtigungen zusammen. Die Berechtigungen legen Sie nach dem Anlegen fest.",
+      "detail": {
+        "modified": "geändert am {{date}}"
+      },
+      "sections": {
+        "permissions": "Berechtigungen",
+        "identification": "Identifikation",
+        "names": "Bezeichnung in jeder Sprache"
+      },
+      "sectionHints": {
+        "permissions": "Markieren Sie, was Benutzer mit dieser Rolle tun dürfen. Die Änderungen gelten erst nach «Berechtigungen speichern».",
+        "names": "Deutsch ist Pflicht. Fehlt eine Sprache, wird die deutsche Bezeichnung angezeigt."
+      },
+      "hints": {
+        "code": "Kurzes Kürzel, z. B. LAGERLEITUNG. Kann später nicht geändert werden.",
+        "lockedAfterCreate": "Wird beim Anlegen der Rolle festgelegt.",
+        "description": "Wofür die Rolle dient und wem sie zugewiesen wird."
       }
     },
     "effectiveScope": {

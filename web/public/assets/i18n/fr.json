@@ -110,14 +110,23 @@
       "actions": {
         "deactivate": "Désactiver",
         "save": "Enregistrer",
-        "savePermissions": "Enregistrer les autorisations"
+        "savePermissions": "Enregistrer les autorisations",
+        "create": "Créer le rôle"
       },
       "permissionMatrix": {
         "asOf": "À la date du",
         "resource": "Ressource",
-        "historyNote": "Autorisations à cette date (lecture seule).",
+        "historyNote": "Autorisations au {{date}}. Lecture seule : revenez à aujourd'hui pour les modifier.",
         "diff": "{{added}} à ajouter, {{removed}} à retirer",
-        "discard": "Annuler les modifications"
+        "discard": "Annuler les modifications",
+        "asOfHint": "Vide = aujourd'hui. Une date passée montre les autorisations d'alors.",
+        "backToToday": "Revenir à aujourd'hui",
+        "notApplicable": "N'existe pas pour cette ressource",
+        "noChanges": "Aucune modification en attente",
+        "pending": {
+          "added": "à ajouter",
+          "removed": "à retirer"
+        }
       },
       "saved": "Rôle enregistré.",
       "deactivated": "Rôle désactivé.",
@@ -127,6 +136,24 @@
       "deactivateDialog": {
         "title": "Désactiver le rôle",
         "message": "Désactiver « {{name}} » ({{code}}) ? Il ne pourra plus être attribué. Cette action est irréversible."
+      },
+      "createSubtitle": "Un rôle regroupe des autorisations. Vous les cochez après l'avoir créé.",
+      "detail": {
+        "modified": "modifié le {{date}}"
+      },
+      "sections": {
+        "permissions": "Autorisations",
+        "identification": "Identification",
+        "names": "Nom dans chaque langue"
+      },
+      "sectionHints": {
+        "permissions": "Cochez ce que les utilisateurs ayant ce rôle peuvent faire. Les modifications s'appliquent après « Enregistrer les autorisations ».",
+        "names": "L'allemand est obligatoire. Si une langue manque, le nom allemand est affiché."
+      },
+      "hints": {
+        "code": "Identifiant court, p. ex. CHEF_DEPOT. Ne peut plus être modifié ensuite.",
+        "lockedAfterCreate": "Fixé à la création du rôle.",
+        "description": "À quoi sert le rôle et à qui l'attribuer."
       }
     },
     "effectiveScope": {

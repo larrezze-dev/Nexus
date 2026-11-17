@@ -110,14 +110,23 @@
       "actions": {
         "deactivate": "Desactivar",
         "save": "Guardar",
-        "savePermissions": "Guardar permisos"
+        "savePermissions": "Guardar permisos",
+        "create": "Crear rol"
       },
       "permissionMatrix": {
         "asOf": "A fecha de",
         "resource": "Recurso",
-        "historyNote": "Permisos en la fecha elegida (solo lectura).",
+        "historyNote": "Permisos a fecha de {{date}}. Solo lectura: vuelve a hoy para cambiarlos.",
         "diff": "{{added}} por añadir, {{removed}} por quitar",
-        "discard": "Descartar cambios"
+        "discard": "Descartar cambios",
+        "asOfHint": "Vacío = hoy. Una fecha pasada muestra los permisos que tenía entonces.",
+        "backToToday": "Volver a hoy",
+        "notApplicable": "No existe para este recurso",
+        "noChanges": "Sin cambios pendientes",
+        "pending": {
+          "added": "por añadir",
+          "removed": "por quitar"
+        }
       },
       "saved": "Rol guardado.",
       "deactivated": "Rol desactivado.",
@@ -127,6 +136,24 @@
       "deactivateDialog": {
         "title": "Desactivar rol",
         "message": "¿Desactivar «{{name}}» ({{code}})? Ya no se podrá asignar. Esta acción no se puede deshacer."
+      },
+      "createSubtitle": "Un rol agrupa permisos. Los permisos se marcan después de crearlo.",
+      "detail": {
+        "modified": "modificado el {{date}}"
+      },
+      "sections": {
+        "permissions": "Permisos",
+        "identification": "Identificación",
+        "names": "Nombre en cada idioma"
+      },
+      "sectionHints": {
+        "permissions": "Marca lo que pueden hacer los usuarios con este rol. Los cambios se aplican al pulsar «Guardar permisos».",
+        "names": "El alemán es obligatorio. Si falta un idioma, se muestra el nombre en alemán."
+      },
+      "hints": {
+        "code": "Identificador corto, p. ej. JEFE_ALMACEN. No se puede cambiar después.",
+        "lockedAfterCreate": "Se fija al crear el rol.",
+        "description": "Para qué sirve el rol y a quién se asigna."
       }
     },
     "effectiveScope": {

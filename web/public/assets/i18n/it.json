@@ -110,14 +110,23 @@
       "actions": {
         "deactivate": "Disattiva",
         "save": "Salva",
-        "savePermissions": "Salva autorizzazioni"
+        "savePermissions": "Salva autorizzazioni",
+        "create": "Crea ruolo"
       },
       "permissionMatrix": {
         "asOf": "Alla data del",
         "resource": "Risorsa",
-        "historyNote": "Autorizzazioni alla data scelta (sola lettura).",
+        "historyNote": "Autorizzazioni al {{date}}. Sola lettura: torna a oggi per modificarle.",
         "diff": "{{added}} da aggiungere, {{removed}} da rimuovere",
-        "discard": "Annulla modifiche"
+        "discard": "Annulla modifiche",
+        "asOfHint": "Vuoto = oggi. Una data passata mostra le autorizzazioni di allora.",
+        "backToToday": "Torna a oggi",
+        "notApplicable": "Non esiste per questa risorsa",
+        "noChanges": "Nessuna modifica in sospeso",
+        "pending": {
+          "added": "da aggiungere",
+          "removed": "da rimuovere"
+        }
       },
       "saved": "Ruolo salvato.",
       "deactivated": "Ruolo disattivato.",
@@ -127,6 +136,24 @@
       "deactivateDialog": {
         "title": "Disattiva ruolo",
         "message": "Disattivare «{{name}}» ({{code}})? Non potrà più essere assegnato. L’operazione non può essere annullata."
+      },
+      "createSubtitle": "Un ruolo raggruppa autorizzazioni. Le selezioni dopo averlo creato.",
+      "detail": {
+        "modified": "modificato il {{date}}"
+      },
+      "sections": {
+        "permissions": "Autorizzazioni",
+        "identification": "Identificazione",
+        "names": "Nome in ogni lingua"
+      },
+      "sectionHints": {
+        "permissions": "Seleziona cosa possono fare gli utenti con questo ruolo. Le modifiche valgono solo dopo «Salva autorizzazioni».",
+        "names": "Il tedesco è obbligatorio. Se manca una lingua, viene mostrato il nome tedesco."
+      },
+      "hints": {
+        "code": "Identificativo breve, ad es. CAPO_MAGAZZINO. Non si può cambiare in seguito.",
+        "lockedAfterCreate": "Fissato alla creazione del ruolo.",
+        "description": "A cosa serve il ruolo e a chi assegnarlo."
       }
     },
     "effectiveScope": {

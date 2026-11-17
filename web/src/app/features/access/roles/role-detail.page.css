@@ -1,0 +1,147 @@
+.nx-role-form__lock {
+  color: var(--nx-color-text-muted);
+}
+
+/*
+ * Permission matrix: resources (rows) × actions (columns). The box scrolls on its own — sideways
+ * below 600 px or with many actions, down when the catalog grows past the box — with the header
+ * row and the resource column sticky, so the page itself never scrolls sideways.
+ * `border-collapse: separate`: with `collapse`, sticky cells lose their borders.
+ */
+.nx-perm-matrix {
+  overflow: auto;
+  max-height: 70vh;
+  border: 1px solid var(--nx-color-border);
+  border-radius: var(--nx-radius-md);
+}
+
+.nx-perm-matrix:focus-visible {
+  outline: 2px solid var(--nx-color-primary);
+  outline-offset: 2px;
+}
+
+.nx-perm-matrix__table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  font: var(--nx-text-body);
+  color: var(--nx-color-text);
+}
+
+.nx-perm-matrix__table th,
+.nx-perm-matrix__table td {
+  height: var(--nx-row-height);
+  padding: 0 var(--nx-space-3);
+  border-bottom: 1px solid var(--nx-color-row-divider);
+  background: var(--nx-color-surface-raised);
+}
+
+.nx-perm-matrix__table tbody tr:last-child > * {
+  border-bottom: 0;
+}
+
+.nx-perm-matrix__table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  height: var(--nx-space-6);
+  padding-block: var(--nx-space-2);
+  border-bottom: 1px solid var(--nx-color-border);
+  color: var(--nx-color-text-muted);
+  font: var(--nx-text-label);
+  font-weight: 500;
+}
+
+.nx-perm-matrix__table .nx-perm-matrix__resource {
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  min-width: calc(5 * var(--nx-space-6)); /* 160 */
+  padding-inline-start: var(--nx-space-4);
+  border-right: 1px solid var(--nx-color-row-divider);
+  text-align: start;
+  font-weight: 500;
+}
+
+.nx-perm-matrix__table thead .nx-perm-matrix__resource {
+  z-index: 2;
+}
+
+.nx-perm-matrix__action {
+  min-width: calc(3 * var(--nx-space-6)); /* 96 */
+  text-align: center;
+}
+
+.nx-perm-matrix__table tbody tr:hover > * {
+  background: var(--nx-color-row-hover);
+}
+
+.nx-perm-matrix__cell {
+  position: relative;
+  text-align: center;
+  white-space: nowrap;
+}
+
+/* No such permission for this resource: a muted dash, so a gap reads as «does not exist». */
+.nx-perm-matrix__cell--none {
+  color: var(--nx-color-text-muted);
+}
+
+/* Unsaved change: green «+» to add, red «−» to remove (icon and screen-reader text, not only colour). */
+.nx-perm-matrix__table tbody tr > .nx-perm-matrix__cell--added {
+  background: var(--nx-diff-after-bg);
+  color: var(--nx-diff-after-fg);
+}
+
+.nx-perm-matrix__table tbody tr > .nx-perm-matrix__cell--removed {
+  background: var(--nx-diff-before-bg);
+  color: var(--nx-diff-before-fg);
+}
+
+.nx-perm-matrix__change {
+  position: absolute;
+  top: 50%;
+  margin-left: calc(-1 * var(--nx-space-1));
+  transform: translateY(-50%);
+  font-size: var(--nx-space-4);
+  width: var(--nx-space-4);
+  height: var(--nx-space-4);
+}
+
+.nx-perm-matrix__skeleton-box {
+  display: inline-block;
+  width: var(--nx-space-4);
+  height: var(--nx-space-4);
+  border-radius: var(--nx-radius-sm);
+}
+
+/* «2 to add, 1 to remove» on the left of the action bar, the buttons on the right. */
+.nx-perm-matrix__summary {
+  margin-inline-end: auto;
+  color: var(--nx-color-text-muted);
+  font: var(--nx-text-body);
+}
+
+@media (max-width: 599.98px) {
+  /* Resource 128 + two actions of 80 fit in 390 px; further actions scroll inside the box. */
+  .nx-perm-matrix__table .nx-perm-matrix__resource {
+    width: calc(4 * var(--nx-space-6)); /* 128 */
+    min-width: calc(4 * var(--nx-space-6));
+    padding-inline-start: var(--nx-space-3);
+    white-space: normal;
+    hyphens: auto; /* «Organisations­struktur» breaks instead of widening the column (needs <html lang>) */
+  }
+
+  .nx-perm-matrix__action {
+    min-width: calc(2 * var(--nx-space-6) + var(--nx-space-4)); /* 80 */
+  }
+
+  .nx-perm-matrix__table th,
+  .nx-perm-matrix__table td {
+    padding-inline: var(--nx-space-2);
+  }
+
+  .nx-perm-matrix__summary {
+    flex-basis: 100%;
+  }
+}

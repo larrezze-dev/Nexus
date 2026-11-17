@@ -110,14 +110,23 @@
       "actions": {
         "deactivate": "Deactivate",
         "save": "Save",
-        "savePermissions": "Save permissions"
+        "savePermissions": "Save permissions",
+        "create": "Create role"
       },
       "permissionMatrix": {
         "asOf": "As of",
         "resource": "Resource",
-        "historyNote": "Permissions as of this date (read-only).",
+        "historyNote": "Permissions as of {{date}}. Read only: go back to today to change them.",
         "diff": "{{added}} to add, {{removed}} to remove",
-        "discard": "Discard changes"
+        "discard": "Discard changes",
+        "asOfHint": "Empty = today. A past date shows the permissions it had then.",
+        "backToToday": "Back to today",
+        "notApplicable": "Not available for this resource",
+        "noChanges": "No pending changes",
+        "pending": {
+          "added": "to add",
+          "removed": "to remove"
+        }
       },
       "saved": "Role saved.",
       "deactivated": "Role deactivated.",
@@ -127,6 +136,24 @@
       "deactivateDialog": {
         "title": "Deactivate role",
         "message": "Deactivate “{{name}}” ({{code}})? It will no longer be assignable. This cannot be undone."
+      },
+      "createSubtitle": "A role groups permissions. You tick its permissions after creating it.",
+      "detail": {
+        "modified": "modified on {{date}}"
+      },
+      "sections": {
+        "permissions": "Permissions",
+        "identification": "Identification",
+        "names": "Name in each language"
+      },
+      "sectionHints": {
+        "permissions": "Tick what users with this role may do. Changes apply only after “Save permissions”.",
+        "names": "German is required. If a language is missing, the German name is shown."
+      },
+      "hints": {
+        "code": "Short identifier, e.g. WAREHOUSE_LEAD. Cannot be changed later.",
+        "lockedAfterCreate": "Set when the role is created.",
+        "description": "What the role is for and who gets it."
       }
     },
     "effectiveScope": {

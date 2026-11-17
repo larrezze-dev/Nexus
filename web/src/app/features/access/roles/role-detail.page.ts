@@ -1,9 +1,11 @@
-import { ChangeDetectionStrategy, Component, OnInit, computed, effect, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, ElementRef, OnInit, computed, effect, inject, signal } from '@angular/core';
 import { NgTemplateOutlet } from '@angular/common';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, Router } from '@angular/router';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
+import { MatCheckboxModule } from '@angular/material/checkbox';
+import { MatDatepickerModule } from '@angular/material/datepicker';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatIconModule } from '@angular/material/icon';
@@ -18,13 +20,25 @@ import {
   isProblem,
   localizedFieldErrors,
 } from '../../../core/http/problem';
+import { NxFormatService } from '../../../core/i18n/nx-format.service';
 import { NxI18nService } from '../../../core/i18n/nx-i18n.service';
 import { NxCanDirective } from '../../../shared/auth/can.directive';
 import { PermissionsStore } from '../../../shared/auth/permissions.store';
 import { I18nText, emptyI18nText } from '../../../shared/ui/i18n-text.model';
 import { NxI18nCaptionEditorComponent } from '../../../shared/ui/nx-i18n-caption-editor/nx-i18n-caption-editor.component';
 import { NxAuditTrailComponent } from '../../../shared/platform/nx-audit-trail/nx-audit-trail.component';
-import { NxConfirm, NxEmptyStateComponent, NxPageComponent, NxPageHeaderComponent } from '../../../shared/ui/layout';
+import {
+  NxActionBarComponent,
+  NxConfirm,
+  NxDetailSkeletonComponent,
+  NxEmptyStateComponent,
+  NxFormGridComponent,
+  NxFormSectionComponent,
+  NxPageComponent,
+  NxPageHeaderComponent,
+  NxSpanDirective,
+} from '../../../shared/ui/layout';
+import { markServerErrors } from '../../../shared/forms/server-errors';
 import { resolveCaption } from '../../../shared/ui/caption/caption.util';
 import { NxStatusBadgeComponent } from '../../../shared/ui/nx-status-badge/nx-status-badge.component';
 import { RolesFacade } from './roles.facade';
@@ -48,14 +62,16 @@ import {
  *   creation. `captionI18n`/`description` stay editable even for
  *   `isSystem` roles; only `code` (and the server-enforced `isSystem`
  *   itself) are immutable, not the whole row.
- * - "Historial de permisos": the full permission catalog
+ * - "Permisos": the full permission catalog
  *   (`facade.listAllPermissions()`) rendered as a `resourceType` x
- *   `action` matrix. With no `asOf` ("now"), checkboxes are editable and a
+ *   `action` matrix (table with sticky header and first column; below
+ *   600 px it scrolls sideways inside its own box, never the page). With no `asOf` ("now"), checkboxes are editable and a
  *   "Guardar" button sends the complete desired `permissionCodes` list
  *   (`ACC-R7`: full-replace, the server computes the diff). Picking a past
  *   `asOf` date re-fetches `getRolePermissions` for that instant and makes
  *   the matrix read-only — this is what "selector de fecha (asOf)" means
- *   in the ficha.
+ *   in the ficha. The date is a `mat-datepicker` (locale of the active
+ *   language), never a native date input.
  *
  * Disabled/hidden before the role exists (create mode): the permissions
  * tab makes no sense before `POST /v1/roles` has returned an id.
@@ -72,20 +88,28 @@ import {
     ReactiveFormsModule,
     TranslocoModule,
     MatButtonModule,
+    MatCheckboxModule,
+    MatDatepickerModule,
     MatFormFieldModule,
     MatInputModule,
     MatIconModule,
     MatProgressSpinnerModule,
     MatTabsModule,
+    NxActionBarComponent,
     NxAuditTrailComponent,
     NxCanDirective,
+    NxDetailSkeletonComponent,
     NxEmptyStateComponent,
+    NxFormGridComponent,
+    NxFormSectionComponent,
     NxPageComponent,
     NxPageHeaderComponent,
+    NxSpanDirective,
     NxStatusBadgeComponent,
     NxI18nCaptionEditorComponent,
   ],
   templateUrl: './role-detail.page.html',
+  styleUrl: './role-detail.page.css',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class RoleDetailPage implements OnInit {
@@ -99,6 +123,8 @@ export class RoleDetailPage implements OnInit {
   private readonly fb = inject(FormBuilder);
   private readonly confirm = inject(NxConfirm);
   private readonly snackBar = inject(MatSnackBar);
+  private readonly format = inject(NxFormatService);
+  private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
   /** Emits once the active language's file is loaded (and on every switch): texts built in TS follow it. */
   private readonly translation = toSignal(this.transloco.selectTranslation());
   private permissionsSeq = 0;
@@ -107,6 +133,8 @@ export class RoleDetailPage implements OnInit {
   protected readonly saving = signal(false);
   protected readonly saveError = signal<string | null>(null);
   protected readonly fieldErrors = signal<Readonly<Record<string, readonly string[]>>>({});
+  /** Number of invalid fields after a submit attempt (alert above the form); 0 = no alert. */
+  protected readonly invalidCount = signal(0);
 
   protected readonly entity = this.facade.selected;
   protected readonly loading = this.facade.loading;
@@ -122,6 +150,21 @@ export class RoleDetailPage implements OnInit {
   protected readonly canUpdate = computed(() => {
     this.permissionsStore.permissions();
     return this.permissionsStore.has('ROLE:UPDATE');
+  });
+
+  /** An existing role the user may not change: every field read-only (`.nx-readonly`), Save disabled. */
+  protected readonly readOnly = computed(() => this.mode() === 'edit' && !this.canUpdate());
+
+  /** «SYSTEM_ADMIN · modified on 11 Nov 2026», in the active language. */
+  protected readonly subtitle = computed(() => {
+    const current = this.entity();
+    if (!current) {
+      return '';
+    }
+    this.translation();
+    const date = this.format.formatDateMedium(current.updatedAt);
+    const modified = date ? this.transloco.translate('access.roles.detail.modified', { date }) : '';
+    return [current.code, modified].filter(Boolean).join(' · ');
   });
 
   protected readonly form = this.fb.group({
@@ -143,6 +186,33 @@ export class RoleDetailPage implements OnInit {
   protected readonly grantedCodes = signal<ReadonlySet<string>>(new Set());
 
   protected readonly readOnlyMatrix = computed(() => this.asOf() !== '');
+
+  /** Latest day the «as of» picker offers (there is no future state to look at). */
+  protected readonly today = new Date();
+  /** The picked day as a `Date` for `mat-datepicker` (local midnight); `null` = today. */
+  protected readonly asOfDate = computed<Date | null>(() => {
+    const value = this.asOf();
+    if (!value) {
+      return null;
+    }
+    const [year, month, day] = value.split('-').map(Number);
+    return new Date(year, month - 1, day);
+  });
+  /** The picked day in the active language («1 Jan 2026», «01.01.2026»…), for the history notice. */
+  protected readonly asOfLabel = computed(() => {
+    const value = this.asOf();
+    return value ? this.format.formatDateMedium(new Date(value).toISOString()) : '';
+  });
+
+  /** Placeholder rows and columns while the catalog or a past state is loading. */
+  protected readonly skeletonRows = [0, 1, 2, 3, 4, 5];
+  protected readonly skeletonColumns = computed(() => {
+    const count = this.matrix().columns.length || 3;
+    return Array.from({ length: count }, (_, index) => index);
+  });
+  protected readonly showMatrixSkeleton = computed(
+    () => this.loadingPermissions() || (this.matrix().rows.length === 0 && !this.permissionsError()),
+  );
   protected readonly canEditPermissions = computed(() => !this.readOnlyMatrix() && this.canUpdate());
 
   /** What saving would change: codes to open and to close (`ACC-R7`). */
@@ -174,7 +244,12 @@ export class RoleDetailPage implements OnInit {
         },
         { emitEvent: false },
       );
+      this.form.markAsPristine();
+      this.invalidCount.set(0);
     });
+
+    // Server field errors (400, or a 409 duplicate code) also mark the controls, so `mat-error` shows.
+    effect(() => markServerErrors(this.form.controls, this.fieldErrors()));
 
     effect(() => {
       // Breadcrumb/title: the role name, following a language switch; «Not available» if the load failed.
@@ -254,7 +329,7 @@ export class RoleDetailPage implements OnInit {
     await this.loadPermissionHistory();
   }
 
-  /** `value` is the date-only (`YYYY-MM-DD`) string from an `<input type="date">`. */
+  /** `value` is the date-only (`YYYY-MM-DD`) string of the day picked in the «as of» date picker. */
   private isToday(value: string): boolean {
     const now = new Date();
     const todayOnly = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
@@ -337,10 +412,17 @@ export class RoleDetailPage implements OnInit {
   }
 
   protected async onSave(): Promise<void> {
-    if (this.form.invalid || this.saving()) {
-      this.form.markAllAsTouched();
+    if (this.saving() || this.readOnly()) {
       return;
     }
+    if (this.form.invalid) {
+      this.form.markAllAsTouched();
+      const invalid = (['code', 'description', 'captionI18n'] as const).filter((name) => this.form.controls[name].invalid);
+      this.invalidCount.set(invalid.length);
+      this.focusField(invalid[0]);
+      return;
+    }
+    this.invalidCount.set(0);
 
     this.saving.set(true);
     this.saveError.set(null);
@@ -447,6 +529,49 @@ export class RoleDetailPage implements OnInit {
       return null;
     }
     return this.transloco.translate('errors.generic');
+  }
+
+  /** «Cancel»: back to the role list. */
+  protected onCancel(): void {
+    void this.router.navigate(['..'], { relativeTo: this.route });
+  }
+
+  /** Date picked in the «as of» field (`null` = cleared or «Back to today»), as `YYYY-MM-DD`. */
+  protected onAsOfPicked(date: Date | null): Promise<void> {
+    const value = date
+      ? `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
+      : '';
+    return this.onAsOfChange(value);
+  }
+
+  /** Unsaved change of a cell: ticked but not granted yet (`added`), or granted and unticked (`removed`). */
+  protected changeOf(code: string | undefined): 'added' | 'removed' | null {
+    if (!code) {
+      return null;
+    }
+    const granted = this.grantedCodes().has(code);
+    if (granted === this.originalCodes().has(code)) {
+      return null;
+    }
+    return granted ? 'added' : 'removed';
+  }
+
+  /** «Roles — Edit», plus «(to add)»/«(to remove)» for a pending change (the colour is not the only cue). */
+  protected cellAriaLabel(label: string, change: 'added' | 'removed' | null): string {
+    if (!change) {
+      return label;
+    }
+    this.translation();
+    return `${label} (${this.transloco.translate(`access.roles.permissionMatrix.pending.${change}`)})`;
+  }
+
+  private focusField(name: string | undefined): void {
+    if (!name) {
+      return;
+    }
+    const selector =
+      name === 'captionI18n' ? '[formcontrolname="captionI18n"] input[data-lang="de"]' : `[formcontrolname="${name}"]`;
+    this.host.nativeElement.querySelector<HTMLElement>(selector)?.focus();
   }
 
   protected errorsFor(field: string): readonly string[] {
