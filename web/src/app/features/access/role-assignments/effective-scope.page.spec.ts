@@ -11,6 +11,16 @@ import { EffectiveScopePage } from './effective-scope.page';
 
 const userId = '018f1a3c-7e3b-7c5a-9c2e-6a2f8e9b0001';
 
+const EN = {
+  access: {
+    effectiveScope: {
+      title: 'What does this user see?',
+      titleFor: 'What {{name}} can see',
+      state: { direct: 'Direct access', inherited: 'Inherited', context: 'Contains visible items', none: 'Not visible' },
+    },
+  },
+};
+
 function setup(options: { nodes?: OrgTreeNode[]; states?: Record<string, ScopeNodeState>; empty?: boolean; error?: string | null; userName?: string | null; projectIds?: string[]; directKnown?: boolean } = {}) {
   const facade = {
     loading: signal(false),
@@ -25,7 +35,13 @@ function setup(options: { nodes?: OrgTreeNode[]; states?: Record<string, ScopeNo
     reset: vi.fn(),
     load: vi.fn().mockResolvedValue(undefined),
   };
-  const breadcrumb = { setCurrentLabel: vi.fn(), setLoadFailed: vi.fn(), clearLoadFailed: vi.fn() };
+  const breadcrumb = {
+    setCurrentLabel: vi.fn(),
+    setLoadFailed: vi.fn(),
+    clearLoadFailed: vi.fn(),
+    claimForPage: () => () => undefined,
+    trail: signal([]),
+  };
   TestBed.configureTestingModule({
     imports: [EffectiveScopePage],
     providers: [
@@ -36,6 +52,7 @@ function setup(options: { nodes?: OrgTreeNode[]; states?: Record<string, ScopeNo
       { provide: ActivatedRoute, useValue: { snapshot: { paramMap: convertToParamMap({ id: userId }) } } },
     ],
   });
+  TestBed.inject(TranslocoService).setTranslation(EN, 'en');
   const fixture = TestBed.createComponent(EffectiveScopePage);
   return { fixture, facade, breadcrumb };
 }
@@ -88,6 +105,16 @@ describe('EffectiveScopePage', () => {
     fixture.detectChanges();
     expect(breadcrumb.setCurrentLabel).toHaveBeenCalledWith(expect.stringContaining('Ada Lovelace'));
     expect(fixture.nativeElement.querySelector('[data-testid="effective-scope-user"]').textContent).toContain('Ada Lovelace');
+    expect(fixture.nativeElement.querySelector('nx-page-header h1').textContent.trim()).toBe('What Ada Lovelace can see');
+  });
+
+  it('labels every node mark with text next to its icon (colour is not the only cue)', () => {
+    const { fixture } = setup({ nodes: [group], states: { g1: 'context', wh1: 'none' } });
+    fixture.detectChanges();
+    const chips = Array.from((fixture.nativeElement as HTMLElement).querySelectorAll('.nx-scope-tree__chip')).map((n) =>
+      n.textContent?.replace(/\s+/g, ' ').trim(),
+    );
+    expect(chips).toEqual(['account_tree Contains visible items', 'visibility_off Not visible']);
   });
 
   it('shows an error with a retry (not the empty state) when the load failed, and retries', async () => {

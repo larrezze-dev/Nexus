@@ -161,7 +161,7 @@
       "back": "Retour à l'utilisateur",
       "loading": "Chargement…",
       "projects": "Projets",
-      "projectsEmpty": "Aucun projet (ne fait pas encore partie du modèle avant l'étape 2.1).",
+      "projectsEmpty": "Aucun projet attribué.",
       "empty": "Aucun périmètre visible pour cet utilisateur.",
       "loadError": "Impossible de charger le périmètre effectif.",
       "legend": {
@@ -176,7 +176,11 @@
         "inherited": "Hérité",
         "context": "Contient des éléments visibles",
         "none": "Non visible"
-      }
+      },
+      "titleFor": "Ce que voit {{name}}",
+      "subtitle": "Entités juridiques, unités d'affaires et entrepôts que cet utilisateur voit grâce à ses rôles.",
+      "treeLabel": "Structure de l'organisation avec ce que voit cet utilisateur",
+      "emptyHint": "Attribuez-lui un rôle depuis sa fiche utilisateur."
     },
     "permissions": {
       "resources": {

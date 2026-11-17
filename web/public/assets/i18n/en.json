@@ -161,7 +161,7 @@
       "back": "Back to user",
       "loading": "Loading…",
       "projects": "Projects",
-      "projectsEmpty": "No projects (not part of the model yet before step 2.1).",
+      "projectsEmpty": "No projects assigned.",
       "empty": "No scope is visible for this user.",
       "loadError": "The effective scope could not be loaded.",
       "legend": {
@@ -176,7 +176,11 @@
         "inherited": "Inherited",
         "context": "Contains visible items",
         "none": "Not visible"
-      }
+      },
+      "titleFor": "What {{name}} can see",
+      "subtitle": "Legal entities, business units and warehouses this user can see through their roles.",
+      "treeLabel": "Organization structure marked with what this user can see",
+      "emptyHint": "Assign a role on the user's page."
     },
     "permissions": {
       "resources": {

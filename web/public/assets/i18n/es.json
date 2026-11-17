@@ -161,7 +161,7 @@
       "back": "Volver al usuario",
       "loading": "Cargando…",
       "projects": "Proyectos",
-      "projectsEmpty": "Sin proyectos (todavía no forman parte del modelo antes del paso 2.1).",
+      "projectsEmpty": "No tiene proyectos asignados.",
       "empty": "No hay ningún alcance visible para este usuario.",
       "loadError": "No se pudo cargar el alcance efectivo.",
       "legend": {
@@ -176,7 +176,11 @@
         "inherited": "Heredado",
         "context": "Contiene elementos visibles",
         "none": "No visible"
-      }
+      },
+      "titleFor": "Qué ve {{name}}",
+      "subtitle": "Entidades legales, unidades de negocio y almacenes que este usuario ve gracias a sus roles.",
+      "treeLabel": "Estructura de la organización con lo que ve este usuario",
+      "emptyHint": "Asígnale un rol desde su ficha de usuario."
     },
     "permissions": {
       "resources": {

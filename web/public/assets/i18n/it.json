@@ -161,7 +161,7 @@
       "back": "Torna all'utente",
       "loading": "Caricamento…",
       "projects": "Progetti",
-      "projectsEmpty": "Nessun progetto (non ancora parte del modello prima del passo 2.1).",
+      "projectsEmpty": "Nessun progetto assegnato.",
       "empty": "Nessun ambito visibile per questo utente.",
       "loadError": "Impossibile caricare l’ambito effettivo.",
       "legend": {
@@ -176,7 +176,11 @@
         "inherited": "Ereditato",
         "context": "Contiene elementi visibili",
         "none": "Non visibile"
-      }
+      },
+      "titleFor": "Cosa vede {{name}}",
+      "subtitle": "Entità legali, unità di business e magazzini che questo utente vede tramite i suoi ruoli.",
+      "treeLabel": "Struttura organizzativa con ciò che vede questo utente",
+      "emptyHint": "Assegnagli un ruolo dalla sua scheda utente."
     },
     "permissions": {
       "resources": {

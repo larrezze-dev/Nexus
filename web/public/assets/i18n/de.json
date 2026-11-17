@@ -621,7 +621,7 @@
       "back": "Zurück zum Benutzer",
       "loading": "Wird geladen…",
       "projects": "Projekte",
-      "projectsEmpty": "Keine Projekte (noch nicht Teil des Modells vor Schritt 2.1).",
+      "projectsEmpty": "Keine Projekte zugewiesen.",
       "empty": "Für diesen Benutzer ist kein Geltungsbereich sichtbar.",
       "loadError": "Der effektive Zugriffsbereich konnte nicht geladen werden.",
       "legend": {
@@ -636,7 +636,11 @@
         "inherited": "Geerbt",
         "context": "Enthält sichtbare Elemente",
         "none": "Nicht sichtbar"
-      }
+      },
+      "titleFor": "Was {{name}} sieht",
+      "subtitle": "Gesellschaften, Geschäftsbereiche und Lager, die diese Person über ihre Rollen sieht.",
+      "treeLabel": "Organisationsstruktur mit den Sichtbarkeiten dieser Person",
+      "emptyHint": "Weisen Sie dieser Person im Benutzerprofil eine Rolle zu."
     },
     "permissions": {
       "resources": {
