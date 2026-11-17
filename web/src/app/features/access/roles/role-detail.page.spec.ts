@@ -217,6 +217,7 @@ describe('RoleDetailPage', () => {
     expect(facade.savePermissions).toHaveBeenCalledWith(role.id, [grant.code]);
   });
 
+  // asOf = last instant of the picked day in Europe/Zurich (UTC+1 in January), so same-day changes show up.
   it('makes the permission matrix read-only once a past asOf date is picked', async () => {
     const facade = createFacadeStub(role);
     const fixture = await setupPage({ id: role.id }, facade);
@@ -227,7 +228,7 @@ describe('RoleDetailPage', () => {
 
     expect(fixture.componentInstance['readOnlyMatrix']()).toBe(true);
     expect(fixture.componentInstance['canEditPermissions']()).toBe(false);
-    expect(facade.getPermissions).toHaveBeenCalledWith(role.id, new Date('2026-01-01').toISOString());
+    expect(facade.getPermissions).toHaveBeenCalledWith(role.id, '2026-01-01T22:59:59.999Z');
   });
 
   it('keeps the matrix editable ("now" semantics) when the picked asOf date is today', async () => {

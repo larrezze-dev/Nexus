@@ -6,6 +6,7 @@ import { provideTransloco } from '@jsverse/transloco';
 import type { RoleAssignment } from '../../../api/platform/models/role-assignment';
 import type { RoleAssignmentListItem } from '../../../api/platform/models/role-assignment-list-item';
 import { NxFormatService } from '../../../core/i18n/nx-format.service';
+import { NX_NOW } from '../../../core/time/nx-clock';
 import { NxI18nService } from '../../../core/i18n/nx-i18n.service';
 import { RoleAssignmentsFacade } from './role-assignments.facade';
 
@@ -40,10 +41,11 @@ const assignment = {
 const tick = () => new Promise((resolve) => setTimeout(resolve, 0));
 
 describe('RoleAssignmentsFacade', () => {
-  function setup() {
+  function setup(now?: number) {
     const activeLang = signal('es');
     TestBed.configureTestingModule({
       providers: [
+        ...(now === undefined ? [] : [{ provide: NX_NOW, useValue: () => now }]),
         provideHttpClient(),
         provideHttpClientTesting(),
         ...provideTransloco({ config: { availableLangs: ['en'], defaultLang: 'en' } }),
@@ -142,6 +144,22 @@ describe('RoleAssignmentsFacade', () => {
     expect(exact.validFromLabel).toContain('2026');
     expect(exact.validToLabel).toContain('30'); // 30 Nov: the day before the exclusive midnight
     expect(revoked.validToLabel).toContain('20');
+  });
+
+  it('status: pending when validFrom is in the future, active when valid now, inactive once ended; pending is not revocable', async () => {
+    const { facade, httpMock } = setup(Date.parse('2026-11-18T12:00:00Z'));
+    const pending = facade.list(userId);
+    answerList(httpMock, [
+      item({ id: 'future', validFrom: '2026-12-01T00:00:00Z' }),
+      item({ id: 'now', validFrom: '2026-11-01T00:00:00Z' }),
+      item({ id: 'past', validFrom: '2026-01-01T00:00:00Z', validTo: '2026-02-01T00:00:00Z' }),
+    ]);
+    await pending;
+
+    const rows = Object.fromEntries(facade.rows().map((r) => [r.id, r]));
+    expect(rows['future']).toMatchObject({ status: 'pending', isActive: false, canRevoke: false });
+    expect(rows['now']).toMatchObject({ status: 'active', isActive: true, canRevoke: true });
+    expect(rows['past']).toMatchObject({ status: 'inactive', isActive: false, canRevoke: false });
   });
 
   it('only MANUAL assignments that are still valid can be revoked (ACC-R6 protects SEED)', async () => {

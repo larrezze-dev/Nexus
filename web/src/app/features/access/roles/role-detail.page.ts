@@ -20,7 +20,7 @@ import {
   isProblem,
   localizedFieldErrors,
 } from '../../../core/http/problem';
-import { NxFormatService } from '../../../core/i18n/nx-format.service';
+import { DISPLAY_TIME_ZONE, NxFormatService } from '../../../core/i18n/nx-format.service';
 import { NxI18nService } from '../../../core/i18n/nx-i18n.service';
 import { NxCanDirective } from '../../../shared/auth/can.directive';
 import { PermissionsStore } from '../../../shared/auth/permissions.store';
@@ -42,6 +42,7 @@ import { markServerErrors } from '../../../shared/forms/server-errors';
 import { resolveCaption } from '../../../shared/ui/caption/caption.util';
 import { NxStatusBadgeComponent } from '../../../shared/ui/nx-status-badge/nx-status-badge.component';
 import { RolesFacade } from './roles.facade';
+import { endOfZonedDay } from '../../../core/time/zoned-day';
 import { NxBreadcrumbService } from '../../../core/layout/breadcrumb.service';
 import {
   PermissionMatrix,
@@ -345,7 +346,9 @@ export class RoleDetailPage implements OnInit {
     this.loadingPermissions.set(true);
     this.permissionsError.set(null);
     try {
-      const asOfParam = this.asOf() ? new Date(this.asOf()).toISOString() : undefined;
+      // End of the picked day (Zurich, the zone dates are displayed in): validity is half-open, so a change made
+      // during that day is visible when the user picks it.
+      const asOfParam = this.asOf() ? endOfZonedDay(this.asOf(), DISPLAY_TIME_ZONE).toISOString() : undefined;
       const grants = await this.facade.getPermissions(entity.id, asOfParam);
       if (seq !== this.permissionsSeq) {
         return; // a later asOf pick (or reload) supersedes this response

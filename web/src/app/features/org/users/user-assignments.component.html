@@ -64,7 +64,7 @@
               {{ 'org.users.detail.assignments.sources.' + row.source | transloco }}
             </td>
             <td role="cell" class="nx-ua-table__status">
-              <nx-status-badge [status]="row.isActive ? 'active' : 'inactive'" />
+              <nx-status-badge [status]="row.status" />
             </td>
             <td role="cell" class="nx-ua-table__actions">
               @if (row.canRevoke && !readOnly()) {

@@ -28,6 +28,7 @@ import {
 import { IdempotentCreateId } from '../../../core/ids/uuid-v7';
 import { NxFormatService } from '../../../core/i18n/nx-format.service';
 import { NxI18nService } from '../../../core/i18n/nx-i18n.service';
+import { NX_NOW } from '../../../core/time/nx-clock';
 import { resolveCaption } from '../../../shared/ui/caption/caption.util';
 
 /** One assignment of a user as the screen shows it: names, never ids. */
@@ -43,9 +44,15 @@ export interface AssignmentRow {
   /** Last day (inclusive) as «31 Dec 2026»; `null` = no end. */
   readonly validToLabel: string | null;
   readonly source: RoleAssignmentListItem['source'];
+  /** `pending`: starts in the future; `inactive`: already ended; `active`: valid now. */
+  readonly status: 'active' | 'pending' | 'inactive';
   /** Valid now (started, not ended). */
   readonly isActive: boolean;
-  /** MANUAL, still valid: the only ones the UI offers to revoke (SEED is protected by ACC-R6). */
+  /**
+   * MANUAL and valid now: the only ones the UI offers to revoke (SEED is protected by ACC-R6). A future (pending)
+   * one is not revocable: ACC-R3 sets `valid_to = now()`, which would precede `valid_from` and break the
+   * `valid_to > valid_from` check of the table.
+   */
   readonly canRevoke: boolean;
 }
 
@@ -84,6 +91,7 @@ export class RoleAssignmentsFacade {
   private readonly i18n = inject(NxI18nService);
   private readonly transloco = inject(TranslocoService);
   private readonly format = inject(NxFormatService);
+  private readonly now = inject(NX_NOW);
 
   private readonly itemsSignal = signal<RoleAssignmentListItem[]>([]);
   private readonly loadingSignal = signal(false);
@@ -105,11 +113,13 @@ export class RoleAssignmentsFacade {
   readonly rows = computed<AssignmentRow[]>(() => {
     const lang = this.i18n.activeLang();
     const roles = this.rolesSignal();
-    const now = Date.now();
+    const now = this.now();
     return this.itemsSignal().map((item) => {
       const role = roles.get(item.roleId);
       const validTo = item.validTo ? new Date(item.validTo).getTime() : null;
-      const isActive = new Date(item.validFrom).getTime() <= now && (validTo === null || validTo > now);
+      const started = new Date(item.validFrom).getTime() <= now;
+      const isActive = started && (validTo === null || validTo > now);
+      const status = !started ? 'pending' : isActive ? 'active' : 'inactive';
       return {
         id: item.id,
         roleLabel: role ? resolveCaption(role.captionI18n, lang, role.code) : '—',
@@ -118,6 +128,7 @@ export class RoleAssignmentsFacade {
         validFromLabel: this.format.formatDateMedium(item.validFrom),
         validToLabel: item.validTo ? this.format.formatDateMedium(this.lastDay(item.validTo)) : null,
         source: item.source,
+        status,
         isActive,
         canRevoke: item.source === 'MANUAL' && isActive,
       };

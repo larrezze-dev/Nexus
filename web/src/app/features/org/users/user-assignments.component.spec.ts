@@ -20,6 +20,7 @@ const row = (over: Partial<AssignmentRow> = {}): AssignmentRow => ({
   validFromLabel: '1 Jan 2026',
   validToLabel: null,
   source: 'MANUAL',
+  status: 'active',
   isActive: true,
   canRevoke: true,
   ...over,
