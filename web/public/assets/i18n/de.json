@@ -287,7 +287,10 @@
       "empty": "Noch keine Benutzer",
       "sections": {
         "person": "Persönliche Daten",
-        "access": "Anmeldung und Organisation"
+        "access": "Anmeldung und Organisation",
+        "organisation": "Organisation",
+        "advanced": "Erweitert",
+        "advancedHint": "Technische Anmeldedaten. Nur ändern, wenn sich das Microsoft-Konto der Person ändert."
       },
       "hints": {
         "oid": "Kennung der Person in Microsoft Entra ID (Azure-Portal). Ohne sie kann sie sich nicht anmelden.",

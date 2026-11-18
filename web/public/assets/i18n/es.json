@@ -480,7 +480,10 @@
       "empty": "Todavía no hay usuarios",
       "sections": {
         "person": "Datos personales",
-        "access": "Inicio de sesión y organización"
+        "access": "Inicio de sesión y organización",
+        "organisation": "Organización",
+        "advanced": "Avanzado",
+        "advancedHint": "Datos técnicos de inicio de sesión. Solo hay que cambiarlos si cambia la cuenta de Microsoft de la persona."
       },
       "hints": {
         "oid": "Identificador de la persona en Microsoft Entra ID (portal de Azure). Lo necesita para iniciar sesión.",

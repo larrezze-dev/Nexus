@@ -480,7 +480,10 @@
       "empty": "Aucun utilisateur pour le moment",
       "sections": {
         "person": "Données personnelles",
-        "access": "Connexion et organisation"
+        "access": "Connexion et organisation",
+        "organisation": "Organisation",
+        "advanced": "Avancé",
+        "advancedHint": "Données techniques de connexion. À modifier uniquement si le compte Microsoft de la personne change."
       },
       "hints": {
         "oid": "Identifiant de la personne dans Microsoft Entra ID (portail Azure). Nécessaire pour se connecter.",

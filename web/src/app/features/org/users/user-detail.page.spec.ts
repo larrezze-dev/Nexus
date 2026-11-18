@@ -105,6 +105,10 @@ describe('UserDetailPage', () => {
     expect(root.querySelector('[role="tab"]')).toBeNull();
     expect(root.querySelector('nx-page-header h1')?.textContent).toContain('org.users.detail.newTitle');
     expect(q(root, 'user-save-button')?.textContent).toContain('org.users.actions.create');
+    // Sign-up: the required Microsoft Entra ID is visible in the sign-in section, no «Advanced» fold.
+    expect(q(root, 'user-advanced-section')).toBeNull();
+    expect(q(root, 'user-oid-input')?.closest('[hidden]')).toBeNull();
+    expect(root.textContent).toContain('org.users.sections.access');
 
     q(root, 'user-save-button')?.click();
     await fixture.whenStable();
@@ -136,6 +140,28 @@ describe('UserDetailPage', () => {
     expect(root.querySelector('.nx-page-header__subtitle')?.textContent).toContain('jane@example.com · org.users.detail.modified');
     expect(root.querySelector('nx-page-header nx-status-badge')).not.toBeNull();
     expect(q(root, 'user-save-button')?.hasAttribute('disabled')).toBe(true); // nothing changed yet
+  });
+
+  it('edit mode: the Microsoft Entra ID sits in the folded «Advanced» section, closed until opened', async () => {
+    const { fixture } = setup({ id: 'u-1' }, user);
+    const root = await render(fixture);
+    const advanced = q(root, 'user-advanced-section')!;
+    const toggle = advanced.querySelector<HTMLButtonElement>('h2 button')!;
+    const oid = q(root, 'user-oid-input') as HTMLInputElement;
+
+    expect(toggle.textContent).toContain('org.users.sections.advanced');
+    expect(toggle.getAttribute('aria-expanded')).toBe('false');
+    expect(advanced.contains(oid)).toBe(true);
+    expect(oid.closest('[hidden]')).not.toBeNull();
+    expect(oid.value).toBe('oid-1');
+    expect(oid.classList).toContain('nx-mono');
+    // The sign-in section becomes «Organisation» (only the business unit is left in it).
+    expect(root.textContent).toContain('org.users.sections.organisation');
+
+    toggle.click();
+    fixture.detectChanges();
+    expect(toggle.getAttribute('aria-expanded')).toBe('true');
+    expect(oid.closest('[hidden]')).toBeNull();
   });
 
   it('shows the skeleton while loading', async () => {
@@ -226,6 +252,14 @@ describe('UserDetailPage', () => {
       const { root, fixture } = await failSave({ kind: 'duplicate', message: null, fields: { oid: ['oid taken'] } });
       expect(q(root, 'user-oid-error')?.textContent).toContain('oid taken');
       expect(fixture.componentInstance['form'].controls.oid.hasError('server')).toBe(true);
+      // The folded «Advanced» section opens so the marked field is visible.
+      expect(q(root, 'user-advanced-section')?.querySelector('h2 button')?.getAttribute('aria-expanded')).toBe('true');
+      expect(q(root, 'user-oid-input')?.closest('[hidden]')).toBeNull();
+    });
+
+    it('an error on another field leaves «Advanced» closed', async () => {
+      const { root } = await failSave({ kind: 'rule', message: null, fields: { email: ['email taken'] } });
+      expect(q(root, 'user-advanced-section')?.querySelector('h2 button')?.getAttribute('aria-expanded')).toBe('false');
     });
 
     it('422 ORG-R9: the message is under email', async () => {

@@ -480,7 +480,10 @@
       "empty": "No users yet",
       "sections": {
         "person": "Personal details",
-        "access": "Sign-in and organisation"
+        "access": "Sign-in and organisation",
+        "organisation": "Organisation",
+        "advanced": "Advanced",
+        "advancedHint": "Technical sign-in data. Only change it if the person's Microsoft account changes."
       },
       "hints": {
         "oid": "The person's identifier in Microsoft Entra ID (Azure portal). Needed to sign in.",

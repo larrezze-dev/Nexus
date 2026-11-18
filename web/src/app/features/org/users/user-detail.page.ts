@@ -133,6 +133,12 @@ export class UserDetailPage implements OnInit {
   protected readonly fieldErrors = signal<Readonly<Record<string, readonly string[]>>>({});
   /** Fields to review after a submit with errors («Review the N marked fields»); 0 = no alert. */
   protected readonly invalidCount = signal(0);
+  /**
+   * Folded «Advanced» section of an existing user (holds the Microsoft Entra ID). Closed by default;
+   * opened when that field is invalid or the server marks it, so the error and the focus are visible.
+   * On sign-up the field is required and sits unfolded in the sign-in section instead.
+   */
+  protected readonly advancedOpen = signal(false);
 
   protected readonly form = new FormGroup<UserForm>({
     oid: new FormControl('', { nonNullable: true }),
@@ -235,6 +241,9 @@ export class UserDetailPage implements OnInit {
     if (this.form.invalid) {
       this.form.markAllAsTouched();
       const invalid = FIELD_ORDER.filter((field) => this.isInvalid(this.form.controls[field.control]));
+      if (this.isInvalid(this.form.controls.oid)) {
+        this.advancedOpen.set(true);
+      }
       this.invalidCount.set(invalid.length);
       this.focusTestId(invalid[0]?.testId);
       return;
@@ -334,6 +343,9 @@ export class UserDetailPage implements OnInit {
     }
     markServerErrors(this.form.controls, info.fields);
     this.fieldErrors.set(info.fields);
+    if (info.fields['oid']?.length) {
+      this.advancedOpen.set(true);
+    }
     this.saveError.set(info.message);
     if (info.message) {
       // Bring the alert into view: the button that failed is at the bottom of the form.

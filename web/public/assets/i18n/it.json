@@ -480,7 +480,10 @@
       "empty": "Ancora nessun utente",
       "sections": {
         "person": "Dati personali",
-        "access": "Accesso e organizzazione"
+        "access": "Accesso e organizzazione",
+        "organisation": "Organizzazione",
+        "advanced": "Avanzate",
+        "advancedHint": "Dati tecnici di accesso. Da modificare solo se cambia l'account Microsoft della persona."
       },
       "hints": {
         "oid": "Identificativo della persona in Microsoft Entra ID (portale Azure). Necessario per accedere.",

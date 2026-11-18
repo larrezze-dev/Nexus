@@ -141,31 +141,16 @@
       </nx-form-grid>
     </nx-form-section>
 
-    <nx-form-section [title]="'org.users.sections.access' | transloco">
+    <!-- Sign-up: the Microsoft Entra ID is required, so it stays visible next to the business unit.
+         Existing user: it is technical and rarely changes, so it moves to the folded «Advanced» section
+         (opened automatically when the server marks it, e.g. a 409 duplicate). -->
+    <nx-form-section
+      [title]="(isNew() ? 'org.users.sections.access' : 'org.users.sections.organisation') | transloco"
+    >
       <nx-form-grid>
-        <mat-form-field nxSpan="l" subscriptSizing="dynamic">
-          <mat-label>{{ 'org.users.fields.oid' | transloco }}</mat-label>
-          <input
-            matInput
-            class="nx-mono"
-            formControlName="oid"
-            autocomplete="off"
-            [required]="isNew()"
-            data-testid="user-oid-input"
-          />
-          @if (isSystemUser()) {
-            <mat-hint>{{ 'org.users.hints.oidSystem' | transloco }}</mat-hint>
-          } @else {
-            <mat-hint>{{ 'org.users.hints.oid' | transloco }}</mat-hint>
-          }
-          @if (form.controls.oid.hasError('required')) {
-            <mat-error>{{ 'shared.form.required' | transloco }}</mat-error>
-          }
-          @for (message of errorsFor('oid'); track message) {
-            <mat-error data-testid="user-oid-error">{{ message }}</mat-error>
-          }
-        </mat-form-field>
-
+        @if (isNew()) {
+          <ng-container [ngTemplateOutlet]="oidField" />
+        }
         <nx-entity-picker
           nxSpan="l"
           data-testid="user-business-unit"
@@ -184,6 +169,20 @@
       </nx-form-grid>
     </nx-form-section>
 
+    @if (!isNew()) {
+      <nx-form-section
+        data-testid="user-advanced-section"
+        [title]="'org.users.sections.advanced' | transloco"
+        [hint]="'org.users.sections.advancedHint' | transloco"
+        [collapsible]="true"
+        [(expanded)]="advancedOpen"
+      >
+        <nx-form-grid>
+          <ng-container [ngTemplateOutlet]="oidField" />
+        </nx-form-grid>
+      </nx-form-section>
+    }
+
     @if (!readOnly()) {
       <nx-action-bar>
         <button mat-button type="button" data-testid="user-cancel-button" (click)="cancel()">
@@ -200,4 +199,30 @@
       </nx-action-bar>
     }
   </form>
+</ng-template>
+
+<!-- Declared outside the <form>, so it binds the control directly ([formControl], not formControlName). -->
+<ng-template #oidField>
+  <mat-form-field nxSpan="l" subscriptSizing="dynamic">
+    <mat-label>{{ 'org.users.fields.oid' | transloco }}</mat-label>
+    <input
+      matInput
+      class="nx-mono"
+      autocomplete="off"
+      [formControl]="form.controls.oid"
+      [required]="isNew()"
+      data-testid="user-oid-input"
+    />
+    @if (isSystemUser()) {
+      <mat-hint>{{ 'org.users.hints.oidSystem' | transloco }}</mat-hint>
+    } @else {
+      <mat-hint>{{ 'org.users.hints.oid' | transloco }}</mat-hint>
+    }
+    @if (form.controls.oid.hasError('required')) {
+      <mat-error>{{ 'shared.form.required' | transloco }}</mat-error>
+    }
+    @for (message of errorsFor('oid'); track message) {
+      <mat-error data-testid="user-oid-error">{{ message }}</mat-error>
+    }
+  </mat-form-field>
 </ng-template>
