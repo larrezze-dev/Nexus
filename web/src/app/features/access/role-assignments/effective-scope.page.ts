@@ -57,9 +57,10 @@ const SKELETON_ROWS = [0, 1, 2, 3, 4];
  *
  * Layout (`conventions-frontend.md §4`): full-width page like the org structure, header titled
  * with the user's name and a «Back to the user» action, then three cards — the legend, the tree
- * and the projects. Every mark is a chip with icon + text (colour is never the only cue) in the
- * `--nx-scope-*` colours. The tree reuses the org-structure tree (`mat-tree` with
- * `childrenAccessor`: ARIA tree pattern, one tab stop, arrow keys), fully expanded on load.
+ * and the projects. Every mark is a neutral chip (same text and border colour for all states,
+ * no status colours) told apart by icon + text, with a dashed border for «not visible itself».
+ * The tree reuses the org-structure tree (`mat-tree` with `childrenAccessor`: ARIA tree pattern,
+ * one tab stop, arrow keys), fully expanded on load.
  * Texts inside the nodes go through `t()` so they follow a language switch.
  * States: skeleton while loading, error with retry, empty.
  */
@@ -215,7 +216,12 @@ const SKELETON_ROWS = [0, 1, 2, 3, 4];
     </nx-page>
   `,
   styles: `
-    /* Mark chip: icon + text on the state's colours (--nx-scope-*, tokens.css). */
+    /*
+     * Mark: one neutral look for every state (text --nx-color-text, border --nx-color-outline, no
+     * fill), told apart by icon + text, and by the border: solid when the user sees the item
+     * (direct, inherited), dashed when they do not see the item itself (context, none). No status
+     * colours, so a mark never reads as «Active»/«Inactive».
+     */
     .nx-scope-chip {
       display: inline-flex;
       align-items: center;
@@ -223,8 +229,10 @@ const SKELETON_ROWS = [0, 1, 2, 3, 4];
       flex: none;
       height: var(--nx-space-5);
       padding: 0 var(--nx-space-2) 0 var(--nx-space-1);
-      border: 1px solid transparent;
+      border: 1px solid var(--nx-color-outline);
       border-radius: var(--nx-radius-sm);
+      background: transparent;
+      color: var(--nx-color-text);
       font: var(--nx-text-label);
       font-weight: 500;
       white-space: nowrap;
@@ -234,22 +242,9 @@ const SKELETON_ROWS = [0, 1, 2, 3, 4];
       height: var(--nx-space-4);
       font-size: var(--nx-space-4);
     }
-    .nx-scope-chip--direct {
-      background: var(--nx-scope-direct-bg);
-      color: var(--nx-scope-direct-fg);
-    }
-    .nx-scope-chip--inherited {
-      background: var(--nx-scope-inherited-bg);
-      color: var(--nx-scope-inherited-fg);
-    }
-    .nx-scope-chip--context {
-      background: var(--nx-scope-context-bg);
-      color: var(--nx-scope-context-fg);
-    }
+    .nx-scope-chip--context,
     .nx-scope-chip--none {
-      background: transparent;
-      border-color: var(--nx-color-outline);
-      color: var(--nx-color-text-muted);
+      border-style: dashed;
     }
 
     .nx-scope-legend {

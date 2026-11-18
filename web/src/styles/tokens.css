@@ -59,14 +59,6 @@
   --nx-diff-after-bg: var(--nx-status-success-bg);
   --nx-diff-after-fg: var(--nx-status-success-fg);
 
-  /* ---------- Marcas de alcance («Qué ve este usuario»): alias de colores existentes ---------- */
-  --nx-scope-direct-bg: var(--nx-status-success-bg);       /* acceso directo: verde de «Activo» */
-  --nx-scope-direct-fg: var(--nx-status-success-fg);
-  --nx-scope-inherited-bg: var(--nx-alert-info-bg);        /* heredado: azul de aviso informativo */
-  --nx-scope-inherited-fg: var(--nx-alert-info-fg);
-  --nx-scope-context-bg: var(--nx-status-neutral-bg);      /* contiene elementos visibles: gris neutro */
-  --nx-scope-context-fg: var(--nx-status-neutral-fg);
-
   /* ---------- Avisos (.nx-alert--*) ---------- */
   --nx-alert-error-bg: var(--mat-sys-error-container);
   --nx-alert-error-fg: var(--mat-sys-on-error-container);

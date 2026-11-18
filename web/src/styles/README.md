@@ -56,7 +56,7 @@ Activos desde 0.8 (decisión de Luciano, 2026-11-11). Para cambiarlos, editar `-
 
 ## Marcas de alcance (`effective-scope.page`)
 
-`--nx-scope-{direct,inherited,context}-{bg,fg}` (2026-11-14) son **alias** de colores ya aprobados, sin valores nuevos: directo = verde de «Activo» (`--nx-status-success-*`), heredado = azul de aviso informativo (`--nx-alert-info-*`), contiene elementos visibles = gris neutro (`--nx-status-neutral-*`). «No visible» va sin relleno, con borde `--nx-color-outline` y texto `--nx-color-text-muted`. Cada marca lleva siempre icono + texto (el color nunca es el único canal).
+Sin tokens propios desde el 2026-11-18 (decisión de Luciano: los `--nx-scope-*` verde/azul/gris se confundían con los estados y se eliminaron). Las cuatro marcas —acceso directo, heredado, contiene elementos visibles, no visible— comparten un único aspecto neutro: sin relleno, texto e icono `--nx-color-text` (16:1 sobre blanco) y borde `--nx-color-outline` (≥ 3:1). Se distinguen por **icono + texto** (`verified_user`, `subdirectory_arrow_right`, `account_tree`, `visibility_off`) y por el trazo del borde: continuo si el usuario ve el elemento (directo, heredado), discontinuo si no lo ve en sí (contiene, no visible). La leyenda usa las mismas marcas.
 
 ## Tipografía
 
