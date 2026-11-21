@@ -31,7 +31,8 @@
     "ACC-R2": "L'entità scelta non esiste per questo ambito (i progetti non sono ancora disponibili).",
     "ACC-R4": "Non puoi assegnare questo ruolo in questo ambito: il tuo ambito non lo copre.",
     "ACC-R5": "Nessuno può modificare le proprie assegnazioni.",
-    "ACC-R6": "Questa assegnazione di sistema non può essere revocata."
+    "ACC-R6": "Questa assegnazione di sistema non può essere revocata.",
+    "ACC-R9": "Un ruolo di sistema non può essere disattivato."
   },
   "shell": {
     "skipToContent": "Vai al contenuto",
@@ -119,6 +120,11 @@
         "historyNote": "Autorizzazioni al {{date}}. Sola lettura: torna a oggi per modificarle.",
         "diff": "{{added}} da aggiungere, {{removed}} da rimuovere",
         "discard": "Annulla modifiche",
+        "discardDialog": {
+          "title": "Annulla le modifiche ai permessi",
+          "message": "Ci sono permessi selezionati o deselezionati non salvati. Cambiare la data li annullerà.",
+          "confirm": "Annulla e continua"
+        },
         "asOfHint": "Vuoto = oggi. Una data passata mostra le autorizzazioni di allora.",
         "backToToday": "Torna a oggi",
         "notApplicable": "Non esiste per questa risorsa",

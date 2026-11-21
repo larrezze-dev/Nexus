@@ -31,7 +31,8 @@
     "ACC-R2": "L'entité choisie n'existe pas pour ce périmètre (les projets ne sont pas encore disponibles).",
     "ACC-R4": "Vous ne pouvez pas attribuer ce rôle dans ce périmètre : votre propre périmètre ne le couvre pas.",
     "ACC-R5": "Personne ne peut modifier ses propres attributions.",
-    "ACC-R6": "Cette attribution système ne peut pas être révoquée."
+    "ACC-R6": "Cette attribution système ne peut pas être révoquée.",
+    "ACC-R9": "Un rôle système ne peut pas être désactivé."
   },
   "shell": {
     "skipToContent": "Aller au contenu",
@@ -119,6 +120,11 @@
         "historyNote": "Autorisations au {{date}}. Lecture seule : revenez à aujourd'hui pour les modifier.",
         "diff": "{{added}} à ajouter, {{removed}} à retirer",
         "discard": "Annuler les modifications",
+        "discardDialog": {
+          "title": "Abandonner les modifications des permissions",
+          "message": "Des permissions cochées ou décochées ne sont pas enregistrées. Changer la date les abandonnera.",
+          "confirm": "Abandonner et continuer"
+        },
         "asOfHint": "Vide = aujourd'hui. Une date passée montre les autorisations d'alors.",
         "backToToday": "Revenir à aujourd'hui",
         "notApplicable": "N'existe pas pour cette ressource",

@@ -31,7 +31,8 @@
     "ACC-R2": "La entidad elegida no existe para este alcance (los proyectos aún no están disponibles).",
     "ACC-R4": "No puedes conceder este rol en este alcance: tu propio alcance no lo cubre.",
     "ACC-R5": "Nadie puede modificar sus propias asignaciones.",
-    "ACC-R6": "Esta asignación del sistema no se puede revocar."
+    "ACC-R6": "Esta asignación del sistema no se puede revocar.",
+    "ACC-R9": "Un rol del sistema no se puede desactivar."
   },
   "shell": {
     "skipToContent": "Saltar al contenido",
@@ -119,6 +120,11 @@
         "historyNote": "Permisos a fecha de {{date}}. Solo lectura: vuelve a hoy para cambiarlos.",
         "diff": "{{added}} por añadir, {{removed}} por quitar",
         "discard": "Descartar cambios",
+        "discardDialog": {
+          "title": "Descartar cambios de permisos",
+          "message": "Hay permisos marcados o desmarcados sin guardar. Cambiar la fecha los descartará.",
+          "confirm": "Descartar y continuar"
+        },
         "asOfHint": "Vacío = hoy. Una fecha pasada muestra los permisos que tenía entonces.",
         "backToToday": "Volver a hoy",
         "notApplicable": "No existe para este recurso",

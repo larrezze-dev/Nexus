@@ -31,7 +31,8 @@
     "ACC-R2": "The chosen entity does not exist for this scope (projects are not available yet).",
     "ACC-R4": "You cannot grant this role in this scope: your own scope does not cover it.",
     "ACC-R5": "Nobody can change their own assignments.",
-    "ACC-R6": "This system assignment cannot be revoked."
+    "ACC-R6": "This system assignment cannot be revoked.",
+    "ACC-R9": "A system role cannot be deactivated."
   },
   "shell": {
     "skipToContent": "Skip to content",
@@ -119,6 +120,11 @@
         "historyNote": "Permissions as of {{date}}. Read only: go back to today to change them.",
         "diff": "{{added}} to add, {{removed}} to remove",
         "discard": "Discard changes",
+        "discardDialog": {
+          "title": "Discard permission changes",
+          "message": "You have unticked or ticked permissions that are not saved. Changing the date will discard them.",
+          "confirm": "Discard and continue"
+        },
         "asOfHint": "Empty = today. A past date shows the permissions it had then.",
         "backToToday": "Back to today",
         "notApplicable": "Not available for this resource",

@@ -31,7 +31,8 @@
     "ACC-R2": "Die gewählte Entität existiert nicht für diesen Bereich (Projekte sind noch nicht verfügbar).",
     "ACC-R4": "Sie dürfen diese Rolle in diesem Bereich nicht vergeben: Ihr eigener Bereich deckt ihn nicht ab.",
     "ACC-R5": "Niemand kann seine eigenen Zuweisungen ändern.",
-    "ACC-R6": "Diese Systemzuweisung kann nicht widerrufen werden."
+    "ACC-R6": "Diese Systemzuweisung kann nicht widerrufen werden.",
+    "ACC-R9": "Eine Systemrolle kann nicht deaktiviert werden."
   },
   "shell": {
     "skipToContent": "Zum Inhalt springen",
@@ -582,6 +583,11 @@
         "historyNote": "Berechtigungen am {{date}}. Nur Ansicht: Zum Ändern zurück zu heute wechseln.",
         "diff": "{{added}} hinzuzufügen, {{removed}} zu entfernen",
         "discard": "Änderungen verwerfen",
+        "discardDialog": {
+          "title": "Berechtigungsänderungen verwerfen",
+          "message": "Es gibt nicht gespeicherte Berechtigungsänderungen. Ein Datumswechsel verwirft sie.",
+          "confirm": "Verwerfen und fortfahren"
+        },
         "asOfHint": "Leer = heute. Ein früheres Datum zeigt die damaligen Berechtigungen.",
         "backToToday": "Zurück zu heute",
         "notApplicable": "Gibt es für diesen Bereich nicht",
