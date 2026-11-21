@@ -138,9 +138,10 @@
 }
 
 /*
- * Text link inside running text or a field hint (e.g. «Edit names under Parties» under a locked
+ * Standalone text link, e.g. alone in a field hint («Edit names under Parties» under a locked
  * field): primary colour like the breadcrumb links, underlined on hover, visible focus ring.
- * Not for actions: those are buttons.
+ * Not inside a sentence: there colour alone does not mark it as a link (WCAG 1.4.1) and it would
+ * need a permanent underline. Not for actions: those are buttons.
  */
 .nx-link {
   color: var(--nx-color-primary);
