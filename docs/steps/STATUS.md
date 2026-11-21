@@ -126,6 +126,8 @@ Cambios pequeños que salen de decisiones cerradas fuera de un paso. Cada uno va
 | Lista de entidades legales con `legalName`, `displayName`, `q` e `isActive` | 2026-11-12, `domain/org.md §5` | C → B ∥ F | Cierre de la interfaz coherente |
 | `PATCH /v1/me` para guardar el idioma elegido (sin `If-Match`) | 2026-11-12, `conventions-api.md §5` | C → B ∥ F | Cierre de la interfaz coherente |
 | Alta de monedas (`POST /v1/currencies`, `CURRENCY:CREATE`), renombrar moneda (`captionI18n` en `PUT`) y nombre del grupo (`legalName`/`displayName` en `GroupListItem`/`Group`). Entregado: C #52, B #53, F en PR-5 | 2026-11-14, `domain/org.md §5` | C → B ∥ F | Cierre de la interfaz coherente |
+| Listar asignaciones futuras y revocadas (`listRoleAssignments` con filtro, p. ej. `includeInactive`) | 2026-11-21, Luciano | C → B ∥ F | — |
+| Proteger SYSTEM_ADMIN: el backend rechaza quitarle permisos críticos (`ROLE:UPDATE`, `ROLE_ASSIGNMENT:*`) — nueva regla ACC | 2026-11-21, Luciano | spec → B ∥ F | — |
 
 ## Preguntas abiertas ⚑ por paso
 
