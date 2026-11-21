@@ -210,6 +210,8 @@ CREATE TABLE org.party_relationship (
 | `GET/POST/DELETE /v1/parties/{id}/locations` | `PARTY:UPDATE` | 1.1 |
 | `GET/POST /v1/parties/{id}/relationships` | `PARTY:UPDATE` | 1.1 |
 
+**Entidad legal: qué se edita `[+]` (decidido 2026-11-21, Luciano):** `PUT /v1/legal-entities/{id}` cambia hoy `code`, `countryCode` y `currencyCode`. La razón social y el nombre corto viven en su `Party` (ORG-R1) y se cambiarán **desde la propia ficha de la entidad legal**: `UpdateLegalEntityRequest` aceptará `legalName`/`displayName` y el servicio actualizará el `Party` en la misma transacción (paso derivado «Ficha completa de la entidad legal», `steps/STATUS.md`; el detalle de eventos se fija en su track C). Hasta entonces se editan en Terceros (`PUT /v1/parties/{id}`). El **grupo** (`group_id`) se fija en el alta y no se cambia: no está en `UpdateLegalEntityRequest`, y moverlo exigiría una regla nueva (efecto en consolidación) y pasar por Gate C.
+
 Listados: `GET /v1/warehouses?legalEntityId=&businessUnitId=&isActive=&q=`, `GET /v1/parties?partyType=&isInternal=&q=`, `GET /v1/legal-entities?isActive=&q=` `[+]` (`q` sobre código y razón social; cada elemento incluye `legalName` y `displayName` de su `Party`).
 
 ## §6 Eventos
