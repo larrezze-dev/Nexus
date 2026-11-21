@@ -52,3 +52,28 @@ describe('NxDateAdapter parse', () => {
     expect(adapter.parse('  ', null)).toBeNull();
   });
 });
+
+describe('NxDateAdapter parse without Material dev-mode checks', () => {
+  /** Mimics production, where `createDate` does not throw on overflowing days/months. */
+  class ProductionLikeAdapter extends NxDateAdapter {
+    override createDate(year: number, month: number, date: number): Date {
+      return new Date(year, month, date);
+    }
+  }
+
+  it.each(['31.02.2026', '30.02.2026', '29.02.2026', '32.01.2026', '01.13.2026', '00.05.2026', '2026-02-31', '2026-00-10'])(
+    '«%s» is invalid even when createDate does not throw',
+    (text) => {
+      TestBed.configureTestingModule({});
+      const adapter = TestBed.runInInjectionContext(() => new ProductionLikeAdapter());
+      expect(adapter.isValid(adapter.parse(text, null) as Date)).toBe(false);
+    },
+  );
+
+  it('still accepts real dates, including 29 February of a leap year', () => {
+    TestBed.configureTestingModule({});
+    const adapter = TestBed.runInInjectionContext(() => new ProductionLikeAdapter());
+    const date = adapter.parse('29.02.2028', null) as Date;
+    expect([date.getFullYear(), date.getMonth() + 1, date.getDate()]).toEqual([2028, 2, 29]);
+  });
+});

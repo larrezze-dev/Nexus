@@ -35,9 +35,18 @@ export class NxDateAdapter extends NativeDateAdapter {
     return this.build(year, Number(match[2]), Number(match[1]));
   }
 
+  /**
+   * Builds the date and checks it round-trips. Material's `createDate` only throws on overflow in dev mode
+   * (`ngDevMode`), so in production «31.02.2026» would silently become 3 March: validate by hand.
+   */
   private build(year: number, month: number, day: number): Date {
+    if (month < 1 || month > 12 || day < 1) {
+      return this.invalid();
+    }
     try {
-      return this.createDate(year, month - 1, day); // throws on month/day out of range
+      const date = this.createDate(year, month - 1, day);
+      const valid = date.getFullYear() === year && date.getMonth() === month - 1 && date.getDate() === day;
+      return valid ? date : this.invalid();
     } catch {
       return this.invalid();
     }
