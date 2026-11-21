@@ -2,6 +2,7 @@ import { HttpErrorResponse, provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, TestRequest, provideHttpClientTesting } from '@angular/common/http/testing';
 import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
+import { Observable } from 'rxjs';
 import { provideTransloco } from '@jsverse/transloco';
 import type { RoleAssignment } from '../../../api/platform/models/role-assignment';
 import type { RoleAssignmentListItem } from '../../../api/platform/models/role-assignment-list-item';
@@ -138,6 +139,33 @@ describe('RoleAssignmentsFacade', () => {
     answerList(http, [future]);
     await pending;
     expect(f.rows()[0]).toMatchObject({ status: 'active', canRevoke: true });
+  });
+
+  it('every picker search skips the /forbidden navigation', async () => {
+    const { facade, httpMock } = setup();
+    const empty = { items: [], page: 1, pageSize: 100, total: 0 };
+    const searches: [string, Observable<unknown>][] = [
+      ['/roles', facade.searchRoles('a')],
+      ['/legal-entities', facade.searchLegalEntities('a')],
+      ['/business-units', facade.searchBusinessUnits('a')],
+      ['/warehouses', facade.searchWarehouses('a')],
+    ];
+    for (const [suffix, search] of searches) {
+      const done = new Promise((resolve) => search.subscribe(resolve));
+      const req = httpMock.expectOne((r) => r.url.endsWith(suffix));
+      expect(req.request.context.get(NX_SKIP_ERROR_NAVIGATION), suffix).toBe(true);
+      req.flush(empty);
+      await done;
+    }
+  });
+
+  it('describeError maps SystemUserReadOnlyError to the ORG-R6 message', () => {
+    const { facade } = setup();
+    expect(facade.describeError(new SystemUserReadOnlyError())).toEqual({
+      kind: 'rule',
+      message: 'errors.ORG-R6',
+      fields: {},
+    });
   });
 
   it('rows follow the active language', async () => {

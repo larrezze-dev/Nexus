@@ -1,8 +1,7 @@
-import { HttpContext } from '@angular/common/http';
 import { Injectable, computed, inject, signal } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { TranslocoService } from '@jsverse/transloco';
-import { NX_SKIP_ERROR_NAVIGATION } from '../../core/http/skip-error-navigation';
+import { namesContext } from '../../core/http/skip-error-navigation';
 import { Api } from '../../api/platform/api';
 import { getBusinessUnit } from '../../api/platform/fn/business-units/get-business-unit';
 import { getMe } from '../../api/platform/fn/me/get-me';
@@ -139,7 +138,7 @@ export class AccountFacade {
       return;
     }
     try {
-      const unit = await this.api.invoke(getBusinessUnit, { id }, new HttpContext().set(NX_SKIP_ERROR_NAVIGATION, true));
+      const unit = await this.api.invoke(getBusinessUnit, { id }, namesContext());
       if (seq === this.loadSeq) {
         this.businessUnitNameSignal.set(unit);
       }

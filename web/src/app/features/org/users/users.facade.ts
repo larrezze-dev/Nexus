@@ -1,8 +1,7 @@
-import { HttpContext } from '@angular/common/http';
 import { Injectable, computed, inject, signal } from '@angular/core';
 import { TranslocoService } from '@jsverse/transloco';
 import { Observable, from, map } from 'rxjs';
-import { NX_SKIP_ERROR_NAVIGATION } from '../../../core/http/skip-error-navigation';
+import { namesContext } from '../../../core/http/skip-error-navigation';
 import { Api } from '../../../api/platform/api';
 import { getBusinessUnit } from '../../../api/platform/fn/business-units/get-business-unit';
 import { listBusinessUnits } from '../../../api/platform/fn/business-units/list-business-units';
@@ -220,7 +219,7 @@ export class UsersFacade {
    * 100 business units and filters client-side on `code` and the caption in the active language.
    */
   searchBusinessUnits = (query: string): Observable<BusinessUnitListItem[]> => {
-    return from(this.api.invoke(listBusinessUnits, { page: 1, pageSize: 100, sort: 'code' })).pipe(
+    return from(this.api.invoke(listBusinessUnits, { page: 1, pageSize: 100, sort: 'code' }, namesContext())).pipe(
       map((response) => {
         const items = response.items ?? [];
         const needle = query.trim().toLowerCase();
@@ -309,7 +308,7 @@ export class UsersFacade {
       return;
     }
     try {
-      const bu = await this.api.invoke(getBusinessUnit, { id }, new HttpContext().set(NX_SKIP_ERROR_NAVIGATION, true));
+      const bu = await this.api.invoke(getBusinessUnit, { id }, namesContext());
       if (seq === this.loadSeq) {
         this.businessUnitRefSignal.set(bu);
       }

@@ -1,4 +1,3 @@
-import { HttpContext } from '@angular/common/http';
 import { Injectable, computed, inject, signal } from '@angular/core';
 import { TranslocoService } from '@jsverse/transloco';
 import { Observable, from, map } from 'rxjs';
@@ -29,7 +28,7 @@ import {
 import { IdempotentCreateId } from '../../../core/ids/uuid-v7';
 import { NxFormatService } from '../../../core/i18n/nx-format.service';
 import { NxI18nService } from '../../../core/i18n/nx-i18n.service';
-import { NX_SKIP_ERROR_NAVIGATION } from '../../../core/http/skip-error-navigation';
+import { namesContext } from '../../../core/http/skip-error-navigation';
 import { NX_NOW } from '../../../core/time/nx-clock';
 import { resolveCaption } from '../../../shared/ui/caption/caption.util';
 import { SYSTEM_USER_ID, SystemUserReadOnlyError } from '../../../shared/auth/system-user';
@@ -72,8 +71,6 @@ export interface AssignmentErrorInfo {
 /** `GET /v1/*` lists of reference data have no `q` (except roles/warehouses): one page, filtered client-side. */
 const REFERENCE_PAGE_SIZE = 100;
 const DAY_MS = 86_400_000;
-/** Name lookups are secondary: a 403 must leave «—», not navigate the user to /forbidden. */
-const NAMES_CONTEXT = () => new HttpContext().set(NX_SKIP_ERROR_NAVIGATION, true);
 
 /**
  * Facade for `RoleAssignment` (`ACC-R*`, `domain/access.md`): the only thing between the
@@ -166,10 +163,10 @@ export class RoleAssignmentsFacade {
     try {
       const [response, roles, legalEntities, businessUnits, warehouses] = await Promise.allSettled([
         this.api.invoke(listRoleAssignments, { userId, pageSize: 200, sort: '-validFrom' }),
-        this.api.invoke(listRoles, { page: 1, pageSize: 200, sort: 'code' }, NAMES_CONTEXT()),
-        this.api.invoke(listLegalEntities, { page: 1, pageSize: REFERENCE_PAGE_SIZE, sort: 'code' }, NAMES_CONTEXT()),
-        this.api.invoke(listBusinessUnits, { page: 1, pageSize: REFERENCE_PAGE_SIZE, sort: 'code' }, NAMES_CONTEXT()),
-        this.api.invoke(listWarehouses, { page: 1, pageSize: REFERENCE_PAGE_SIZE, sort: 'code' }, NAMES_CONTEXT()),
+        this.api.invoke(listRoles, { page: 1, pageSize: 200, sort: 'code' }, namesContext()),
+        this.api.invoke(listLegalEntities, { page: 1, pageSize: REFERENCE_PAGE_SIZE, sort: 'code' }, namesContext()),
+        this.api.invoke(listBusinessUnits, { page: 1, pageSize: REFERENCE_PAGE_SIZE, sort: 'code' }, namesContext()),
+        this.api.invoke(listWarehouses, { page: 1, pageSize: REFERENCE_PAGE_SIZE, sort: 'code' }, namesContext()),
       ]);
       if (seq !== this.loadSeq) {
         return [];
@@ -245,6 +242,9 @@ export class RoleAssignmentsFacade {
    * - anything else: the generic message.
    */
   describeError(error: unknown): AssignmentErrorInfo {
+    if (error instanceof SystemUserReadOnlyError) {
+      return { kind: 'rule', message: this.i18n.translateErrorCode('ORG-R6'), fields: {} };
+    }
     if (isConcurrencyConflict(error)) {
       return { kind: 'concurrency', message: null, fields: {} };
     }
@@ -288,13 +288,13 @@ export class RoleAssignmentsFacade {
   searchRoles = (query: string): Observable<RoleListItem[]> => {
     const q = query.trim();
     return from(
-      this.api.invoke(listRoles, { page: 1, pageSize: 100, sort: 'code', q: q || undefined }),
+      this.api.invoke(listRoles, { page: 1, pageSize: 100, sort: 'code', q: q || undefined }, namesContext()),
     ).pipe(map((response) => response.items ?? []));
   };
 
   /** `GET /v1/legal-entities` has no `q`: one page sorted by `code`, filtered client-side on code and legal name. */
   searchLegalEntities = (query: string): Observable<LegalEntityListItem[]> => {
-    return from(this.api.invoke(listLegalEntities, { page: 1, pageSize: REFERENCE_PAGE_SIZE, sort: 'code' })).pipe(
+    return from(this.api.invoke(listLegalEntities, { page: 1, pageSize: REFERENCE_PAGE_SIZE, sort: 'code' }, namesContext())).pipe(
       map((response) => {
         const needle = query.trim().toLowerCase();
         const items = response.items ?? [];
@@ -309,7 +309,7 @@ export class RoleAssignmentsFacade {
 
   /** `GET /v1/business-units` has no `q` either: same client-side filter on code and caption. */
   searchBusinessUnits = (query: string): Observable<BusinessUnitListItem[]> => {
-    return from(this.api.invoke(listBusinessUnits, { page: 1, pageSize: REFERENCE_PAGE_SIZE, sort: 'code' })).pipe(
+    return from(this.api.invoke(listBusinessUnits, { page: 1, pageSize: REFERENCE_PAGE_SIZE, sort: 'code' }, namesContext())).pipe(
       map((response) => {
         const needle = query.trim().toLowerCase();
         const items = response.items ?? [];
@@ -321,7 +321,7 @@ export class RoleAssignmentsFacade {
   /** `GET /v1/warehouses` has a `q` query parameter: filtered server-side. */
   searchWarehouses = (query: string): Observable<WarehouseListItem[]> => {
     const q = query.trim();
-    return from(this.api.invoke(listWarehouses, { page: 1, pageSize: 100, sort: 'code', q: q || undefined })).pipe(
+    return from(this.api.invoke(listWarehouses, { page: 1, pageSize: 100, sort: 'code', q: q || undefined }, namesContext())).pipe(
       map((response) => response.items ?? []),
     );
   };
