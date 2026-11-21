@@ -114,4 +114,97 @@ describe('NxEntityPickerComponent', () => {
     expect(fixture.nativeElement.querySelector('[data-testid="nx-entity-picker-loading"]')).toBeFalsy();
     expect((fixture.componentInstance as any).options()).toEqual([]);
   });
+
+  it('a 403 shows the denied message under the field instead of a mute empty list; other errors do not', async () => {
+    const fixture = createFixture();
+    let status = 403;
+    fixture.componentRef.setInput('search', () => throwError(() => ({ status })));
+    fixture.componentRef.setInput('displayWith', displayWith);
+    fixture.componentRef.setInput('debounceMs', 1);
+    fixture.componentRef.setInput('hint', 'Search by name');
+    fixture.componentRef.setInput('deniedMessage', 'No permission to list things');
+    fixture.detectChanges();
+    const el: HTMLElement = fixture.nativeElement;
+    const type = async (text: string) => {
+      const input = el.querySelector<HTMLInputElement>('[data-testid="nx-entity-picker-input"]')!;
+      input.value = text;
+      input.dispatchEvent(new Event('input'));
+      await delay(10);
+      fixture.detectChanges();
+    };
+
+    await type('x');
+    expect(el.querySelector('[data-testid="nx-entity-picker-denied"]')?.textContent).toContain('No permission to list things');
+    expect(el.textContent).not.toContain('Search by name');
+
+    status = 500;
+    await type('xy');
+    expect(el.querySelector('[data-testid="nx-entity-picker-denied"]')).toBeNull();
+    expect(el.textContent).toContain('Search by name');
+  });
+
+  describe('as a form field', () => {
+    function field(value: Item | null = null): ComponentFixture<NxEntityPickerComponent<Item>> {
+      const fixture = createFixture();
+      fixture.componentRef.setInput('search', () => of<Item[]>([]));
+      fixture.componentRef.setInput('displayWith', displayWith);
+      fixture.componentRef.setInput('label', 'Business unit');
+      fixture.componentRef.setInput('hint', 'Optional');
+      fixture.componentRef.setInput('clearable', true);
+      fixture.componentRef.setInput('clearLabel', 'Remove business unit');
+      fixture.componentRef.setInput('value', value);
+      fixture.detectChanges();
+      return fixture;
+    }
+    const el = (fixture: ComponentFixture<unknown>, selector: string) =>
+      (fixture.nativeElement as HTMLElement).querySelector<HTMLElement>(selector);
+
+    it('shows the label inside the field, the hint, and the chosen item as text', async () => {
+      const fixture = field({ id: '1', name: 'BU-CH Events' });
+      await fixture.whenStable(); // the autocomplete writes the text in a microtask
+
+      expect(el(fixture, 'mat-label')?.textContent).toContain('Business unit');
+      expect(el(fixture, 'mat-hint')?.textContent).toContain('Optional');
+      expect((el(fixture, '[data-testid="nx-entity-picker-input"]') as HTMLInputElement).value).toBe('BU-CH Events');
+    });
+
+    it('the «×» has an accessible name and emits cleared; no «×» without a value', async () => {
+      const fixture = field({ id: '1', name: 'BU-CH Events' });
+      const cleared = vi.fn();
+      fixture.componentInstance.cleared.subscribe(cleared);
+
+      const clear = el(fixture, '[data-testid="nx-entity-picker-clear"]');
+      expect(clear?.getAttribute('aria-label')).toBe('Remove business unit');
+      clear?.click();
+      expect(cleared).toHaveBeenCalledTimes(1);
+
+      fixture.componentRef.setInput('value', null);
+      fixture.detectChanges();
+      await fixture.whenStable();
+      expect(el(fixture, '[data-testid="nx-entity-picker-clear"]')).toBeNull();
+      expect((el(fixture, '[data-testid="nx-entity-picker-input"]') as HTMLInputElement).value).toBe('');
+    });
+
+    it('shows the error under the field and marks it invalid while set', () => {
+      const fixture = field();
+      fixture.componentRef.setInput('error', 'Required field');
+      fixture.detectChanges();
+
+      expect(el(fixture, '[data-testid="nx-entity-picker-error"]')?.textContent).toContain('Required field');
+      expect(el(fixture, 'mat-form-field')?.classList).toContain('mat-form-field-invalid');
+    });
+
+    it('closing the list after typing puts the chosen item back', async () => {
+      const item = { id: '1', name: 'BU-CH Events' };
+      const fixture = field(item);
+      const input = el(fixture, '[data-testid="nx-entity-picker-input"]') as HTMLInputElement;
+      input.value = 'zz';
+      input.dispatchEvent(new Event('input'));
+
+      (fixture.componentInstance as any).onClosed();
+      await fixture.whenStable();
+
+      expect(input.value).toBe('BU-CH Events');
+    });
+  });
 });

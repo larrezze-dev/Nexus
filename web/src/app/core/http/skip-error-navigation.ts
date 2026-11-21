@@ -1,4 +1,4 @@
-import { HttpContextToken } from '@angular/common/http';
+import { HttpContext, HttpContextToken } from '@angular/common/http';
 
 /**
  * Set to `true` in the `HttpContext` of a background request (e.g. `GET/PATCH /v1/me` fired by the
@@ -7,3 +7,9 @@ import { HttpContextToken } from '@angular/common/http';
  * The error is still propagated to the caller; 401 still goes to `/login`.
  */
 export const NX_SKIP_ERROR_NAVIGATION = new HttpContextToken<boolean>(() => false);
+
+/**
+ * Context for secondary lookups (names of referenced entities, picker searches, reference lists): a 403/404 must
+ * leave «—» or an empty list, not navigate the user away from the page they asked for.
+ */
+export const namesContext = (): HttpContext => new HttpContext().set(NX_SKIP_ERROR_NAVIGATION, true);

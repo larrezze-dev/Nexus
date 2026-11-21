@@ -217,8 +217,20 @@
   border-radius: var(--nx-radius-sm);
 }
 
-/* Choices of a read-only form: the label stays as legible as the text fields. */
+/* A read-only form has nothing to fill in: drop the «*» of required fields (disabled ones only). */
+.nx-readonly .mat-mdc-form-field.mat-form-field-disabled .mdc-floating-label--required::after,
+.nx-readonly .mat-mdc-form-field.mat-form-field-disabled .mat-mdc-form-field-required-marker {
+  content: none;
+  display: none;
+}
+
+/* Choices of a read-only form: the label stays as legible as the text fields, and a disabled
+ * checkbox still shows clearly whether it is ticked (muted fill 6.3:1, outline ≥ 3:1), not
+ * Material's 38 % grey (e.g. the permission matrix of a role the user may not change). */
 .nx-readonly {
+  --mat-checkbox-disabled-selected-icon-color: var(--nx-color-text-muted);
+  --mat-checkbox-disabled-selected-checkmark-color: var(--nx-color-surface-raised);
+  --mat-checkbox-disabled-unselected-icon-color: var(--nx-color-outline);
   --mat-checkbox-disabled-label-color: var(--nx-color-text);
   --mat-radio-disabled-label-color: var(--nx-color-text);
   --mat-slide-toggle-disabled-label-text-color: var(--nx-color-text);
@@ -258,4 +270,24 @@
   flex-direction: column;
   gap: var(--nx-space-5);
   min-width: 0;
+}
+
+/*
+ * Detail-page tabs below 600 px: Material pads each tab 24 px a side with a 90 px minimum, so
+ * three labels («Allgemein · Berechtigungen · Audit») no longer fit 390 px and the header grew
+ * scroll chevrons. 12 px a side keeps the tabs in one visible row; the touch target stays 48 px high.
+ */
+@media (max-width: 599.98px) {
+  .mat-mdc-tab.mdc-tab {
+    min-width: 0;
+    padding-inline: var(--nx-space-3);
+  }
+}
+
+/*
+ * Date picker pop-up: M3 gives the docked calendar no shadow, so over a table or form it read as
+ * part of the page. Same elevation as Material's menus and select panels.
+ */
+.mat-datepicker-content {
+  --mat-datepicker-calendar-container-elevation-shadow: var(--mat-sys-level2);
 }

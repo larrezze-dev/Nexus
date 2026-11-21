@@ -26,8 +26,11 @@ import { NxSortModel, Page } from '../../../shared/ui/page.model';
  * `deactivate` send `If-Match`).
  *
  * `updateRolePermissions` has no `If-Match` in the contract (`ACC-R7`: the
- * server computes the add/remove diff from the full desired list, it is not
- * a versioned-row PUT), so `savePermissions()` does not track an `ETag`.
+ * server computes the add/remove diff from the full desired list), but it does bump the role
+ * row (`aggregate_version`, ADR-0019), so the role's `ETag` changes: `savePermissions()`
+ * re-reads the role afterwards to keep the stored `ETag` valid for the next `update`/`deactivate`.
+ * Two concurrent permission edits: the loser gets a 409 `CONCURRENCY` (propagated, the
+ * `errorInterceptor` opens the dialog).
  *
  * `create()`/`update()`/`deactivate()`/`savePermissions()` deliberately do
  * NOT catch errors: they let the raw `HttpErrorResponse` propagate to the
@@ -41,6 +44,8 @@ export class RolesFacade {
   private readonly loadingSignal = signal(false);
   private readonly errorSignal = signal<string | null>(null);
   private etag: string | null = null;
+  /** Monotonic sequence: only the latest `load()` (and none issued before a `reset()`) may apply its result. */
+  private loadSeq = 0;
 
   readonly selected = this.selectedSignal.asReadonly();
   readonly loading = this.loadingSignal.asReadonly();
@@ -65,18 +70,26 @@ export class RolesFacade {
   }
 
   async load(id: string): Promise<void> {
+    const seq = ++this.loadSeq;
     this.loadingSignal.set(true);
     this.errorSignal.set(null);
     try {
       const response = await this.api.invoke$Response(getRole, { id });
+      if (seq !== this.loadSeq) {
+        return;
+      }
       this.selectedSignal.set(response.body);
       this.etag = response.headers.get('ETag');
     } catch {
-      this.selectedSignal.set(null);
-      this.etag = null;
-      this.errorSignal.set('load_failed');
+      if (seq === this.loadSeq) {
+        this.selectedSignal.set(null);
+        this.etag = null;
+        this.errorSignal.set('load_failed');
+      }
     } finally {
-      this.loadingSignal.set(false);
+      if (seq === this.loadSeq) {
+        this.loadingSignal.set(false);
+      }
     }
   }
 
@@ -135,11 +148,31 @@ export class RolesFacade {
    * computes which grants to open/close.
    */
   async savePermissions(roleId: string, codes: string[]): Promise<PermissionGrant[]> {
-    return this.api.invoke(updateRolePermissions, { id: roleId, body: { permissionCodes: codes } });
+    const grants = await this.api.invoke(updateRolePermissions, { id: roleId, body: { permissionCodes: codes } });
+    await this.refreshRole(roleId);
+    return grants;
+  }
+
+  /** Re-reads the role after a permission change (its `ETag` moved); a failure only drops the stale `ETag`. */
+  private async refreshRole(roleId: string): Promise<void> {
+    const seq = this.loadSeq;
+    try {
+      const response = await this.api.invoke$Response(getRole, { id: roleId });
+      if (seq === this.loadSeq) {
+        this.selectedSignal.set(response.body);
+        this.etag = response.headers.get('ETag');
+      }
+    } catch {
+      if (seq === this.loadSeq) {
+        this.etag = null;
+      }
+    }
   }
 
   /** Clears `selected`/`error`/the stored `ETag` — call when entering the detail page fresh. */
   reset(): void {
+    this.loadSeq++;
+    this.loadingSignal.set(false);
     this.selectedSignal.set(null);
     this.errorSignal.set(null);
     this.etag = null;

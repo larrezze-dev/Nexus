@@ -1,287 +1,231 @@
-<div class="nx-user-detail-page">
-  <h1>
-    @if (isNew()) {
-      {{ 'org.users.detail.newTitle' | transloco }}
-    } @else {
-      {{ 'org.users.detail.editTitle' | transloco }}
-    }
-  </h1>
-
-  @if (facade.loading()) {
-    <p>{{ 'org.users.detail.loading' | transloco }}</p>
-  } @else {
-    @if (facade.error()) {
-      <p role="alert">{{ facade.error() }}</p>
-    }
+@if (isNew()) {
+  <nx-page width="form">
+    <nx-page-header
+      [breadcrumb]="true"
+      [title]="'org.users.detail.newTitle' | transloco"
+      [subtitle]="'org.users.newSubtitle' | transloco"
+    />
+    <ng-container [ngTemplateOutlet]="formTpl" />
+  </nx-page>
+} @else if (current(); as user) {
+  <nx-page width="form">
+    <nx-page-header [breadcrumb]="true" [title]="user.fullName" [subtitle]="subtitle()">
+      <nx-status-badge nxHeaderStatus [status]="user.isActive ? 'active' : 'inactive'" />
+      @if (user.isActive && !readOnly()) {
+        <button
+          nxHeaderActions
+          mat-stroked-button
+          type="button"
+          class="nx-btn--danger"
+          data-testid="user-deactivate-button"
+          *nxCan="'USER:UPDATE'"
+          [disabled]="facade.saving()"
+          (click)="deactivate()"
+        >
+          <mat-icon aria-hidden="true">block</mat-icon>
+          {{ 'org.users.actions.deactivate' | transloco }}
+        </button>
+      }
+    </nx-page-header>
 
     @if (isSystemUser()) {
-      <p role="status">{{ 'org.users.detail.systemUserNotice' | transloco }}</p>
+      <div class="nx-alert nx-alert--info" role="status" data-testid="user-system-notice">
+        <mat-icon aria-hidden="true">lock</mat-icon>
+        <span class="nx-alert__text">{{ 'org.users.detail.systemUserNotice' | transloco }}</span>
+      </div>
+    } @else if (readOnly()) {
+      <div class="nx-alert nx-alert--info" role="status" data-testid="user-read-only">
+        <mat-icon aria-hidden="true">visibility</mat-icon>
+        <span class="nx-alert__text">{{ 'org.users.detail.readOnlyNotice' | transloco }}</span>
+      </div>
     }
 
-    <mat-tab-group mat-stretch-tabs="false" mat-align-tabs="start">
-      <mat-tab [label]="'org.users.detail.tabs.general' | transloco">
-        <form [class.nx-readonly]="isSystemUser()" [formGroup]="form" (ngSubmit)="save()">
-          <mat-form-field>
-            <mat-label>{{ 'org.users.fields.oid' | transloco }}</mat-label>
-            <input matInput formControlName="oid" data-testid="user-oid-input" />
-          </mat-form-field>
-
-          <mat-form-field>
-            <mat-label>{{ 'org.users.fields.fullName' | transloco }}</mat-label>
-            <input matInput formControlName="fullName" data-testid="user-full-name-input" />
-          </mat-form-field>
-
-          <mat-form-field>
-            <mat-label>{{ 'org.users.fields.email' | transloco }}</mat-label>
-            <input matInput type="email" formControlName="email" data-testid="user-email-input" />
-          </mat-form-field>
-          @if (facade.fieldErrors()?.email) {
-            <p role="alert" data-testid="user-email-error">{{ facade.fieldErrors()?.email }}</p>
-          }
-
-          <mat-form-field>
-            <mat-label>{{ 'org.users.fields.preferredLanguage' | transloco }}</mat-label>
-            <mat-select formControlName="preferredLanguage" data-testid="user-language-select">
-              @for (option of languageOptions; track option.code) {
-                <mat-option [value]="option.code">{{ option.label }}</mat-option>
-              }
-            </mat-select>
-          </mat-form-field>
-
-          <div class="nx-user-detail-page__business-unit">
-            <p>{{ 'org.users.fields.businessUnit' | transloco }}</p>
-            @if (businessUnitLabel()) {
-              <p data-testid="user-business-unit-current">{{ businessUnitLabel() }}</p>
-              <button mat-button type="button" (click)="clearBusinessUnit()">
-                {{ 'org.users.actions.clearBusinessUnit' | transloco }}
-              </button>
-            } @else {
-              <nx-entity-picker
-                [search]="searchBusinessUnits"
-                [displayWith]="displayBusinessUnit"
-                (selected)="onBusinessUnitSelected($event)"
-              />
-            }
-          </div>
-
-          <div class="nx-user-detail-page__actions">
-            <button
-              mat-flat-button
-              color="primary"
-              type="submit"
-              [disabled]="facade.saving()"
-              data-testid="user-save-button"
-            >
-              {{ 'common.save' | transloco }}
-            </button>
-            <a mat-button routerLink="..">{{ 'common.cancel' | transloco }}</a>
-
-            @if (!isNew() && !isSystemUser()) {
-              <button
-                mat-button
-                type="button"
-                color="warn"
-                *nxCan="'USER:DEACTIVATE'"
-                (click)="deactivate()"
-                data-testid="user-deactivate-button"
-              >
-                {{ 'org.users.actions.deactivate' | transloco }}
-              </button>
-            }
-          </div>
-        </form>
+    <mat-tab-group mat-stretch-tabs="false" animationDuration="0ms">
+      <mat-tab [label]="'common.tabs.general' | transloco">
+        <div class="nx-tab-panel">
+          <ng-container [ngTemplateOutlet]="formTpl" />
+        </div>
       </mat-tab>
 
-      @if (!isNew() && facade.selected()) {
-        <mat-tab [label]="'org.users.detail.tabs.assignments' | transloco">
-          <div class="nx-user-detail-page__assignments">
-            <a
-              mat-button
-              [routerLink]="['/access/users', facade.selected()?.id, 'effective-scope']"
-            >
-              {{ 'org.users.detail.assignments.effectiveScopeLink' | transloco }}
-            </a>
-
-            <form
-              *nxCan="'ROLE_ASSIGNMENT:CREATE'"
-              [formGroup]="grantForm"
-              (ngSubmit)="grantAssignment()"
-              class="nx-user-detail-page__grant-form"
-            >
-              <h2>{{ 'org.users.detail.assignments.grantTitle' | transloco }}</h2>
-
-              @if (assignmentSaveError()) {
-                <p role="alert" data-testid="assignment-save-error">{{ assignmentSaveError() }}</p>
-              }
-
-              <div>
-                <p>{{ 'org.users.detail.assignments.fields.role' | transloco }}</p>
-                @if (roleLabel()) {
-                  <p data-testid="assignment-role-current">{{ roleLabel() }}</p>
-                  <button mat-button type="button" (click)="clearRole()">
-                    {{ 'org.users.detail.assignments.change' | transloco }}
-                  </button>
-                } @else {
-                  <nx-entity-picker
-                    [search]="searchRoles"
-                    [displayWith]="displayRole"
-                    (selected)="onRoleSelected($event)"
-                    data-testid="assignment-role-picker"
-                  />
-                }
-                @for (message of assignmentErrorsFor('roleId'); track message) {
-                  <p role="alert">{{ message }}</p>
-                }
+      @if (user.id === routeId()) {
+        <ng-container *nxCan="'ROLE_ASSIGNMENT:READ'">
+          <mat-tab [label]="'org.users.detail.tabs.assignments' | transloco">
+            <ng-template matTabContent>
+              <div class="nx-tab-panel">
+                <nx-user-assignments [userId]="user.id" [readOnly]="isSystemUser()" />
               </div>
+            </ng-template>
+          </mat-tab>
+        </ng-container>
 
-              <mat-form-field>
-                <mat-label>{{
-                  'org.users.detail.assignments.fields.scopeType' | transloco
-                }}</mat-label>
-                <mat-select
-                  formControlName="scopeType"
-                  data-testid="assignment-scope-type-select"
-                  (selectionChange)="onScopeTypeChanged()"
-                >
-                  @for (type of scopeTypes; track type) {
-                    <mat-option [value]="type">
-                      {{ 'org.users.detail.assignments.scopeTypes.' + type | transloco }}
-                    </mat-option>
-                  }
-                </mat-select>
-              </mat-form-field>
-
-              @if (grantForm.controls.scopeType.value !== 'GLOBAL') {
-                <div>
-                  <p>{{ 'org.users.detail.assignments.fields.scopeEntity' | transloco }}</p>
-                  @if (scopeEntityLabel()) {
-                    <p data-testid="assignment-scope-entity-current">{{ scopeEntityLabel() }}</p>
-                    <button mat-button type="button" (click)="clearScopeEntity()">
-                      {{ 'org.users.detail.assignments.change' | transloco }}
-                    </button>
-                  } @else if (grantForm.controls.scopeType.value === 'LEGAL_ENTITY') {
-                    <nx-entity-picker
-                      [search]="searchLegalEntities"
-                      [displayWith]="displayLegalEntity"
-                      (selected)="onLegalEntityScopeSelected($event)"
-                      data-testid="assignment-scope-entity-picker"
-                    />
-                  } @else if (grantForm.controls.scopeType.value === 'BUSINESS_UNIT') {
-                    <nx-entity-picker
-                      [search]="searchBusinessUnitsForScope"
-                      [displayWith]="displayBusinessUnitForScope"
-                      (selected)="onBusinessUnitScopeSelected($event)"
-                      data-testid="assignment-scope-entity-picker"
-                    />
-                  } @else {
-                    <nx-entity-picker
-                      [search]="searchWarehouses"
-                      [displayWith]="displayWarehouse"
-                      (selected)="onWarehouseScopeSelected($event)"
-                      data-testid="assignment-scope-entity-picker"
-                    />
-                  }
-                  @for (message of assignmentErrorsFor('scopeEntityId'); track message) {
-                    <p role="alert">{{ message }}</p>
-                  }
-                </div>
-              }
-
-              <mat-form-field>
-                <mat-label>{{
-                  'org.users.detail.assignments.fields.validFrom' | transloco
-                }}</mat-label>
-                <input
-                  matInput
-                  type="date"
-                  formControlName="validFrom"
-                  data-testid="assignment-valid-from-input"
-                />
-              </mat-form-field>
-              @for (message of assignmentErrorsFor('validFrom'); track message) {
-                <p role="alert" data-testid="assignment-valid-from-error">{{ message }}</p>
-              }
-
-              <mat-form-field>
-                <mat-label>{{
-                  'org.users.detail.assignments.fields.validTo' | transloco
-                }}</mat-label>
-                <input
-                  matInput
-                  type="date"
-                  formControlName="validTo"
-                  data-testid="assignment-valid-to-input"
-                />
-              </mat-form-field>
-              @for (message of assignmentErrorsFor('validTo'); track message) {
-                <p role="alert" data-testid="assignment-valid-to-error">{{ message }}</p>
-              }
-
-              <button
-                mat-flat-button
-                color="primary"
-                type="submit"
-                [disabled]="!canSubmitAssignment()"
-                data-testid="assignment-grant-button"
-              >
-                {{ 'org.users.detail.assignments.grant' | transloco }}
-              </button>
-            </form>
-
-            <h2>{{ 'org.users.detail.assignments.listTitle' | transloco }}</h2>
-            @if (assignmentsFacade.loading()) {
-              <p>{{ 'org.users.detail.loading' | transloco }}</p>
-            } @else if (assignments().length === 0) {
-              <p data-testid="assignments-empty">
-                {{ 'org.users.detail.assignments.empty' | transloco }}
-              </p>
-            } @else {
-              <ul class="nx-user-detail-page__assignment-list" data-testid="assignments-list">
-                @for (assignment of assignments(); track assignment.id) {
-                  <li>
-                    <span>{{
-                      'org.users.detail.assignments.scopeTypes.' + assignment.scopeType | transloco
-                    }}</span>
-                    <span>{{ assignment.validFrom.slice(0, 10) }}</span>
-                    <span>{{ assignment.validTo ? assignment.validTo.slice(0, 10) : '—' }}</span>
-                    <span>{{
-                      'org.users.detail.assignments.sources.' + assignment.source | transloco
-                    }}</span>
-                    @if (assignmentsFacade.canRevoke(assignment.id)) {
-                      <button
-                        mat-button
-                        type="button"
-                        color="warn"
-                        *nxCan="'ROLE_ASSIGNMENT:UPDATE'"
-                        (click)="revokeAssignment(assignment.id)"
-                        [attr.data-testid]="'assignment-revoke-' + assignment.id"
-                      >
-                        {{ 'org.users.detail.assignments.revoke' | transloco }}
-                      </button>
-                    }
-                  </li>
-                }
-              </ul>
-            }
-          </div>
-        </mat-tab>
-      }
-
-      @if (!isNew() && facade.selected(); as current) {
-        @if (current.id === routeId()) {
-          <ng-container *nxCan="'AUDIT:READ'">
-            <mat-tab [label]="'common.tabs.audit' | transloco">
-              <ng-template matTabContent>
-                <nx-audit-trail
-                  data-testid="audit-tab"
-                  aggregateType="user"
-                  [aggregateId]="current.id"
-                />
-              </ng-template>
-            </mat-tab>
-          </ng-container>
-        }
+        <ng-container *nxCan="'AUDIT:READ'">
+          <mat-tab [label]="'common.tabs.audit' | transloco">
+            <ng-template matTabContent>
+              <div class="nx-tab-panel">
+                <nx-audit-trail data-testid="audit-tab" aggregateType="user" [aggregateId]="user.id" />
+              </div>
+            </ng-template>
+          </mat-tab>
+        </ng-container>
       }
     </mat-tab-group>
-  }
-</div>
+  </nx-page>
+} @else if (facade.error()) {
+  <nx-page width="form">
+    <nx-page-header [breadcrumb]="true" [title]="'org.users.title' | transloco" />
+    <nx-empty-state kind="error" class="nx-card" data-testid="user-load-error">
+      <button mat-stroked-button type="button" data-testid="user-retry-button" (click)="load()">
+        <mat-icon aria-hidden="true">refresh</mat-icon>
+        {{ 'common.retry' | transloco }}
+      </button>
+    </nx-empty-state>
+  </nx-page>
+} @else {
+  <nx-page width="form">
+    <nx-detail-skeleton [tabs]="true" />
+  </nx-page>
+}
+
+<ng-template #formTpl>
+  <form class="nx-form-stack" [class.nx-readonly]="readOnly()" [formGroup]="form" (ngSubmit)="save()" novalidate>
+    @if (invalidCount() > 0) {
+      <div class="nx-alert nx-alert--error" role="alert" data-testid="user-form-invalid">
+        <mat-icon aria-hidden="true">error</mat-icon>
+        <span class="nx-alert__text">{{
+          invalidCount() === 1
+            ? ('shared.form.reviewFieldsOne' | transloco)
+            : ('shared.form.reviewFields' | transloco: { count: invalidCount() })
+        }}</span>
+      </div>
+    }
+
+    @if (saveError(); as message) {
+      <div #saveAlert class="nx-alert nx-alert--error" role="alert" tabindex="-1" data-testid="user-save-error">
+        <mat-icon aria-hidden="true">error</mat-icon>
+        <span class="nx-alert__text">{{ message }}</span>
+      </div>
+    }
+
+    <nx-form-section [title]="'org.users.sections.person' | transloco">
+      <nx-form-grid>
+        <mat-form-field nxSpan="l" subscriptSizing="dynamic">
+          <mat-label>{{ 'org.users.fields.fullName' | transloco }}</mat-label>
+          <input matInput formControlName="fullName" required autocomplete="off" data-testid="user-full-name-input" />
+          @if (form.controls.fullName.hasError('required')) {
+            <mat-error>{{ 'shared.form.required' | transloco }}</mat-error>
+          }
+          @for (message of errorsFor('fullName'); track message) {
+            <mat-error>{{ message }}</mat-error>
+          }
+        </mat-form-field>
+
+        <mat-form-field nxSpan="l" subscriptSizing="dynamic">
+          <mat-label>{{ 'org.users.fields.email' | transloco }}</mat-label>
+          <input matInput type="email" formControlName="email" autocomplete="off" data-testid="user-email-input" />
+          @if (form.controls.email.hasError('email')) {
+            <mat-error>{{ 'shared.form.invalidValue' | transloco }}</mat-error>
+          }
+          @for (message of errorsFor('email'); track message) {
+            <mat-error data-testid="user-email-error">{{ message }}</mat-error>
+          }
+        </mat-form-field>
+      </nx-form-grid>
+      <nx-form-grid>
+        <mat-form-field nxSpan="m" subscriptSizing="dynamic">
+          <mat-label>{{ 'org.users.fields.preferredLanguage' | transloco }}</mat-label>
+          <mat-select formControlName="preferredLanguage" required data-testid="user-language-select">
+            @for (option of languageOptions; track option.code) {
+              <mat-option [value]="option.code">{{ option.label }}</mat-option>
+            }
+          </mat-select>
+          <mat-hint>{{ 'org.users.hints.preferredLanguage' | transloco }}</mat-hint>
+        </mat-form-field>
+      </nx-form-grid>
+    </nx-form-section>
+
+    <!-- Sign-up: the Microsoft Entra ID is required, so it stays visible next to the business unit.
+         Existing user: it is technical and rarely changes, so it moves to the folded «Advanced» section
+         (opened automatically when the server marks it, e.g. a 409 duplicate). -->
+    <nx-form-section
+      [title]="(isNew() ? 'org.users.sections.access' : 'org.users.sections.organisation') | transloco"
+    >
+      <nx-form-grid>
+        @if (isNew()) {
+          <ng-container [ngTemplateOutlet]="oidField" />
+        }
+        <nx-entity-picker
+          nxSpan="l"
+          data-testid="user-business-unit"
+          [label]="'org.users.fields.businessUnit' | transloco"
+          [hint]="readOnly() ? null : ('org.users.hints.businessUnit' | transloco)"
+          [error]="errorsFor('businessUnit')[0] ?? null"
+          [deniedMessage]="'org.users.detail.assignments.noList.BUSINESS_UNIT' | transloco"
+          [value]="form.controls.businessUnit.value"
+          [clearable]="true"
+          [clearLabel]="'org.users.actions.clearBusinessUnit' | transloco"
+          [disabled]="readOnly()"
+          [search]="searchBusinessUnits"
+          [displayWith]="displayBusinessUnit"
+          (selected)="onBusinessUnitSelected($event)"
+          (cleared)="clearBusinessUnit()"
+        />
+      </nx-form-grid>
+    </nx-form-section>
+
+    @if (!isNew()) {
+      <nx-form-section
+        data-testid="user-advanced-section"
+        [title]="'org.users.sections.advanced' | transloco"
+        [hint]="'org.users.sections.advancedHint' | transloco"
+        [collapsible]="true"
+        [(expanded)]="advancedOpen"
+      >
+        <nx-form-grid>
+          <ng-container [ngTemplateOutlet]="oidField" />
+        </nx-form-grid>
+      </nx-form-section>
+    }
+
+    @if (!readOnly()) {
+      <nx-action-bar>
+        <button mat-button type="button" data-testid="user-cancel-button" (click)="cancel()">
+          {{ 'common.cancel' | transloco }}
+        </button>
+        <button
+          mat-flat-button
+          type="submit"
+          data-testid="user-save-button"
+          [disabled]="facade.saving() || (!isNew() && form.pristine)"
+        >
+          {{ (isNew() ? 'org.users.actions.create' : 'common.saveChanges') | transloco }}
+        </button>
+      </nx-action-bar>
+    }
+  </form>
+</ng-template>
+
+<!-- Declared outside the <form>, so it binds the control directly ([formControl], not formControlName). -->
+<ng-template #oidField>
+  <mat-form-field nxSpan="l" subscriptSizing="dynamic">
+    <mat-label>{{ 'org.users.fields.oid' | transloco }}</mat-label>
+    <input
+      matInput
+      class="nx-mono"
+      autocomplete="off"
+      [formControl]="form.controls.oid"
+      [required]="isNew()"
+      data-testid="user-oid-input"
+    />
+    @if (isSystemUser()) {
+      <mat-hint>{{ 'org.users.hints.oidSystem' | transloco }}</mat-hint>
+    } @else {
+      <mat-hint>{{ 'org.users.hints.oid' | transloco }}</mat-hint>
+    }
+    @if (form.controls.oid.hasError('required')) {
+      <mat-error>{{ 'shared.form.required' | transloco }}</mat-error>
+    }
+    @for (message of errorsFor('oid'); track message) {
+      <mat-error data-testid="user-oid-error">{{ message }}</mat-error>
+    }
+  </mat-form-field>
+</ng-template>

@@ -54,6 +54,10 @@ Los demás tokens `--mat-sys-*` (on-primary, secondary, tertiary, error-containe
 
 Activos desde 0.8 (decisión de Luciano, 2026-11-11). Para cambiarlos, editar `--nx-status-{success,warning,danger,neutral}-{bg,fg}` en `tokens.css`; el componente los aplica con `--mat-chip-elevated-container-color`, `--mat-chip-label-text-color` y `--mat-chip-outline-width: 0` (píldora rellena). El texto de aviso pasó de `#e65100` a `#8A3500` el 2026-11-12 (de 3.0:1 a 6.4:1 sobre `#ffe0b2`, WCAG AA). Contrastes actuales: éxito 5.9:1, aviso 6.4:1, peligro 4.7:1, neutro 7.6:1. La paleta corporativa sigue ⚑ abierta.
 
+## Marcas de alcance (`effective-scope.page`)
+
+Sin tokens propios desde el 2026-11-18 (decisión de Luciano: los `--nx-scope-*` verde/azul/gris se confundían con los estados y se eliminaron). Las cuatro marcas —acceso directo, heredado, contiene elementos visibles, no visible— comparten un único aspecto neutro: sin relleno, texto e icono `--nx-color-text` (16:1 sobre blanco) y borde `--nx-color-outline` (≥ 3:1). Se distinguen por **icono + texto** (`verified_user`, `subdirectory_arrow_right`, `account_tree`, `visibility_off`) y por el trazo del borde: continuo si el usuario ve el elemento (directo, heredado), discontinuo si no lo ve en sí (contiene, no visible). La leyenda usa las mismas marcas.
+
 ## Tipografía
 
 | Nivel | Tokens | Valor |

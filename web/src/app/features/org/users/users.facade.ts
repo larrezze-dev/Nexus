@@ -1,5 +1,7 @@
-import { Injectable, inject, signal } from '@angular/core';
+import { Injectable, computed, inject, signal } from '@angular/core';
+import { TranslocoService } from '@jsverse/transloco';
 import { Observable, from, map } from 'rxjs';
+import { namesContext } from '../../../core/http/skip-error-navigation';
 import { Api } from '../../../api/platform/api';
 import { getBusinessUnit } from '../../../api/platform/fn/business-units/get-business-unit';
 import { listBusinessUnits } from '../../../api/platform/fn/business-units/list-business-units';
@@ -14,21 +16,29 @@ import type { CreateUserRequest } from '../../../api/platform/models/create-user
 import type { UpdateUserRequest } from '../../../api/platform/models/update-user-request';
 import type { User } from '../../../api/platform/models/user';
 import type { UserListItem } from '../../../api/platform/models/user-list-item';
-import { isProblem, type Problem } from '../../../core/http/problem';
+import {
+  isConcurrencyConflict,
+  isDuplicateConflict,
+  localizedFieldErrors,
+  problemOf,
+} from '../../../core/http/problem';
+import { SYSTEM_USER_ID, SystemUserReadOnlyError } from '../../../shared/auth/system-user';
+import { IdempotentCreateId } from '../../../core/ids/uuid-v7';
 import { NxI18nService } from '../../../core/i18n/nx-i18n.service';
 import { resolveCaption } from '../../../shared/ui/caption/caption.util';
 import type { NxSortModel, Page } from '../../../shared/ui/page.model';
 
-/**
- * `app_user.id` of the SYSTEM user seeded by the platform (ORG-R6: never
- * edited, never deactivated, no `external_subject`). Fixed across every
- * environment; the UI uses it only to hide actions it would reject anyway.
- */
-export const SYSTEM_USER_ID = '00000000-0000-7000-8000-000000000001';
-
-/** Form-level errors this facade knows how to attribute to a specific field. */
-export interface UserFieldErrors {
-  readonly email?: string;
+/** How a failed write is to be shown (see `UsersFacade.describeError`). */
+export interface UserErrorInfo {
+  /**
+   * `concurrency`: stale `If-Match`, the interceptor's dialog already told the user (show nothing);
+   * `duplicate`/`validation`: mark `fields`; `rule`: a business rule (`ORG-R*`); `generic`: anything else.
+   */
+  readonly kind: 'concurrency' | 'duplicate' | 'validation' | 'rule' | 'generic';
+  /** Translated text for the alert above the form; `null` when there is nothing to say. */
+  readonly message: string | null;
+  /** Form control name → translated message, for the fields to mark. */
+  readonly fields: Readonly<Record<string, readonly string[]>>;
 }
 
 /**
@@ -36,25 +46,44 @@ export interface UserFieldErrors {
  * never call `HttpClient` or the generated API functions directly, only this
  * facade, which in turn only calls the `ng-openapi-gen`-generated functions
  * through the `Api` helper.
+ *
+ * `create()`/`update()`/`deactivate()` do NOT catch: the `HttpErrorResponse` propagates and the
+ * page asks `describeError()` how to show it. The SYSTEM user is read-only for real (ORG-R6):
+ * `update()`/`deactivate()` refuse it with `SystemUserReadOnlyError` before any request.
  */
 @Injectable({ providedIn: 'root' })
 export class UsersFacade {
   private readonly api = inject(Api);
   private readonly i18n = inject(NxI18nService);
+  private readonly transloco = inject(TranslocoService);
 
   private readonly selectedSignal = signal<User | null>(null);
   private readonly loadingSignal = signal(false);
   private readonly savingSignal = signal(false);
   private readonly errorSignal = signal<string | null>(null);
-  private readonly fieldErrorsSignal = signal<UserFieldErrors | null>(null);
+  private readonly businessUnitRefSignal = signal<BusinessUnitListItem | null>(null);
 
   readonly selected = this.selectedSignal.asReadonly();
+  /** `true` while `load()` runs. With `error()` set and `selected()` null the page shows «Retry». */
   readonly loading = this.loadingSignal.asReadonly();
   readonly saving = this.savingSignal.asReadonly();
+  /** Translated message of the last failed `load()`; write errors are thrown, not stored here. */
   readonly error = this.errorSignal.asReadonly();
-  readonly fieldErrors = this.fieldErrorsSignal.asReadonly();
+  /** Current business unit of the loaded user (resolved by name, never the id). */
+  readonly businessUnitRef = this.businessUnitRefSignal.asReadonly();
+
+  /** User name (also the breadcrumb label); `null` until loaded. */
+  readonly title = computed(() => this.selectedSignal()?.fullName ?? null);
+  /** ORG-R6: the loaded user is SYSTEM, so the page offers no write action. */
+  readonly isSystem = computed(() => this.selectedSignal()?.id === SYSTEM_USER_ID);
+  /** Reactive to the active language (reads `activeLang`). */
+  readonly resolvedBusinessUnitLabel = computed(() => {
+    const ref = this.businessUnitRefSignal();
+    return ref ? this.businessUnitLabel(ref) : null;
+  });
 
   private selectedETag: string | null = null;
+  private readonly createId = new IdempotentCreateId();
   /** Monotonic sequence: only the latest `load()` (and none issued before a `reset()`) may apply its result. */
   private loadSeq = 0;
 
@@ -75,6 +104,26 @@ export class UsersFacade {
     );
   }
 
+  /** Business units for the list's name column (one page; reference data stays small). */
+  businessUnits(): Observable<BusinessUnitListItem[]> {
+    return this.searchBusinessUnits('');
+  }
+
+  /** A language by its own name in the active UI language (`es` → «Spanisch» in German), never the code. */
+  languageName(code: string | null | undefined): string {
+    if (!code) {
+      return '';
+    }
+    try {
+      const lang = this.i18n.getActiveLanguage();
+      const name = new Intl.DisplayNames([lang], { type: 'language' }).of(code) ?? code;
+      // Spanish/French/Italian names come lowercase («alemán»): a table cell starts with a capital.
+      return name.charAt(0).toLocaleUpperCase(lang) + name.slice(1);
+    } catch {
+      return code;
+    }
+  }
+
   /** Clears `selected`/errors, e.g. when navigating from an existing user's detail to "new". */
   reset(): void {
     this.loadSeq++;
@@ -82,14 +131,14 @@ export class UsersFacade {
     this.selectedSignal.set(null);
     this.selectedETag = null;
     this.errorSignal.set(null);
-    this.fieldErrorsSignal.set(null);
+    this.businessUnitRefSignal.set(null);
   }
 
   async load(id: string): Promise<void> {
     const seq = ++this.loadSeq;
     this.loadingSignal.set(true);
     this.errorSignal.set(null);
-    this.fieldErrorsSignal.set(null);
+    this.businessUnitRefSignal.set(null);
     try {
       const response = await this.api.invoke$Response(getUser, { id });
       if (seq !== this.loadSeq) {
@@ -97,9 +146,11 @@ export class UsersFacade {
       }
       this.selectedSignal.set(response.body);
       this.selectedETag = response.headers.get('ETag');
+      await this.resolveBusinessUnit(response.body.businessUnitId, seq);
     } catch (error: unknown) {
       if (seq === this.loadSeq) {
-        this.applyError(error);
+        this.selectedSignal.set(null);
+        this.errorSignal.set(this.describeError(error).message);
       }
     } finally {
       if (seq === this.loadSeq) {
@@ -108,27 +159,26 @@ export class UsersFacade {
     }
   }
 
-  async create(request: CreateUserRequest): Promise<User | null> {
+  async create(request: CreateUserRequest): Promise<User> {
     this.savingSignal.set(true);
-    this.errorSignal.set(null);
-    this.fieldErrorsSignal.set(null);
     try {
-      const response = await this.api.invoke$Response(createUser, { body: request });
+      const response = await this.api.invoke$Response(createUser, {
+        body: { ...request, id: this.createId.idFor(request) },
+      });
+      this.createId.clear();
       this.selectedSignal.set(response.body);
       this.selectedETag = response.headers.get('ETag');
       return response.body;
-    } catch (error: unknown) {
-      this.applyError(error);
-      return null;
     } finally {
       this.savingSignal.set(false);
     }
   }
 
-  async update(id: string, request: UpdateUserRequest): Promise<User | null> {
+  async update(id: string, request: UpdateUserRequest): Promise<User> {
+    if (id === SYSTEM_USER_ID) {
+      throw new SystemUserReadOnlyError();
+    }
     this.savingSignal.set(true);
-    this.errorSignal.set(null);
-    this.fieldErrorsSignal.set(null);
     try {
       const response = await this.api.invoke$Response(updateUser, {
         id,
@@ -137,19 +187,19 @@ export class UsersFacade {
       });
       this.selectedSignal.set(response.body);
       this.selectedETag = response.headers.get('ETag');
+      await this.resolveBusinessUnit(response.body.businessUnitId, this.loadSeq);
       return response.body;
-    } catch (error: unknown) {
-      this.applyError(error);
-      return null;
     } finally {
       this.savingSignal.set(false);
     }
   }
 
-  /** ORG-R6: callers must not offer this action for `SYSTEM_USER_ID` (also rejected server-side). */
-  async deactivate(id: string): Promise<User | null> {
+  /** Propagates errors (the page asks for confirmation with `NxConfirm` first). */
+  async deactivate(id: string): Promise<User> {
+    if (id === SYSTEM_USER_ID) {
+      throw new SystemUserReadOnlyError();
+    }
     this.savingSignal.set(true);
-    this.errorSignal.set(null);
     try {
       const response = await this.api.invoke$Response(deactivateUser, {
         id,
@@ -158,9 +208,6 @@ export class UsersFacade {
       this.selectedSignal.set(response.body);
       this.selectedETag = response.headers.get('ETag');
       return response.body;
-    } catch (error: unknown) {
-      this.applyError(error);
-      return null;
     } finally {
       this.savingSignal.set(false);
     }
@@ -169,10 +216,10 @@ export class UsersFacade {
   /**
    * Remote-search function for `nx-entity-picker`. `GET /v1/business-units` has no text filter
    * in the step 0.4 contract (only `page`/`pageSize`/`sort`), so this fetches one page of up to
-   * 100 business units and filters client-side on `code` and the `de` caption.
+   * 100 business units and filters client-side on `code` and the caption in the active language.
    */
   searchBusinessUnits = (query: string): Observable<BusinessUnitListItem[]> => {
-    return from(this.api.invoke(listBusinessUnits, { page: 1, pageSize: 100, sort: 'code' })).pipe(
+    return from(this.api.invoke(listBusinessUnits, { page: 1, pageSize: 100, sort: 'code' }, namesContext())).pipe(
       map((response) => {
         const items = response.items ?? [];
         const needle = query.trim().toLowerCase();
@@ -186,13 +233,67 @@ export class UsersFacade {
     );
   };
 
-  /** Label for a business unit already assigned to a user, shown read-only in the edit form. */
-  async describeBusinessUnit(id: string): Promise<string> {
-    const bu = await this.api.invoke(getBusinessUnit, { id });
-    return this.formatBusinessUnit(bu);
+  /** «code — caption» of a business unit (the caption follows the active language). */
+  formatBusinessUnit(bu: { code: string; captionI18n: I18NText }): string {
+    return this.businessUnitLabel(bu);
   }
 
-  formatBusinessUnit(bu: { code: string; captionI18n: I18NText }): string {
+  /**
+   * How to show a failed `create()`/`update()`/`deactivate()`/`load()`:
+   * - 409 `CONCURRENCY`: `kind: 'concurrency'`, no message (the interceptor's dialog already ran);
+   * - 409 `CONFLICT` (the `oid` is already linked to another user): marks `oid`;
+   * - 422 `ORG-R9` (duplicate email): marks `email`; other 422 codes: translated rule text;
+   * - 400: `errors.validation` + the named fields marked (server texts are English: generic text per field);
+   * - anything else: the generic message.
+   */
+  describeError(error: unknown): UserErrorInfo {
+    if (isConcurrencyConflict(error)) {
+      return { kind: 'concurrency', message: null, fields: {} };
+    }
+    if (error instanceof SystemUserReadOnlyError) {
+      return { kind: 'rule', message: this.i18n.translateErrorCode('ORG-R6'), fields: {} };
+    }
+    const status = (error as { status?: number } | null)?.status;
+    const problem = problemOf(error);
+    if (isDuplicateConflict(error)) {
+      return {
+        kind: 'duplicate',
+        message: null,
+        fields: { oid: [this.transloco.translate('org.users.errors.oidTaken')] },
+      };
+    }
+    if (status === 400) {
+      return {
+        kind: 'validation',
+        message: this.transloco.translate('errors.validation'),
+        fields: this.toControlNames(
+          localizedFieldErrors(problem?.errors, this.transloco.translate('shared.form.invalidValue')),
+        ),
+      };
+    }
+    if (problem?.code === 'ORG-R9') {
+      return {
+        kind: 'rule',
+        message: null,
+        fields: { email: [this.i18n.translateErrorCode('ORG-R9')] },
+      };
+    }
+    if (status === 422 && problem?.code) {
+      return { kind: 'rule', message: this.i18n.translateErrorCode(problem.code), fields: {} };
+    }
+    return { kind: 'generic', message: this.i18n.translateErrorCode(problem?.code), fields: {} };
+  }
+
+  /** The API names the business unit `businessUnitId`; the form control is `businessUnit`. */
+  private toControlNames(fields: Readonly<Record<string, readonly string[]>>): Record<string, readonly string[]> {
+    const result: Record<string, readonly string[]> = {};
+    for (const [field, messages] of Object.entries(fields)) {
+      result[field === 'businessUnitId' ? 'businessUnit' : field] = messages;
+    }
+    return result;
+  }
+
+  private businessUnitLabel(bu: { code: string; captionI18n: I18NText }): string {
     return `${bu.code} — ${this.caption(bu)}`;
   }
 
@@ -200,22 +301,21 @@ export class UsersFacade {
     return resolveCaption(bu.captionI18n, this.i18n.getActiveLanguage(), bu.code);
   }
 
-  private applyError(error: unknown): void {
-    const problem = this.extractProblem(error);
-    if (problem?.code === 'ORG-R9') {
-      this.fieldErrorsSignal.set({ email: this.i18n.translateErrorCode(problem.code) });
+  /** Resolves the user's business unit by name; a failed lookup leaves it unresolved (the page shows «—»). */
+  private async resolveBusinessUnit(id: string | null, seq: number): Promise<void> {
+    if (!id) {
+      this.businessUnitRefSignal.set(null);
       return;
     }
-    this.errorSignal.set(problem?.detail ?? this.i18n.translateErrorCode(problem?.code));
-  }
-
-  private extractProblem(error: unknown): Problem | undefined {
-    if (error && typeof error === 'object' && 'error' in error) {
-      const body = (error as { error?: unknown }).error;
-      if (isProblem(body)) {
-        return body;
+    try {
+      const bu = await this.api.invoke(getBusinessUnit, { id }, namesContext());
+      if (seq === this.loadSeq) {
+        this.businessUnitRefSignal.set(bu);
+      }
+    } catch {
+      if (seq === this.loadSeq) {
+        this.businessUnitRefSignal.set(null);
       }
     }
-    return undefined;
   }
 }

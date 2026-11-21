@@ -18,7 +18,12 @@ import { UsersFacade } from './org/users/users.facade';
 @Component({ selector: 'nx-test-detail', template: '' })
 class DetailStubComponent {}
 
-const empty = { list: () => of({ items: [], page: 0, pageSize: 25, total: 0 }) };
+const empty = {
+  list: () => of({ items: [], page: 0, pageSize: 25, total: 0 }),
+  // Reference lookups some list pages make for their name columns (users: business units).
+  businessUnits: () => of([]),
+  languageName: () => '',
+};
 
 /**
  * A list page opens its record at `/<section>/<id>` with the REAL router and the same

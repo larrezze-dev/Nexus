@@ -81,6 +81,7 @@ Aprobado por Luciano el 2026-11-12 (canvas «NEXUS — Sistema de diseño web»,
 - Un formulario de más de 4 secciones lleva un índice de secciones fijo a la derecha (`nx-section-index`; desaparece por debajo de 1280 px).
 - Errores al guardar: aviso arriba con el número de campos a revisar y mensaje en cada campo. Tras crear, se abre el detalle con el aviso «X creado».
 - Reactive Forms tipados. Los textos traducibles usan `nx-i18n-caption-editor` (una fila por idioma, `de` obligatorio; en móvil, de/en visibles y el resto bajo «Mostrar más idiomas»).
+- Campos técnicos o avanzados van en una sección plegable `nx-form-section collapsible` (patrón general aprobado por Luciano el 2026-11-21): cerrada por defecto y se abre sola si un campo interno tiene error al guardar. Nunca esconde campos obligatorios en el alta.
 
 ### §4.7 Estados
 Toda vista tiene diseñados: cargando (filas esqueleto, nunca «Loading…»), vacío (icono, frase, acción si procede), sin resultados con filtros («Limpiar filtros»), error (frase de usuario + «Reintentar»), sin permiso (403, dentro del shell), no encontrado (404 y ruta inexistente, dentro del shell) y no se pudo iniciar sesión (`/unauthorized`, pantalla completa fuera del shell).

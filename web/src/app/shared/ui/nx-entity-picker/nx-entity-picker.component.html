@@ -1,12 +1,21 @@
 <mat-form-field class="nx-entity-picker" subscriptSizing="dynamic">
+  <!-- `!== null`, not truthy: the label may arrive empty while the translation loads, and a
+       `mat-label` added after the field is created would not float like the others. -->
+  @if (label() !== null) {
+    <mat-label>{{ label() }}</mat-label>
+  }
   <input
     matInput
     type="text"
+    autocomplete="off"
     data-testid="nx-entity-picker-input"
     [placeholder]="placeholderKey() | transloco"
     [formControl]="control"
     [matAutocomplete]="auto"
+    [required]="required()"
+    [errorStateMatcher]="errorState"
     [attr.aria-busy]="loading()"
+    (focus)="onFocus()"
   />
   @if (loading()) {
     <mat-progress-spinner
@@ -15,14 +24,38 @@
       mode="indeterminate"
       data-testid="nx-entity-picker-loading"
     />
+  } @else if (clearable() && value() && !disabled()) {
+    <button
+      matSuffix
+      mat-icon-button
+      type="button"
+      data-testid="nx-entity-picker-clear"
+      [attr.aria-label]="clearLabel() ?? ('shared.entityPicker.clear' | transloco)"
+      (click)="clear($event)"
+    >
+      <mat-icon aria-hidden="true">close</mat-icon>
+    </button>
   }
-  <mat-autocomplete #auto="matAutocomplete" [displayWith]="displayFn" (optionSelected)="onOptionSelected($event)">
+  @if (denied() && deniedMessage(); as text) {
+    <mat-hint data-testid="nx-entity-picker-denied">{{ text }}</mat-hint>
+  } @else if (hint(); as text) {
+    <mat-hint>{{ text }}</mat-hint>
+  }
+  @if (error(); as text) {
+    <mat-error data-testid="nx-entity-picker-error">{{ text }}</mat-error>
+  }
+  <mat-autocomplete
+    #auto="matAutocomplete"
+    [displayWith]="displayFn"
+    (optionSelected)="onOptionSelected($event)"
+    (closed)="onClosed()"
+  >
     @for (option of options(); track $index) {
       <mat-option [value]="option">{{ displayWith()(option) }}</mat-option>
     }
     @if (!loading() && options().length === 0) {
       <mat-option disabled data-testid="nx-entity-picker-no-results">{{
-        'shared.entityPicker.noResults' | transloco
+        (denied() && deniedMessage()) || ('shared.entityPicker.noResults' | transloco)
       }}</mat-option>
     }
   </mat-autocomplete>

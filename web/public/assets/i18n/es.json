@@ -26,7 +26,13 @@
     "ORG-R3": "La unidad de negocio debe pertenecer a la misma entidad legal que el almacén.",
     "CONFLICT": "Ya existe un registro con este código.",
     "ORG-R5": "La entidad legal no se puede desactivar mientras tenga unidades de negocio o almacenes activos.",
-    "ORG-R7": "La moneda debe estar activa; una moneda en uso por una entidad legal o un grupo activos no se puede desactivar."
+    "ORG-R7": "La moneda debe estar activa; una moneda en uso por una entidad legal o un grupo activos no se puede desactivar.",
+    "ACC-R1": "Una asignación global no tiene entidad; el resto de alcances la requieren.",
+    "ACC-R2": "La entidad elegida no existe para este alcance (los proyectos aún no están disponibles).",
+    "ACC-R4": "No puedes conceder este rol en este alcance: tu propio alcance no lo cubre.",
+    "ACC-R5": "Nadie puede modificar sus propias asignaciones.",
+    "ACC-R6": "Esta asignación del sistema no se puede revocar.",
+    "ACC-R9": "Un rol del sistema no se puede desactivar."
   },
   "shell": {
     "skipToContent": "Saltar al contenido",
@@ -91,7 +97,6 @@
       "newTitle": "Nuevo rol",
       "loading": "Cargando…",
       "empty": "No se encontraron roles.",
-      "confirmDeactivate": "¿Desactivar este rol? Esta acción no se puede revertir.",
       "fields": {
         "code": "Código",
         "captionI18n": "Denominación",
@@ -101,25 +106,107 @@
       },
       "tabs": {
         "general": "General",
-        "permissionHistory": "Historial de permisos"
+        "permissions": "Permisos"
       },
       "actions": {
         "deactivate": "Desactivar",
-        "save": "Guardar"
+        "save": "Guardar",
+        "savePermissions": "Guardar permisos",
+        "create": "Crear rol"
       },
       "permissionMatrix": {
         "asOf": "A fecha de",
-        "resource": "Recurso"
+        "resource": "Recurso",
+        "historyNote": "Permisos a fecha de {{date}}. Solo lectura: vuelve a hoy para cambiarlos.",
+        "diff": "{{added}} por añadir, {{removed}} por quitar",
+        "discard": "Descartar cambios",
+        "discardDialog": {
+          "title": "Descartar cambios de permisos",
+          "message": "Hay permisos marcados o desmarcados sin guardar. Cambiar la fecha los descartará.",
+          "confirm": "Descartar y continuar"
+        },
+        "asOfHint": "Vacío = hoy. Una fecha pasada muestra los permisos que tenía entonces.",
+        "backToToday": "Volver a hoy",
+        "notApplicable": "No existe para este recurso",
+        "noChanges": "Sin cambios pendientes",
+        "pending": {
+          "added": "por añadir",
+          "removed": "por quitar"
+        }
+      },
+      "saved": "Rol guardado.",
+      "deactivated": "Rol desactivado.",
+      "permissionsSaved": "Permisos guardados.",
+      "systemNotice": "Este es un rol de sistema: no se puede desactivar, pero su nombre y sus permisos sí se pueden editar.",
+      "readOnlyNotice": "Solo puedes ver este rol: no tienes permiso para modificarlo.",
+      "deactivateDialog": {
+        "title": "Desactivar rol",
+        "message": "¿Desactivar «{{name}}» ({{code}})? Ya no se podrá asignar. Esta acción no se puede deshacer."
+      },
+      "createSubtitle": "Un rol agrupa permisos. Los permisos se marcan después de crearlo.",
+      "detail": {
+        "modified": "modificado el {{date}}"
+      },
+      "sections": {
+        "permissions": "Permisos",
+        "identification": "Identificación",
+        "names": "Nombre en cada idioma"
+      },
+      "sectionHints": {
+        "permissions": "Marca lo que pueden hacer los usuarios con este rol. Los cambios se aplican al pulsar «Guardar permisos».",
+        "names": "El alemán es obligatorio. Si falta un idioma, se muestra el nombre en alemán."
+      },
+      "hints": {
+        "code": "Identificador corto, p. ej. JEFE_ALMACEN. No se puede cambiar después.",
+        "lockedAfterCreate": "Se fija al crear el rol.",
+        "description": "Para qué sirve el rol y a quién se asigna."
       }
     },
     "effectiveScope": {
       "title": "¿Qué ve este usuario?",
       "back": "Volver al usuario",
       "loading": "Cargando…",
-      "visible": "Visible",
       "projects": "Proyectos",
-      "projectsEmpty": "Sin proyectos (todavía no forman parte del modelo antes del paso 2.1).",
-      "empty": "No hay ningún alcance visible para este usuario."
+      "projectsEmpty": "No tiene proyectos asignados.",
+      "empty": "No hay ningún alcance visible para este usuario.",
+      "loadError": "No se pudo cargar el alcance efectivo.",
+      "legend": {
+        "title": "Leyenda",
+        "direct": "El usuario tiene una asignación de rol exactamente sobre este elemento (o una global).",
+        "inherited": "Visible porque una asignación de un nivel superior lo cubre.",
+        "context": "No es visible en sí, se muestra porque algo por debajo lo es.",
+        "none": "El usuario no ve este elemento."
+      },
+      "state": {
+        "direct": "Acceso directo",
+        "inherited": "Heredado",
+        "context": "Contiene elementos visibles",
+        "none": "No visible"
+      },
+      "titleFor": "Qué ve {{name}}",
+      "subtitle": "Entidades legales, unidades de negocio y almacenes que este usuario ve gracias a sus roles.",
+      "treeLabel": "Estructura de la organización con lo que ve este usuario",
+      "emptyHint": "Asígnale un rol desde su ficha de usuario."
+    },
+    "permissions": {
+      "resources": {
+        "ASSET_TYPE": "Tipos de material",
+        "AUDIT": "Auditoría",
+        "CURRENCY": "Monedas",
+        "ORG_STRUCTURE": "Estructura de la organización",
+        "PARTY": "Terceros",
+        "ROLE": "Roles",
+        "ROLE_ASSIGNMENT": "Asignaciones de rol",
+        "USER": "Usuarios"
+      },
+      "actions": {
+        "READ": "Ver",
+        "CREATE": "Crear",
+        "UPDATE": "Editar",
+        "DELETE": "Eliminar",
+        "APPROVE": "Aprobar",
+        "EXPORT": "Exportar"
+      }
     }
   },
   "account": {
@@ -136,7 +223,37 @@
       "noPermissions": "Sin permisos todavía",
       "userId": "ID de usuario",
       "partyId": "ID de party",
-      "businessUnitId": "ID de la unidad de negocio"
+      "businessUnitId": "ID de la unidad de negocio",
+      "businessUnit": "Unidad de negocio"
+    },
+    "notProvisioned": "Tu cuenta aún no está vinculada a un usuario de NEXUS. Contacta con tu administrador.",
+    "permissions": {
+      "resources": {
+        "CURRENCY": "Monedas",
+        "ORG_STRUCTURE": "Estructura de la organización",
+        "PARTY": "Terceros",
+        "ROLE": "Roles",
+        "ROLE_ASSIGNMENT": "Asignaciones de rol",
+        "USER": "Usuarios",
+        "AUDIT": "Auditoría"
+      },
+      "actions": {
+        "CREATE": "Crear",
+        "READ": "Ver",
+        "UPDATE": "Editar",
+        "DELETE": "Eliminar",
+        "APPROVE": "Aprobar",
+        "EXPORT": "Exportar"
+      }
+    },
+    "subtitle": "Tus datos, tu idioma y lo que puedes hacer en NEXUS.",
+    "sections": {
+      "personal": "Datos personales",
+      "personalHint": "Tomados de tu cuenta de Microsoft y de tu usuario de NEXUS.",
+      "language": "Idioma",
+      "languageHint": "Idioma de la interfaz. El cambio se aplica al momento y se guarda en tu cuenta.",
+      "permissions": "Permisos",
+      "permissionsHint": "Lo que puedes hacer en NEXUS, por área. Los roles los asigna tu administrador."
     }
   },
   "breadcrumb": {
@@ -242,13 +359,31 @@
     },
     "entityPicker": {
       "placeholder": "Buscar…",
-      "noResults": "Sin resultados"
+      "noResults": "Sin resultados",
+      "clear": "Quitar selección"
     },
     "form": {
       "required": "Campo obligatorio",
       "reviewFields": "Revisa los {{count}} campos marcados.",
       "reviewFieldsOne": "Revisa el campo marcado.",
       "invalidValue": "Valor no válido"
+    },
+    "datepicker": {
+      "calendar": "Calendario",
+      "openCalendar": "Abrir calendario",
+      "closeCalendar": "Cerrar calendario",
+      "prevMonth": "Mes anterior",
+      "nextMonth": "Mes siguiente",
+      "prevYear": "Año anterior",
+      "nextYear": "Año siguiente",
+      "prevMultiYear": "24 años anteriores",
+      "nextMultiYear": "24 años siguientes",
+      "switchToMonthView": "Elegir fecha",
+      "switchToMultiYearView": "Elegir mes y año",
+      "startDate": "Fecha de inicio",
+      "endDate": "Fecha de fin",
+      "comparisonDate": "Fecha de comparación",
+      "yearRange": "{{start}} a {{end}}"
     }
   },
   "org": {
@@ -257,13 +392,14 @@
       "actions": {
         "new": "Nuevo usuario",
         "deactivate": "Desactivar",
-        "clearBusinessUnit": "Cambiar"
+        "clearBusinessUnit": "Quitar unidad de negocio",
+        "create": "Crear usuario"
       },
       "detail": {
         "newTitle": "Nuevo usuario",
         "editTitle": "Editar usuario",
         "loading": "Cargando…",
-        "systemUserNotice": "El usuario SYSTEM no se puede editar ni desactivar.",
+        "systemUserNotice": "Usuario interno de la plataforma para procesos automáticos. No se puede editar ni desactivar.",
         "tabs": {
           "general": "General",
           "assignments": "Asignaciones"
@@ -274,7 +410,7 @@
           "change": "Cambiar",
           "fields": {
             "role": "Rol",
-            "scopeType": "Tipo de alcance",
+            "scopeType": "Alcance",
             "scopeEntity": "Entidad",
             "validFrom": "Válido desde",
             "validTo": "Válido hasta"
@@ -293,18 +429,80 @@
           "sources": {
             "MANUAL": "Manual",
             "RESOURCE_ASSIGNMENT": "Asignación de recurso",
-            "SEED": "Datos semilla"
+            "SEED": "Configuración inicial"
           },
-          "revoke": "Revocar"
-        }
+          "revoke": "Revocar",
+          "granted": "Asignación concedida.",
+          "noList": {
+            "role": "No tienes permiso para listar roles",
+            "LEGAL_ENTITY": "No tienes permiso para listar entidades legales",
+            "BUSINESS_UNIT": "No tienes permiso para listar unidades de negocio",
+            "WAREHOUSE": "No tienes permiso para listar almacenes"
+          },
+          "startsOn": "Empieza el {{date}}; aparecerá en la lista ese día.",
+          "revoked": "Asignación revocada.",
+          "noEnd": "Sin fecha de fin",
+          "errors": {
+            "dateRange": "«Hasta» no puede ser anterior a «Desde».",
+            "overlap": "Ya existe una asignación para este rol y alcance que se solapa en el tiempo."
+          },
+          "revokeDialog": {
+            "title": "¿Revocar la asignación?",
+            "message": "El rol «{{role}}» ({{scope}}) terminará ahora. La asignación queda en el historial."
+          },
+          "listHint": "Roles de este usuario y dónde valen.",
+          "grantHint": "El rol vale desde el primer día hasta el último, ambos incluidos.",
+          "columns": {
+            "scope": "Alcance",
+            "validity": "Vigencia",
+            "source": "Origen",
+            "status": "Estado",
+            "actions": "Acciones"
+          },
+          "openEnd": "sin fin",
+          "hints": {
+            "search": "Busca por código o nombre.",
+            "global": "Global: el rol vale en toda la organización.",
+            "validTo": "Déjalo vacío si no tiene fin."
+          },
+          "clearRole": "Quitar rol",
+          "revokeAria": "Revocar {{role}} ({{scope}})"
+        },
+        "modified": "modificado el {{date}}",
+        "readOnlyNotice": "Solo puedes ver este usuario: no tienes permiso para modificarlo."
       },
       "fields": {
-        "oid": "ID de objeto (oid)",
+        "oid": "ID de Microsoft Entra",
         "fullName": "Nombre completo",
         "email": "Correo electrónico",
         "preferredLanguage": "Idioma preferido",
         "businessUnit": "Unidad de negocio",
         "isActive": "Estado"
+      },
+      "created": "Usuario creado.",
+      "saved": "Cambios guardados.",
+      "deactivated": "Usuario desactivado.",
+      "errors": {
+        "oidTaken": "Este ID de objeto ya está vinculado a otro usuario."
+      },
+      "deactivateDialog": {
+        "title": "¿Desactivar el usuario?",
+        "message": "{{name}} ya no podrá iniciar sesión. Esto no se puede deshacer desde aquí."
+      },
+      "newSubtitle": "Da acceso a NEXUS a una persona: vincúlala con su cuenta de Microsoft y elige su idioma.",
+      "empty": "Todavía no hay usuarios",
+      "sections": {
+        "person": "Datos personales",
+        "access": "Inicio de sesión y organización",
+        "organisation": "Organización",
+        "advanced": "Avanzado",
+        "advancedHint": "Datos técnicos de inicio de sesión. Solo hay que cambiarlos si cambia la cuenta de Microsoft de la persona."
+      },
+      "hints": {
+        "oid": "Identificador de la persona en Microsoft Entra ID (portal de Azure). Lo necesita para iniciar sesión.",
+        "oidSystem": "No inicia sesión nunca.",
+        "preferredLanguage": "Idioma en que la persona ve NEXUS.",
+        "businessUnit": "Opcional. Busca por código o nombre."
       }
     },
     "parties": {

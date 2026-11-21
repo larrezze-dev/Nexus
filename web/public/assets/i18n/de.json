@@ -26,7 +26,13 @@
     "ORG-R3": "Der Geschäftsbereich muss zur selben Gesellschaft gehören wie das Lager.",
     "CONFLICT": "Es existiert bereits ein Eintrag mit diesem Code.",
     "ORG-R5": "Die Gesellschaft kann nicht deaktiviert werden, solange sie aktive Geschäftsbereiche oder Lager hat.",
-    "ORG-R7": "Die Währung muss aktiv sein; eine Währung, die eine aktive Gesellschaft oder Gruppe verwendet, kann nicht deaktiviert werden."
+    "ORG-R7": "Die Währung muss aktiv sein; eine Währung, die eine aktive Gesellschaft oder Gruppe verwendet, kann nicht deaktiviert werden.",
+    "ACC-R1": "Eine globale Zuweisung hat keine Entität; alle anderen Bereiche benötigen eine.",
+    "ACC-R2": "Die gewählte Entität existiert nicht für diesen Bereich (Projekte sind noch nicht verfügbar).",
+    "ACC-R4": "Sie dürfen diese Rolle in diesem Bereich nicht vergeben: Ihr eigener Bereich deckt ihn nicht ab.",
+    "ACC-R5": "Niemand kann seine eigenen Zuweisungen ändern.",
+    "ACC-R6": "Diese Systemzuweisung kann nicht widerrufen werden.",
+    "ACC-R9": "Eine Systemrolle kann nicht deaktiviert werden."
   },
   "shell": {
     "skipToContent": "Zum Inhalt springen",
@@ -188,13 +194,14 @@
       "actions": {
         "new": "Neuer Benutzer",
         "deactivate": "Deaktivieren",
-        "clearBusinessUnit": "Ändern"
+        "clearBusinessUnit": "Geschäftsbereich entfernen",
+        "create": "Benutzer anlegen"
       },
       "detail": {
         "newTitle": "Neuer Benutzer",
         "editTitle": "Benutzer bearbeiten",
         "loading": "Wird geladen…",
-        "systemUserNotice": "Der SYSTEM-Benutzer kann nicht bearbeitet oder deaktiviert werden.",
+        "systemUserNotice": "Interner Benutzer der Plattform für automatische Abläufe. Er kann nicht bearbeitet oder deaktiviert werden.",
         "tabs": {
           "general": "Allgemein",
           "assignments": "Zuweisungen"
@@ -206,13 +213,13 @@
           "fields": {
             "role": "Rolle",
             "scopeType": "Geltungsbereich",
-            "scopeEntity": "Objekt",
+            "scopeEntity": "Organisationseinheit",
             "validFrom": "Gültig von",
             "validTo": "Gültig bis"
           },
           "scopeTypes": {
-            "LEGAL_ENTITY": "Rechtseinheit",
-            "BUSINESS_UNIT": "Business Unit",
+            "LEGAL_ENTITY": "Gesellschaft",
+            "BUSINESS_UNIT": "Geschäftsbereich",
             "WAREHOUSE": "Lager",
             "GLOBAL": "Global",
             "GROUP": "Gruppe",
@@ -224,18 +231,80 @@
           "sources": {
             "MANUAL": "Manuell",
             "RESOURCE_ASSIGNMENT": "Ressourcenzuweisung",
-            "SEED": "Saatdaten"
+            "SEED": "Ersteinrichtung"
           },
-          "revoke": "Entziehen"
-        }
+          "revoke": "Widerrufen",
+          "granted": "Zuweisung erteilt.",
+          "noList": {
+            "role": "Sie dürfen keine Rollen auflisten.",
+            "LEGAL_ENTITY": "Sie dürfen keine Gesellschaften auflisten.",
+            "BUSINESS_UNIT": "Sie dürfen keine Geschäftsbereiche auflisten.",
+            "WAREHOUSE": "Sie dürfen keine Lager auflisten."
+          },
+          "startsOn": "Beginnt am {{date}}; erscheint an diesem Tag in der Liste.",
+          "revoked": "Zuweisung widerrufen.",
+          "noEnd": "Unbefristet",
+          "errors": {
+            "dateRange": "«Bis» darf nicht vor «Von» liegen.",
+            "overlap": "Für diese Rolle und diesen Bereich gibt es bereits eine Zuweisung, die sich zeitlich überschneidet."
+          },
+          "revokeDialog": {
+            "title": "Zuweisung widerrufen?",
+            "message": "Die Rolle «{{role}}» ({{scope}}) wird ab jetzt beendet. Die Zuweisung bleibt im Verlauf erhalten."
+          },
+          "listHint": "Rollen dieses Benutzers und wo sie gelten.",
+          "grantHint": "Die Rolle gilt vom ersten bis einschliesslich zum letzten Tag.",
+          "columns": {
+            "scope": "Geltungsbereich",
+            "validity": "Gültigkeit",
+            "source": "Herkunft",
+            "status": "Status",
+            "actions": "Aktionen"
+          },
+          "openEnd": "unbefristet",
+          "hints": {
+            "search": "Suche nach Code oder Name.",
+            "global": "Global: Die Rolle gilt in der ganzen Organisation.",
+            "validTo": "Leer lassen, wenn sie unbefristet gilt."
+          },
+          "clearRole": "Rolle entfernen",
+          "revokeAria": "{{role}} ({{scope}}) widerrufen"
+        },
+        "modified": "geändert am {{date}}",
+        "readOnlyNotice": "Sie können diesen Benutzer nur ansehen: Ihnen fehlt die Berechtigung zum Ändern."
       },
       "fields": {
-        "oid": "Objekt-ID (oid)",
+        "oid": "Microsoft-Entra-ID",
         "fullName": "Vollständiger Name",
         "email": "E-Mail",
         "preferredLanguage": "Bevorzugte Sprache",
         "businessUnit": "Geschäftsbereich",
         "isActive": "Status"
+      },
+      "created": "Benutzer angelegt.",
+      "saved": "Änderungen gespeichert.",
+      "deactivated": "Benutzer deaktiviert.",
+      "errors": {
+        "oidTaken": "Diese Objekt-ID ist bereits einem anderen Benutzer zugeordnet."
+      },
+      "deactivateDialog": {
+        "title": "Benutzer deaktivieren?",
+        "message": "{{name}} kann sich nicht mehr anmelden. Dies kann hier nicht rückgängig gemacht werden."
+      },
+      "newSubtitle": "Geben Sie einer Person Zugang zu NEXUS: mit ihrem Microsoft-Konto verknüpfen und die Sprache wählen.",
+      "empty": "Noch keine Benutzer",
+      "sections": {
+        "person": "Persönliche Daten",
+        "access": "Anmeldung und Organisation",
+        "organisation": "Organisation",
+        "advanced": "Erweitert",
+        "advancedHint": "Technische Anmeldedaten. Nur ändern, wenn sich das Microsoft-Konto der Person ändert."
+      },
+      "hints": {
+        "oid": "Kennung der Person in Microsoft Entra ID (Azure-Portal). Ohne sie kann sie sich nicht anmelden.",
+        "oidSystem": "Meldet sich nie an.",
+        "preferredLanguage": "Sprache, in der die Person NEXUS sieht.",
+        "businessUnit": "Optional. Suche nach Code oder Name."
       }
     },
     "parties": {
@@ -498,7 +567,6 @@
       "newTitle": "Neue Rolle",
       "loading": "Wird geladen…",
       "empty": "Keine Rollen gefunden.",
-      "confirmDeactivate": "Diese Rolle deaktivieren? Dies kann nicht widerrufen werden.",
       "fields": {
         "code": "Code",
         "captionI18n": "Bezeichnung",
@@ -508,25 +576,107 @@
       },
       "tabs": {
         "general": "Allgemein",
-        "permissionHistory": "Berechtigungsverlauf"
+        "permissions": "Berechtigungen"
       },
       "actions": {
         "deactivate": "Deaktivieren",
-        "save": "Speichern"
+        "save": "Speichern",
+        "savePermissions": "Berechtigungen speichern",
+        "create": "Rolle anlegen"
       },
       "permissionMatrix": {
         "asOf": "Stand am",
-        "resource": "Ressource"
+        "resource": "Ressource",
+        "historyNote": "Berechtigungen am {{date}}. Nur Ansicht: Zum Ändern zurück zu heute wechseln.",
+        "diff": "{{added}} hinzuzufügen, {{removed}} zu entfernen",
+        "discard": "Änderungen verwerfen",
+        "discardDialog": {
+          "title": "Berechtigungsänderungen verwerfen",
+          "message": "Es gibt nicht gespeicherte Berechtigungsänderungen. Ein Datumswechsel verwirft sie.",
+          "confirm": "Verwerfen und fortfahren"
+        },
+        "asOfHint": "Leer = heute. Ein früheres Datum zeigt die damaligen Berechtigungen.",
+        "backToToday": "Zurück zu heute",
+        "notApplicable": "Gibt es für diesen Bereich nicht",
+        "noChanges": "Keine offenen Änderungen",
+        "pending": {
+          "added": "wird hinzugefügt",
+          "removed": "wird entfernt"
+        }
+      },
+      "saved": "Rolle gespeichert.",
+      "deactivated": "Rolle deaktiviert.",
+      "permissionsSaved": "Berechtigungen gespeichert.",
+      "systemNotice": "Dies ist eine Systemrolle: Sie kann nicht deaktiviert werden, Name und Berechtigungen können aber bearbeitet werden.",
+      "readOnlyNotice": "Sie können diese Rolle nur ansehen: Sie dürfen sie nicht ändern.",
+      "deactivateDialog": {
+        "title": "Rolle deaktivieren",
+        "message": "«{{name}}» ({{code}}) deaktivieren? Sie kann dann nicht mehr zugewiesen werden. Dies kann nicht rückgängig gemacht werden."
+      },
+      "createSubtitle": "Eine Rolle fasst Berechtigungen zusammen. Die Berechtigungen legen Sie nach dem Anlegen fest.",
+      "detail": {
+        "modified": "geändert am {{date}}"
+      },
+      "sections": {
+        "permissions": "Berechtigungen",
+        "identification": "Identifikation",
+        "names": "Bezeichnung in jeder Sprache"
+      },
+      "sectionHints": {
+        "permissions": "Markieren Sie, was Benutzer mit dieser Rolle tun dürfen. Die Änderungen gelten erst nach «Berechtigungen speichern».",
+        "names": "Deutsch ist Pflicht. Fehlt eine Sprache, wird die deutsche Bezeichnung angezeigt."
+      },
+      "hints": {
+        "code": "Kurzes Kürzel, z. B. LAGERLEITUNG. Kann später nicht geändert werden.",
+        "lockedAfterCreate": "Wird beim Anlegen der Rolle festgelegt.",
+        "description": "Wofür die Rolle dient und wem sie zugewiesen wird."
       }
     },
     "effectiveScope": {
       "title": "Was sieht dieser Benutzer?",
       "back": "Zurück zum Benutzer",
       "loading": "Wird geladen…",
-      "visible": "Sichtbar",
       "projects": "Projekte",
-      "projectsEmpty": "Keine Projekte (noch nicht Teil des Modells vor Schritt 2.1).",
-      "empty": "Für diesen Benutzer ist kein Geltungsbereich sichtbar."
+      "projectsEmpty": "Keine Projekte zugewiesen.",
+      "empty": "Für diesen Benutzer ist kein Geltungsbereich sichtbar.",
+      "loadError": "Der effektive Zugriffsbereich konnte nicht geladen werden.",
+      "legend": {
+        "title": "Legende",
+        "direct": "Der Benutzer hat eine Rollenzuweisung genau für dieses Element (oder eine globale).",
+        "inherited": "Sichtbar, weil eine Zuweisung auf höherer Ebene es abdeckt.",
+        "context": "Selbst nicht sichtbar, wird angezeigt, weil darunter etwas sichtbar ist.",
+        "none": "Der Benutzer sieht dieses Element nicht."
+      },
+      "state": {
+        "direct": "Direkter Zugriff",
+        "inherited": "Geerbt",
+        "context": "Enthält sichtbare Elemente",
+        "none": "Nicht sichtbar"
+      },
+      "titleFor": "Was {{name}} sieht",
+      "subtitle": "Gesellschaften, Geschäftsbereiche und Lager, die diese Person über ihre Rollen sieht.",
+      "treeLabel": "Organisationsstruktur mit den Sichtbarkeiten dieser Person",
+      "emptyHint": "Weisen Sie dieser Person im Benutzerprofil eine Rolle zu."
+    },
+    "permissions": {
+      "resources": {
+        "ASSET_TYPE": "Materialtypen",
+        "AUDIT": "Audit",
+        "CURRENCY": "Währungen",
+        "ORG_STRUCTURE": "Organisationsstruktur",
+        "PARTY": "Geschäftspartner",
+        "ROLE": "Rollen",
+        "ROLE_ASSIGNMENT": "Rollenzuweisungen",
+        "USER": "Benutzer"
+      },
+      "actions": {
+        "READ": "Ansehen",
+        "CREATE": "Anlegen",
+        "UPDATE": "Bearbeiten",
+        "DELETE": "Löschen",
+        "APPROVE": "Genehmigen",
+        "EXPORT": "Exportieren"
+      }
     }
   },
   "account": {
@@ -543,7 +693,37 @@
       "noPermissions": "Noch keine Berechtigungen",
       "userId": "Benutzer-ID",
       "partyId": "Party-ID",
-      "businessUnitId": "Geschäftsbereich-ID"
+      "businessUnitId": "Geschäftsbereich-ID",
+      "businessUnit": "Geschäftsbereich"
+    },
+    "notProvisioned": "Ihr Konto ist noch keinem Benutzer in NEXUS zugeordnet. Wenden Sie sich an Ihre Administration.",
+    "permissions": {
+      "resources": {
+        "CURRENCY": "Währungen",
+        "ORG_STRUCTURE": "Organisationsstruktur",
+        "PARTY": "Partner",
+        "ROLE": "Rollen",
+        "ROLE_ASSIGNMENT": "Rollenzuweisungen",
+        "USER": "Benutzer",
+        "AUDIT": "Audit"
+      },
+      "actions": {
+        "CREATE": "Anlegen",
+        "READ": "Ansehen",
+        "UPDATE": "Ändern",
+        "DELETE": "Löschen",
+        "APPROVE": "Genehmigen",
+        "EXPORT": "Exportieren"
+      }
+    },
+    "subtitle": "Ihre Daten, Ihre Sprache und was Sie in NEXUS tun dürfen.",
+    "sections": {
+      "personal": "Persönliche Daten",
+      "personalHint": "Aus Ihrem Microsoft-Konto und Ihrem NEXUS-Benutzer übernommen.",
+      "language": "Sprache",
+      "languageHint": "Sprache der Oberfläche. Die Änderung gilt sofort und wird für Ihr Konto gespeichert.",
+      "permissions": "Berechtigungen",
+      "permissionsHint": "Was Sie in NEXUS tun dürfen, nach Bereich. Die Rollen vergibt Ihre Administration."
     }
   },
   "breadcrumb": {
@@ -649,13 +829,31 @@
     },
     "entityPicker": {
       "placeholder": "Suchen…",
-      "noResults": "Keine Ergebnisse"
+      "noResults": "Keine Ergebnisse",
+      "clear": "Auswahl entfernen"
     },
     "form": {
       "required": "Pflichtfeld",
       "reviewFields": "Bitte prüfen Sie die {{count}} markierten Felder.",
       "reviewFieldsOne": "Bitte prüfen Sie das markierte Feld.",
       "invalidValue": "Ungültiger Wert"
+    },
+    "datepicker": {
+      "calendar": "Kalender",
+      "openCalendar": "Kalender öffnen",
+      "closeCalendar": "Kalender schliessen",
+      "prevMonth": "Vorheriger Monat",
+      "nextMonth": "Nächster Monat",
+      "prevYear": "Vorheriges Jahr",
+      "nextYear": "Nächstes Jahr",
+      "prevMultiYear": "Vorherige 24 Jahre",
+      "nextMultiYear": "Nächste 24 Jahre",
+      "switchToMonthView": "Datum wählen",
+      "switchToMultiYearView": "Monat und Jahr wählen",
+      "startDate": "Startdatum",
+      "endDate": "Enddatum",
+      "comparisonDate": "Vergleichsdatum",
+      "yearRange": "{{start}} bis {{end}}"
     }
   },
   "audit": {

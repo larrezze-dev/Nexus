@@ -26,7 +26,13 @@
     "ORG-R3": "L'unité d'affaires doit appartenir à la même entité juridique que l'entrepôt.",
     "CONFLICT": "Un enregistrement avec ce code existe déjà.",
     "ORG-R5": "L'entité juridique ne peut pas être désactivée tant qu'elle a des unités d'affaires ou des entrepôts actifs.",
-    "ORG-R7": "La devise doit être active ; une devise utilisée par une entité juridique ou un groupe actifs ne peut pas être désactivée."
+    "ORG-R7": "La devise doit être active ; une devise utilisée par une entité juridique ou un groupe actifs ne peut pas être désactivée.",
+    "ACC-R1": "Une attribution globale n'a pas d'entité ; tous les autres périmètres en exigent une.",
+    "ACC-R2": "L'entité choisie n'existe pas pour ce périmètre (les projets ne sont pas encore disponibles).",
+    "ACC-R4": "Vous ne pouvez pas attribuer ce rôle dans ce périmètre : votre propre périmètre ne le couvre pas.",
+    "ACC-R5": "Personne ne peut modifier ses propres attributions.",
+    "ACC-R6": "Cette attribution système ne peut pas être révoquée.",
+    "ACC-R9": "Un rôle système ne peut pas être désactivé."
   },
   "shell": {
     "skipToContent": "Aller au contenu",
@@ -91,7 +97,6 @@
       "newTitle": "Nouveau rôle",
       "loading": "Chargement…",
       "empty": "Aucun rôle trouvé.",
-      "confirmDeactivate": "Désactiver ce rôle ? Cette action est irréversible.",
       "fields": {
         "code": "Code",
         "captionI18n": "Libellé",
@@ -101,25 +106,107 @@
       },
       "tabs": {
         "general": "Général",
-        "permissionHistory": "Historique des permissions"
+        "permissions": "Autorisations"
       },
       "actions": {
         "deactivate": "Désactiver",
-        "save": "Enregistrer"
+        "save": "Enregistrer",
+        "savePermissions": "Enregistrer les autorisations",
+        "create": "Créer le rôle"
       },
       "permissionMatrix": {
         "asOf": "À la date du",
-        "resource": "Ressource"
+        "resource": "Ressource",
+        "historyNote": "Autorisations au {{date}}. Lecture seule : revenez à aujourd'hui pour les modifier.",
+        "diff": "{{added}} à ajouter, {{removed}} à retirer",
+        "discard": "Annuler les modifications",
+        "discardDialog": {
+          "title": "Abandonner les modifications des permissions",
+          "message": "Des permissions cochées ou décochées ne sont pas enregistrées. Changer la date les abandonnera.",
+          "confirm": "Abandonner et continuer"
+        },
+        "asOfHint": "Vide = aujourd'hui. Une date passée montre les autorisations d'alors.",
+        "backToToday": "Revenir à aujourd'hui",
+        "notApplicable": "N'existe pas pour cette ressource",
+        "noChanges": "Aucune modification en attente",
+        "pending": {
+          "added": "à ajouter",
+          "removed": "à retirer"
+        }
+      },
+      "saved": "Rôle enregistré.",
+      "deactivated": "Rôle désactivé.",
+      "permissionsSaved": "Autorisations enregistrées.",
+      "systemNotice": "Ceci est un rôle système : il ne peut pas être désactivé, mais son nom et ses autorisations peuvent être modifiés.",
+      "readOnlyNotice": "Vous pouvez seulement consulter ce rôle : vous n’avez pas le droit de le modifier.",
+      "deactivateDialog": {
+        "title": "Désactiver le rôle",
+        "message": "Désactiver « {{name}} » ({{code}}) ? Il ne pourra plus être attribué. Cette action est irréversible."
+      },
+      "createSubtitle": "Un rôle regroupe des autorisations. Vous les cochez après l'avoir créé.",
+      "detail": {
+        "modified": "modifié le {{date}}"
+      },
+      "sections": {
+        "permissions": "Autorisations",
+        "identification": "Identification",
+        "names": "Nom dans chaque langue"
+      },
+      "sectionHints": {
+        "permissions": "Cochez ce que les utilisateurs ayant ce rôle peuvent faire. Les modifications s'appliquent après « Enregistrer les autorisations ».",
+        "names": "L'allemand est obligatoire. Si une langue manque, le nom allemand est affiché."
+      },
+      "hints": {
+        "code": "Identifiant court, p. ex. CHEF_DEPOT. Ne peut plus être modifié ensuite.",
+        "lockedAfterCreate": "Fixé à la création du rôle.",
+        "description": "À quoi sert le rôle et à qui l'attribuer."
       }
     },
     "effectiveScope": {
       "title": "Que voit cet utilisateur ?",
       "back": "Retour à l'utilisateur",
       "loading": "Chargement…",
-      "visible": "Visible",
       "projects": "Projets",
-      "projectsEmpty": "Aucun projet (ne fait pas encore partie du modèle avant l'étape 2.1).",
-      "empty": "Aucun périmètre visible pour cet utilisateur."
+      "projectsEmpty": "Aucun projet attribué.",
+      "empty": "Aucun périmètre visible pour cet utilisateur.",
+      "loadError": "Impossible de charger le périmètre effectif.",
+      "legend": {
+        "title": "Légende",
+        "direct": "L’utilisateur a une attribution de rôle exactement sur cet élément (ou une attribution globale).",
+        "inherited": "Visible car une attribution à un niveau supérieur le couvre.",
+        "context": "Non visible en soi, affiché parce qu’un élément en dessous l’est.",
+        "none": "L’utilisateur ne voit pas cet élément."
+      },
+      "state": {
+        "direct": "Accès direct",
+        "inherited": "Hérité",
+        "context": "Contient des éléments visibles",
+        "none": "Non visible"
+      },
+      "titleFor": "Ce que voit {{name}}",
+      "subtitle": "Entités juridiques, unités d'affaires et entrepôts que cet utilisateur voit grâce à ses rôles.",
+      "treeLabel": "Structure de l'organisation avec ce que voit cet utilisateur",
+      "emptyHint": "Attribuez-lui un rôle depuis sa fiche utilisateur."
+    },
+    "permissions": {
+      "resources": {
+        "ASSET_TYPE": "Types de matériel",
+        "AUDIT": "Audit",
+        "CURRENCY": "Devises",
+        "ORG_STRUCTURE": "Structure de l’organisation",
+        "PARTY": "Tiers",
+        "ROLE": "Rôles",
+        "ROLE_ASSIGNMENT": "Attributions de rôle",
+        "USER": "Utilisateurs"
+      },
+      "actions": {
+        "READ": "Consulter",
+        "CREATE": "Créer",
+        "UPDATE": "Modifier",
+        "DELETE": "Supprimer",
+        "APPROVE": "Approuver",
+        "EXPORT": "Exporter"
+      }
     }
   },
   "account": {
@@ -136,7 +223,37 @@
       "noPermissions": "Aucune permission pour le moment",
       "userId": "ID utilisateur",
       "partyId": "ID de party",
-      "businessUnitId": "ID de l'unité commerciale"
+      "businessUnitId": "ID de l'unité commerciale",
+      "businessUnit": "Unité d'affaires"
+    },
+    "notProvisioned": "Votre compte n'est pas encore lié à un utilisateur NEXUS. Contactez votre administrateur.",
+    "permissions": {
+      "resources": {
+        "CURRENCY": "Devises",
+        "ORG_STRUCTURE": "Structure de l'organisation",
+        "PARTY": "Partenaires",
+        "ROLE": "Rôles",
+        "ROLE_ASSIGNMENT": "Attributions de rôle",
+        "USER": "Utilisateurs",
+        "AUDIT": "Audit"
+      },
+      "actions": {
+        "CREATE": "Créer",
+        "READ": "Consulter",
+        "UPDATE": "Modifier",
+        "DELETE": "Supprimer",
+        "APPROVE": "Approuver",
+        "EXPORT": "Exporter"
+      }
+    },
+    "subtitle": "Vos données, votre langue et ce que vous pouvez faire dans NEXUS.",
+    "sections": {
+      "personal": "Données personnelles",
+      "personalHint": "Repris de votre compte Microsoft et de votre utilisateur NEXUS.",
+      "language": "Langue",
+      "languageHint": "Langue de l'interface. Le changement s'applique tout de suite et est enregistré pour votre compte.",
+      "permissions": "Permissions",
+      "permissionsHint": "Ce que vous pouvez faire dans NEXUS, par domaine. Votre administrateur attribue les rôles."
     }
   },
   "breadcrumb": {
@@ -242,13 +359,31 @@
     },
     "entityPicker": {
       "placeholder": "Rechercher…",
-      "noResults": "Aucun résultat"
+      "noResults": "Aucun résultat",
+      "clear": "Retirer la sélection"
     },
     "form": {
       "required": "Champ obligatoire",
       "reviewFields": "Vérifiez les {{count}} champs signalés.",
       "reviewFieldsOne": "Vérifiez le champ signalé.",
       "invalidValue": "Valeur non valide"
+    },
+    "datepicker": {
+      "calendar": "Calendrier",
+      "openCalendar": "Ouvrir le calendrier",
+      "closeCalendar": "Fermer le calendrier",
+      "prevMonth": "Mois précédent",
+      "nextMonth": "Mois suivant",
+      "prevYear": "Année précédente",
+      "nextYear": "Année suivante",
+      "prevMultiYear": "24 années précédentes",
+      "nextMultiYear": "24 années suivantes",
+      "switchToMonthView": "Choisir une date",
+      "switchToMultiYearView": "Choisir le mois et l'année",
+      "startDate": "Date de début",
+      "endDate": "Date de fin",
+      "comparisonDate": "Date de comparaison",
+      "yearRange": "{{start}} à {{end}}"
     }
   },
   "org": {
@@ -257,13 +392,14 @@
       "actions": {
         "new": "Nouvel utilisateur",
         "deactivate": "Désactiver",
-        "clearBusinessUnit": "Changer"
+        "clearBusinessUnit": "Retirer l'unité d'affaires",
+        "create": "Créer l'utilisateur"
       },
       "detail": {
         "newTitle": "Nouvel utilisateur",
         "editTitle": "Modifier l'utilisateur",
         "loading": "Chargement…",
-        "systemUserNotice": "L'utilisateur SYSTEM ne peut pas être modifié ni désactivé.",
+        "systemUserNotice": "Utilisateur interne de la plateforme pour les traitements automatiques. Il ne peut être ni modifié ni désactivé.",
         "tabs": {
           "general": "Général",
           "assignments": "Attributions"
@@ -274,14 +410,14 @@
           "change": "Changer",
           "fields": {
             "role": "Rôle",
-            "scopeType": "Type de périmètre",
+            "scopeType": "Périmètre",
             "scopeEntity": "Entité",
             "validFrom": "Valide à partir de",
             "validTo": "Valide jusqu'à"
           },
           "scopeTypes": {
             "LEGAL_ENTITY": "Entité juridique",
-            "BUSINESS_UNIT": "Unité commerciale",
+            "BUSINESS_UNIT": "Unité d'affaires",
             "WAREHOUSE": "Entrepôt",
             "GLOBAL": "Global",
             "GROUP": "Groupe",
@@ -293,18 +429,80 @@
           "sources": {
             "MANUAL": "Manuel",
             "RESOURCE_ASSIGNMENT": "Attribution de ressource",
-            "SEED": "Données d'amorçage"
+            "SEED": "Configuration initiale"
           },
-          "revoke": "Révoquer"
-        }
+          "revoke": "Révoquer",
+          "granted": "Attribution accordée.",
+          "noList": {
+            "role": "Vous n'avez pas la permission de lister les rôles",
+            "LEGAL_ENTITY": "Vous n'avez pas la permission de lister les entités juridiques",
+            "BUSINESS_UNIT": "Vous n'avez pas la permission de lister les unités d'affaires",
+            "WAREHOUSE": "Vous n'avez pas la permission de lister les entrepôts"
+          },
+          "startsOn": "Commence le {{date}} ; elle apparaîtra dans la liste ce jour-là.",
+          "revoked": "Attribution révoquée.",
+          "noEnd": "Sans date de fin",
+          "errors": {
+            "dateRange": "«Jusqu'au» ne peut pas précéder «Du».",
+            "overlap": "Il existe déjà une attribution pour ce rôle et ce périmètre qui se chevauche dans le temps."
+          },
+          "revokeDialog": {
+            "title": "Révoquer l'attribution ?",
+            "message": "Le rôle «{{role}}» ({{scope}}) prendra fin maintenant. L'attribution reste dans l'historique."
+          },
+          "listHint": "Rôles de cet utilisateur et où ils s'appliquent.",
+          "grantHint": "Le rôle s'applique du premier au dernier jour inclus.",
+          "columns": {
+            "scope": "Périmètre",
+            "validity": "Validité",
+            "source": "Origine",
+            "status": "Statut",
+            "actions": "Actions"
+          },
+          "openEnd": "sans fin",
+          "hints": {
+            "search": "Recherche par code ou nom.",
+            "global": "Global : le rôle s'applique à toute l'organisation.",
+            "validTo": "Laisser vide s'il n'y a pas de fin."
+          },
+          "clearRole": "Retirer le rôle",
+          "revokeAria": "Révoquer {{role}} ({{scope}})"
+        },
+        "modified": "modifié le {{date}}",
+        "readOnlyNotice": "Vous pouvez seulement consulter cet utilisateur : vous n'avez pas le droit de le modifier."
       },
       "fields": {
-        "oid": "ID d'objet (oid)",
+        "oid": "ID Microsoft Entra",
         "fullName": "Nom complet",
         "email": "E-mail",
         "preferredLanguage": "Langue préférée",
         "businessUnit": "Unité d'affaires",
         "isActive": "Statut"
+      },
+      "created": "Utilisateur créé.",
+      "saved": "Modifications enregistrées.",
+      "deactivated": "Utilisateur désactivé.",
+      "errors": {
+        "oidTaken": "Cet ID d'objet est déjà lié à un autre utilisateur."
+      },
+      "deactivateDialog": {
+        "title": "Désactiver l'utilisateur ?",
+        "message": "{{name}} ne pourra plus se connecter. Cette action ne peut pas être annulée ici."
+      },
+      "newSubtitle": "Donnez accès à NEXUS à une personne : liez son compte Microsoft et choisissez sa langue.",
+      "empty": "Aucun utilisateur pour le moment",
+      "sections": {
+        "person": "Données personnelles",
+        "access": "Connexion et organisation",
+        "organisation": "Organisation",
+        "advanced": "Avancé",
+        "advancedHint": "Données techniques de connexion. À modifier uniquement si le compte Microsoft de la personne change."
+      },
+      "hints": {
+        "oid": "Identifiant de la personne dans Microsoft Entra ID (portail Azure). Nécessaire pour se connecter.",
+        "oidSystem": "Ne se connecte jamais.",
+        "preferredLanguage": "Langue dans laquelle la personne voit NEXUS.",
+        "businessUnit": "Facultatif. Recherche par code ou nom."
       }
     },
     "parties": {
