@@ -217,6 +217,13 @@
   border-radius: var(--nx-radius-sm);
 }
 
+/* A read-only form has nothing to fill in: drop the «*» of required fields (disabled ones only). */
+.nx-readonly .mat-mdc-form-field.mat-form-field-disabled .mdc-floating-label--required::after,
+.nx-readonly .mat-mdc-form-field.mat-form-field-disabled .mat-mdc-form-field-required-marker {
+  content: none;
+  display: none;
+}
+
 /* Choices of a read-only form: the label stays as legible as the text fields, and a disabled
  * checkbox still shows clearly whether it is ticked (muted fill 6.3:1, outline ≥ 3:1), not
  * Material's 38 % grey (e.g. the permission matrix of a role the user may not change). */
