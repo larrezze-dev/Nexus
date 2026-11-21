@@ -44,7 +44,8 @@ import {
 import { NxEntityPickerComponent } from '../../../shared/ui/nx-entity-picker/nx-entity-picker.component';
 import { NxStatusBadgeComponent } from '../../../shared/ui/nx-status-badge/nx-status-badge.component';
 import { UserAssignmentsComponent } from './user-assignments.component';
-import { SystemUserReadOnlyError, UsersFacade } from './users.facade';
+import { SystemUserReadOnlyError } from '../../../shared/auth/system-user';
+import { UsersFacade } from './users.facade';
 
 /** A picked business unit: just what the label needs. */
 type BusinessUnitOption = Pick<BusinessUnitListItem, 'id' | 'code' | 'captionI18n'>;

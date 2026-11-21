@@ -8,7 +8,8 @@ import { firstValueFrom } from 'rxjs';
 import type { User } from '../../../api/platform/models/user';
 import type { UserListItem } from '../../../api/platform/models/user-list-item';
 import { NxI18nService } from '../../../core/i18n/nx-i18n.service';
-import { SYSTEM_USER_ID, SystemUserReadOnlyError, UsersFacade } from './users.facade';
+import { SYSTEM_USER_ID, SystemUserReadOnlyError } from '../../../shared/auth/system-user';
+import { UsersFacade } from './users.facade';
 
 const user: User = {
   id: '018f1a3c-7e3b-7c5a-9c2e-6a2f8e9b0c80',

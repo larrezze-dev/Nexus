@@ -10,7 +10,8 @@ import { NxConfirm } from '../../../shared/ui/layout';
 import { stubAuditTrail } from '../audit-tab.testing';
 import { UserAssignmentsComponent } from './user-assignments.component';
 import { UserDetailPage } from './user-detail.page';
-import { SYSTEM_USER_ID, SystemUserReadOnlyError, UsersFacade, type UserErrorInfo } from './users.facade';
+import { SYSTEM_USER_ID, SystemUserReadOnlyError } from '../../../shared/auth/system-user';
+import { UsersFacade, type UserErrorInfo } from './users.facade';
 
 @Component({ selector: 'nx-user-assignments', template: '<p data-testid="assignments-stub"></p>' })
 class UserAssignmentsStubComponent {

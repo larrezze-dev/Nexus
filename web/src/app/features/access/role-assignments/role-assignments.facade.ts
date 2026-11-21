@@ -32,7 +32,7 @@ import { NxI18nService } from '../../../core/i18n/nx-i18n.service';
 import { NX_SKIP_ERROR_NAVIGATION } from '../../../core/http/skip-error-navigation';
 import { NX_NOW } from '../../../core/time/nx-clock';
 import { resolveCaption } from '../../../shared/ui/caption/caption.util';
-import { SYSTEM_USER_ID, SystemUserReadOnlyError } from '../../org/users/users.facade';
+import { SYSTEM_USER_ID, SystemUserReadOnlyError } from '../../../shared/auth/system-user';
 
 /** One assignment of a user as the screen shows it: names, never ids. */
 export interface AssignmentRow {

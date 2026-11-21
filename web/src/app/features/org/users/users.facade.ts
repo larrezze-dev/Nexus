@@ -23,17 +23,11 @@ import {
   localizedFieldErrors,
   problemOf,
 } from '../../../core/http/problem';
+import { SYSTEM_USER_ID, SystemUserReadOnlyError } from '../../../shared/auth/system-user';
 import { IdempotentCreateId } from '../../../core/ids/uuid-v7';
 import { NxI18nService } from '../../../core/i18n/nx-i18n.service';
 import { resolveCaption } from '../../../shared/ui/caption/caption.util';
 import type { NxSortModel, Page } from '../../../shared/ui/page.model';
-
-/**
- * `app_user.id` of the SYSTEM user seeded by the platform (ORG-R6: never
- * edited, never deactivated, no `external_subject`). Fixed across every
- * environment; the UI uses it only to hide actions it would reject anyway.
- */
-export const SYSTEM_USER_ID = '00000000-0000-7000-8000-000000000001';
 
 /** How a failed write is to be shown (see `UsersFacade.describeError`). */
 export interface UserErrorInfo {
@@ -46,13 +40,6 @@ export interface UserErrorInfo {
   readonly message: string | null;
   /** Form control name → translated message, for the fields to mark. */
   readonly fields: Readonly<Record<string, readonly string[]>>;
-}
-
-/** Thrown by the write methods for the SYSTEM user (ORG-R6) without any request being made. */
-export class SystemUserReadOnlyError extends Error {
-  constructor() {
-    super('The SYSTEM user is read-only (ORG-R6)');
-  }
 }
 
 /**

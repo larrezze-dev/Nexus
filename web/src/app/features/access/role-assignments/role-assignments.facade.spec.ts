@@ -9,7 +9,7 @@ import { NX_SKIP_ERROR_NAVIGATION } from '../../../core/http/skip-error-navigati
 import { NxFormatService } from '../../../core/i18n/nx-format.service';
 import { NX_NOW } from '../../../core/time/nx-clock';
 import { NxI18nService } from '../../../core/i18n/nx-i18n.service';
-import { SYSTEM_USER_ID, SystemUserReadOnlyError } from '../../org/users/users.facade';
+import { SYSTEM_USER_ID, SystemUserReadOnlyError } from '../../../shared/auth/system-user';
 import { RoleAssignmentsFacade } from './role-assignments.facade';
 
 const userId = '018f1a3c-7e3b-7c5a-9c2e-6a2f8e9b0001';
