@@ -174,7 +174,7 @@ Para probar el panel en 0.10 sin recursos reales, la página de detalle de `Lega
 
 ## §9 Abiertos ⚑
 
-- **DOC-Q1:** no se verifica que el recurso exista (está en otro esquema y ARC-R3 lo impide). Se confía en el permiso del que sube. Alternativa: cada servicio publica sus altas de recursos y platform mantiene un índice. Se propone no hacerlo salvo que aparezca un problema real.
+- **DOC-Q1 (decidido 2026-11-21, Luciano: se acepta la propuesta):** no se verifica que el recurso exista (está en otro esquema y ARC-R3 lo impide). Se confía en el permiso del que sube. Alternativa descartada por ahora: cada servicio publica sus altas de recursos y platform mantiene un índice; se reabre solo si aparece un problema real.
 - **DOC-Q2:** antivirus en subidas (Defender for Storage en Azure). Se decide en 0.11.
 - **DOC-Q3:** retención de blobs de documentos retirados. Pendiente de A12 (7.1).
 

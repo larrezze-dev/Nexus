@@ -208,7 +208,7 @@ Contador de pendientes en la barra superior (consulta `mine=assigned` con `pageS
 
 - **WF-Q1 (decidido 2026-11-11):** segregación por defecto; cada plantilla puede permitir la auto-aprobación con `allow_self_approval` (por defecto `false`), y la auto-aprobación queda marcada (WF-R6). Con el flag, sin límites: todos los pasos, también votos de quórum. Decisión de Luciano.
 - **WF-Q2 (decidido 2026-11-11):** sin plantilla activa, el alta se rechaza con `NO_ACTIVE_WORKFLOW` (WF-R13); no hay plantilla implícita. Decisión de Luciano.
-- **WF-Q3:** notificaciones (email/Teams) a los elegibles. No está en el manual; se propone un paso posterior con un consumidor de `approval.requested`.
+- **WF-Q3 (decidido 2026-11-21, Luciano: se acepta la propuesta):** notificaciones (email/Teams) a los elegibles. No está en el manual; van en un paso posterior con un consumidor de `approval.requested`, fuera de 0.9.
 
 ### Tipos de recurso previstos
 

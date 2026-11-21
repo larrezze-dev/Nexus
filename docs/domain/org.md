@@ -61,7 +61,7 @@ CREATE TABLE org."group" (
   party_id                uuid NOT NULL UNIQUE REFERENCES org.party(id),
   code                    text NOT NULL UNIQUE,
   consolidation_method    text NOT NULL DEFAULT 'FULL'
-                          CHECK (consolidation_method IN ('FULL','PROPORTIONAL','EQUITY')), -- manual ⚑ valores [+]
+                          CHECK (consolidation_method IN ('FULL','PROPORTIONAL','EQUITY')), -- ORG-Q3 decidido 2026-11-21 [+]
   reporting_currency_code char(3) NOT NULL REFERENCES org.currency(code)                 -- [+]
   -- + std
 );
@@ -86,7 +86,7 @@ CREATE TABLE org.business_unit (
   legal_entity_id  uuid NOT NULL REFERENCES org.legal_entity(id),
   code             text NOT NULL,
   caption_i18n     jsonb NOT NULL,                                     -- [+]
-  cost_center_code text NULL,       -- manual: cost_center_id; no existe entidad CostCenter → código ⚑
+  cost_center_code text NULL,       -- manual: cost_center_id; no existe entidad CostCenter → código (ORG-Q2 decidido 2026-11-21)
   is_active        boolean NOT NULL DEFAULT true,
   -- + std
   UNIQUE (legal_entity_id, code)
@@ -243,5 +243,5 @@ Todos de master data, con estado completo (EV-R4). Contexto `org`.
 ## §8 Abiertos ⚑
 
 - **ORG-Q1 (decidido 2026-10-24):** visibilidad del directorio `Party` = **`GLOBAL`** (directorio compartido por todo el grupo, sin columna de alcance ni RLS — coincide con la DDL de `org.party` de `§3`, que no lleva `legal_entity_id`). Decisión de Luciano antes del paso 0.4.
-- **ORG-Q2:** no hay entidad `CostCenter`; se guarda `cost_center_code` como texto hasta que exista un plan de cuentas.
-- **ORG-Q3:** valores de `consolidation_method`. Propuesta: `FULL`, `PROPORTIONAL`, `EQUITY`.
+- **ORG-Q2 (decidido 2026-11-21, Luciano: se acepta la propuesta):** no hay entidad `CostCenter`; se guarda `cost_center_code` como texto hasta que exista un plan de cuentas.
+- **ORG-Q3 (decidido 2026-11-21, Luciano: se acepta la propuesta):** valores de `consolidation_method`: `FULL`, `PROPORTIONAL`, `EQUITY` (por defecto `FULL`).
