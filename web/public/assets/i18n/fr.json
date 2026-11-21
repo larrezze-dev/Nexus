@@ -433,6 +433,12 @@
           },
           "revoke": "Révoquer",
           "granted": "Attribution accordée.",
+          "noList": {
+            "role": "Vous n'avez pas la permission de lister les rôles",
+            "LEGAL_ENTITY": "Vous n'avez pas la permission de lister les entités juridiques",
+            "BUSINESS_UNIT": "Vous n'avez pas la permission de lister les unités d'affaires",
+            "WAREHOUSE": "Vous n'avez pas la permission de lister les entrepôts"
+          },
           "startsOn": "Commence le {{date}} ; elle apparaîtra dans la liste ce jour-là.",
           "revoked": "Attribution révoquée.",
           "noEnd": "Sans date de fin",

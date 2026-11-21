@@ -128,6 +128,7 @@ Cambios pequeños que salen de decisiones cerradas fuera de un paso. Cada uno va
 | Alta de monedas (`POST /v1/currencies`, `CURRENCY:CREATE`), renombrar moneda (`captionI18n` en `PUT`) y nombre del grupo (`legalName`/`displayName` en `GroupListItem`/`Group`). Entregado: C #52, B #53, F en PR-5 | 2026-11-14, `domain/org.md §5` | C → B ∥ F | Cierre de la interfaz coherente |
 | Listar asignaciones futuras y revocadas (`listRoleAssignments` con filtro, p. ej. `includeInactive`) | 2026-11-21, Luciano | C → B ∥ F | — |
 | Proteger SYSTEM_ADMIN: el backend rechaza quitarle permisos críticos (`ROLE:UPDATE`, `ROLE_ASSIGNMENT:*`) — nueva regla ACC | 2026-11-21, Luciano | spec → B ∥ F | — |
+| Revisar permisos semilla: `ROLE:READ` para ORG_ADMIN y `ORG_STRUCTURE:READ` para SECURITY_ADMIN, para que puedan usar el formulario de asignación | 2026-11-21, Luciano | C (semilla) | — |
 
 ## Preguntas abiertas ⚑ por paso
 

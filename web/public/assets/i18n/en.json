@@ -433,6 +433,12 @@
           },
           "revoke": "Revoke",
           "granted": "Assignment granted.",
+          "noList": {
+            "role": "You do not have permission to list roles",
+            "LEGAL_ENTITY": "You do not have permission to list legal entities",
+            "BUSINESS_UNIT": "You do not have permission to list business units",
+            "WAREHOUSE": "You do not have permission to list warehouses"
+          },
           "startsOn": "Starts on {{date}}; it will appear in the list that day.",
           "revoked": "Assignment revoked.",
           "noEnd": "No end date",

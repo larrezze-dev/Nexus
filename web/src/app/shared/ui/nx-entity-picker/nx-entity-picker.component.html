@@ -36,7 +36,9 @@
       <mat-icon aria-hidden="true">close</mat-icon>
     </button>
   }
-  @if (hint(); as text) {
+  @if (denied() && deniedMessage(); as text) {
+    <mat-hint data-testid="nx-entity-picker-denied">{{ text }}</mat-hint>
+  } @else if (hint(); as text) {
     <mat-hint>{{ text }}</mat-hint>
   }
   @if (error(); as text) {
@@ -53,7 +55,7 @@
     }
     @if (!loading() && options().length === 0) {
       <mat-option disabled data-testid="nx-entity-picker-no-results">{{
-        'shared.entityPicker.noResults' | transloco
+        (denied() && deniedMessage()) || ('shared.entityPicker.noResults' | transloco)
       }}</mat-option>
     }
   </mat-autocomplete>

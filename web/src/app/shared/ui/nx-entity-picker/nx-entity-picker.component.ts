@@ -71,6 +71,15 @@ export class NxEntityPickerComponent<T> {
   /** Error under the field (already translated); while set, the field shows its error state. */
   readonly error = input<string | null>(null);
 
+  /**
+   * Text (already translated) shown instead of the muted help when the search fails with 403, so a user
+   * who may not list the entity sees why the list is empty rather than a mute «No results».
+   */
+  readonly deniedMessage = input<string | null>(null);
+
+  /** The last search was refused (403). */
+  protected readonly denied = signal(false);
+
   /** Marks the label as required (asterisk). Validation stays with the caller's form. */
   readonly required = input<boolean>(false);
 
@@ -109,7 +118,15 @@ export class NxEntityPickerComponent<T> {
         debounce(() => timer(this.debounceMs())),
         distinctUntilChanged(),
         tap(() => this.loading.set(true)),
-        switchMap((query) => this.search()(query).pipe(catchError(() => of<T[]>([])))),
+        switchMap((query) => {
+          this.denied.set(false);
+          return this.search()(query).pipe(
+            catchError((error: unknown) => {
+              this.denied.set((error as { status?: number } | null)?.status === 403);
+              return of<T[]>([]);
+            }),
+          );
+        }),
         takeUntilDestroyed(),
       )
       .subscribe((results) => {

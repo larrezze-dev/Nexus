@@ -87,7 +87,8 @@ describe('UsersFacade', () => {
 
   it('businessUnits() and searchBusinessUnits() skip the /forbidden navigation (a 403 must not leave /users)', async () => {
     const { facade, httpMock } = setup();
-    for (const search of [facade.businessUnits(), facade.searchBusinessUnits('x')]) {
+    for (const make of [() => facade.businessUnits(), () => facade.searchBusinessUnits('x')]) {
+      const search = make();
       const done = new Promise((resolve) => search.subscribe({ next: resolve, error: resolve }));
       const req = httpMock.expectOne((r) => r.url === '/api/platform/v1/business-units');
       expect(req.request.context.get(NX_SKIP_ERROR_NAVIGATION)).toBe(true);

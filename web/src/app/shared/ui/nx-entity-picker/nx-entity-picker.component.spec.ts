@@ -115,6 +115,34 @@ describe('NxEntityPickerComponent', () => {
     expect((fixture.componentInstance as any).options()).toEqual([]);
   });
 
+  it('a 403 shows the denied message under the field instead of a mute empty list; other errors do not', async () => {
+    const fixture = createFixture();
+    let status = 403;
+    fixture.componentRef.setInput('search', () => throwError(() => ({ status })));
+    fixture.componentRef.setInput('displayWith', displayWith);
+    fixture.componentRef.setInput('debounceMs', 1);
+    fixture.componentRef.setInput('hint', 'Search by name');
+    fixture.componentRef.setInput('deniedMessage', 'No permission to list things');
+    fixture.detectChanges();
+    const el: HTMLElement = fixture.nativeElement;
+    const type = async (text: string) => {
+      const input = el.querySelector<HTMLInputElement>('[data-testid="nx-entity-picker-input"]')!;
+      input.value = text;
+      input.dispatchEvent(new Event('input'));
+      await delay(10);
+      fixture.detectChanges();
+    };
+
+    await type('x');
+    expect(el.querySelector('[data-testid="nx-entity-picker-denied"]')?.textContent).toContain('No permission to list things');
+    expect(el.textContent).not.toContain('Search by name');
+
+    status = 500;
+    await type('xy');
+    expect(el.querySelector('[data-testid="nx-entity-picker-denied"]')).toBeNull();
+    expect(el.textContent).toContain('Search by name');
+  });
+
   describe('as a form field', () => {
     function field(value: Item | null = null): ComponentFixture<NxEntityPickerComponent<Item>> {
       const fixture = createFixture();

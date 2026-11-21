@@ -433,6 +433,12 @@
           },
           "revoke": "Revoca",
           "granted": "Assegnazione concessa.",
+          "noList": {
+            "role": "Non hai il permesso di elencare i ruoli",
+            "LEGAL_ENTITY": "Non hai il permesso di elencare le entità giuridiche",
+            "BUSINESS_UNIT": "Non hai il permesso di elencare le unità di business",
+            "WAREHOUSE": "Non hai il permesso di elencare i magazzini"
+          },
           "startsOn": "Inizia il {{date}}; comparirà nell'elenco quel giorno.",
           "revoked": "Assegnazione revocata.",
           "noEnd": "Senza scadenza",

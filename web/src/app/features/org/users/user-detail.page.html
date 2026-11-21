@@ -159,6 +159,7 @@
           [label]="'org.users.fields.businessUnit' | transloco"
           [hint]="readOnly() ? null : ('org.users.hints.businessUnit' | transloco)"
           [error]="errorsFor('businessUnit')[0] ?? null"
+          [deniedMessage]="'org.users.detail.assignments.noList.BUSINESS_UNIT' | transloco"
           [value]="form.controls.businessUnit.value"
           [clearable]="true"
           [clearLabel]="'org.users.actions.clearBusinessUnit' | transloco"

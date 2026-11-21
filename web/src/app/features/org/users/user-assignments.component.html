@@ -136,6 +136,7 @@
           [label]="'org.users.detail.assignments.fields.role' | transloco"
           [hint]="'org.users.detail.assignments.hints.search' | transloco"
           [error]="pickerError('role')"
+          [deniedMessage]="'org.users.detail.assignments.noList.role' | transloco"
           [required]="true"
           [value]="form.controls.role.value"
           [clearable]="true"
@@ -170,6 +171,7 @@
               ) | transloco
             "
             [error]="pickerError('scopeEntity')"
+            [deniedMessage]="'org.users.detail.assignments.noList.' + type | transloco"
             [required]="type !== 'GLOBAL'"
             [disabled]="type === 'GLOBAL'"
             [value]="form.controls.scopeEntity.value"
