@@ -1,5 +1,5 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { ActivatedRoute, Router, convertToParamMap } from '@angular/router';
+import { ActivatedRoute, Router, convertToParamMap, provideRouter } from '@angular/router';
 import { provideNoopAnimations } from '@angular/platform-browser/animations';
 import { TranslocoTestingModule } from '@jsverse/transloco';
 import { signal } from '@angular/core';
@@ -91,13 +91,15 @@ async function setupPage(paramMap: Record<string, string>, facade: ReturnType<ty
     ],
     providers: [
       provideNoopAnimations(),
+      // A real router (the form renders a routerLink to the party); navigate is spied below. Listed
+      // before the ActivatedRoute stub, which must win over the router's own root route.
+      provideRouter([]),
       { provide: LegalEntitiesFacade, useValue: facade },
       { provide: NxI18nService, useValue: { activeLang: () => 'en', translateErrorCode: (code: string | null | undefined) => code ?? 'generic' } },
       {
         provide: ActivatedRoute,
         useValue: { snapshot: { paramMap: convertToParamMap(paramMap) } },
       },
-      { provide: Router, useValue: { navigate: vi.fn().mockResolvedValue(true) } },
       {
         provide: NxBreadcrumbService,
         useValue: { setCurrentLabel: vi.fn(), setLoadFailed: vi.fn(), clearLoadFailed: vi.fn(), claimForPage: () => () => undefined, trail: signal([]) },
@@ -107,6 +109,7 @@ async function setupPage(paramMap: Record<string, string>, facade: ReturnType<ty
   }).compileComponents();
 
   stubAuditTrail(LegalEntityDetailPage);
+  vi.spyOn(TestBed.inject(Router), 'navigate').mockResolvedValue(true);
   const fixture: ComponentFixture<LegalEntityDetailPage> = TestBed.createComponent(LegalEntityDetailPage);
   return fixture;
 }
@@ -239,6 +242,26 @@ describe('LegalEntityDetailPage', () => {
     expect(root.querySelector('[data-testid="le-detail-read-only"]')).toBeTruthy();
     expect(root.querySelector('[data-testid="le-detail-deactivate"]')).toBeNull();
     expect((root.querySelector('[data-testid="le-form-submit"]') as HTMLButtonElement).disabled).toBe(true);
+  });
+
+  it('links the locked names to the entity\'s party with PARTY:UPDATE, even without ORG_STRUCTURE:UPDATE', async () => {
+    const fixture = await setupPage({ id: legalEntity.id }, createFacadeStub(legalEntity));
+    TestBed.inject(PermissionsStore).setPermissions([
+      { code: 'ORG_STRUCTURE:READ', scopes: [] },
+      { code: 'PARTY:UPDATE', scopes: [] },
+    ]);
+    fixture.detectChanges();
+    const link = (fixture.nativeElement as HTMLElement).querySelector('[data-testid="le-form-edit-party-names"]');
+
+    expect(link?.getAttribute('href')).toBe(`/parties/${legalEntity.partyId}`);
+  });
+
+  it('offers no link to the party without PARTY:UPDATE', async () => {
+    const fixture = await setupPage({ id: legalEntity.id }, createFacadeStub(legalEntity));
+    TestBed.inject(PermissionsStore).setPermissions([{ code: 'ORG_STRUCTURE:UPDATE', scopes: [] }]);
+    fixture.detectChanges();
+
+    expect((fixture.nativeElement as HTMLElement).querySelector('[data-testid="le-form-edit-party-names"]')).toBeNull();
   });
 
   it('uses the create template: «New legal entity» header, no tabs', async () => {

@@ -605,11 +605,13 @@
       "hints": {
         "legalName": "Nom officiel, tel qu'inscrit au registre du commerce.",
         "displayName": "Pour les listes et les menus.",
+        "editedInParties": "Se modifie dans Partenaires.",
         "lockedAfterCreate": "Fixé à la création de l'entité juridique."
       },
       "createSubtitle": "Une société du groupe : elle facture et possède ses propres entrepôts et son personnel. Les champs marqués * sont obligatoires.",
       "actions": {
-        "create": "Créer l'entité juridique"
+        "create": "Créer l'entité juridique",
+        "editPartyNames": "Modifier les noms dans Partenaires"
       },
       "detail": {
         "modified": "modifiée le {{date}}"

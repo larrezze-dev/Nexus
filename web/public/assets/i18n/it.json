@@ -605,11 +605,13 @@
       "hints": {
         "legalName": "Nome ufficiale, come nel registro delle imprese.",
         "displayName": "Per elenchi e menu.",
+        "editedInParties": "Si modifica in Partner.",
         "lockedAfterCreate": "Fissato alla creazione dell'entità legale."
       },
       "createSubtitle": "Un'azienda del gruppo: fattura e ha magazzini e personale propri. I campi con * sono obbligatori.",
       "actions": {
-        "create": "Crea entità legale"
+        "create": "Crea entità legale",
+        "editPartyNames": "Modifica i nomi in Partner"
       },
       "detail": {
         "modified": "modificata il {{date}}"

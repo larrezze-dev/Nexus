@@ -65,6 +65,7 @@
             [currencies]="currencies()"
             [saving]="saving()"
             [readOnly]="!canUpdate()"
+            [canEditPartyNames]="canUpdateParty()"
             [fieldErrors]="fieldErrors()"
             (save)="onSave($event)"
             (cancel)="onCancel()"

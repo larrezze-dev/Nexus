@@ -123,11 +123,13 @@
       "hints": {
         "legalName": "Offizieller Name laut Handelsregister.",
         "displayName": "Für Listen und Menüs.",
+        "editedInParties": "Wird unter Partner bearbeitet.",
         "lockedAfterCreate": "Wird beim Anlegen der Gesellschaft festgelegt."
       },
       "createSubtitle": "Ein Unternehmen der Gruppe: stellt Rechnungen und hat eigene Lager und eigenes Personal. Felder mit * sind Pflichtfelder.",
       "actions": {
-        "create": "Gesellschaft anlegen"
+        "create": "Gesellschaft anlegen",
+        "editPartyNames": "Namen unter Partner bearbeiten"
       },
       "detail": {
         "modified": "geändert am {{date}}"
