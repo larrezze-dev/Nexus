@@ -1,3 +1,4 @@
+import { HttpContext } from '@angular/common/http';
 import { Injectable, computed, inject, signal } from '@angular/core';
 import { TranslocoService } from '@jsverse/transloco';
 import { Observable, from, map } from 'rxjs';
@@ -28,8 +29,10 @@ import {
 import { IdempotentCreateId } from '../../../core/ids/uuid-v7';
 import { NxFormatService } from '../../../core/i18n/nx-format.service';
 import { NxI18nService } from '../../../core/i18n/nx-i18n.service';
+import { NX_SKIP_ERROR_NAVIGATION } from '../../../core/http/skip-error-navigation';
 import { NX_NOW } from '../../../core/time/nx-clock';
 import { resolveCaption } from '../../../shared/ui/caption/caption.util';
+import { SYSTEM_USER_ID, SystemUserReadOnlyError } from '../../org/users/users.facade';
 
 /** One assignment of a user as the screen shows it: names, never ids. */
 export interface AssignmentRow {
@@ -69,6 +72,8 @@ export interface AssignmentErrorInfo {
 /** `GET /v1/*` lists of reference data have no `q` (except roles/warehouses): one page, filtered client-side. */
 const REFERENCE_PAGE_SIZE = 100;
 const DAY_MS = 86_400_000;
+/** Name lookups are secondary: a 403 must leave «—», not navigate the user to /forbidden. */
+const NAMES_CONTEXT = () => new HttpContext().set(NX_SKIP_ERROR_NAVIGATION, true);
 
 /**
  * Facade for `RoleAssignment` (`ACC-R*`, `domain/access.md`): the only thing between the
@@ -93,6 +98,12 @@ export class RoleAssignmentsFacade {
   private readonly format = inject(NxFormatService);
   private readonly now = inject(NX_NOW);
 
+  /**
+   * «Now» for Pending/Active/canRevoke. A computed over an injected clock function would freeze at its first
+   * run, so the instant is a signal refreshed on every `list()` (the page reloads after create/revoke): the
+   * statuses are exact as of the last load, with no timers.
+   */
+  private readonly nowSignal = signal(this.now());
   private readonly itemsSignal = signal<RoleAssignmentListItem[]>([]);
   private readonly loadingSignal = signal(false);
   private readonly errorSignal = signal<string | null>(null);
@@ -113,7 +124,7 @@ export class RoleAssignmentsFacade {
   readonly rows = computed<AssignmentRow[]>(() => {
     const lang = this.i18n.activeLang();
     const roles = this.rolesSignal();
-    const now = this.now();
+    const now = this.nowSignal();
     return this.itemsSignal().map((item) => {
       const role = roles.get(item.roleId);
       const validTo = item.validTo ? new Date(item.validTo).getTime() : null;
@@ -155,10 +166,10 @@ export class RoleAssignmentsFacade {
     try {
       const [response, roles, legalEntities, businessUnits, warehouses] = await Promise.allSettled([
         this.api.invoke(listRoleAssignments, { userId, pageSize: 200, sort: '-validFrom' }),
-        this.api.invoke(listRoles, { page: 1, pageSize: 200, sort: 'code' }),
-        this.api.invoke(listLegalEntities, { page: 1, pageSize: REFERENCE_PAGE_SIZE, sort: 'code' }),
-        this.api.invoke(listBusinessUnits, { page: 1, pageSize: REFERENCE_PAGE_SIZE, sort: 'code' }),
-        this.api.invoke(listWarehouses, { page: 1, pageSize: REFERENCE_PAGE_SIZE, sort: 'code' }),
+        this.api.invoke(listRoles, { page: 1, pageSize: 200, sort: 'code' }, NAMES_CONTEXT()),
+        this.api.invoke(listLegalEntities, { page: 1, pageSize: REFERENCE_PAGE_SIZE, sort: 'code' }, NAMES_CONTEXT()),
+        this.api.invoke(listBusinessUnits, { page: 1, pageSize: REFERENCE_PAGE_SIZE, sort: 'code' }, NAMES_CONTEXT()),
+        this.api.invoke(listWarehouses, { page: 1, pageSize: REFERENCE_PAGE_SIZE, sort: 'code' }, NAMES_CONTEXT()),
       ]);
       if (seq !== this.loadSeq) {
         return [];
@@ -172,6 +183,7 @@ export class RoleAssignmentsFacade {
       this.legalEntitiesSignal.set(this.byId(legalEntities, (r) => r.items));
       this.businessUnitsSignal.set(this.byId(businessUnits, (r) => r.items));
       this.warehousesSignal.set(this.byId(warehouses, (r) => r.items));
+      this.nowSignal.set(this.now());
       this.itemsSignal.set(items);
       return items;
     } catch {
@@ -190,6 +202,9 @@ export class RoleAssignmentsFacade {
 
   /** Propagates errors; a retry of the same request reuses its `id` (the server answers with the existing one). */
   async create(request: CreateRoleAssignmentRequest): Promise<RoleAssignment> {
+    if (request.userId === SYSTEM_USER_ID) {
+      throw new SystemUserReadOnlyError();
+    }
     this.savingSignal.set(true);
     try {
       const response = await this.api.invoke$Response(createRoleAssignment, {

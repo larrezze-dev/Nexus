@@ -48,13 +48,15 @@
       </mat-tab>
 
       @if (user.id === routeId()) {
-        <mat-tab [label]="'org.users.detail.tabs.assignments' | transloco">
-          <ng-template matTabContent>
-            <div class="nx-tab-panel">
-              <nx-user-assignments [userId]="user.id" [readOnly]="isSystemUser()" />
-            </div>
-          </ng-template>
-        </mat-tab>
+        <ng-container *nxCan="'ROLE_ASSIGNMENT:READ'">
+          <mat-tab [label]="'org.users.detail.tabs.assignments' | transloco">
+            <ng-template matTabContent>
+              <div class="nx-tab-panel">
+                <nx-user-assignments [userId]="user.id" [readOnly]="isSystemUser()" />
+              </div>
+            </ng-template>
+          </mat-tab>
+        </ng-container>
 
         <ng-container *nxCan="'AUDIT:READ'">
           <mat-tab [label]="'common.tabs.audit' | transloco">

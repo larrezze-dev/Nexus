@@ -5,9 +5,11 @@ import { TestBed } from '@angular/core/testing';
 import { provideTransloco } from '@jsverse/transloco';
 import type { RoleAssignment } from '../../../api/platform/models/role-assignment';
 import type { RoleAssignmentListItem } from '../../../api/platform/models/role-assignment-list-item';
+import { NX_SKIP_ERROR_NAVIGATION } from '../../../core/http/skip-error-navigation';
 import { NxFormatService } from '../../../core/i18n/nx-format.service';
 import { NX_NOW } from '../../../core/time/nx-clock';
 import { NxI18nService } from '../../../core/i18n/nx-i18n.service';
+import { SYSTEM_USER_ID, SystemUserReadOnlyError } from '../../org/users/users.facade';
 import { RoleAssignmentsFacade } from './role-assignments.facade';
 
 const userId = '018f1a3c-7e3b-7c5a-9c2e-6a2f8e9b0001';
@@ -41,11 +43,11 @@ const assignment = {
 const tick = () => new Promise((resolve) => setTimeout(resolve, 0));
 
 describe('RoleAssignmentsFacade', () => {
-  function setup(now?: number) {
+  function setup(now?: number | (() => number)) {
     const activeLang = signal('es');
     TestBed.configureTestingModule({
       providers: [
-        ...(now === undefined ? [] : [{ provide: NX_NOW, useValue: () => now }]),
+        ...(now === undefined ? [] : [{ provide: NX_NOW, useValue: typeof now === 'function' ? now : () => now }]),
         provideHttpClient(),
         provideHttpClientTesting(),
         ...provideTransloco({ config: { availableLangs: ['en'], defaultLang: 'en' } }),
@@ -100,6 +102,42 @@ describe('RoleAssignmentsFacade', () => {
     expect(rows.map((r) => r.roleLabel)).toEqual(Array(4).fill('Administrador de organización'));
     expect(rows.map((r) => r.scopeLabel)).toEqual(['Nüssli (Schweiz) AG', 'Montaje', 'Almacén central', null]);
     expect(JSON.stringify(rows)).not.toContain(leId);
+  });
+
+  it('the four name lookups skip the /forbidden navigation; the assignments request does not', async () => {
+    const { facade, httpMock } = setup();
+    const pending = facade.list(userId);
+    const requests = answerList(httpMock, [item({})]);
+    await pending;
+
+    const skip = (suffix: string) =>
+      requests.find((r) => r.request.url.endsWith(suffix))?.request.context.get(NX_SKIP_ERROR_NAVIGATION);
+    expect(['/roles', '/legal-entities', '/business-units', '/warehouses'].map(skip)).toEqual([true, true, true, true]);
+    expect(skip('/role-assignments')).toBe(false);
+  });
+
+  it('create() refuses the SYSTEM user without a request', async () => {
+    const { facade, httpMock } = setup();
+    await expect(
+      facade.create({ userId: SYSTEM_USER_ID, roleId, scopeType: 'GLOBAL' } as never),
+    ).rejects.toBeInstanceOf(SystemUserReadOnlyError);
+    httpMock.expectNone(() => true);
+  });
+
+  it('status follows the clock at each list(), not the first computation', async () => {
+    let now = Date.parse('2026-06-01T00:00:00Z');
+    const { facade: f, httpMock: http } = setup(() => now);
+    const future = item({ validFrom: '2026-07-01T00:00:00Z' });
+    let pending = f.list(userId);
+    answerList(http, [future]);
+    await pending;
+    expect(f.rows()[0].status).toBe('pending');
+
+    now = Date.parse('2026-08-01T00:00:00Z');
+    pending = f.list(userId);
+    answerList(http, [future]);
+    await pending;
+    expect(f.rows()[0]).toMatchObject({ status: 'active', canRevoke: true });
   });
 
   it('rows follow the active language', async () => {

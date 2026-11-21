@@ -5,6 +5,7 @@ import { ActivatedRoute, Router, convertToParamMap, provideRouter } from '@angul
 import { provideTransloco } from '@jsverse/transloco';
 import { NxFormatService } from '../../../core/i18n/nx-format.service';
 import { NxBreadcrumbService } from '../../../core/layout/breadcrumb.service';
+import { PermissionsStore } from '../../../shared/auth/permissions.store';
 import { NxConfirm } from '../../../shared/ui/layout';
 import { stubAuditTrail } from '../audit-tab.testing';
 import { UserAssignmentsComponent } from './user-assignments.component';
@@ -315,5 +316,13 @@ describe('UserDetailPage', () => {
     const { fixture } = setup({ id: 'u-1' }, user);
     const root = await render(fixture);
     expect(Array.from(root.querySelectorAll('[role="tab"]')).map((t) => t.textContent?.trim())).toContain('org.users.detail.tabs.assignments');
+  });
+
+  it('the assignments tab needs ROLE_ASSIGNMENT:READ', async () => {
+    const { fixture } = setup({ id: 'u-1' }, user);
+    TestBed.inject(PermissionsStore).setPermissions([{ code: 'USER:READ', scopes: [] } as never]);
+    const labels = Array.from((await render(fixture)).querySelectorAll('[role="tab"]')).map((t) => t.textContent?.trim());
+    expect(labels).not.toContain('org.users.detail.tabs.assignments');
+    expect(labels).toContain('common.tabs.general');
   });
 });

@@ -1,4 +1,5 @@
 import { provideHttpClient } from '@angular/common/http';
+import { NX_SKIP_ERROR_NAVIGATION } from '../../core/http/skip-error-navigation';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
@@ -101,12 +102,35 @@ describe('AccountFacade', () => {
     const load = facade.load();
     httpMock.expectOne('/api/platform/v1/me').flush({ ...me, businessUnitId: buId });
     await new Promise((resolve) => setTimeout(resolve, 0));
-    httpMock.expectOne(`/api/platform/v1/business-units/${buId}`).flush({}, { status: 500, statusText: 'err' });
+    const buRequest = httpMock.expectOne(`/api/platform/v1/business-units/${buId}`);
+    // A secondary name lookup must not send the user to /forbidden on a 403.
+    expect(buRequest.request.context.get(NX_SKIP_ERROR_NAVIGATION)).toBe(true);
+    buRequest.flush({}, { status: 500, statusText: 'err' });
     await load;
 
     expect(facade.businessUnitLabel()).toBeNull();
     expect(facade.error()).toBeNull();
     expect(facade.me()).not.toBeNull();
+  });
+
+  it('orders the groups (and their permissions) alphabetically by label, whatever order the server sends', async () => {
+    const { facade, httpMock } = setup();
+
+    const load = facade.load();
+    httpMock.expectOne('/api/platform/v1/me').flush({
+      ...me,
+      permissions: [
+        { code: 'WIDGET:UPDATE', scopes: global },
+        { code: 'USER:READ', scopes: global },
+        { code: 'WIDGET:CREATE', scopes: global },
+        { code: 'AUDIT:READ', scopes: global },
+      ],
+    });
+    await load;
+
+    const groups = facade.permissionGroups();
+    expect(groups.map((g) => g.resourceLabel)).toEqual(['Audit', 'User', 'Widget']);
+    expect(groups[2].permissions.map((p) => p.label)).toEqual(['Widget — Create', 'Widget — Update']);
   });
 
   it('groups permissions by resource with a «Resource — Action» label, humanizing what has no translation', async () => {

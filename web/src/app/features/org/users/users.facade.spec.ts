@@ -1,4 +1,5 @@
 import { HttpErrorResponse, provideHttpClient } from '@angular/common/http';
+import { NX_SKIP_ERROR_NAVIGATION } from '../../../core/http/skip-error-navigation';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
@@ -77,7 +78,7 @@ describe('UsersFacade', () => {
 
   it('languageName() reads the language by name in the active language, never the code', () => {
     const { facade, activeLang } = setup('es');
-    expect(facade.languageName('de')).toBe('alemán');
+    expect(facade.languageName('de')).toBe('Alemán');
     activeLang.set('de');
     expect(facade.languageName('es')).toBe('Spanisch');
     expect(facade.languageName(null)).toBe('');
@@ -91,7 +92,10 @@ describe('UsersFacade', () => {
       .expectOne(userUrl(user.id))
       .flush({ ...user, businessUnitId: businessUnit.id }, { headers: { ETag: '"v1"' } });
     await tick();
-    httpMock.expectOne(`/api/platform/v1/business-units/${businessUnit.id}`).flush(businessUnit);
+    const buRequest = httpMock.expectOne(`/api/platform/v1/business-units/${businessUnit.id}`);
+    // A secondary name lookup must not send the user to /forbidden on a 403.
+    expect(buRequest.request.context.get(NX_SKIP_ERROR_NAVIGATION)).toBe(true);
+    buRequest.flush(businessUnit);
     await load;
 
     expect(facade.selected()?.fullName).toBe('Jane Doe');

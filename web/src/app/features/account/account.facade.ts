@@ -1,6 +1,8 @@
+import { HttpContext } from '@angular/common/http';
 import { Injectable, computed, inject, signal } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { TranslocoService } from '@jsverse/transloco';
+import { NX_SKIP_ERROR_NAVIGATION } from '../../core/http/skip-error-navigation';
 import { Api } from '../../api/platform/api';
 import { getBusinessUnit } from '../../api/platform/fn/business-units/get-business-unit';
 import { getMe } from '../../api/platform/fn/me/get-me';
@@ -86,11 +88,14 @@ export class AccountFacade {
       });
       groups.set(resource, items);
     }
-    return [...groups].map(([resource, permissions]) => ({
-      resource,
-      resourceLabel: this.resourceLabel(resource, lang),
-      permissions,
-    }));
+    // Alphabetical by label in the active language, like the role permission matrix (not the server's order).
+    return [...groups]
+      .map(([resource, permissions]) => ({
+        resource,
+        resourceLabel: this.resourceLabel(resource, lang),
+        permissions: [...permissions].sort((a, b) => a.label.localeCompare(b.label, lang)),
+      }))
+      .sort((a, b) => a.resourceLabel.localeCompare(b.resourceLabel, lang));
   });
 
   /** Monotonic sequence: only the latest `load()` may apply its result. */
@@ -134,7 +139,7 @@ export class AccountFacade {
       return;
     }
     try {
-      const unit = await this.api.invoke(getBusinessUnit, { id });
+      const unit = await this.api.invoke(getBusinessUnit, { id }, new HttpContext().set(NX_SKIP_ERROR_NAVIGATION, true));
       if (seq === this.loadSeq) {
         this.businessUnitNameSignal.set(unit);
       }

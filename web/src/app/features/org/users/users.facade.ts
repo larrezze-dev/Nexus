@@ -1,6 +1,8 @@
+import { HttpContext } from '@angular/common/http';
 import { Injectable, computed, inject, signal } from '@angular/core';
 import { TranslocoService } from '@jsverse/transloco';
 import { Observable, from, map } from 'rxjs';
+import { NX_SKIP_ERROR_NAVIGATION } from '../../../core/http/skip-error-navigation';
 import { Api } from '../../../api/platform/api';
 import { getBusinessUnit } from '../../../api/platform/fn/business-units/get-business-unit';
 import { listBusinessUnits } from '../../../api/platform/fn/business-units/list-business-units';
@@ -127,7 +129,10 @@ export class UsersFacade {
       return '';
     }
     try {
-      return new Intl.DisplayNames([this.i18n.getActiveLanguage()], { type: 'language' }).of(code) ?? code;
+      const lang = this.i18n.getActiveLanguage();
+      const name = new Intl.DisplayNames([lang], { type: 'language' }).of(code) ?? code;
+      // Spanish/French/Italian names come lowercase («alemán»): a table cell starts with a capital.
+      return name.charAt(0).toLocaleUpperCase(lang) + name.slice(1);
     } catch {
       return code;
     }
@@ -317,7 +322,7 @@ export class UsersFacade {
       return;
     }
     try {
-      const bu = await this.api.invoke(getBusinessUnit, { id });
+      const bu = await this.api.invoke(getBusinessUnit, { id }, new HttpContext().set(NX_SKIP_ERROR_NAVIGATION, true));
       if (seq === this.loadSeq) {
         this.businessUnitRefSignal.set(bu);
       }
