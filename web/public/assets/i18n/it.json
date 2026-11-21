@@ -435,7 +435,7 @@
           "granted": "Assegnazione concessa.",
           "noList": {
             "role": "Non hai il permesso di elencare i ruoli",
-            "LEGAL_ENTITY": "Non hai il permesso di elencare le entità giuridiche",
+            "LEGAL_ENTITY": "Non hai il permesso di elencare le entità legali",
             "BUSINESS_UNIT": "Non hai il permesso di elencare le unità di business",
             "WAREHOUSE": "Non hai il permesso di elencare i magazzini"
           },

@@ -236,10 +236,10 @@
           "revoke": "Widerrufen",
           "granted": "Zuweisung erteilt.",
           "noList": {
-            "role": "Du darfst Rollen nicht auflisten",
-            "LEGAL_ENTITY": "Du darfst Rechtseinheiten nicht auflisten",
-            "BUSINESS_UNIT": "Du darfst Geschäftseinheiten nicht auflisten",
-            "WAREHOUSE": "Du darfst Lager nicht auflisten"
+            "role": "Sie dürfen keine Rollen auflisten.",
+            "LEGAL_ENTITY": "Sie dürfen keine Gesellschaften auflisten.",
+            "BUSINESS_UNIT": "Sie dürfen keine Geschäftsbereiche auflisten.",
+            "WAREHOUSE": "Sie dürfen keine Lager auflisten."
           },
           "startsOn": "Beginnt am {{date}}; erscheint an diesem Tag in der Liste.",
           "revoked": "Zuweisung widerrufen.",
