@@ -61,7 +61,7 @@ CREATE TABLE org."group" (
   party_id                uuid NOT NULL UNIQUE REFERENCES org.party(id),
   code                    text NOT NULL UNIQUE,
   consolidation_method    text NOT NULL DEFAULT 'FULL'
-                          CHECK (consolidation_method IN ('FULL','PROPORTIONAL','EQUITY')), -- manual ⚑ valores [+]
+                          CHECK (consolidation_method IN ('FULL','PROPORTIONAL','EQUITY')), -- ORG-Q3 decidido 2026-11-21 [+]
   reporting_currency_code char(3) NOT NULL REFERENCES org.currency(code)                 -- [+]
   -- + std
 );
@@ -86,7 +86,7 @@ CREATE TABLE org.business_unit (
   legal_entity_id  uuid NOT NULL REFERENCES org.legal_entity(id),
   code             text NOT NULL,
   caption_i18n     jsonb NOT NULL,                                     -- [+]
-  cost_center_code text NULL,       -- manual: cost_center_id; no existe entidad CostCenter → código ⚑
+  cost_center_code text NULL,       -- manual: cost_center_id; no existe entidad CostCenter → código (ORG-Q2 decidido 2026-11-21)
   is_active        boolean NOT NULL DEFAULT true,
   -- + std
   UNIQUE (legal_entity_id, code)
@@ -210,6 +210,8 @@ CREATE TABLE org.party_relationship (
 | `GET/POST/DELETE /v1/parties/{id}/locations` | `PARTY:UPDATE` | 1.1 |
 | `GET/POST /v1/parties/{id}/relationships` | `PARTY:UPDATE` | 1.1 |
 
+**Entidad legal: qué se edita `[+]` (decidido 2026-11-21, Luciano):** `PUT /v1/legal-entities/{id}` cambia hoy `code`, `countryCode` y `currencyCode`. La razón social y el nombre corto viven en su `Party` (ORG-R1) y se cambiarán **desde la propia ficha de la entidad legal**: `UpdateLegalEntityRequest` aceptará `legalName`/`displayName` y el servicio actualizará el `Party` en la misma transacción (paso derivado «Ficha completa de la entidad legal», `steps/STATUS.md`; el detalle de eventos se fija en su track C). Hasta entonces se editan en Terceros (`PUT /v1/parties/{id}`). El **grupo** (`group_id`) se fija en el alta y no se cambia: no está en `UpdateLegalEntityRequest`, y moverlo exigiría una regla nueva (efecto en consolidación) y pasar por Gate C.
+
 Listados: `GET /v1/warehouses?legalEntityId=&businessUnitId=&isActive=&q=`, `GET /v1/parties?partyType=&isInternal=&q=`, `GET /v1/legal-entities?isActive=&q=` `[+]` (`q` sobre código y razón social; cada elemento incluye `legalName` y `displayName` de su `Party`).
 
 ## §6 Eventos
@@ -241,5 +243,5 @@ Todos de master data, con estado completo (EV-R4). Contexto `org`.
 ## §8 Abiertos ⚑
 
 - **ORG-Q1 (decidido 2026-10-24):** visibilidad del directorio `Party` = **`GLOBAL`** (directorio compartido por todo el grupo, sin columna de alcance ni RLS — coincide con la DDL de `org.party` de `§3`, que no lleva `legal_entity_id`). Decisión de Luciano antes del paso 0.4.
-- **ORG-Q2:** no hay entidad `CostCenter`; se guarda `cost_center_code` como texto hasta que exista un plan de cuentas.
-- **ORG-Q3:** valores de `consolidation_method`. Propuesta: `FULL`, `PROPORTIONAL`, `EQUITY`.
+- **ORG-Q2 (decidido 2026-11-21, Luciano: se acepta la propuesta):** no hay entidad `CostCenter`; se guarda `cost_center_code` como texto hasta que exista un plan de cuentas.
+- **ORG-Q3 (decidido 2026-11-21, Luciano: se acepta la propuesta):** valores de `consolidation_method`: `FULL`, `PROPORTIONAL`, `EQUITY` (por defecto `FULL`).
