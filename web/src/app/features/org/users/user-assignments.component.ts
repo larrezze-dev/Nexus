@@ -19,6 +19,8 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
 import { MatSelectModule } from '@angular/material/select';
+import { NxFormatService } from '../../../core/i18n/nx-format.service';
+import { NX_NOW } from '../../../core/time/nx-clock';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { RouterLink } from '@angular/router';
 import { TranslocoModule, TranslocoService } from '@jsverse/transloco';
@@ -97,8 +99,16 @@ export class UserAssignmentsComponent {
   private readonly transloco = inject(TranslocoService);
   private readonly confirm = inject(NxConfirm);
   private readonly snackBar = inject(MatSnackBar);
+  private readonly format = inject(NxFormatService);
+  private readonly now = inject(NX_NOW);
   private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
   private readonly saveAlert = viewChild<ElementRef<HTMLElement>>('saveAlert');
+
+  /**
+   * Persistent notice after granting an assignment that starts in the future: `GET /v1/role-assignments`
+   * only returns the ones in force, so it will not show in the list until that day.
+   */
+  protected readonly futureNotice = signal<string | null>(null);
 
   readonly userId = input.required<string>();
   /** No grant form (the SYSTEM user is read-only, ORG-R6). */
@@ -174,13 +184,22 @@ export class UserAssignmentsComponent {
       return;
     }
     this.invalidCount.set(0);
+    this.futureNotice.set(null);
     this.saveError.set(null);
     this.fieldErrors.set({});
     const userId = this.userId();
     try {
-      await this.facade.create(toCreateRoleAssignmentRequest(userId, this.form.getRawValue()));
+      const request = toCreateRoleAssignmentRequest(userId, this.form.getRawValue());
+      await this.facade.create(request);
       resetRoleAssignmentForm(this.form);
       this.notify('org.users.detail.assignments.granted');
+      this.futureNotice.set(
+        new Date(request.validFrom).getTime() > this.now()
+          ? this.transloco.translate('org.users.detail.assignments.startsOn', {
+              date: this.format.formatDateMedium(request.validFrom),
+            })
+          : null,
+      );
       await this.facade.list(userId);
     } catch (error: unknown) {
       this.showError(error);

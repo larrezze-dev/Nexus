@@ -235,6 +235,7 @@
           },
           "revoke": "Widerrufen",
           "granted": "Zuweisung erteilt.",
+          "startsOn": "Beginnt am {{date}}; erscheint an diesem Tag in der Liste.",
           "revoked": "Zuweisung widerrufen.",
           "noEnd": "Unbefristet",
           "errors": {

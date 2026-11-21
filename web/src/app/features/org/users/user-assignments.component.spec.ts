@@ -155,6 +155,33 @@ describe('UserAssignmentsComponent', () => {
     expect(cmp.form.controls.role.value).toBeNull();
   });
 
+  it('granting one that starts in the future shows a persistent notice with the date; a current one does not', async () => {
+    const { fixture, facade } = setup([]);
+    const root = await render(fixture);
+    const cmp = fixture.componentInstance as unknown as {
+      form: ReturnType<typeof import('../../access/role-assignments/role-assignment-form').createRoleAssignmentForm>;
+      grant(): Promise<void>;
+    };
+    const fill = (from: Date) => {
+      cmp.form.controls.role.setValue(role);
+      cmp.form.controls.scopeEntity.setValue({ id: 'le-1', label: 'LE' });
+      cmp.form.controls.validFrom.setValue(from);
+    };
+
+    fill(new Date(Date.now() + 40 * 86_400_000));
+    await cmp.grant();
+    fixture.detectChanges();
+    const notice = q(root, 'assignment-future-notice');
+    expect(facade.create).toHaveBeenCalledTimes(1);
+    expect(notice?.textContent).toContain('org.users.detail.assignments.startsOn');
+    expect(notice?.getAttribute('role')).toBe('status');
+
+    fill(new Date(2020, 0, 1));
+    await cmp.grant();
+    fixture.detectChanges();
+    expect(q(root, 'assignment-future-notice')).toBeNull();
+  });
+
   it('grant error ACC-R2: the message goes under the scope entity and the control is marked', async () => {
     const { fixture, facade } = setup([]);
     const root = await render(fixture);

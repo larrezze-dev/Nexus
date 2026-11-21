@@ -7,6 +7,13 @@
     {{ 'org.users.detail.assignments.effectiveScopeLink' | transloco }}
   </a>
 
+  @if (futureNotice(); as notice) {
+    <div class="nx-alert nx-alert--info" role="status" data-testid="assignment-future-notice">
+      <mat-icon aria-hidden="true">schedule</mat-icon>
+      <span class="nx-alert__text">{{ notice }}</span>
+    </div>
+  }
+
   @if (facade.loading()) {
     <div class="nx-ua-skeleton" aria-hidden="true" data-testid="assignments-loading">
       @for (bar of [72, 64, 56]; track $index) {

@@ -433,6 +433,7 @@
           },
           "revoke": "Revoca",
           "granted": "Assegnazione concessa.",
+          "startsOn": "Inizia il {{date}}; comparirà nell'elenco quel giorno.",
           "revoked": "Assegnazione revocata.",
           "noEnd": "Senza scadenza",
           "errors": {

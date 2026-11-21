@@ -433,6 +433,7 @@
           },
           "revoke": "Révoquer",
           "granted": "Attribution accordée.",
+          "startsOn": "Commence le {{date}} ; elle apparaîtra dans la liste ce jour-là.",
           "revoked": "Attribution révoquée.",
           "noEnd": "Sans date de fin",
           "errors": {

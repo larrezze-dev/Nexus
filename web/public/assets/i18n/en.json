@@ -433,6 +433,7 @@
           },
           "revoke": "Revoke",
           "granted": "Assignment granted.",
+          "startsOn": "Starts on {{date}}; it will appear in the list that day.",
           "revoked": "Assignment revoked.",
           "noEnd": "No end date",
           "errors": {
