@@ -43,7 +43,11 @@ const translations = {
         fields: {},
         tabs: { general: 'General', permissionHistory: 'Permission history' },
         actions: { deactivate: 'Deactivate', save: 'Save' },
-        permissionMatrix: { asOf: 'As of', resource: 'Resource' },
+        permissionMatrix: {
+          asOf: 'As of',
+          resource: 'Resource',
+          discardDialog: { title: 'Discard', message: 'Discard?', confirm: 'Discard and continue' },
+        },
         deactivateDialog: { title: 'Deactivate role', message: 'Deactivate {{name}}?' },
       },
       permissions: {
@@ -57,8 +61,10 @@ const translations = {
 };
 
 function createFacadeStub(initialSelected: Role | null) {
+  const selected = signal(initialSelected);
   return {
-    selected: signal(initialSelected).asReadonly(),
+    selected: selected.asReadonly(),
+    setSelected: (next: Role | null) => selected.set(next),
     loading: signal(false).asReadonly(),
     error: signal<string | null>(null).asReadonly(),
     reset: vi.fn(),
@@ -333,6 +339,89 @@ describe('RoleDetailPage', () => {
     expect(el.querySelector('.nx-perm-matrix')?.classList.contains('nx-readonly')).toBe(true);
     expect(el.querySelector('[data-testid="role-permissions-history-note"]')).not.toBeNull();
     expect(el.querySelector('[data-testid="role-permissions-save"]')).toBeNull();
+  });
+
+  it('a role reload with the same data (permissions saved) keeps unsaved General edits; changed data resets them', async () => {
+    const { facade, fixture } = await setupMatrix([]);
+    const page = fixture.componentInstance;
+    page['form'].controls.description.setValue('draft text');
+    page['form'].markAsDirty();
+
+    facade.setSelected({ ...role, updatedAt: '2026-11-20T10:00:00Z' }); // ETag refresh: same caption/description
+    fixture.detectChanges();
+    await fixture.whenStable();
+    expect(page['form'].controls.description.value).toBe('draft text');
+    expect(page['form'].dirty).toBe(true);
+
+    facade.setSelected({ ...role, description: 'saved text', updatedAt: '2026-11-20T11:00:00Z' }); // General saved
+    fixture.detectChanges();
+    await fixture.whenStable();
+    expect(page['form'].controls.description.value).toBe('saved text');
+    expect(page['form'].dirty).toBe(false);
+  });
+
+  it('changing the as-of date with unsaved matrix edits asks first; cancelling keeps date and draft', async () => {
+    const { facade, fixture } = await setupMatrix([]);
+    const page = fixture.componentInstance;
+    const confirm = TestBed.inject(NxConfirm) as unknown as { confirm: ReturnType<typeof vi.fn> };
+    page['toggleGrant']({ code: 'AUDIT:READ' });
+    facade.getPermissions.mockClear();
+
+    confirm.confirm.mockResolvedValueOnce(false);
+    await page['onAsOfPicked'](new Date(2026, 0, 1));
+    expect(confirm.confirm).toHaveBeenCalledTimes(1);
+    expect(page['asOf']()).toBe('');
+    expect(page['permissionsDirty']()).toBe(true);
+    expect(facade.getPermissions).not.toHaveBeenCalled();
+
+    confirm.confirm.mockResolvedValueOnce(true);
+    await page['onAsOfPicked'](new Date(2026, 0, 1));
+    expect(page['asOf']()).toBe('2026-01-01');
+    expect(page['permissionsDirty']()).toBe(false);
+
+    // «Back to today» with no draft does not ask.
+    confirm.confirm.mockClear();
+    await page['onAsOfPicked'](null);
+    expect(confirm.confirm).not.toHaveBeenCalled();
+    expect(page['asOf']()).toBe('');
+  });
+
+  it('«Back to today» asks too when the draft is dirty', async () => {
+    const { fixture } = await setupMatrix([]);
+    const page = fixture.componentInstance;
+    const confirm = TestBed.inject(NxConfirm) as unknown as { confirm: ReturnType<typeof vi.fn> };
+    await page['onAsOfPicked'](new Date(2026, 0, 1));
+    page['asOf'].set('2026-01-01');
+    page['originalCodes'].set(new Set());
+    page['grantedCodes'].set(new Set(['AUDIT:READ'])); // a draft left over
+    confirm.confirm.mockResolvedValueOnce(false);
+    await page['onAsOfPicked'](null);
+    expect(confirm.confirm).toHaveBeenCalled();
+    expect(page['asOf']()).toBe('2026-01-01');
+  });
+
+  it('ignores a typed as-of date after today', async () => {
+    const { facade, fixture } = await setupMatrix([]);
+    const page = fixture.componentInstance;
+    facade.getPermissions.mockClear();
+    await page['onAsOfPicked'](new Date(Date.now() + 3 * 86_400_000));
+    expect(page['asOf']()).toBe('');
+    expect(facade.getPermissions).not.toHaveBeenCalled();
+  });
+
+  it('the matrix checkboxes are disabled and inert while permissions are being saved', async () => {
+    const { fixture } = await setupMatrix([]);
+    const page = fixture.componentInstance;
+    const el = await openPermissionsTab(fixture);
+    const input = () =>
+      el.querySelector<HTMLInputElement>('mat-checkbox[data-testid="role-permission-cell-AUDIT:READ"] input');
+    expect(input()?.disabled).toBe(false);
+
+    page['savingPermissions'].set(true);
+    fixture.detectChanges();
+    expect(input()?.disabled).toBe(true);
+    page['toggleGrant']({ code: 'AUDIT:READ' });
+    expect(page['permissionsDirty']()).toBe(false);
   });
 
   it('does not call the server when nothing changed', async () => {

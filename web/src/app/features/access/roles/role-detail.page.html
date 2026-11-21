@@ -150,7 +150,7 @@
                                 [aria-label]="cellAriaLabel(cell.label, change)"
                                 [attr.title]="cell.caption"
                                 [checked]="isGranted(cell.code)"
-                                [disabled]="!canEditPermissions()"
+                                [disabled]="!canEditPermissions() || savingPermissions()"
                                 (change)="toggleGrant(cell)"
                               />
                               @if (change) {

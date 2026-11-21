@@ -1,11 +1,11 @@
-import { ChangeDetectionStrategy, Component, ElementRef, OnInit, computed, effect, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, ElementRef, OnInit, computed, effect, inject, signal, viewChild } from '@angular/core';
 import { NgTemplateOutlet } from '@angular/common';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, Router } from '@angular/router';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCheckboxModule } from '@angular/material/checkbox';
-import { MatDatepickerModule } from '@angular/material/datepicker';
+import { MatDatepickerInput, MatDatepickerModule } from '@angular/material/datepicker';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatIconModule } from '@angular/material/icon';
@@ -22,6 +22,7 @@ import {
 } from '../../../core/http/problem';
 import { DISPLAY_TIME_ZONE, NxFormatService } from '../../../core/i18n/nx-format.service';
 import { NxI18nService } from '../../../core/i18n/nx-i18n.service';
+import { NX_NOW } from '../../../core/time/nx-clock';
 import { NxCanDirective } from '../../../shared/auth/can.directive';
 import { PermissionsStore } from '../../../shared/auth/permissions.store';
 import { I18nText, emptyI18nText } from '../../../shared/ui/i18n-text.model';
@@ -125,6 +126,7 @@ export class RoleDetailPage implements OnInit {
   private readonly confirm = inject(NxConfirm);
   private readonly snackBar = inject(MatSnackBar);
   private readonly format = inject(NxFormatService);
+  private readonly now = inject(NX_NOW);
   private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
   /** Emits once the active language's file is loaded (and on every switch): texts built in TS follow it. */
   private readonly translation = toSignal(this.transloco.selectTranslation());
@@ -189,7 +191,7 @@ export class RoleDetailPage implements OnInit {
   protected readonly readOnlyMatrix = computed(() => this.asOf() !== '');
 
   /** Latest day the «as of» picker offers (there is no future state to look at). */
-  protected readonly today = new Date();
+  protected readonly today = new Date(this.now());
   /** The picked day as a `Date` for `mat-datepicker` (local midnight); `null` = today. */
   protected readonly asOfDate = computed<Date | null>(() => {
     const value = this.asOf();
@@ -234,9 +236,19 @@ export class RoleDetailPage implements OnInit {
     });
   });
 
+  private readonly asOfInput = viewChild(MatDatepickerInput<Date>);
+  private patchedKey: string | null = null;
+
   constructor() {
     effect(() => {
       const current = this.entity();
+      // A reload that brings the same role data (e.g. the ETag refresh after saving permissions) must not wipe
+      // unsaved edits in General; saving General itself changes the data, so it still resets the form.
+      const key = JSON.stringify([current?.id, current?.code, current?.captionI18n, current?.description]);
+      if (key === this.patchedKey && this.form.dirty) {
+        return;
+      }
+      this.patchedKey = key;
       this.form.patchValue(
         {
           code: current?.code ?? '',
@@ -332,7 +344,7 @@ export class RoleDetailPage implements OnInit {
 
   /** `value` is the date-only (`YYYY-MM-DD`) string of the day picked in the «as of» date picker. */
   private isToday(value: string): boolean {
-    const now = new Date();
+    const now = new Date(this.now());
     const todayOnly = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
     return value === todayOnly;
   }
@@ -377,7 +389,7 @@ export class RoleDetailPage implements OnInit {
   }
 
   protected toggleGrant(permission: Pick<Permission, 'code'>): void {
-    if (!this.canEditPermissions()) {
+    if (!this.canEditPermissions() || this.savingPermissions()) {
       return;
     }
     const next = new Set(this.grantedCodes());
@@ -540,11 +552,39 @@ export class RoleDetailPage implements OnInit {
   }
 
   /** Date picked in the «as of» field (`null` = cleared or «Back to today»), as `YYYY-MM-DD`. */
-  protected onAsOfPicked(date: Date | null): Promise<void> {
+  /** Puts the typed date back to the applied one when the change was refused. */
+  private resetAsOfInput(applied: Date | null): void {
+    const input = this.asOfInput();
+    if (input) {
+      input.value = applied;
+    }
+  }
+
+  protected async onAsOfPicked(date: Date | null): Promise<void> {
+    const previous = this.asOfDate();
+    const unchanged = (date?.getTime() ?? null) === (previous?.getTime() ?? null);
+    // Nothing to look at after today (the picker's `max` does not stop typed dates).
+    const future = date !== null && date.getTime() > this.now();
+    if (future || unchanged) {
+      this.resetAsOfInput(previous);
+      return;
+    }
+    if (this.permissionsDirty()) {
+      const confirmed = await this.confirm.confirm({
+        title: this.transloco.translate('access.roles.permissionMatrix.discardDialog.title'),
+        message: this.transloco.translate('access.roles.permissionMatrix.discardDialog.message'),
+        confirmLabel: this.transloco.translate('access.roles.permissionMatrix.discardDialog.confirm'),
+        destructive: true,
+      });
+      if (!confirmed) {
+        this.resetAsOfInput(previous);
+        return;
+      }
+    }
     const value = date
       ? `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
       : '';
-    return this.onAsOfChange(value);
+    await this.onAsOfChange(value);
   }
 
   /** Unsaved change of a cell: ticked but not granted yet (`added`), or granted and unticked (`removed`). */
