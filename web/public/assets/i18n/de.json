@@ -607,7 +607,7 @@
       "saved": "Rolle gespeichert.",
       "deactivated": "Rolle deaktiviert.",
       "permissionsSaved": "Berechtigungen gespeichert.",
-      "systemNotice": "Dies ist eine Systemrolle: Sie kann nicht deaktiviert werden, Name und Berechtigungen können aber bearbeitet werden.",
+      "systemNotice": "Dies ist eine Systemrolle: sie kann nicht deaktiviert werden, Name und Berechtigungen können aber bearbeitet werden.",
       "readOnlyNotice": "Sie können diese Rolle nur ansehen: Sie dürfen sie nicht ändern.",
       "deactivateDialog": {
         "title": "Rolle deaktivieren",
