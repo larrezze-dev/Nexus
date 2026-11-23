@@ -123,11 +123,13 @@
       "hints": {
         "legalName": "Offizieller Name laut Handelsregister.",
         "displayName": "Für Listen und Menüs.",
+        "editedInParties": "Wird unter Partner bearbeitet.",
         "lockedAfterCreate": "Wird beim Anlegen der Gesellschaft festgelegt."
       },
       "createSubtitle": "Ein Unternehmen der Gruppe: stellt Rechnungen und hat eigene Lager und eigenes Personal. Felder mit * sind Pflichtfelder.",
       "actions": {
-        "create": "Gesellschaft anlegen"
+        "create": "Gesellschaft anlegen",
+        "editPartyNames": "Namen unter Partner bearbeiten"
       },
       "detail": {
         "modified": "geändert am {{date}}"
@@ -607,7 +609,7 @@
       "saved": "Rolle gespeichert.",
       "deactivated": "Rolle deaktiviert.",
       "permissionsSaved": "Berechtigungen gespeichert.",
-      "systemNotice": "Dies ist eine Systemrolle: sie kann nicht deaktiviert werden, Name und Berechtigungen können aber bearbeitet werden.",
+      "systemNotice": "Dies ist eine Systemrolle. Sie kann nicht deaktiviert werden; Name und Berechtigungen können aber bearbeitet werden.",
       "readOnlyNotice": "Sie können diese Rolle nur ansehen: Sie dürfen sie nicht ändern.",
       "deactivateDialog": {
         "title": "Rolle deaktivieren",

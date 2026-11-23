@@ -605,11 +605,13 @@
       "hints": {
         "legalName": "Official name, as in the commercial register.",
         "displayName": "For lists and menus.",
+        "editedInParties": "Edited under Parties.",
         "lockedAfterCreate": "Set when the legal entity is created."
       },
       "createSubtitle": "A company of the group: it invoices and has its own warehouses and staff. Fields marked * are required.",
       "actions": {
-        "create": "Create legal entity"
+        "create": "Create legal entity",
+        "editPartyNames": "Edit names under Parties"
       },
       "detail": {
         "modified": "modified on {{date}}"

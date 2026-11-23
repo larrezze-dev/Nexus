@@ -19,8 +19,14 @@
         @if (isEdit) {
           <mat-icon matSuffix class="nx-le-form__lock" aria-hidden="true">lock</mat-icon>
         }
-        @if (isEdit) {
-          <mat-hint>{{ 'org.legalEntities.hints.lockedAfterCreate' | transloco }}</mat-hint>
+        @if (partyNamesLink(); as link) {
+          <mat-hint>
+            <a class="nx-link" data-testid="le-form-edit-party-names" [routerLink]="link">{{
+              'org.legalEntities.actions.editPartyNames' | transloco
+            }}</a>
+          </mat-hint>
+        } @else if (isEdit) {
+          <mat-hint>{{ 'org.legalEntities.hints.editedInParties' | transloco }}</mat-hint>
         } @else {
           <mat-hint>{{ 'org.legalEntities.hints.legalName' | transloco }}</mat-hint>
         }
@@ -39,7 +45,7 @@
           <mat-icon matSuffix class="nx-le-form__lock" aria-hidden="true">lock</mat-icon>
         }
         @if (isEdit) {
-          <mat-hint>{{ 'org.legalEntities.hints.lockedAfterCreate' | transloco }}</mat-hint>
+          <mat-hint>{{ 'org.legalEntities.hints.editedInParties' | transloco }}</mat-hint>
         } @else {
           <mat-hint>{{ 'org.legalEntities.hints.displayName' | transloco }}</mat-hint>
         }

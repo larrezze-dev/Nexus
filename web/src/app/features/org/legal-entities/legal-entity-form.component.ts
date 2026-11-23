@@ -18,6 +18,7 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatSelectModule } from '@angular/material/select';
+import { RouterLink } from '@angular/router';
 import { TranslocoModule, TranslocoService } from '@jsverse/transloco';
 import { CurrencyListItem } from '../../../api/platform/models/currency-list-item';
 import { LegalEntity } from '../../../api/platform/models/legal-entity';
@@ -54,7 +55,9 @@ const CREATE_ONLY: ReadonlySet<string> = new Set(['legalName', 'displayName', 'g
  *
  * `legalName`, `displayName` and the group are set on create only — `UpdateLegalEntityRequest`
  * has no such fields (the `Party` and the group link are fixed, ORG-R7) — so in edit mode they
- * are shown read-only with a lock and a hint, the names coming from the entity's `Party`.
+ * are shown read-only with a lock and a hint, the names coming from the entity's `Party`. The
+ * names are edited on the party's own page (`/parties/{partyId}`): their hint says so and, for a
+ * user who may change parties, is a link there instead (interim, until the update API takes names).
  * Group, country and currency are selects showing «code + name» of the value inside the field.
  * On an invalid submit: an alert with the number of fields to check, focus on the first one.
  */
@@ -69,6 +72,7 @@ const CREATE_ONLY: ReadonlySet<string> = new Set(['legalName', 'displayName', 'g
     MatInputModule,
     MatProgressSpinnerModule,
     MatSelectModule,
+    RouterLink,
     TranslocoModule,
     NxActionBarComponent,
     NxFormGridComponent,
@@ -105,6 +109,8 @@ export class LegalEntityFormComponent {
   readonly saving = input<boolean>(false);
   /** No permission to change it: every field read-only and Save disabled. */
   readonly readOnly = input<boolean>(false);
+  /** The user may edit parties (`PARTY:UPDATE`): in edit mode the names' hint links to the party. */
+  readonly canEditPartyNames = input<boolean>(false);
   /** Field name (as returned by the `Problem.errors` 400 body) → translated/translatable messages. */
   readonly fieldErrors = input<Readonly<Record<string, readonly string[]>>>({});
 
@@ -140,6 +146,12 @@ export class LegalEntityFormComponent {
     return current && !list.some((currency) => currency.code === current)
       ? [{ code: current, captionI18n: { de: '' }, isActive: false, minorUnits: 2 }, ...list]
       : list;
+  });
+
+  /** Link to the entity's party, where its names are edited; null outside edit mode or without permission. */
+  protected readonly partyNamesLink = computed<readonly string[] | null>(() => {
+    const partyId = this.initial()?.partyId;
+    return this.mode() === 'edit' && this.canEditPartyNames() && partyId ? ['/parties', partyId] : null;
   });
 
   /** The group of the entity (edit) or the one picked so far (create). */

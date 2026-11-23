@@ -605,11 +605,13 @@
       "hints": {
         "legalName": "Nombre oficial, tal como figura en el registro mercantil.",
         "displayName": "Para listas y menús.",
+        "editedInParties": "Se edita en Terceros.",
         "lockedAfterCreate": "Se fija al crear la entidad legal."
       },
       "createSubtitle": "Una empresa del grupo: factura y tiene almacenes y personal propios. Los campos con * son obligatorios.",
       "actions": {
-        "create": "Crear entidad legal"
+        "create": "Crear entidad legal",
+        "editPartyNames": "Editar nombres en Terceros"
       },
       "detail": {
         "modified": "modificada el {{date}}"

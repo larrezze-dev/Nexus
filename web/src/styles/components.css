@@ -138,6 +138,27 @@
 }
 
 /*
+ * Standalone text link, e.g. alone in a field hint («Edit names under Parties» under a locked
+ * field): primary colour like the breadcrumb links, underlined on hover, visible focus ring.
+ * Not inside a sentence: there colour alone does not mark it as a link (WCAG 1.4.1) and it would
+ * need a permanent underline. Not for actions: those are buttons.
+ */
+.nx-link {
+  color: var(--nx-color-primary);
+  text-decoration: none;
+  border-radius: var(--nx-radius-sm);
+}
+
+.nx-link:hover {
+  text-decoration: underline;
+}
+
+.nx-link:focus-visible {
+  outline: 2px solid var(--nx-color-primary);
+  outline-offset: 2px;
+}
+
+/*
  * Code typed in a Material field (`<input matInput class="nx-mono">`): Material resets the input
  * with `font: inherit` at a higher specificity, so `.nx-mono` alone lost. Only the family changes;
  * the size stays the field's, so it lines up with the fields next to it.

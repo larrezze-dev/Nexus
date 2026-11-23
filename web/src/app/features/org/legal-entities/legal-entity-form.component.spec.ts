@@ -1,5 +1,6 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideNoopAnimations } from '@angular/platform-browser/animations';
+import { provideRouter } from '@angular/router';
 import { TranslocoTestingModule } from '@jsverse/transloco';
 import { LegalEntity } from '../../../api/platform/models/legal-entity';
 import { Party } from '../../../api/platform/models/party';
@@ -41,8 +42,13 @@ const en = {
     legalEntities: {
       fields: { legalName: 'Legal name', displayName: 'Short name', code: 'Code', groupId: 'Group', countryCode: 'Country', currencyCode: 'Currency' },
       sections: { company: 'Company', countryCurrency: 'Country and currency' },
-      hints: { legalName: 'Official name', displayName: 'For lists', lockedAfterCreate: 'Set on create' },
-      actions: { create: 'Create legal entity' },
+      hints: {
+        legalName: 'Official name',
+        displayName: 'For lists',
+        editedInParties: 'Edited under Parties',
+        lockedAfterCreate: 'Set on create',
+      },
+      actions: { create: 'Create legal entity', editPartyNames: 'Edit names under Parties' },
     },
   },
   shared: { form: { required: 'Required field', reviewFields: 'Check the {{count}} fields.', reviewFieldsOne: 'Check the field.' } },
@@ -53,7 +59,10 @@ function root(fixture: ComponentFixture<LegalEntityFormComponent>): HTMLElement 
   return fixture.nativeElement as HTMLElement;
 }
 
-function setup(mode: 'create' | 'edit', extra: Partial<{ initial: LegalEntity; party: Party; readOnly: boolean }> = {}) {
+function setup(
+  mode: 'create' | 'edit',
+  extra: Partial<{ initial: LegalEntity; party: Party; readOnly: boolean; canEditPartyNames: boolean }> = {},
+) {
   const fixture = TestBed.createComponent(LegalEntityFormComponent);
   fixture.componentRef.setInput('mode', mode);
   fixture.componentRef.setInput('groups', groups);
@@ -76,7 +85,7 @@ describe('LegalEntityFormComponent', () => {
           preloadLangs: true,
         }),
       ],
-      providers: [provideNoopAnimations()],
+      providers: [provideNoopAnimations(), provideRouter([])],
     }).compileComponents();
   });
 
@@ -104,9 +113,52 @@ describe('LegalEntityFormComponent', () => {
     expect(legalName.disabled).toBe(true);
     expect((root(fixture).querySelector('[data-testid="le-form-display-name"]') as HTMLInputElement).value).toBe('SSB Schweiz');
     expect(root(fixture).querySelectorAll('.nx-le-form__lock').length).toBe(3);
-    expect(root(fixture).textContent).toContain('Set on create');
+    const hints = Array.from(root(fixture).querySelectorAll('mat-hint')).map((hint) => hint.textContent?.trim());
+    // The names live on the party (edited there); only the group is fixed for good.
+    expect(hints).toEqual(['Edited under Parties', 'Edited under Parties', 'Set on create']);
     expect((root(fixture).querySelector('[data-testid="le-form-code"]') as HTMLInputElement).value).toBe('LE-CH');
     expect((root(fixture).querySelector('[data-testid="le-form-code"]') as HTMLInputElement).disabled).toBe(false);
+  });
+
+  describe('link to edit the names on the party', () => {
+    const link = (fixture: ComponentFixture<LegalEntityFormComponent>) =>
+      root(fixture).querySelector<HTMLAnchorElement>('[data-testid="le-form-edit-party-names"]');
+
+    it('in edit mode with PARTY:UPDATE replaces the legal name hint with a link to /parties/{partyId}', () => {
+      const fixture = setup('edit', { initial: legalEntity, party, canEditPartyNames: true });
+
+      const anchor = link(fixture);
+      expect(anchor?.textContent?.trim()).toBe('Edit names under Parties');
+      expect(anchor?.getAttribute('href')).toBe(`/parties/${legalEntity.partyId}`);
+      expect(anchor?.closest('mat-hint')).toBeTruthy();
+      expect(anchor?.closest('mat-form-field')?.querySelector('[data-testid="le-form-legal-name"]')).toBeTruthy();
+      // One link for both names; the short name keeps its hint.
+      expect(root(fixture).querySelectorAll('[data-testid="le-form-edit-party-names"]').length).toBe(1);
+      const displayNameField = root(fixture).querySelector('[data-testid="le-form-display-name"]')!.closest('mat-form-field')!;
+      expect(displayNameField.querySelector('mat-hint')?.textContent?.trim()).toBe('Edited under Parties');
+    });
+
+    it('is a link even when the legal entity itself is read-only (it edits the party, not the entity)', () => {
+      const fixture = setup('edit', { initial: legalEntity, party, canEditPartyNames: true, readOnly: true });
+
+      expect(link(fixture)?.getAttribute('href')).toBe(`/parties/${legalEntity.partyId}`);
+    });
+
+    it('is not shown without PARTY:UPDATE: the plain hint stays', () => {
+      const fixture = setup('edit', { initial: legalEntity, party, canEditPartyNames: false });
+
+      expect(link(fixture)).toBeNull();
+      const legalNameField = root(fixture).querySelector('[data-testid="le-form-legal-name"]')!.closest('mat-form-field')!;
+      expect(legalNameField.querySelector('mat-hint')?.textContent?.trim()).toBe('Edited under Parties');
+    });
+
+    it('is not shown in create mode, where the names are typed in', () => {
+      const fixture = setup('create', { canEditPartyNames: true });
+
+      expect(link(fixture)).toBeNull();
+      expect(root(fixture).textContent).toContain('Official name');
+      expect(root(fixture).textContent).not.toContain('Edited under Parties');
+    });
   });
 
   it('shows code and name of the current value inside the selects (no «Current: …» text)', async () => {

@@ -104,6 +104,12 @@ export class LegalEntityDetailPage implements OnInit {
     return this.permissions.has('ORG_STRUCTURE:UPDATE');
   });
 
+  /** May edit parties: the form links the locked names to the entity's party page. */
+  protected readonly canUpdateParty = computed(() => {
+    this.permissions.permissions(); // re-evaluate when permissions change
+    return this.permissions.has('PARTY:UPDATE');
+  });
+
   /** «LE-CH · modified on 11 Nov 2026», in the active language. */
   protected readonly subtitle = computed(() => {
     const entity = this.entity();
