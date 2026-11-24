@@ -33,7 +33,7 @@
     "ACC-R5": "Personne ne peut modifier ses propres attributions.",
     "ACC-R6": "Cette attribution système ne peut pas être révoquée.",
     "ACC-R9": "Un rôle système ne peut pas être désactivé.",
-    "ACC-R11": "Le rôle SYSTEM_ADMIN doit conserver ses cinq permissions critiques (lire et modifier les rôles ; lire, créer et modifier les attributions).",
+    "ACC-R11": "Le rôle Administrateur système doit conserver ses cinq permissions critiques (lire et modifier les rôles ; lire, créer et modifier les attributions).",
     "ACC-R12": "Le dernier administrateur système ne peut pas être désactivé ni révoqué : au moins un doit toujours rester actif.",
     "ACC-R13": "Vous ne pouvez pas vous désactiver vous-même."
   },
@@ -143,7 +143,7 @@
       "saved": "Rôle enregistré.",
       "deactivated": "Rôle désactivé.",
       "permissionsSaved": "Autorisations enregistrées.",
-      "systemNotice": "Ceci est un rôle système : il ne peut pas être désactivé, mais son nom et ses autorisations peuvent être modifiés.",
+      "systemNotice": "Ceci est un rôle système : il ne peut pas être désactivé, mais son nom et ses autorisations peuvent être modifiés (sauf ceux marqués d’un cadenas).",
       "readOnlyNotice": "Vous pouvez seulement consulter ce rôle : vous n’avez pas le droit de le modifier.",
       "deactivateDialog": {
         "title": "Désactiver le rôle",
@@ -432,7 +432,7 @@
             "PROJECT": "Projet"
           },
           "grant": "Attribuer",
-          "listTitle": "Attributions actuelles",
+          "listTitle": "Attributions",
           "empty": "Aucune attribution pour le moment.",
           "emptyOnlyEnded": "Aucune attribution en cours ou à venir. « Afficher les terminées » montre les attributions terminées.",
           "sources": {

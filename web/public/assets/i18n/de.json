@@ -33,7 +33,7 @@
     "ACC-R5": "Niemand kann seine eigenen Zuweisungen ändern.",
     "ACC-R6": "Diese Systemzuweisung kann nicht widerrufen werden.",
     "ACC-R9": "Eine Systemrolle kann nicht deaktiviert werden.",
-    "ACC-R11": "Die Rolle SYSTEM_ADMIN muss ihre fünf kritischen Berechtigungen behalten (Rollen lesen und ändern; Zuweisungen lesen, erstellen und ändern).",
+    "ACC-R11": "Die Rolle Systemadministrator muss ihre fünf kritischen Berechtigungen behalten (Rollen lesen und ändern; Zuweisungen lesen, erstellen und ändern).",
     "ACC-R12": "Der letzte Systemadministrator kann nicht deaktiviert oder entzogen werden: Es muss immer mindestens einer aktiv bleiben.",
     "ACC-R13": "Sie können sich nicht selbst deaktivieren."
   },
@@ -231,7 +231,7 @@
             "PROJECT": "Projekt"
           },
           "grant": "Zuweisen",
-          "listTitle": "Aktuelle Zuweisungen",
+          "listTitle": "Zuweisungen",
           "empty": "Keine Zuweisungen vorhanden.",
           "emptyOnlyEnded": "Keine laufenden oder geplanten Zuweisungen. Beendete Zuweisungen zeigt «Beendete anzeigen».",
           "sources": {
@@ -616,7 +616,7 @@
       "saved": "Rolle gespeichert.",
       "deactivated": "Rolle deaktiviert.",
       "permissionsSaved": "Berechtigungen gespeichert.",
-      "systemNotice": "Dies ist eine Systemrolle. Sie kann nicht deaktiviert werden; Name und Berechtigungen können aber bearbeitet werden.",
+      "systemNotice": "Dies ist eine Systemrolle. Sie kann nicht deaktiviert werden; Name und Berechtigungen können bearbeitet werden (außer den mit Schloss markierten).",
       "readOnlyNotice": "Sie können diese Rolle nur ansehen: Sie dürfen sie nicht ändern.",
       "deactivateDialog": {
         "title": "Rolle deaktivieren",

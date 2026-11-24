@@ -33,7 +33,7 @@
     "ACC-R5": "Nadie puede modificar sus propias asignaciones.",
     "ACC-R6": "Esta asignación del sistema no se puede revocar.",
     "ACC-R9": "Un rol del sistema no se puede desactivar.",
-    "ACC-R11": "El rol SYSTEM_ADMIN debe conservar sus cinco permisos críticos (leer y modificar roles; leer, crear y modificar asignaciones).",
+    "ACC-R11": "El rol Administrador del sistema debe conservar sus cinco permisos críticos (leer y modificar roles; leer, crear y modificar asignaciones).",
     "ACC-R12": "No se puede desactivar ni revocar al último administrador del sistema: siempre debe quedar al menos uno activo.",
     "ACC-R13": "No puedes desactivarte a ti mismo."
   },
@@ -143,7 +143,7 @@
       "saved": "Rol guardado.",
       "deactivated": "Rol desactivado.",
       "permissionsSaved": "Permisos guardados.",
-      "systemNotice": "Este es un rol de sistema: no se puede desactivar, pero su nombre y sus permisos sí se pueden editar.",
+      "systemNotice": "Este es un rol de sistema: no se puede desactivar, pero su nombre y sus permisos se pueden editar (salvo los marcados con candado).",
       "readOnlyNotice": "Solo puedes ver este rol: no tienes permiso para modificarlo.",
       "deactivateDialog": {
         "title": "Desactivar rol",
@@ -432,7 +432,7 @@
             "PROJECT": "Proyecto"
           },
           "grant": "Conceder",
-          "listTitle": "Asignaciones actuales",
+          "listTitle": "Asignaciones",
           "empty": "Todavía no hay asignaciones.",
           "emptyOnlyEnded": "No hay asignaciones vigentes ni pendientes. Las finalizadas se ven con «Mostrar finalizadas».",
           "sources": {

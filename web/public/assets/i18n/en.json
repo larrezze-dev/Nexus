@@ -33,7 +33,7 @@
     "ACC-R5": "Nobody can change their own assignments.",
     "ACC-R6": "This system assignment cannot be revoked.",
     "ACC-R9": "A system role cannot be deactivated.",
-    "ACC-R11": "The SYSTEM_ADMIN role must keep its five critical permissions (read and change roles; read, create and change assignments).",
+    "ACC-R11": "The System administrator role must keep its five critical permissions (read and change roles; read, create and change assignments).",
     "ACC-R12": "The last system administrator cannot be deactivated or revoked: at least one must always stay active.",
     "ACC-R13": "You cannot deactivate yourself."
   },
@@ -143,7 +143,7 @@
       "saved": "Role saved.",
       "deactivated": "Role deactivated.",
       "permissionsSaved": "Permissions saved.",
-      "systemNotice": "This is a system role: it cannot be deactivated, but its name and permissions can be edited.",
+      "systemNotice": "This is a system role: it cannot be deactivated, but its name and permissions can be edited (except those marked with a lock).",
       "readOnlyNotice": "You can only view this role: you are not allowed to change it.",
       "deactivateDialog": {
         "title": "Deactivate role",
@@ -432,7 +432,7 @@
             "PROJECT": "Project"
           },
           "grant": "Grant",
-          "listTitle": "Current assignments",
+          "listTitle": "Assignments",
           "empty": "No assignments yet.",
           "emptyOnlyEnded": "No current or upcoming assignments. Use «Show ended» to see the ended ones.",
           "sources": {

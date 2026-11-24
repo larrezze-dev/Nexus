@@ -33,7 +33,7 @@
       }
     </nx-page-header>
 
-    @if (current.isSystem) {
+    @if (current.isSystem && canUpdate()) {
       <div class="nx-alert nx-alert--info" role="status" data-testid="role-detail-system-badge">
         <mat-icon aria-hidden="true">lock</mat-icon>
         <span class="nx-alert__text">{{ 'access.roles.systemNotice' | transloco }}</span>

@@ -33,7 +33,7 @@
     "ACC-R5": "Nessuno può modificare le proprie assegnazioni.",
     "ACC-R6": "Questa assegnazione di sistema non può essere revocata.",
     "ACC-R9": "Un ruolo di sistema non può essere disattivato.",
-    "ACC-R11": "Il ruolo SYSTEM_ADMIN deve mantenere i suoi cinque permessi critici (leggere e modificare i ruoli; leggere, creare e modificare le assegnazioni).",
+    "ACC-R11": "Il ruolo Amministratore di sistema deve mantenere i suoi cinque permessi critici (leggere e modificare i ruoli; leggere, creare e modificare le assegnazioni).",
     "ACC-R12": "L'ultimo amministratore di sistema non può essere disattivato né revocato: almeno uno deve restare sempre attivo.",
     "ACC-R13": "Non puoi disattivare te stesso."
   },
@@ -143,7 +143,7 @@
       "saved": "Ruolo salvato.",
       "deactivated": "Ruolo disattivato.",
       "permissionsSaved": "Autorizzazioni salvate.",
-      "systemNotice": "Questo è un ruolo di sistema: non può essere disattivato, ma nome e autorizzazioni possono essere modificati.",
+      "systemNotice": "Questo è un ruolo di sistema: non può essere disattivato, ma nome e autorizzazioni possono essere modificati (tranne quelli contrassegnati da un lucchetto).",
       "readOnlyNotice": "Puoi solo visualizzare questo ruolo: non hai il permesso di modificarlo.",
       "deactivateDialog": {
         "title": "Disattiva ruolo",
@@ -432,7 +432,7 @@
             "PROJECT": "Progetto"
           },
           "grant": "Assegna",
-          "listTitle": "Assegnazioni attuali",
+          "listTitle": "Assegnazioni",
           "empty": "Nessuna assegnazione al momento.",
           "emptyOnlyEnded": "Nessuna assegnazione in corso o futura. «Mostra concluse» mostra quelle concluse.",
           "sources": {
