@@ -75,10 +75,11 @@ public static class RoleAssignmentEndpoints
         Guid? userId = null,
         Guid? roleId = null,
         string? scopeType = null,
-        DateTimeOffset? activeOn = null)
+        DateTimeOffset? activeOn = null,
+        bool includeInactive = false)
     {
         var result = await dispatcher.Send(
-            new GetRoleAssignmentsQuery(page, pageSize, sort, userId, roleId, scopeType, activeOn), cancellationToken);
+            new GetRoleAssignmentsQuery(page, pageSize, sort, userId, roleId, scopeType, activeOn, includeInactive), cancellationToken);
         if (result.IsFailure)
         {
             return result.Error!.ToProblem();
@@ -88,7 +89,7 @@ public static class RoleAssignmentEndpoints
         return TypedResults.Ok(new PageResponse<RoleAssignmentListItemResponse>(
             value.Items
                 .Select(a => new RoleAssignmentListItemResponse(
-                    a.Id, a.UserId, a.RoleId, a.ScopeType, a.ScopeEntityId, a.ValidFrom, a.ValidTo, a.Source))
+                    a.Id, a.UserId, a.RoleId, a.ScopeType, a.ScopeEntityId, a.ValidFrom, a.ValidTo, a.Source, a.RevokedBy))
                 .ToList(),
             value.Page,
             value.PageSize,

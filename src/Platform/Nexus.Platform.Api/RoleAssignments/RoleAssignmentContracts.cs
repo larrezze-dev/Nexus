@@ -59,7 +59,8 @@ public sealed record RoleAssignmentListItemResponse(
     Guid? ScopeEntityId,
     DateTimeOffset ValidFrom,
     DateTimeOffset? ValidTo,
-    string Source);
+    string Source,
+    Guid? RevokedBy);
 
 /// <summary><c>EffectiveScope</c>.</summary>
 public sealed record EffectiveScopeResponse(
