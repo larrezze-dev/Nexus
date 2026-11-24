@@ -81,6 +81,19 @@ describe('RolesFacade', () => {
     await update;
   });
 
+  it('re-reads the role first when no ETag is held, so the permission save always sends If-Match', async () => {
+    const save = facade.savePermissions(role.id, ['AUDIT:READ']);
+    http.expectOne(url).flush(role, { headers: { ETag: '"7"' } });
+    const put = await vi.waitFor(() => {
+      const [request] = http.match(`${url}/permissions`);
+      if (!request) throw new Error('permission save not sent yet');
+      return request;
+    });
+    expect(put.request.headers.get('If-Match')).toBe('"7"');
+    put.flush([], { headers: { ETag: '"8"' } });
+    await save;
+  });
+
   it('two permission saves in a row use the ETag returned by the first', async () => {
     const load = facade.load(role.id);
     http.expectOne(url).flush(role, { headers: { ETag: '"1"' } });
@@ -115,6 +128,9 @@ describe('RolesFacade', () => {
   });
 
   it('propagates a 409 from the permission save untouched', async () => {
+    const load = facade.load(role.id);
+    http.expectOne(url).flush(role, { headers: { ETag: '"1"' } });
+    await load;
     const save = facade.savePermissions(role.id, []);
     http.expectOne(`${url}/permissions`).flush(
       { code: 'CONCURRENCY', status: 409 },

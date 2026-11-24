@@ -147,6 +147,9 @@ export class RolesFacade {
    * computes which grants to open/close.
    */
   async savePermissions(roleId: string, codes: string[]): Promise<PermissionGrant[]> {
+    if (!this.etag) {
+      await this.refreshRole(roleId); // If-Match must always be sent
+    }
     const response = await this.api.invoke$Response(updateRolePermissions, {
       id: roleId,
       body: { permissionCodes: codes },
