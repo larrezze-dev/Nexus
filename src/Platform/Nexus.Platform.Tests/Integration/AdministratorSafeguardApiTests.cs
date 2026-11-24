@@ -56,6 +56,38 @@ public sealed class AdministratorSafeguardApiTests : IClassFixture<PlatformApiFi
         (await QualifyingAdministratorsAsync()).ShouldBe([last.Id]);
     }
 
+    [Fact(DisplayName = "ACC-R5 before ACC-R12: the last qualifying administrator revoking their own assignment is 422 ACC-R5")]
+    public async Task Revoking_own_assignment_as_the_last_administrator_reports_ACC_R5()
+    {
+        var last = await NewUserAsync();
+        var lastGrant = await GrantAsync(last.Id, "SYSTEM_ADMIN");
+        await KeepOnlyAdministratorsAsync(last.Id);
+        using var client = _fixture.CreateClientFor(last.Oid);
+
+        var response = await RevokeAsync(client, lastGrant, await AssignmentETagAsync(lastGrant));
+
+        response.StatusCode.ShouldBe((HttpStatusCode)422);
+        (await ReadAsync(response)).GetProperty("code").GetString().ShouldBe("ACC-R5");
+        (await IsOpenAsync(lastGrant)).ShouldBeTrue();
+    }
+
+    [Fact(DisplayName = "ACC-R6 before ACC-R12: a SECURITY_ADMIN revoking the seeded GLOBAL assignment of the last administrator is 422 ACC-R6")]
+    public async Task Revoking_the_seeded_assignment_of_the_last_administrator_reports_ACC_R6()
+    {
+        var securityAdmin = await NewUserAsync();
+        await GrantAsync(securityAdmin.Id, "SECURITY_ADMIN");
+        var first = await NewUserAsync();
+        var seededGrant = await GrantAsync(first.Id, "SYSTEM_ADMIN", source: "SEED");
+        await KeepOnlyAdministratorsAsync(first.Id);
+        using var client = _fixture.CreateClientFor(securityAdmin.Oid);
+
+        var response = await RevokeAsync(client, seededGrant, await AssignmentETagAsync(seededGrant));
+
+        response.StatusCode.ShouldBe((HttpStatusCode)422);
+        (await ReadAsync(response)).GetProperty("code").GetString().ShouldBe("ACC-R6");
+        (await IsOpenAsync(seededGrant)).ShouldBeTrue();
+    }
+
     [Fact(DisplayName = "ACC-R12: with two qualifying administrators, revoking one's GLOBAL SYSTEM_ADMIN assignment is 200")]
     public async Task Revoking_one_of_two_administrators_succeeds_ACC_R12()
     {
@@ -386,18 +418,19 @@ public sealed class AdministratorSafeguardApiTests : IClassFixture<PlatformApiFi
     /// can lag the test host, and both <c>has_permission</c> (database <c>now()</c>) and ACC-R12
     /// (the host's <c>TimeProvider</c>) must see it as valid already.
     /// </summary>
-    private async Task<Guid> GrantAsync(Guid userId, string roleCode)
+    private async Task<Guid> GrantAsync(Guid userId, string roleCode, string source = "MANUAL")
     {
         var id = Guid.CreateVersion7();
         await ExecuteAsync(
             "INSERT INTO access.role_assignment (id, user_id, role_id, scope_type, scope_entity_id, valid_from, valid_to, granted_by, source, " +
             "source_ref_id, revoked_by, created_at, created_by, updated_at, updated_by) " +
-            "VALUES ($1, $2, (SELECT id FROM access.role WHERE code = $3), 'GLOBAL', NULL, now() - interval '1 minute', NULL, $4, 'MANUAL', " +
+            "VALUES ($1, $2, (SELECT id FROM access.role WHERE code = $3), 'GLOBAL', NULL, now() - interval '1 minute', NULL, $4, $5, " +
             "NULL, NULL, now(), $4, now(), $4)",
             id,
             userId,
             roleCode,
-            OrgFixture.SystemUserId);
+            OrgFixture.SystemUserId,
+            source);
         return id;
     }
 
