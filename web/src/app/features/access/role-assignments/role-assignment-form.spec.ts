@@ -60,7 +60,7 @@ describe('role assignment form', () => {
     expect(form.controls.validTo.hasError('dateRange')).toBe(true);
   });
 
-  it('builds the request: calendar days as UTC midnight, the inclusive last day sent as the next midnight', () => {
+  it('builds the request: calendar days as Zurich day starts, the inclusive last day sent as the next Zurich day start', () => {
     const form = createRoleAssignmentForm();
     form.controls.role.setValue(role);
     form.controls.scopeEntity.setValue({ id: 'le-1', label: 'LE — Nüssli' });
@@ -72,9 +72,27 @@ describe('role assignment form', () => {
       userId,
       scopeType: 'LEGAL_ENTITY',
       scopeEntityId: 'le-1',
-      validFrom: '2026-11-14T00:00:00.000Z',
-      validTo: '2026-12-01T00:00:00.000Z',
+      validFrom: '2026-11-13T23:00:00.000Z',
+      validTo: '2026-11-30T23:00:00.000Z',
     });
+  });
+
+  it('uses the Zurich offset in force on each day across DST changes (late March and late October)', () => {
+    const form = createRoleAssignmentForm();
+    form.controls.role.setValue(role);
+    form.controls.scopeType.setValue('GLOBAL');
+    // 28 Mar: CET (+1) -> 29 Mar 00:00 Zurich = 28 Mar 23:00Z; the exclusive end (start of 30 Mar) is CEST (+2)
+    form.controls.validFrom.setValue(new Date(2026, 2, 28));
+    form.controls.validTo.setValue(new Date(2026, 2, 29));
+    let request = toCreateRoleAssignmentRequest(userId, form.getRawValue());
+    expect(request.validFrom).toBe('2026-03-27T23:00:00.000Z');
+    expect(request.validTo).toBe('2026-03-29T22:00:00.000Z');
+    // 25 Oct: CEST until 03:00; the start of 26 Oct is CET (+1)
+    form.controls.validFrom.setValue(new Date(2026, 9, 25));
+    form.controls.validTo.setValue(new Date(2026, 9, 25));
+    request = toCreateRoleAssignmentRequest(userId, form.getRawValue());
+    expect(request.validFrom).toBe('2026-10-24T22:00:00.000Z');
+    expect(request.validTo).toBe('2026-10-25T23:00:00.000Z');
   });
 
   it('GLOBAL sends scopeEntityId null and no end date as null', () => {

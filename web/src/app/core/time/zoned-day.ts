@@ -33,3 +33,24 @@ export function endOfZonedDay(ymd: string, timeZone: string): Date {
   const start = startOfZonedDay(nextDay.getUTCFullYear(), nextDay.getUTCMonth() + 1, nextDay.getUTCDate(), timeZone);
   return new Date(start.getTime() - 1);
 }
+
+/** The calendar day (`YYYY-MM-DD`) that the instant `utcMs` falls on in `timeZone`. */
+export function zonedYmd(utcMs: number, timeZone: string): string {
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(new Date(utcMs));
+  const get = (type: string) => parts.find((part) => part.type === type)?.value ?? '';
+  return `${get('year')}-${get('month')}-${get('day')}`;
+}
+
+/**
+ * The instant at which the calendar day of `day` (its local year/month/day, as a `mat-datepicker` yields it)
+ * starts in `timeZone`, shifted by `plusDays` calendar days (1 = start of the next day, the exclusive end of `day`).
+ */
+export function zonedDayStart(day: Date, plusDays: number, timeZone: string): Date {
+  const shifted = new Date(Date.UTC(day.getFullYear(), day.getMonth(), day.getDate() + plusDays));
+  return startOfZonedDay(shifted.getUTCFullYear(), shifted.getUTCMonth() + 1, shifted.getUTCDate(), timeZone);
+}

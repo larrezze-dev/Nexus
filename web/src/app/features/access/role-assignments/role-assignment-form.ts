@@ -1,5 +1,7 @@
 import { AbstractControl, FormControl, FormGroup, ValidationErrors, Validators } from '@angular/forms';
 import type { CreateRoleAssignmentRequest } from '../../../api/platform/models/create-role-assignment-request';
+import { DISPLAY_TIME_ZONE } from '../../../core/i18n/nx-format.service';
+import { zonedDayStart } from '../../../core/time/zoned-day';
 import type { RoleListItem } from '../../../api/platform/models/role-list-item';
 
 /**
@@ -25,7 +27,7 @@ export type RoleAssignmentForm = {
   scopeType: FormControl<GrantableScopeType>;
   /** Disabled (and so skipped by validation) for `GLOBAL`, which has no entity (ACC-R1). */
   scopeEntity: FormControl<ScopeEntityOption | null>;
-  /** `Date`s for `mat-datepicker`; converted to UTC instants by `toCreateRoleAssignmentRequest`. */
+  /** `Date`s for `mat-datepicker`; converted to instants (Zurich day starts) by `toCreateRoleAssignmentRequest`. */
   validFrom: FormControl<Date | null>;
   validTo: FormControl<Date | null>;
 };
@@ -71,9 +73,9 @@ export function resetRoleAssignmentForm(form: FormGroup<RoleAssignmentForm>): vo
 }
 
 /**
- * `POST /v1/role-assignments` body. The datepicker's calendar day becomes that day's UTC
- * midnight. `valid_to` is exclusive in the database while the form's «until» day is inclusive, so
- * it is sent as the NEXT midnight (same-day from/until stays valid: `valid_to > valid_from`).
+ * `POST /v1/role-assignments` body. The datepicker's calendar day becomes the start of that day in
+ * Europe/Zurich (the zone dates are shown in; DST-aware). `valid_to` is exclusive in the database while the form's «until» day is inclusive, so
+ * it is sent as the start of the NEXT Zurich day (same-day from/until stays valid: `valid_to > valid_from`).
  * `GLOBAL` has no entity (`scopeEntityId: null`, ACC-R1).
  *
  * @throws Error if the form is incomplete (callers check `form.valid` first).
@@ -99,8 +101,9 @@ export function toCreateRoleAssignmentRequest(
   };
 }
 
+/** Start of the chosen calendar day (plus `plusDays`) in the display zone (Europe/Zurich), as an ISO instant. */
 function utcMidnight(day: Date, plusDays: number): string {
-  return new Date(Date.UTC(day.getFullYear(), day.getMonth(), day.getDate() + plusDays)).toISOString();
+  return zonedDayStart(day, plusDays, DISPLAY_TIME_ZONE).toISOString();
 }
 
 function dayNumber(day: Date): number {
