@@ -159,20 +159,92 @@ public sealed class RoleAssignmentTests
         assignment.DomainEvents.Count.ShouldBe(eventCount);
     }
 
+    [Fact(DisplayName = "ACC-R3: IsValidAt - started, not revoked, not ended (validTo exclusive, validFrom inclusive)")]
+    public void IsValidAt_covers_the_validity_window()
+    {
+        var now = DateTimeOffset.UtcNow;
+        var open = RoleAssignment.Create(Id, UserId, RoleId, RoleAssignment.ScopeGlobal, null, now.AddDays(-1), null, GrantedBy).Value;
+        var future = RoleAssignment.Create(Id, UserId, RoleId, RoleAssignment.ScopeGlobal, null, now.AddDays(1), null, GrantedBy).Value;
+        var bounded = RoleAssignment.Create(Id, UserId, RoleId, RoleAssignment.ScopeGlobal, null, now.AddDays(-2), now.AddDays(-1), GrantedBy).Value;
+        var revoked = RoleAssignment.Create(Id, UserId, RoleId, RoleAssignment.ScopeGlobal, null, now.AddDays(-1), null, GrantedBy).Value;
+        revoked.Revoke(Guid.CreateVersion7(), now).Value.ShouldBeTrue();
+
+        open.IsValidAt(now).ShouldBeTrue();
+        open.IsValidAt(now.AddDays(-1)).ShouldBeTrue();
+        open.IsValidAt(now.AddDays(-1).AddTicks(-1)).ShouldBeFalse();
+        future.IsValidAt(now).ShouldBeFalse();
+        future.IsValidAt(now.AddDays(1)).ShouldBeTrue();
+        bounded.IsValidAt(now.AddDays(-1).AddTicks(-1)).ShouldBeTrue();
+        bounded.IsValidAt(now.AddDays(-1)).ShouldBeFalse();
+        revoked.IsValidAt(now.AddSeconds(1)).ShouldBeFalse();
+    }
+
+    [Fact(DisplayName = "ACC-R3: CheckRevocable returns false (no-op) for revoked or expired rows, true for a revocable one, and changes nothing")]
+    public void CheckRevocable_reports_no_op_and_revocable_without_changing_anything()
+    {
+        var now = DateTimeOffset.UtcNow;
+        var live = RoleAssignment.Create(Id, UserId, RoleId, RoleAssignment.ScopeGlobal, null, now.AddDays(-1), null, GrantedBy).Value;
+        var expired = RoleAssignment.Create(Id, UserId, RoleId, RoleAssignment.ScopeGlobal, null, now.AddDays(-2), now.AddDays(-1), GrantedBy).Value;
+        var revoked = RoleAssignment.Create(Id, UserId, RoleId, RoleAssignment.ScopeGlobal, null, now.AddDays(-1), null, GrantedBy).Value;
+        revoked.Revoke(Guid.CreateVersion7(), now);
+        var eventsBefore = live.DomainEvents.Count;
+
+        var other = Guid.CreateVersion7();
+        var liveCheck = live.CheckRevocable(other, now);
+        liveCheck.IsSuccess.ShouldBeTrue();
+        liveCheck.Value.ShouldBeTrue();
+        live.RevokedBy.ShouldBeNull();
+        live.ValidTo.ShouldBeNull();
+        live.DomainEvents.Count.ShouldBe(eventsBefore);
+
+        expired.CheckRevocable(other, now).Value.ShouldBeFalse();
+        revoked.CheckRevocable(other, now).Value.ShouldBeFalse();
+    }
+
+    [Fact(DisplayName = "ACC-R5 before ACC-R6: CheckRevocable reports the no-op first, then ACC-R5 over ACC-R6, then ACC-R6")]
+    public void CheckRevocable_checks_no_op_then_ACC_R5_then_ACC_R6()
+    {
+        var now = DateTimeOffset.UtcNow;
+
+        // Own, live, seeded GLOBAL: both rules apply, ACC-R5 wins.
+        var seeded = CreateSeededGlobalAssignment();
+        var own = seeded.CheckRevocable(UserId, now);
+        own.IsFailure.ShouldBeTrue();
+        own.Error!.Code.ShouldBe("ACC-R5");
+
+        // Someone else: ACC-R6.
+        var other = seeded.CheckRevocable(Guid.CreateVersion7(), now);
+        other.IsFailure.ShouldBeTrue();
+        other.Error!.Code.ShouldBe("ACC-R6");
+
+        // Already ended: the no-op beats both, even for the assigned user.
+        var ended = CreateSeededGlobalAssignment(validTo: now.AddDays(-1));
+        var noOp = ended.CheckRevocable(UserId, now);
+        noOp.IsSuccess.ShouldBeTrue();
+        noOp.Value.ShouldBeFalse();
+
+        // A SEED assignment that is not GLOBAL is revocable.
+        var seededScoped = RoleAssignment.Create(
+            Id, UserId, RoleId, RoleAssignment.ScopeLegalEntity, LegalEntityId, ValidFrom, null, GrantedBy).Value;
+        SetSource(seededScoped, RoleAssignment.SourceSeed);
+        seededScoped.CheckRevocable(Guid.CreateVersion7(), now).Value.ShouldBeTrue();
+    }
+
     /// <summary>
     /// A SEED/GLOBAL assignment as it would be loaded from the database (there is no public
     /// factory for that shape: only the seed SQL creates one, never the API). Built through
     /// reflection on the aggregate's private state, the same way EF Core materializes it.
     /// </summary>
-    private static RoleAssignment CreateSeededGlobalAssignment()
+    private static RoleAssignment CreateSeededGlobalAssignment(DateTimeOffset? validTo = null)
     {
         var assignment = RoleAssignment.Create(
-            Id, UserId, RoleId, RoleAssignment.ScopeGlobal, null, ValidFrom, null, GrantedBy).Value;
-
-        typeof(RoleAssignment)
-            .GetProperty(nameof(RoleAssignment.Source), BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance)!
-            .SetValue(assignment, RoleAssignment.SourceSeed);
-
+            Id, UserId, RoleId, RoleAssignment.ScopeGlobal, null, ValidFrom.AddDays(-30), validTo, GrantedBy).Value;
+        SetSource(assignment, RoleAssignment.SourceSeed);
         return assignment;
     }
+
+    private static void SetSource(RoleAssignment assignment, string source) =>
+        typeof(RoleAssignment)
+            .GetProperty(nameof(RoleAssignment.Source), BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance)!
+            .SetValue(assignment, source);
 }
