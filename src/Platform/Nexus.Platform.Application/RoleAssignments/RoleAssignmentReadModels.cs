@@ -41,7 +41,8 @@ public sealed record RoleAssignmentListItem(
     Guid? ScopeEntityId,
     DateTimeOffset ValidFrom,
     DateTimeOffset? ValidTo,
-    string Source);
+    string Source,
+    Guid? RevokedBy);
 
 /// <summary>A user's effective scope, grouped by dimension (<c>EffectiveScope</c> schema, domain/access.md §4).</summary>
 public sealed record EffectiveScope(

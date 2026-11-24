@@ -12,7 +12,8 @@ namespace Nexus.Platform.Application.RoleAssignments.GetRoleAssignments;
 /// (conventions-api.md §4) with the contract's <c>page</c>, <c>pageSize</c> (max 200),
 /// <c>sort</c> (<see cref="RoleAssignmentSortFields.Allowed"/>) and the
 /// <c>userId</c>/<c>roleId</c>/<c>scopeType</c>/<c>activeOn</c> filters. <c>activeOn</c> defaults
-/// to "now" (<see cref="TimeProvider"/>) when the caller omits it: the endpoint always answers
+/// to "now" (<see cref="TimeProvider"/>) when the caller omits it (unless <c>includeInactive=true</c>, which
+/// removes the validity filter and cannot be combined with <c>activeOn</c>): the endpoint always answers
 /// "assignments active at this instant".
 /// <para>
 /// Scope: the contract declares <c>x-scope: none</c>, so the permission filter only checks that
@@ -34,7 +35,8 @@ public sealed record GetRoleAssignmentsQuery(
     Guid? UserId,
     Guid? RoleId,
     string? ScopeType,
-    DateTimeOffset? ActiveOn) : IQuery<PagedResult<RoleAssignmentListItem>>;
+    DateTimeOffset? ActiveOn,
+    bool IncludeInactive = false) : IQuery<PagedResult<RoleAssignmentListItem>>;
 
 internal sealed class GetRoleAssignmentsValidator : AbstractValidator<GetRoleAssignmentsQuery>
 {
@@ -49,6 +51,12 @@ internal sealed class GetRoleAssignmentsValidator : AbstractValidator<GetRoleAss
                 context.AddFailure("sort", error!);
             }
         });
+
+        // includeInactive drops the validity filter altogether, so a point-in-time activeOn
+        // alongside it is contradictory (contract: 400).
+        RuleFor(q => q.IncludeInactive)
+            .Must((q, includeInactive) => !(includeInactive && q.ActiveOn is not null))
+            .WithMessage("'includeInactive' cannot be combined with 'activeOn'.");
 
         // Optional filter: MustBeOneOf lets null through and projects the contract's `enum`
         // onto the generated OpenAPI document (ADR-0014).
@@ -88,7 +96,7 @@ internal sealed class GetRoleAssignmentsHandler : IQueryHandler<GetRoleAssignmen
 
         var candidates = await _readDb.ListAllAsync(
             sort,
-            new RoleAssignmentFilter(query.UserId, query.RoleId, query.ScopeType, query.ActiveOn ?? _timeProvider.GetUtcNow()),
+            new RoleAssignmentFilter(query.UserId, query.RoleId, query.ScopeType, query.IncludeInactive ? null : query.ActiveOn ?? _timeProvider.GetUtcNow()),
             cancellationToken);
 
         // One has_permission call per distinct (scopeType, scopeEntityId): many assignments share
