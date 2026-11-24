@@ -178,6 +178,7 @@ export class RoleAssignmentsFacade {
     this.itemsSignal.set([]);
     this.loadingSignal.set(false);
     this.errorSignal.set(null);
+    this.showEnded.set(false);
   }
 
   /** Loads every assignment for `userId` plus the names they reference. */

@@ -248,6 +248,13 @@ describe('RoleAssignmentsFacade', () => {
     expect(rows['revoked-future']).toMatchObject({ status: 'revoked', canRevoke: false });
   });
 
+  it('reset() puts the «show ended» toggle back off so it does not leak between users', () => {
+    const { facade } = setup();
+    facade.showEnded.set(true);
+    facade.reset();
+    expect(facade.showEnded()).toBe(false);
+  });
+
   it('showEnded (default off) shows active + pending; on it also shows revoked + expired', async () => {
     const { facade, httpMock } = setup(Date.parse('2026-11-18T12:00:00Z'));
     const pending = facade.list(userId);
