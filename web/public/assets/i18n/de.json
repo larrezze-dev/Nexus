@@ -233,6 +233,7 @@
           "grant": "Zuweisen",
           "listTitle": "Aktuelle Zuweisungen",
           "empty": "Keine Zuweisungen vorhanden.",
+          "emptyOnlyEnded": "Keine laufenden oder geplanten Zuweisungen. Beendete Zuweisungen zeigt «Beendete anzeigen».",
           "sources": {
             "MANUAL": "Manuell",
             "RESOURCE_ASSIGNMENT": "Ressourcenzuweisung",
@@ -273,7 +274,8 @@
           },
           "clearRole": "Rolle entfernen",
           "revokeAria": "{{role}} ({{scope}}) widerrufen",
-          "showEnded": "Beendete anzeigen"
+          "showEnded": "Beendete anzeigen",
+          "showEndedCount": "Beendete anzeigen ({{count}})"
         },
         "modified": "geändert am {{date}}",
         "readOnlyNotice": "Sie können diesen Benutzer nur ansehen: Ihnen fehlt die Berechtigung zum Ändern."

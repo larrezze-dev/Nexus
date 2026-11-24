@@ -6,6 +6,12 @@
   min-width: 0;
 }
 
+/* «Show ended (2)»: its own row, flush right with the section action and the table. */
+.nx-ua-filter {
+  display: flex;
+  justify-content: flex-end;
+}
+
 .nx-ua-skeleton {
   display: flex;
   flex-direction: column;
@@ -64,6 +70,16 @@
 .nx-ua-table__actions {
   width: 1%;
   white-space: nowrap;
+}
+
+/* Revoked or expired: history, not access. Muted text (6.3:1 on white) and normal weight, so the
+   current rows stand out; the status chip still says which (text, not only colour). */
+.nx-ua-table__row--ended td {
+  color: var(--nx-color-text-muted);
+}
+
+.nx-ua-table__row--ended .nx-ua-table__role {
+  font-weight: 400;
 }
 
 /* Below 600 px each assignment is a card: role + status, scope, validity, origin + «Revoke». */
@@ -144,5 +160,10 @@
 
   .nx-ua-table__actions:empty {
     display: none;
+  }
+
+  /* The section action wraps under the title, left-aligned: the toggle follows that edge. */
+  .nx-ua-filter {
+    justify-content: flex-start;
   }
 }

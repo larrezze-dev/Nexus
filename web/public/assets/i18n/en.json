@@ -434,6 +434,7 @@
           "grant": "Grant",
           "listTitle": "Current assignments",
           "empty": "No assignments yet.",
+          "emptyOnlyEnded": "No current or upcoming assignments. Use «Show ended» to see the ended ones.",
           "sources": {
             "MANUAL": "Manual",
             "RESOURCE_ASSIGNMENT": "Resource assignment",
@@ -474,7 +475,8 @@
           },
           "clearRole": "Remove role",
           "revokeAria": "Revoke {{role}} ({{scope}})",
-          "showEnded": "Show ended"
+          "showEnded": "Show ended",
+          "showEndedCount": "Show ended ({{count}})"
         },
         "modified": "modified on {{date}}",
         "readOnlyNotice": "You can only view this user: you are not allowed to change it."

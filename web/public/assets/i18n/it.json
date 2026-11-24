@@ -434,6 +434,7 @@
           "grant": "Assegna",
           "listTitle": "Assegnazioni attuali",
           "empty": "Nessuna assegnazione al momento.",
+          "emptyOnlyEnded": "Nessuna assegnazione in corso o futura. «Mostra concluse» mostra quelle concluse.",
           "sources": {
             "MANUAL": "Manuale",
             "RESOURCE_ASSIGNMENT": "Assegnazione risorsa",
@@ -474,7 +475,8 @@
           },
           "clearRole": "Rimuovi ruolo",
           "revokeAria": "Revoca {{role}} ({{scope}})",
-          "showEnded": "Mostra concluse"
+          "showEnded": "Mostra concluse",
+          "showEndedCount": "Mostra concluse ({{count}})"
         },
         "modified": "modificato il {{date}}",
         "readOnlyNotice": "Puoi solo consultare questo utente: non hai l'autorizzazione per modificarlo."

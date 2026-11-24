@@ -26,11 +26,11 @@ const row = (over: Partial<AssignmentRow> = {}): AssignmentRow => ({
   ...over,
 });
 
-function setup(rows: AssignmentRow[] = [row()]) {
+function setup(rows: AssignmentRow[] = [row()], endedCount = 0) {
   const facade = {
     rows: signal(rows),
     showEnded: signal(false),
-    endedCount: signal(0),
+    endedCount: signal(endedCount),
     loading: signal(false),
     error: signal<string | null>(null),
     saving: signal(false),
@@ -164,14 +164,42 @@ describe('UserAssignmentsComponent', () => {
     expect(root.querySelector('[data-testid="assignment-p"] nx-status-badge')).not.toBeNull();
   });
 
-  it('the show-ended toggle drives facade.showEnded', async () => {
-    const { fixture, facade } = setup();
+  it('the show-ended toggle drives facade.showEnded and says how many it hides', async () => {
+    const { fixture, facade } = setup([row()], 2);
     const root = await render(fixture);
     const toggle = q(root, 'assignments-show-ended');
     expect(toggle).not.toBeNull();
+    expect(toggle?.textContent).toContain('org.users.detail.assignments.showEndedCount');
     toggle?.querySelector<HTMLButtonElement>('button')?.click();
     fixture.detectChanges();
     expect(facade.showEnded()).toBe(true);
+  });
+
+  it('without ended assignments there is no show-ended toggle; it stays while switched on', async () => {
+    const { fixture, facade } = setup([row()], 0);
+    const root = await render(fixture);
+    expect(q(root, 'assignments-show-ended')).toBeNull();
+    facade.showEnded.set(true);
+    fixture.detectChanges();
+    expect(q(root, 'assignments-show-ended')).not.toBeNull();
+  });
+
+  it('revoked and expired rows are muted; pending and active are not', async () => {
+    const { fixture } = setup([
+      row({ id: 'act' }),
+      row({ id: 'pen', status: 'pending', isActive: false }),
+      row({ id: 'rev', status: 'revoked', isActive: false, canRevoke: false }),
+      row({ id: 'exp', status: 'expired', isActive: false, canRevoke: false }),
+    ]);
+    const root = await render(fixture);
+    const ended = (id: string) => q(root, `assignment-${id}`)?.classList.contains('nx-ua-table__row--ended');
+    expect([ended('act'), ended('pen'), ended('rev'), ended('exp')]).toEqual([false, false, true, true]);
+  });
+
+  it('an empty list that only hides ended assignments says so', async () => {
+    const { fixture } = setup([], 1);
+    const root = await render(fixture);
+    expect(q(root, 'assignments-empty')?.textContent).toContain('org.users.detail.assignments.emptyOnlyEnded');
   });
 
   it('a failed revoke shows its alert outside the grant form, even without ROLE_ASSIGNMENT:CREATE (readOnly hides the form)', async () => {

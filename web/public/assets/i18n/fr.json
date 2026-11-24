@@ -434,6 +434,7 @@
           "grant": "Attribuer",
           "listTitle": "Attributions actuelles",
           "empty": "Aucune attribution pour le moment.",
+          "emptyOnlyEnded": "Aucune attribution en cours ou à venir. « Afficher les terminées » montre les attributions terminées.",
           "sources": {
             "MANUAL": "Manuel",
             "RESOURCE_ASSIGNMENT": "Attribution de ressource",
@@ -474,7 +475,8 @@
           },
           "clearRole": "Retirer le rôle",
           "revokeAria": "Révoquer {{role}} ({{scope}})",
-          "showEnded": "Afficher les terminées"
+          "showEnded": "Afficher les terminées",
+          "showEndedCount": "Afficher les terminées ({{count}})"
         },
         "modified": "modifié le {{date}}",
         "readOnlyNotice": "Vous pouvez seulement consulter cet utilisateur : vous n'avez pas le droit de le modifier."

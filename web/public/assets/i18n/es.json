@@ -434,6 +434,7 @@
           "grant": "Conceder",
           "listTitle": "Asignaciones actuales",
           "empty": "Todavía no hay asignaciones.",
+          "emptyOnlyEnded": "No hay asignaciones vigentes ni pendientes. Las finalizadas se ven con «Mostrar finalizadas».",
           "sources": {
             "MANUAL": "Manual",
             "RESOURCE_ASSIGNMENT": "Asignación de recurso",
@@ -474,7 +475,8 @@
           },
           "clearRole": "Quitar rol",
           "revokeAria": "Revocar {{role}} ({{scope}})",
-          "showEnded": "Mostrar finalizadas"
+          "showEnded": "Mostrar finalizadas",
+          "showEndedCount": "Mostrar finalizadas ({{count}})"
         },
         "modified": "modificado el {{date}}",
         "readOnlyNotice": "Solo puedes ver este usuario: no tienes permiso para modificarlo."

@@ -7,14 +7,19 @@
     {{ 'org.users.detail.assignments.effectiveScopeLink' | transloco }}
   </a>
 
-  <mat-slide-toggle
-    class="nx-ua-show-ended"
-    data-testid="assignments-show-ended"
-    [checked]="facade.showEnded()"
-    (change)="facade.showEnded.set($event.checked)"
-  >
-    {{ 'org.users.detail.assignments.showEnded' | transloco }}
-  </mat-slide-toggle>
+  <!-- Filter row above the list, right-aligned like the section action; only when something is hidden. -->
+  @if (facade.endedCount() > 0 || facade.showEnded()) {
+    <div class="nx-ua-filter">
+      <mat-slide-toggle
+        class="nx-ua-show-ended"
+        data-testid="assignments-show-ended"
+        [checked]="facade.showEnded()"
+        (change)="facade.showEnded.set($event.checked)"
+      >
+        {{ 'org.users.detail.assignments.showEndedCount' | transloco: { count: facade.endedCount() } }}
+      </mat-slide-toggle>
+    </div>
+  }
 
   @if (revokeError(); as message) {
     <div #revokeAlert class="nx-alert nx-alert--error" role="alert" tabindex="-1" data-testid="assignment-revoke-error">
@@ -40,7 +45,7 @@
   } @else if (facade.rows().length === 0) {
     <p class="nx-empty-state" data-testid="assignments-empty">
       <mat-icon aria-hidden="true">badge</mat-icon>
-      {{ 'org.users.detail.assignments.empty' | transloco }}
+      {{ (facade.endedCount() > 0 ? 'org.users.detail.assignments.emptyOnlyEnded' : 'org.users.detail.assignments.empty') | transloco }}
     </p>
   } @else {
     <!-- Explicit roles: below 600 px the rows become cards and CSS `display` would drop the table semantics. -->
@@ -59,7 +64,12 @@
       </thead>
       <tbody role="rowgroup">
         @for (row of facade.rows(); track row.id) {
-          <tr role="row" class="nx-ua-table__row" [attr.data-testid]="'assignment-' + row.id">
+          <tr
+            role="row"
+            class="nx-ua-table__row"
+            [class.nx-ua-table__row--ended]="row.status === 'revoked' || row.status === 'expired'"
+            [attr.data-testid]="'assignment-' + row.id"
+          >
             <td role="cell" class="nx-ua-table__role" data-testid="assignment-role">{{ row.roleLabel }}</td>
             <td role="cell" class="nx-ua-table__scope" data-testid="assignment-scope">{{ scopeText(row) }}</td>
             <td
