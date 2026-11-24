@@ -222,6 +222,8 @@ export class RoleDetailPage implements OnInit {
     () => this.loadingPermissions() || (this.matrix().rows.length === 0 && !this.permissionsError()),
   );
   protected readonly canEditPermissions = computed(() => !this.readOnlyMatrix() && this.canUpdate());
+  /** `SYSTEM_ADMIN` shows locked ticks (`ACC-R11`): the matrix gets a hint explaining the lock. */
+  protected readonly hasLockedPermissions = computed(() => this.entity()?.code === SYSTEM_ADMIN_ROLE_CODE);
 
   /** What saving would change: codes to open and to close (`ACC-R7`). */
   protected readonly permissionDiff = computed(() => diffPermissions(this.originalCodes(), this.grantedCodes()));

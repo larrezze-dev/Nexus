@@ -100,6 +100,13 @@
               </mat-form-field>
             </nx-form-grid>
 
+            @if (hasLockedPermissions()) {
+              <p class="nx-perm-matrix__locked-hint" id="role-permissions-locked-hint" data-testid="role-permissions-locked-hint">
+                <mat-icon aria-hidden="true">lock</mat-icon>
+                <span>{{ 'access.roles.permissionMatrix.lockedHint' | transloco }}</span>
+              </p>
+            }
+
             <div
               class="nx-perm-matrix"
               [class.nx-readonly]="!canEditPermissions()"
@@ -140,21 +147,33 @@
                         @for (column of matrix().columns; track column.action) {
                           @if (row.cells.get(column.action); as cell) {
                             @let change = changeOf(cell.code);
+                            @let locked = isLockedPermission(cell.code);
+                            <!-- Locked (ACC-R11): legible like a read-only tick, a lock beside it, still focusable
+                                 (disabledInteractive) so the keyboard reaches it and hears why. -->
                             <td
                               class="nx-perm-matrix__cell"
                               [class.nx-perm-matrix__cell--added]="change === 'added'"
                               [class.nx-perm-matrix__cell--removed]="change === 'removed'"
+                              [class.nx-readonly]="locked"
                             >
                               <mat-checkbox
                                 [attr.data-testid]="'role-permission-cell-' + cell.code"
-                                [aria-label]="cellAriaLabel(cell.label, change)"
-                                [attr.title]="isLockedPermission(cell.code) ? ('access.roles.permissionMatrix.locked' | transloco) : cell.caption"
+                                [aria-label]="
+                                  locked
+                                    ? cell.label + ' (' + ('access.roles.permissionMatrix.lockedShort' | transloco) + ')'
+                                    : cellAriaLabel(cell.label, change)
+                                "
+                                [aria-describedby]="locked ? 'role-permissions-locked-hint' : ''"
+                                [attr.title]="locked ? ('access.roles.permissionMatrix.locked' | transloco) : cell.caption"
                                 [checked]="isGranted(cell.code)"
-                                [disabled]="!canEditPermissions() || savingPermissions() || isLockedPermission(cell.code)"
+                                [disabled]="!canEditPermissions() || savingPermissions() || locked"
+                                [disabledInteractive]="locked"
                                 (change)="toggleGrant(cell)"
                               />
-                              @if (change) {
-                                <mat-icon class="nx-perm-matrix__change" aria-hidden="true">{{
+                              @if (locked) {
+                                <mat-icon class="nx-perm-matrix__mark nx-perm-matrix__lock" aria-hidden="true">lock</mat-icon>
+                              } @else if (change) {
+                                <mat-icon class="nx-perm-matrix__mark" aria-hidden="true">{{
                                   change === 'added' ? 'add' : 'remove'
                                 }}</mat-icon>
                               }

@@ -136,7 +136,9 @@
           "added": "à ajouter",
           "removed": "à retirer"
         },
-        "locked": "Cette permission est verrouillée pour SYSTEM_ADMIN : sans elle, personne ne pourrait plus gérer les rôles ni les attributions."
+        "locked": "Indispensable à l’administration du système : sans cette autorisation, personne ne pourrait plus gérer les rôles ni les attributions. Elle ne peut pas être retirée.",
+        "lockedShort": "indispensable, ne peut pas être retirée",
+        "lockedHint": "Les autorisations avec un cadenas sont indispensables à l’administration du système : sans elles, personne ne pourrait plus gérer les rôles ni les attributions. Elles ne peuvent pas être retirées."
       },
       "saved": "Rôle enregistré.",
       "deactivated": "Rôle désactivé.",

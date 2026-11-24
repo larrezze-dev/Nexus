@@ -46,6 +46,8 @@ const translations = {
         permissionMatrix: {
           asOf: 'As of',
           resource: 'Resource',
+          lockedShort: 'essential, cannot be removed',
+          lockedHint: 'Permissions with a lock are essential.',
           discardDialog: { title: 'Discard', message: 'Discard?', confirm: 'Discard and continue' },
         },
         deactivateDialog: { title: 'Deactivate role', message: 'Deactivate {{name}}?' },
@@ -381,7 +383,45 @@ describe('RoleDetailPage', () => {
 
     expect(page['changeOf']('ORG_STRUCTURE:READ')).toBe('added');
     expect(el.querySelectorAll('.nx-perm-matrix__cell--added').length).toBe(1);
-    expect(el.querySelector('.nx-perm-matrix__cell--added .nx-perm-matrix__change')?.textContent?.trim()).toBe('add');
+    expect(el.querySelector('.nx-perm-matrix__cell--added .nx-perm-matrix__mark')?.textContent?.trim()).toBe('add');
+  });
+
+  it('SYSTEM_ADMIN: a locked tick shows a lock, stays legible and focusable, and is described by the hint above the matrix', async () => {
+    const facade = createFacadeStub({ ...role, code: 'SYSTEM_ADMIN', isSystem: true });
+    facade.listAllPermissions.mockResolvedValue([
+      ...catalog,
+      { code: 'ROLE:READ', action: 'READ', resourceType: 'ROLE', captionI18n: { en: 'View roles' } },
+    ]);
+    facade.getPermissions.mockResolvedValue(['ROLE:READ', 'AUDIT:READ'].map((code) => ({ ...grant, code })));
+    const fixture = await setupPage({ id: role.id }, facade);
+    fixture.detectChanges();
+    await fixture.whenStable();
+    const el = await openPermissionsTab(fixture);
+
+    const hint = el.querySelector('[data-testid="role-permissions-locked-hint"]');
+    expect(hint?.id).toBe('role-permissions-locked-hint');
+    expect(hint?.textContent).toContain('Permissions with a lock are essential.');
+
+    const locked = el.querySelector('mat-checkbox[data-testid="role-permission-cell-ROLE:READ"]')!;
+    const lockedInput = locked.querySelector('input')!;
+    expect(lockedInput.checked).toBe(true);
+    expect(lockedInput.getAttribute('aria-describedby')).toBe('role-permissions-locked-hint');
+    expect(lockedInput.getAttribute('aria-label')).toContain('(essential, cannot be removed)');
+    expect(lockedInput.getAttribute('aria-disabled')).toBe('true');
+    expect(lockedInput.tabIndex).toBe(0);
+    expect(locked.closest('td')?.classList).toContain('nx-readonly');
+    expect(locked.closest('td')?.querySelector('.nx-perm-matrix__lock')).not.toBeNull();
+
+    const free = el.querySelector('mat-checkbox[data-testid="role-permission-cell-AUDIT:READ"]')!;
+    expect(free.closest('td')?.querySelector('.nx-perm-matrix__lock')).toBeNull();
+    expect(free.querySelector('input')?.getAttribute('aria-describedby')).toBeFalsy();
+  });
+
+  it('other roles have no locked ticks and no lock hint', async () => {
+    const { fixture } = await setupMatrix(['AUDIT:READ']);
+    const el = await openPermissionsTab(fixture);
+    expect(el.querySelector('[data-testid="role-permissions-locked-hint"]')).toBeNull();
+    expect(el.querySelector('.nx-perm-matrix__lock')).toBeNull();
   });
 
   it('shows the matrix with the read-only look and no save bar for a past date', async () => {

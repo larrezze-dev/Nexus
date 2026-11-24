@@ -608,7 +608,9 @@
           "added": "wird hinzugefügt",
           "removed": "wird entfernt"
         },
-        "locked": "Diese Berechtigung ist für SYSTEM_ADMIN gesperrt: Ohne sie könnte niemand mehr Rollen oder Zuweisungen verwalten."
+        "locked": "Unverzichtbar für die Systemadministration: Ohne diese Berechtigung könnte niemand mehr Rollen oder Zuweisungen verwalten. Sie kann nicht entfernt werden.",
+        "lockedShort": "unverzichtbar, kann nicht entfernt werden",
+        "lockedHint": "Berechtigungen mit Schloss sind für die Systemadministration unverzichtbar: Ohne sie könnte niemand mehr Rollen oder Zuweisungen verwalten. Sie können nicht entfernt werden."
       },
       "saved": "Rolle gespeichert.",
       "deactivated": "Rolle deaktiviert.",

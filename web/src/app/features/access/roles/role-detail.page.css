@@ -98,7 +98,8 @@
   color: var(--nx-diff-before-fg);
 }
 
-.nx-perm-matrix__change {
+/* Mark right of the tick: the unsaved-change «+»/«−», or the lock of a permission that cannot be removed. */
+.nx-perm-matrix__mark {
   position: absolute;
   top: 50%;
   margin-left: calc(-1 * var(--nx-space-1));
@@ -113,6 +114,29 @@
   width: var(--nx-space-4);
   height: var(--nx-space-4);
   border-radius: var(--nx-radius-sm);
+}
+
+/* A locked tick is not a pending change: the lock takes the muted text colour, the tick stays legible (`.nx-readonly`). */
+.nx-perm-matrix__lock {
+  color: var(--nx-color-text-muted);
+}
+
+/* «Ticks with a lock cannot be removed…» between the date and the matrix, with the same lock. */
+.nx-perm-matrix__locked-hint {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--nx-space-2);
+  margin: 0;
+  color: var(--nx-color-text-muted);
+  font: var(--nx-text-body);
+}
+
+.nx-perm-matrix__locked-hint > .mat-icon {
+  flex: none;
+  font-size: var(--nx-space-4);
+  width: var(--nx-space-4);
+  height: var(--nx-space-4);
+  margin-top: 2px; /* centres the 16 px icon on the 20 px first line */
 }
 
 /* «2 to add, 1 to remove» on the left of the action bar, the buttons on the right. */

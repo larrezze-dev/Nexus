@@ -136,7 +136,9 @@
           "added": "to add",
           "removed": "to remove"
         },
-        "locked": "This permission is locked for SYSTEM_ADMIN: without it nobody could manage roles or assignments any more."
+        "locked": "Essential for system administration: without this permission nobody could manage roles or assignments any more. It cannot be removed.",
+        "lockedShort": "essential, cannot be removed",
+        "lockedHint": "Permissions with a lock are essential for system administration: without them nobody could manage roles or assignments any more. They cannot be removed."
       },
       "saved": "Role saved.",
       "deactivated": "Role deactivated.",

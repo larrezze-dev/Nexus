@@ -136,7 +136,9 @@
           "added": "por añadir",
           "removed": "por quitar"
         },
-        "locked": "Este permiso está bloqueado para SYSTEM_ADMIN: sin él nadie podría gestionar roles ni asignaciones."
+        "locked": "Imprescindible para la administración del sistema: sin este permiso nadie podría gestionar roles ni asignaciones. No se puede quitar.",
+        "lockedShort": "imprescindible, no se puede quitar",
+        "lockedHint": "Los permisos con candado son imprescindibles para la administración del sistema: sin ellos nadie podría gestionar roles ni asignaciones. No se pueden quitar."
       },
       "saved": "Rol guardado.",
       "deactivated": "Rol desactivado.",

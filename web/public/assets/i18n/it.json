@@ -136,7 +136,9 @@
           "added": "da aggiungere",
           "removed": "da rimuovere"
         },
-        "locked": "Questo permesso è bloccato per SYSTEM_ADMIN: senza di esso nessuno potrebbe più gestire ruoli o assegnazioni."
+        "locked": "Indispensabile per l’amministrazione del sistema: senza questa autorizzazione nessuno potrebbe più gestire ruoli o assegnazioni. Non può essere rimossa.",
+        "lockedShort": "indispensabile, non può essere rimossa",
+        "lockedHint": "Le autorizzazioni con il lucchetto sono indispensabili per l’amministrazione del sistema: senza di esse nessuno potrebbe più gestire ruoli o assegnazioni. Non possono essere rimosse."
       },
       "saved": "Ruolo salvato.",
       "deactivated": "Ruolo disattivato.",
