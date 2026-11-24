@@ -9,26 +9,13 @@
   color: var(--nx-color-text-muted);
 }
 
-.nx-breadcrumb__item {
+// Links take the global `.nx-link` look (primary, underline on hover, focus ring); only the
+// non-link crumbs are styled here: section names muted, the current record in body text.
+span.nx-breadcrumb__item {
   color: var(--nx-color-text-muted);
-  text-decoration: none;
 
   &:last-child {
     color: var(--nx-color-text);
-  }
-}
-
-a.nx-breadcrumb__item {
-  color: var(--nx-color-primary);
-
-  &:hover {
-    text-decoration: underline;
-  }
-
-  &:focus-visible {
-    outline: 2px solid var(--nx-color-primary);
-    outline-offset: 2px;
-    border-radius: var(--nx-radius-sm);
   }
 }
 

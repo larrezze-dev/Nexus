@@ -77,6 +77,17 @@ describe('BreadcrumbComponent', () => {
     expect(await crumbsAt('/legal-entities/new')).toEqual(['nav.groups.org', 'nav.le', 'breadcrumb.new.le']);
   });
 
+  it('links use the shared .nx-link look; the current record is plain text', async () => {
+    await harness.navigateByUrl('/legal-entities/123');
+    const fixture = TestBed.createComponent(BreadcrumbComponent);
+    fixture.detectChanges();
+    const nav = fixture.nativeElement as HTMLElement;
+    const links = Array.from(nav.querySelectorAll('a.nx-breadcrumb__item'));
+    expect(links.map((link) => link.textContent!.trim())).toEqual(['nav.le']);
+    expect(links.every((link) => link.classList.contains('nx-link'))).toBe(true);
+    expect(nav.querySelector('[aria-current="page"]')?.classList.contains('nx-link')).toBe(false);
+  });
+
   it('detail shows the record name published by the page', async () => {
     expect(await crumbsAt('/legal-entities/123')).toEqual(['nav.groups.org', 'nav.le', 'ACME AG']);
   });
