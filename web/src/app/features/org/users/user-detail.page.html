@@ -11,7 +11,7 @@
   <nx-page width="form">
     <nx-page-header [breadcrumb]="true" [title]="user.fullName" [subtitle]="subtitle()">
       <nx-status-badge nxHeaderStatus [status]="user.isActive ? 'active' : 'inactive'" />
-      @if (user.isActive && !readOnly()) {
+      @if (user.isActive && !readOnly() && !isSelf()) {
         <button
           nxHeaderActions
           mat-stroked-button

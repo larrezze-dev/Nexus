@@ -10,6 +10,7 @@ import type { Me } from '../../api/platform/models/me';
 import { problemOf } from '../../core/http/problem';
 import { NxI18nService } from '../../core/i18n/nx-i18n.service';
 import { LANGUAGE_OPTIONS, isSupportedLanguage, type SupportedLanguage } from '../../core/i18n/supported-languages';
+import { CurrentUserStore } from '../../shared/auth/current-user.store';
 import { PermissionsStore } from '../../shared/auth/permissions.store';
 import { resolveCaption } from '../../shared/ui/caption/caption.util';
 
@@ -45,6 +46,7 @@ export class AccountFacade {
   private readonly i18n = inject(NxI18nService);
   private readonly transloco = inject(TranslocoService);
   private readonly permissionsStore = inject(PermissionsStore);
+  private readonly currentUser = inject(CurrentUserStore);
 
   /** Emits once the active language's file is loaded (and on every switch): derived texts follow it. */
   private readonly translation = toSignal(this.transloco.selectTranslation());
@@ -113,6 +115,7 @@ export class AccountFacade {
       this.meSignal.set(me);
       this.i18n.setInitialLanguage(me.preferredLanguage);
       this.permissionsStore.setPermissions(me.permissions);
+      this.currentUser.setOid(me.oid);
       await this.resolveBusinessUnit(me.businessUnitId, seq);
     } catch (error: unknown) {
       if (seq === this.loadSeq) {

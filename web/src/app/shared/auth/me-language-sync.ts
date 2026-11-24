@@ -5,6 +5,7 @@ import { filter, firstValueFrom } from 'rxjs';
 import { Api } from '../../api/platform/api';
 import { getMe } from '../../api/platform/fn/me/get-me';
 import { NX_SKIP_ERROR_NAVIGATION } from '../../core/http/skip-error-navigation';
+import { CurrentUserStore } from './current-user.store';
 import { PermissionsStore } from './permissions.store';
 import { NxI18nService } from '../../core/i18n/nx-i18n.service';
 
@@ -21,6 +22,7 @@ export class MeLanguageSync {
   private readonly api = inject(Api);
   private readonly i18n = inject(NxI18nService);
   private readonly permissions = inject(PermissionsStore);
+  private readonly currentUser = inject(CurrentUserStore);
 
   private started = false;
 
@@ -39,6 +41,7 @@ export class MeLanguageSync {
       await firstValueFrom(this.oidc.isAuthenticated$.pipe(filter(({ isAuthenticated }) => isAuthenticated)));
       const me = await this.api.invoke(getMe, undefined, new HttpContext().set(NX_SKIP_ERROR_NAVIGATION, true));
       this.permissions.setPermissions(me.permissions);
+      this.currentUser.setOid(me.oid);
       this.i18n.setInitialLanguage(me.preferredLanguage);
     } catch {
       // Keep the browser/default language.

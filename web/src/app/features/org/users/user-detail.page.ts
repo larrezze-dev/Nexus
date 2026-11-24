@@ -27,6 +27,7 @@ import { NxFormatService } from '../../../core/i18n/nx-format.service';
 import { LANGUAGE_OPTIONS, type SupportedLanguage } from '../../../core/i18n/supported-languages';
 import { NxBreadcrumbService } from '../../../core/layout/breadcrumb.service';
 import { NxCanDirective } from '../../../shared/auth/can.directive';
+import { CurrentUserStore } from '../../../shared/auth/current-user.store';
 import { PermissionsStore } from '../../../shared/auth/permissions.store';
 import { markServerErrors } from '../../../shared/forms/server-errors';
 import { NxAuditTrailComponent } from '../../../shared/platform/nx-audit-trail/nx-audit-trail.component';
@@ -117,6 +118,7 @@ export class UserDetailPage implements OnInit {
   private readonly confirm = inject(NxConfirm);
   private readonly snackBar = inject(MatSnackBar);
   private readonly permissions = inject(PermissionsStore);
+  private readonly currentUser = inject(CurrentUserStore);
   private readonly format = inject(NxFormatService);
   private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
   private readonly destroyRef = inject(DestroyRef);
@@ -154,6 +156,8 @@ export class UserDetailPage implements OnInit {
 
   /** ORG-R6: the SYSTEM user is loaded (or addressed by the route). */
   protected readonly isSystemUser = computed(() => this.facade.isSystem());
+  /** The record shown is the signed-in user's own: «Deactivate» is hidden (`ACC-R13`). */
+  protected readonly isSelf = computed(() => this.currentUser.isMe(this.current()?.oid));
 
   protected readonly canUpdate = computed(() => {
     this.permissions.permissions(); // re-evaluate when permissions change
@@ -287,7 +291,7 @@ export class UserDetailPage implements OnInit {
 
   protected async deactivate(): Promise<void> {
     const user = this.facade.selected();
-    if (!user || this.readOnly()) {
+    if (!user || this.readOnly() || this.isSelf()) {
       return;
     }
     const confirmed = await this.confirm.confirm({

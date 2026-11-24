@@ -10,6 +10,7 @@ import { NxConfirm } from '../../../shared/ui/layout';
 import { stubAuditTrail } from '../audit-tab.testing';
 import { UserAssignmentsComponent } from './user-assignments.component';
 import { UserDetailPage } from './user-detail.page';
+import { CurrentUserStore } from '../../../shared/auth/current-user.store';
 import { SYSTEM_USER_ID, SystemUserReadOnlyError } from '../../../shared/auth/system-user';
 import { UsersFacade, type UserErrorInfo } from './users.facade';
 
@@ -300,6 +301,20 @@ describe('UserDetailPage', () => {
       await fixture.whenStable();
       expect(confirm.confirm).toHaveBeenCalledWith(expect.objectContaining({ destructive: true }));
       expect(facade.deactivate).toHaveBeenCalledWith('u-1');
+    });
+
+    it('hides «Deactivate» on the signed-in user\'s own record (ACC-R13), keeps it on others', async () => {
+      const own = setup({ id: 'u-1' }, user);
+      TestBed.inject(CurrentUserStore).setOid('OID-1'); // case-insensitive oid match
+      expect(q(await render(own.fixture), 'user-deactivate-button')).toBeNull();
+      await own.fixture.componentInstance['deactivate']();
+      expect(own.facade.deactivate).not.toHaveBeenCalled();
+    });
+
+    it('keeps «Deactivate» when /me belongs to somebody else or is not loaded', async () => {
+      const other = setup({ id: 'u-1' }, user);
+      TestBed.inject(CurrentUserStore).setOid('someone-else');
+      expect(q(await render(other.fixture), 'user-deactivate-button')).not.toBeNull();
     });
 
     it('an inactive user offers no deactivate action', async () => {
