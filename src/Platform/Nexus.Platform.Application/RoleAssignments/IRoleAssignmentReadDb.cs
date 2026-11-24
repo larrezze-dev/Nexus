@@ -41,12 +41,12 @@ public interface IRoleAssignmentReadDb
 }
 
 /// <summary>
-/// <c>GET /v1/role-assignments</c> query parameters. <see cref="ActiveOn"/> is never
-/// <see langword="null"/> by the time it reaches the read db: the query handler defaults it to
-/// "now" (via <see cref="TimeProvider"/>) when the caller omits it - the endpoint always answers
-/// "assignments active at this instant", never "every assignment ever granted".
+/// <c>GET /v1/role-assignments</c> query parameters. <see cref="ActiveOn"/> is
+/// <see langword="null"/> only for <c>includeInactive=true</c> (no validity filter: future,
+/// active, revoked and expired rows); otherwise the query handler defaults it to "now" (via
+/// <see cref="TimeProvider"/>) when the caller omits it.
 /// </summary>
-public sealed record RoleAssignmentFilter(Guid? UserId, Guid? RoleId, string? ScopeType, DateTimeOffset ActiveOn);
+public sealed record RoleAssignmentFilter(Guid? UserId, Guid? RoleId, string? ScopeType, DateTimeOffset? ActiveOn);
 
 /// <summary>Sortable fields of <c>GET /v1/role-assignments</c> (API names).</summary>
 public static class RoleAssignmentSortFields

@@ -56,7 +56,7 @@ public static class UserEndpoints
             .WithName("deactivateUser")
             .RequirePermission("USER", PermissionAction.Update)
             .WithScope("none")
-            .WithRules("ORG-R6");
+            .WithRules("ORG-R6", "ACC-R12", "ACC-R13");
 
         return group;
     }

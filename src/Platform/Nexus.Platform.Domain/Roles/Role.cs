@@ -108,6 +108,41 @@ public sealed class Role : AggregateRoot<Guid>
     public void RaisePermissionsChanged(IReadOnlyList<string> newPermissionCodes) =>
         RaiseEvent(new RoleUpdated(Id, Code, CaptionI18n, Description, IsSystem, IsActive, newPermissionCodes));
 
+    /// <summary><see langword="true"/> for the seeded <c>SYSTEM_ADMIN</c> role (by code, see <see cref="SystemAdministrator"/>).</summary>
+    public bool IsSystemAdministrator => string.Equals(Code, SystemAdministrator.RoleCode, StringComparison.Ordinal);
+
+    /// <summary>
+    /// Rule ACC-R11: the <c>SYSTEM_ADMIN</c> role always keeps
+    /// <see cref="SystemAdministrator.CriticalPermissionCodes"/>. Fails when
+    /// <paramref name="desiredPermissionCodes"/> (the full set a <c>PUT /v1/roles/{id}/permissions</c>
+    /// asks for) lacks any of them - whether or not the role currently holds it: the rule is an
+    /// invariant of the resulting set, not of the diff. Any set is fine for every other role, and
+    /// the rest of <c>SYSTEM_ADMIN</c>'s permissions stay editable (ACC-R9 only forbids
+    /// deactivating it).
+    /// </summary>
+    public Result EnsureKeepsCriticalPermissions(IReadOnlyCollection<string> desiredPermissionCodes)
+    {
+        Guard.Against.Null(desiredPermissionCodes, nameof(desiredPermissionCodes));
+
+        if (!IsSystemAdministrator)
+        {
+            return Result.Success();
+        }
+
+        var missing = SystemAdministrator.CriticalPermissionCodes
+            .Where(code => !desiredPermissionCodes.Contains(code, StringComparer.Ordinal))
+            .ToList();
+        if (missing.Count == 0)
+        {
+            return Result.Success();
+        }
+
+        return Result.Failure(new Error(
+            "ACC-R11",
+            $"The {SystemAdministrator.RoleCode} role must keep the permissions " +
+            $"{string.Join(", ", SystemAdministrator.CriticalPermissionCodes)}; missing: {string.Join(", ", missing)}."));
+    }
+
     private bool CaptionEquals(IReadOnlyDictionary<string, string> other) =>
         CaptionI18n.Count == other.Count
         && CaptionI18n.All(pair => other.TryGetValue(pair.Key, out var value) && string.Equals(pair.Value, value, StringComparison.Ordinal));

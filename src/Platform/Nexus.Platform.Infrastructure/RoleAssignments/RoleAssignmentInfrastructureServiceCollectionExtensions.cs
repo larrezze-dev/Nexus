@@ -29,6 +29,7 @@ public static class RoleAssignmentInfrastructureServiceCollectionExtensions
         services.AddScoped<IRoleAssignmentRepository, RoleAssignmentRepository>();
         services.AddScoped<IRoleAssignmentReadDb, RoleAssignmentReadDb>();
         services.AddScoped<IEffectiveScopeReader, EffectiveScopeReader>();
+        services.AddScoped<ISystemAdministratorReadDb, SystemAdministratorReadDb>();
 
         return services;
     }

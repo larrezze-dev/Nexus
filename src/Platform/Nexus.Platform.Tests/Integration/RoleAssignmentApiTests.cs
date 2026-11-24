@@ -465,6 +465,80 @@ public sealed class RoleAssignmentApiTests : IClassFixture<PlatformApiFixture>
             .ShouldBe(inLeA, ignoreOrder: true);
     }
 
+    [Fact(DisplayName = "ACC-R3 on listRoleAssignments: includeInactive returns future, revoked (with revokedBy) and expired rows; the default call does not")]
+    public async Task List_include_inactive_returns_future_revoked_and_expired_rows()
+    {
+        using var admin = _fixture.CreateClientFor(Org.Admin.Oid);
+        var subjectId = await CreateUserAsync(admin);
+        var now = RoundedSystemTimeProvider.Instance.GetUtcNow();
+
+        var active = (await CreateAsync(admin, subjectId, ViewerRoleId, "LEGAL_ENTITY", Org.LegalEntityA.Id, now.AddDays(-1), null)).Id;
+        var future = (await CreateAsync(admin, subjectId, ViewerRoleId, "LEGAL_ENTITY", Org.LegalEntityB.Id, now.AddDays(30), null)).Id;
+        var (revokedId, etag) = await CreateAsync(admin, subjectId, ViewerRoleId, "WAREHOUSE", Org.WarehouseA, now.AddDays(-1), null);
+        (await RevokeAsync(admin, revokedId, etag)).StatusCode.ShouldBe(HttpStatusCode.OK);
+        var expired = Guid.CreateVersion7();
+        await using var insertExpired = _fixture.Database.Admin.CreateCommand(
+            "INSERT INTO access.role_assignment (id, user_id, role_id, scope_type, scope_entity_id, valid_from, valid_to, granted_by, source, " +
+            "source_ref_id, revoked_by, created_at, created_by, updated_at, updated_by) " +
+            "VALUES ($1, $2, $3, 'WAREHOUSE', $4, now() - interval '2 days', now() - interval '1 day', $5, 'MANUAL', " +
+            "NULL, NULL, now() - interval '2 days', $5, now() - interval '2 days', $5)");
+        foreach (var value in new object[] { expired, subjectId, ViewerRoleId, Org.WarehouseB, OrgFixture.SystemUserId })
+        {
+            insertExpired.Parameters.Add(new Npgsql.NpgsqlParameter { Value = value });
+        }
+
+        await insertExpired.ExecuteNonQueryAsync(Ct);
+
+        var byDefault = await ListAsync(admin, $"userId={subjectId}&pageSize=200");
+        byDefault.Items.Select(i => i.GetProperty("id").GetGuid()).ShouldBe([active]);
+        byDefault.Items[0].GetProperty("revokedBy").ValueKind.ShouldBe(JsonValueKind.Null);
+
+        var all = await ListAsync(admin, $"userId={subjectId}&pageSize=200&includeInactive=true");
+        all.Total.ShouldBe(4);
+        var byId = all.Items.ToDictionary(i => i.GetProperty("id").GetGuid());
+        byId.Keys.ShouldBe([active, future, revokedId, expired], ignoreOrder: true);
+        byId[revokedId].GetProperty("revokedBy").GetGuid().ShouldBe(Org.Admin.Id);
+        byId[active].GetProperty("revokedBy").ValueKind.ShouldBe(JsonValueKind.Null);
+        byId[future].GetProperty("revokedBy").ValueKind.ShouldBe(JsonValueKind.Null);
+        byId[expired].GetProperty("revokedBy").ValueKind.ShouldBe(JsonValueKind.Null);
+
+        // includeInactive=false is the default.
+        (await ListAsync(admin, $"userId={subjectId}&includeInactive=false")).Total.ShouldBe(1);
+    }
+
+    [Fact(DisplayName = "listRoleAssignments: includeInactive combined with activeOn is a 400 VALIDATION")]
+    public async Task List_include_inactive_with_active_on_is_a_validation_error()
+    {
+        using var admin = _fixture.CreateClientFor(Org.Admin.Oid);
+
+        var response = await admin.GetAsync(
+            new Uri("/v1/role-assignments?includeInactive=true&activeOn=2026-01-01T00:00:00Z", UriKind.Relative), Ct);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
+        (await ReadAsync(response)).GetProperty("code").GetString().ShouldBe("VALIDATION");
+    }
+
+    [Fact(DisplayName = "ACC-R10 on listRoleAssignments: includeInactive still drops rows whose scope the caller does not cover")]
+    public async Task List_include_inactive_still_applies_scope_coverage()
+    {
+        using var admin = _fixture.CreateClientFor(Org.Admin.Oid);
+        var subjectId = await CreateUserAsync(admin);
+        var now = RoundedSystemTimeProvider.Instance.GetUtcNow();
+
+        var futureInA = (await CreateAsync(admin, subjectId, ViewerRoleId, "LEGAL_ENTITY", Org.LegalEntityA.Id, now.AddDays(30), null)).Id;
+        var futureInB = (await CreateAsync(admin, subjectId, ViewerRoleId, "LEGAL_ENTITY", Org.LegalEntityB.Id, now.AddDays(30), null)).Id;
+        var (revokedInB, etag) = await CreateAsync(admin, subjectId, ViewerRoleId, "WAREHOUSE", Org.WarehouseB, now.AddDays(-1), null);
+        (await RevokeAsync(admin, revokedInB, etag)).StatusCode.ShouldBe(HttpStatusCode.OK);
+
+        (await ListAsync(admin, $"userId={subjectId}&includeInactive=true")).Total.ShouldBe(3);
+
+        using var userA = _fixture.CreateClientFor(Org.UserA.Oid);
+        var seenByUserA = await ListAsync(userA, $"userId={subjectId}&includeInactive=true");
+        seenByUserA.Total.ShouldBe(1);
+        seenByUserA.Items.Select(i => i.GetProperty("id").GetGuid()).ShouldBe([futureInA]);
+        seenByUserA.Items.Select(i => i.GetProperty("id").GetGuid()).ShouldNotContain(futureInB);
+    }
+
     [Fact(DisplayName = "getRoleAssignment: returns the assignment with an ETag that revokeRoleAssignment accepts")]
     public async Task Get_role_assignment_by_id_returns_it_with_its_etag()
     {

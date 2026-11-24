@@ -44,7 +44,7 @@ internal sealed class RoleAssignmentReadDb : IRoleAssignmentReadDb
             $"""
              SELECT ra.id AS Id, ra.user_id AS UserId, ra.role_id AS RoleId, ra.scope_type AS ScopeType,
                     ra.scope_entity_id AS ScopeEntityId, ra.valid_from AS ValidFrom, ra.valid_to AS ValidTo,
-                    ra.source AS Source
+                    ra.source AS Source, ra.revoked_by AS RevokedBy
              FROM access.role_assignment ra
              {where}
              ORDER BY {orderBy}, ra.id
@@ -53,7 +53,7 @@ internal sealed class RoleAssignmentReadDb : IRoleAssignmentReadDb
             cancellationToken));
 
         return rows
-            .Select(r => new RoleAssignmentListItem(r.Id, r.UserId, r.RoleId, r.ScopeType, r.ScopeEntityId, r.ValidFrom, r.ValidTo, r.Source))
+            .Select(r => new RoleAssignmentListItem(r.Id, r.UserId, r.RoleId, r.ScopeType, r.ScopeEntityId, r.ValidFrom, r.ValidTo, r.Source, r.RevokedBy))
             .ToList();
     }
 
@@ -84,12 +84,15 @@ internal sealed class RoleAssignmentReadDb : IRoleAssignmentReadDb
 
     private static (string Where, DynamicParameters Parameters) BuildWhere(RoleAssignmentFilter filter)
     {
-        var clauses = new List<string>
-        {
-            "ra.valid_from <= @activeOn AND (ra.valid_to IS NULL OR ra.valid_to > @activeOn)",
-        };
+        var clauses = new List<string>();
         var parameters = new DynamicParameters();
-        parameters.Add("activeOn", filter.ActiveOn);
+
+        // A null ActiveOn means includeInactive: no validity filter at all.
+        if (filter.ActiveOn is { } activeOn)
+        {
+            clauses.Add("ra.valid_from <= @activeOn AND (ra.valid_to IS NULL OR ra.valid_to > @activeOn)");
+            parameters.Add("activeOn", activeOn);
+        }
 
         if (filter.UserId is { } userId)
         {
@@ -109,8 +112,8 @@ internal sealed class RoleAssignmentReadDb : IRoleAssignmentReadDb
             parameters.Add("scopeType", filter.ScopeType);
         }
 
-        var where = new StringBuilder("WHERE ").Append(string.Join(" AND ", clauses));
-        return (where.ToString(), parameters);
+        var where = clauses.Count == 0 ? string.Empty : new StringBuilder("WHERE ").Append(string.Join(" AND ", clauses)).ToString();
+        return (where, parameters);
     }
 
     public async Task<bool> ScopeEntityExistsAsync(string scopeType, Guid scopeEntityId, CancellationToken cancellationToken)
@@ -185,5 +188,7 @@ internal sealed class RoleAssignmentReadDb : IRoleAssignmentReadDb
         public DateTimeOffset? ValidTo { get; set; }
 
         public string Source { get; set; } = string.Empty;
+
+        public Guid? RevokedBy { get; set; }
     }
 }

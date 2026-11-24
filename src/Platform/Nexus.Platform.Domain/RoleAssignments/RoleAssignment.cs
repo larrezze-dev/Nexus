@@ -121,20 +121,28 @@ public sealed class RoleAssignment : AggregateRoot<Guid>
     }
 
     /// <summary>
-    /// Revokes the assignment: sets <see cref="ValidTo"/> to <paramref name="now"/> and
-    /// <see cref="RevokedBy"/>, never deletes the row (ACC-R3). Idempotent: an assignment that no
-    /// longer grants anything as of <paramref name="now"/> - already revoked
-    /// (<see cref="RevokedBy"/> set) or already expired (<see cref="ValidTo"/> &lt;=
-    /// <paramref name="now"/>) - is returned unchanged (<see langword="false"/>, no new event).
-    /// A still-active assignment that merely carries a <b>future</b> <see cref="ValidTo"/> (a
-    /// time-boxed grant, e.g. ACC-R8's <c>FIELD_CAPTURE</c>) is <b>not</b> "already revoked": its
-    /// <see cref="ValidTo"/> is pulled in to <paramref name="now"/>. Checked in this
-    /// order: ACC-R5 (nobody revokes their own assignment) before ACC-R6 (the seeded SYSTEM/first
-    /// administrator GLOBAL grant can never be revoked through the API) - both can be true of the
-    /// same row at once (e.g. SYSTEM revoking its own seeded GLOBAL grant), and ACC-R5 is checked
-    /// first so that "self" always reports as ACC-R5, consistently with <see cref="Create"/>.
+    /// Whether this assignment grants its role at <paramref name="now"/>: started
+    /// (<see cref="ValidFrom"/> &lt;= <paramref name="now"/>), not revoked, and not ended
+    /// (<see cref="ValidTo"/> absent or later). The same window <c>access.*</c> uses
+    /// (domain/access.md §4).
     /// </summary>
-    public Result<bool> Revoke(Guid revokedBy, DateTimeOffset now)
+    public bool IsValidAt(DateTimeOffset now) =>
+        ValidFrom <= now && RevokedBy is null && (ValidTo is not { } validTo || validTo > now);
+
+    /// <summary>
+    /// The checks of <see cref="Revoke"/>, without changing anything, so that a use case can run
+    /// a rule that needs other aggregates (ACC-R12) between "this revocation is allowed and would
+    /// change something" and the change itself. <see langword="false"/> = idempotent no-op
+    /// (already revoked, or already expired as of <paramref name="now"/>); <see langword="true"/>
+    /// = <see cref="Revoke"/> would revoke it; failure = ACC-R5 or ACC-R6. Checked in this order:
+    /// the no-op first (an assignment that no longer grants anything is returned unchanged, even
+    /// to its own user), then ACC-R5 (nobody revokes their own assignment) before ACC-R6 (the
+    /// seeded SYSTEM/first administrator GLOBAL grant can never be revoked through the API) -
+    /// both can be true of the same row at once (e.g. SYSTEM revoking its own seeded GLOBAL
+    /// grant), and ACC-R5 is checked first so that "self" always reports as ACC-R5, consistently
+    /// with <see cref="Create"/>.
+    /// </summary>
+    public Result<bool> CheckRevocable(Guid revokedBy, DateTimeOffset now)
     {
         if (RevokedBy is not null || (ValidTo is { } validTo && validTo <= now))
         {
@@ -152,6 +160,28 @@ public sealed class RoleAssignment : AggregateRoot<Guid>
             return Result.Failure<bool>(new Error(
                 "ACC-R6",
                 "A seeded GLOBAL role assignment cannot be revoked through the API."));
+        }
+
+        return Result.Success(true);
+    }
+
+    /// <summary>
+    /// Revokes the assignment: sets <see cref="ValidTo"/> to <paramref name="now"/> and
+    /// <see cref="RevokedBy"/>, never deletes the row (ACC-R3). Idempotent: an assignment that no
+    /// longer grants anything as of <paramref name="now"/> - already revoked
+    /// (<see cref="RevokedBy"/> set) or already expired (<see cref="ValidTo"/> &lt;=
+    /// <paramref name="now"/>) - is returned unchanged (<see langword="false"/>, no new event).
+    /// A still-active assignment that merely carries a <b>future</b> <see cref="ValidTo"/> (a
+    /// time-boxed grant, e.g. ACC-R8's <c>FIELD_CAPTURE</c>) is <b>not</b> "already revoked": its
+    /// <see cref="ValidTo"/> is pulled in to <paramref name="now"/>. ACC-R5 and ACC-R6 as in
+    /// <see cref="CheckRevocable"/>.
+    /// </summary>
+    public Result<bool> Revoke(Guid revokedBy, DateTimeOffset now)
+    {
+        var revocable = CheckRevocable(revokedBy, now);
+        if (revocable.IsFailure || !revocable.Value)
+        {
+            return revocable;
         }
 
         ValidTo = now;

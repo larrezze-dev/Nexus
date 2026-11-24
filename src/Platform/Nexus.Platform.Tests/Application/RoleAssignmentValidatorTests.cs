@@ -61,6 +61,18 @@ public sealed class RoleAssignmentValidatorTests
     }
 
     [Fact]
+    public void List_rejects_include_inactive_together_with_active_on()
+    {
+        var query = List(null) with { IncludeInactive = true, ActiveOn = RoundedSystemTimeProvider.Instance.GetUtcNow() };
+
+        var result = new GetRoleAssignmentsValidator().Validate(query);
+
+        result.IsValid.ShouldBeFalse();
+        result.Errors.ShouldContain(e => e.PropertyName == nameof(GetRoleAssignmentsQuery.IncludeInactive));
+        new GetRoleAssignmentsValidator().Validate(List(null) with { IncludeInactive = true }).IsValid.ShouldBeTrue();
+    }
+
+    [Fact]
     public void Create_rejects_sub_microsecond_valid_from_and_valid_to()
     {
         var sevenDigits = RoundedSystemTimeProvider.Instance.GetUtcNow().AddTicks(1);

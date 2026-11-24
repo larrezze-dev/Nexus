@@ -70,4 +70,29 @@ public sealed class RoleTests
         changed.ShouldBeFalse();
         role.DomainEvents.ShouldBeEmpty();
     }
+
+    [Fact(DisplayName = "ACC-R11: SYSTEM_ADMIN must keep its critical permissions; the rest of its set is free")]
+    public void System_administrator_must_keep_its_critical_permissions_ACC_R11()
+    {
+        var role = Role.Create(Guid.CreateVersion7(), SystemAdministrator.RoleCode, new Dictionary<string, string> { ["en"] = "x" }, null).Value;
+        var all = SystemAdministrator.CriticalPermissionCodes.Append("ORG_STRUCTURE:READ").ToList();
+
+        role.EnsureKeepsCriticalPermissions(all).IsSuccess.ShouldBeTrue();
+        role.EnsureKeepsCriticalPermissions(SystemAdministrator.CriticalPermissionCodes.ToList()).IsSuccess.ShouldBeTrue();
+
+        var result = role.EnsureKeepsCriticalPermissions(all.Where(c => c != "ROLE:UPDATE").ToList());
+        result.IsFailure.ShouldBeTrue();
+        result.Error!.Code.ShouldBe("ACC-R11");
+        result.Error.Message.ShouldContain("ROLE:UPDATE");
+
+        role.EnsureKeepsCriticalPermissions([]).Error!.Code.ShouldBe("ACC-R11");
+    }
+
+    [Fact(DisplayName = "ACC-R11: any other role may have any permission set, including an empty one")]
+    public void Other_roles_may_have_any_permission_set_ACC_R11()
+    {
+        var role = Role.Create(Guid.CreateVersion7(), "MOBILE_SCANNER", new Dictionary<string, string> { ["en"] = "x" }, null).Value;
+
+        role.EnsureKeepsCriticalPermissions([]).IsSuccess.ShouldBeTrue();
+    }
 }

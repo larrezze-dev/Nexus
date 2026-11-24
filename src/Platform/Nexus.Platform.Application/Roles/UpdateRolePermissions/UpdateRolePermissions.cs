@@ -1,6 +1,7 @@
 using FluentValidation;
 using Nexus.BuildingBlocks.Application;
 using Nexus.BuildingBlocks.Domain;
+using Nexus.Platform.Application.Common;
 using Nexus.Platform.Domain.Roles;
 
 namespace Nexus.Platform.Application.Roles.UpdateRolePermissions;
@@ -10,15 +11,24 @@ namespace Nexus.Platform.Application.Roles.UpdateRolePermissions;
 /// the full desired set of permission codes; the server diffs it against the role's
 /// currently-valid grants and closes (<c>valid_to</c>) what is no longer wanted while opening a
 /// new row for what is newly wanted. Codes already granted and still wanted are left untouched
-/// (no new row, no close) - this is a set replacement, not a bulk revoke-then-grant. No
-/// <c>If-Match</c> (the contract's <c>updateRolePermissions</c> has none).
+/// (no new row, no close) - this is a set replacement, not a bulk revoke-then-grant.
+/// <para>
+/// Guarded by <c>If-Match</c> with the role's <c>ETag</c> (<see cref="UpdateRolePermissionsCommand.ExpectedVersion"/>,
+/// the role row's <c>xmin</c>; domain/access.md §8, decided 2026-11-11): missing → 428 (endpoint),
+/// different → 409 <c>CONCURRENCY</c>. Order of the checks: 404 → 409 (<c>If-Match</c>) → 400
+/// (unknown permission code) → 422 ACC-R11 (<see cref="Role.EnsureKeepsCriticalPermissions"/>:
+/// <c>SYSTEM_ADMIN</c> keeps its five critical permissions) → diff and write.
+/// </para>
 /// <para>
 /// When the set actually changes, <c>Role.RaisePermissionsChanged</c> raises <c>RoleUpdated</c>
 /// (with the new permission codes), which bumps the role's persisted <c>aggregate_version</c>
 /// (ADR-0019): the role's own row is UPDATEd, so its
 /// <c>xmin</c> (ETag) and <c>updated_at</c>/<c>updated_by</c> change too, and two concurrent
 /// permission edits on the same role conflict - the loser gets 409 (concurrency). A request that
-/// changes nothing leaves the role row untouched.
+/// changes nothing leaves the role row untouched. Either way the response carries the role's
+/// <c>ETag</c> after the commit (<see cref="RolePermissionsUpdate.Version"/>): the new
+/// <c>xmin</c> EF Core read back from the <c>UPDATE</c>, or the unchanged one, so the client can
+/// chain the next <c>PUT</c> with it.
 /// </para>
 /// <para>
 /// The 200 response (the role's new current grants) is built entirely from data already read
@@ -27,8 +37,11 @@ namespace Nexus.Platform.Application.Roles.UpdateRolePermissions;
 /// database again afterwards.
 /// </para>
 /// </summary>
-public sealed record UpdateRolePermissionsCommand(Guid RoleId, IReadOnlyList<string> PermissionCodes)
-    : ICommand<IReadOnlyList<PermissionGrantItem>>;
+public sealed record UpdateRolePermissionsCommand(Guid RoleId, uint ExpectedVersion, IReadOnlyList<string> PermissionCodes)
+    : ICommand<RolePermissionsUpdate>;
+
+/// <summary>The role's current grants after the replacement, and the role's version (<c>ETag</c>) after the commit.</summary>
+public sealed record RolePermissionsUpdate(IReadOnlyList<PermissionGrantItem> Grants, uint Version);
 
 internal sealed class UpdateRolePermissionsValidator : AbstractValidator<UpdateRolePermissionsCommand>
 {
@@ -38,7 +51,7 @@ internal sealed class UpdateRolePermissionsValidator : AbstractValidator<UpdateR
     }
 }
 
-internal sealed class UpdateRolePermissionsHandler : ICommandHandler<UpdateRolePermissionsCommand, IReadOnlyList<PermissionGrantItem>>
+internal sealed class UpdateRolePermissionsHandler : ICommandHandler<UpdateRolePermissionsCommand, RolePermissionsUpdate>
 {
     private readonly IRequestTransaction _transaction;
     private readonly IRoleRepository _roles;
@@ -66,24 +79,39 @@ internal sealed class UpdateRolePermissionsHandler : ICommandHandler<UpdateRoleP
         _timeProvider = timeProvider;
     }
 
-    public async Task<Result<IReadOnlyList<PermissionGrantItem>>> Handle(
+    public async Task<Result<RolePermissionsUpdate>> Handle(
         UpdateRolePermissionsCommand command, CancellationToken cancellationToken)
     {
         await _transaction.BeginAsync(cancellationToken);
 
-        var role = await _roles.GetByIdAsync(command.RoleId, cancellationToken);
-        if (role is null)
+        var loaded = await VersionedLoader.LoadAsync(
+            _roles.GetByIdAsync,
+            _roles.GetMetadata,
+            command.RoleId,
+            command.ExpectedVersion,
+            RoleErrors.NotFound(command.RoleId),
+            RoleErrors.StaleVersion,
+            cancellationToken);
+        if (loaded.IsFailure)
         {
-            return Result.Failure<IReadOnlyList<PermissionGrantItem>>(RoleErrors.NotFound(command.RoleId));
+            return Result.Failure<RolePermissionsUpdate>(loaded.Error!);
         }
 
+        var role = loaded.Value;
         var desiredCodes = command.PermissionCodes.Distinct(StringComparer.Ordinal).ToList();
 
         var catalog = await _rolePermissionReads.ResolveAsync(desiredCodes, cancellationToken);
         var unknownCode = desiredCodes.FirstOrDefault(code => !catalog.ContainsKey(code));
         if (unknownCode is not null)
         {
-            return Result.Failure<IReadOnlyList<PermissionGrantItem>>(RoleErrors.UnknownPermissionCode(unknownCode));
+            return Result.Failure<RolePermissionsUpdate>(RoleErrors.UnknownPermissionCode(unknownCode));
+        }
+
+        // ACC-R11: SYSTEM_ADMIN keeps its critical permissions (an invariant of the resulting set).
+        var keepsCritical = role.EnsureKeepsCriticalPermissions(desiredCodes);
+        if (keepsCritical.IsFailure)
+        {
+            return Result.Failure<RolePermissionsUpdate>(keepsCritical.Error!);
         }
 
         var currentGrants = await _rolePermissionReads.GetCurrentGrantsAsync(command.RoleId, cancellationToken);
@@ -128,6 +156,8 @@ internal sealed class UpdateRolePermissionsHandler : ICommandHandler<UpdateRoleP
 
         await _transaction.CommitAsync(cancellationToken);
 
-        return Result.Success<IReadOnlyList<PermissionGrantItem>>(response);
+        // The role's version is read from EF Core's change tracker (refreshed by the UPDATE's
+        // RETURNING xmin when the role row was written), not from the database.
+        return Result.Success(new RolePermissionsUpdate(response, _roles.GetMetadata(role).Version));
     }
 }
