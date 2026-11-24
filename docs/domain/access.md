@@ -237,9 +237,9 @@ El Solver registra en su log de aplicación qué `legal_entity_id` toca cada cor
 |---|---|
 | `GET /v1/permissions` | `ROLE:READ` |
 | `GET/POST /v1/roles`, `GET/PUT /v1/roles/{id}`, `POST /v1/roles/{id}/deactivate` | `ROLE:READ/CREATE/UPDATE` |
-| `PUT /v1/roles/{id}/permissions` (lista completa; el servidor calcula altas y cierres). `If-Match` con el `ETag` del rol: sin él → 428, distinto → 409 (`conventions-api.md §5`) `[+]` (decidido 2026-11-11; pendiente de implementar, ver `STATUS.md`) | `ROLE:UPDATE` |
+| `PUT /v1/roles/{id}/permissions` (lista completa; el servidor calcula altas y cierres). `If-Match` con el `ETag` del rol: sin él → 428, distinto → 409 (`conventions-api.md §5`) `[+]` (decidido 2026-11-11). Además ACC-R11: no puede quitar a `SYSTEM_ADMIN` sus cinco permisos críticos (422) | `ROLE:UPDATE` |
 | `GET /v1/roles/{id}/permissions?asOf=` | `ROLE:READ` |
-| `GET /v1/role-assignments?userId=&roleId=&scopeType=&activeOn=` | `ROLE_ASSIGNMENT:READ` |
+| `GET /v1/role-assignments?userId=&roleId=&scopeType=&activeOn=&includeInactive=` | `ROLE_ASSIGNMENT:READ` |
 | `POST /v1/role-assignments` | `ROLE_ASSIGNMENT:CREATE` |
 | `POST /v1/role-assignments/{id}/revoke` | `ROLE_ASSIGNMENT:UPDATE` |
 | `GET /v1/users/{id}/effective-scope` | `ROLE_ASSIGNMENT:READ` |
