@@ -54,6 +54,10 @@ Los demás tokens `--mat-sys-*` (on-primary, secondary, tertiary, error-containe
 
 Activos desde 0.8 (decisión de Luciano, 2026-11-11). Para cambiarlos, editar `--nx-status-{success,warning,danger,neutral}-{bg,fg}` en `tokens.css`; el componente los aplica con `--mat-chip-elevated-container-color`, `--mat-chip-label-text-color` y `--mat-chip-outline-width: 0` (píldora rellena). El texto de aviso pasó de `#e65100` a `#8A3500` el 2026-11-12 (de 3.0:1 a 6.4:1 sobre `#ffe0b2`, WCAG AA). Contrastes actuales: éxito 5.9:1, aviso 6.4:1, peligro 4.7:1, neutro 7.6:1. La paleta corporativa sigue ⚑ abierta.
 
+## Avisos (`.nx-alert--*`)
+
+`--nx-alert-{error,warning,info,success}-{bg,fg}` en `tokens.css`. El texto del aviso informativo es el tono 10 de la paleta primary (`--mat-sys-on-primary-fixed`, `#00006E`, 13.3:1 sobre `#D7E3FF`) desde el 2026-11-24: el `on-primary-container` de Material 22 es el tono 30 (`#0000EF`, 7.3:1), un azul saturado que se confundía con un enlace. Aviso de conflicto `#5A2500` sobre `#FFF3E0` (10.9:1).
+
 ## Marcas de alcance (`effective-scope.page`)
 
 Sin tokens propios desde el 2026-11-18 (decisión de Luciano: los `--nx-scope-*` verde/azul/gris se confundían con los estados y se eliminaron). Las cuatro marcas —acceso directo, heredado, contiene elementos visibles, no visible— comparten un único aspecto neutro: sin relleno, texto e icono `--nx-color-text` (16:1 sobre blanco) y borde `--nx-color-outline` (≥ 3:1). Se distinguen por **icono + texto** (`verified_user`, `subdirectory_arrow_right`, `account_tree`, `visibility_off`) y por el trazo del borde: continuo si el usuario ve el elemento (directo, heredado), discontinuo si no lo ve en sí (contiene, no visible). La leyenda usa las mismas marcas.

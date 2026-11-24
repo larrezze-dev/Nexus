@@ -65,7 +65,10 @@
   --nx-alert-warning-bg: #fff3e0;         /* aviso 409 del diseño aprobado (tablero 5) */
   --nx-alert-warning-fg: #5a2500;         /* 10.9:1 sobre #fff3e0 */
   --nx-alert-info-bg: var(--nx-color-primary-container);
-  --nx-alert-info-fg: var(--nx-color-on-primary-container);
+  /* Tono 10 de la paleta primary (rol M3 on-primary-container clásico): #00006e, 13.3:1 sobre
+   * #d7e3ff. Antes on-primary-container de Material 22 (tono 30, #0000ef: 7.3:1, pero un azul
+   * saturado que se leía como enlace). Cambiado el 2026-11-24. */
+  --nx-alert-info-fg: var(--mat-sys-on-primary-fixed);
   --nx-alert-success-bg: var(--nx-status-success-bg);
   --nx-alert-success-fg: var(--nx-status-success-fg);
 
