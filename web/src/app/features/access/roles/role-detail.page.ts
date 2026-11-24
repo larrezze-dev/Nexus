@@ -384,9 +384,14 @@ export class RoleDetailPage implements OnInit {
     }
   }
 
-  /** `SYSTEM_ADMIN`'s five critical permissions cannot be unticked (`ACC-R11`). */
+  /** `SYSTEM_ADMIN`'s critical permissions it currently holds cannot be unticked (`ACC-R11`); a missing one stays tickable. */
   protected isLockedPermission(code: string | undefined): boolean {
-    return !!code && this.entity()?.code === SYSTEM_ADMIN_ROLE_CODE && SYSTEM_ADMIN_LOCKED_PERMISSIONS.has(code);
+    return (
+      !!code &&
+      this.entity()?.code === SYSTEM_ADMIN_ROLE_CODE &&
+      SYSTEM_ADMIN_LOCKED_PERMISSIONS.has(code) &&
+      this.originalCodes().has(code)
+    );
   }
 
   protected isGranted(code: string | undefined): boolean {
@@ -399,7 +404,7 @@ export class RoleDetailPage implements OnInit {
   }
 
   protected toggleGrant(permission: Pick<Permission, 'code'>): void {
-    if (!this.canEditPermissions() || this.savingPermissions() || this.isLockedPermission(permission.code)) {
+    if (!this.canEditPermissions() || this.savingPermissions() || (this.isLockedPermission(permission.code) && this.grantedCodes().has(permission.code))) {
       return;
     }
     const next = new Set(this.grantedCodes());

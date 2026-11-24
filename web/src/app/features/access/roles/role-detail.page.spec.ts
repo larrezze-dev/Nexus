@@ -269,6 +269,26 @@ describe('RoleDetailPage', () => {
       expect(page.isLockedPermission(undefined)).toBe(false);
     });
 
+    it('a critical permission SYSTEM_ADMIN no longer holds is not locked and can be re-ticked', async () => {
+      const facade = createFacadeStub(adminRole);
+      facade.getPermissions.mockResolvedValue(
+        critical.filter((code) => code !== 'ROLE_ASSIGNMENT:UPDATE').map((code) => ({ ...grant, code })),
+      );
+      const fixture = await setupPage({ id: adminRole.id }, facade);
+      fixture.detectChanges();
+      await fixture.whenStable();
+      const page = fixture.componentInstance as unknown as {
+        isLockedPermission(code: string): boolean;
+        toggleGrant(p: { code: string }): void;
+        isGranted(code: string): boolean;
+      };
+
+      expect(page.isLockedPermission('ROLE_ASSIGNMENT:UPDATE')).toBe(false);
+      page.toggleGrant({ code: 'ROLE_ASSIGNMENT:UPDATE' });
+      expect(page.isGranted('ROLE_ASSIGNMENT:UPDATE')).toBe(true);
+      expect(page.isLockedPermission('ROLE:READ')).toBe(true);
+    });
+
     it('no permission is locked on any other role', async () => {
       const page = await open(role);
       expect(critical.some((code) => page.isLockedPermission(code))).toBe(false);
@@ -570,8 +590,22 @@ describe('RoleDetailPage', () => {
     const el: HTMLElement = fixture.nativeElement;
 
     expect(el.querySelector('[data-testid="role-detail-system-badge"]')).not.toBeNull();
+    expect(el.querySelector('[data-testid="role-detail-read-only"]')).toBeNull();
     expect(el.querySelector('[data-testid="role-detail-deactivate"]')).toBeNull();
     expect(fixture.componentInstance['canEditPermissions']()).toBe(true);
+  });
+
+  it('a read-only system role shows only the read-only notice, not the «permissions can be edited» one', async () => {
+    const facade = createFacadeStub({ ...role, isSystem: true });
+    const fixture = await setupPage({ id: role.id }, facade);
+    TestBed.inject(PermissionsStore).setPermissions([{ code: 'ROLE:READ', scopes: [] }] as never);
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+    const el: HTMLElement = fixture.nativeElement;
+
+    expect(el.querySelector('[data-testid="role-detail-read-only"]')).not.toBeNull();
+    expect(el.querySelector('[data-testid="role-detail-system-badge"]')).toBeNull();
   });
 
   it('deactivates through the confirm dialog and not when it is cancelled', async () => {
