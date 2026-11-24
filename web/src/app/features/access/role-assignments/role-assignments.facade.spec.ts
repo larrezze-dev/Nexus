@@ -206,6 +206,7 @@ describe('RoleAssignmentsFacade', () => {
       item({ id: 'a2', validFrom: '2026-11-14T00:00:00Z', validTo: '2026-11-20T10:15:00Z' }),
     ]);
     await pending;
+    facade.showEnded.set(true);
 
     const [exact, revoked] = facade.rows();
     expect(exact.validFromLabel).toContain('2026');
@@ -213,20 +214,74 @@ describe('RoleAssignmentsFacade', () => {
     expect(revoked.validToLabel).toContain('20');
   });
 
-  it('status: pending when validFrom is in the future, active when valid now, inactive once ended; pending is not revocable', async () => {
+  it('list() asks for includeInactive in a single call', async () => {
+    const { facade, httpMock } = setup();
+    const pending = facade.list(userId);
+    const requests = answerList(httpMock, []);
+    await pending;
+
+    const calls = requests.filter((r) => r.request.url.endsWith('/role-assignments'));
+    expect(calls).toHaveLength(1);
+    expect(calls[0].request.params.get('includeInactive')).toBe('true');
+  });
+
+  it('status: pending (future), active (now), revoked (revokedBy set), expired (ended, not revoked)', async () => {
     const { facade, httpMock } = setup(Date.parse('2026-11-18T12:00:00Z'));
     const pending = facade.list(userId);
     answerList(httpMock, [
       item({ id: 'future', validFrom: '2026-12-01T00:00:00Z' }),
       item({ id: 'now', validFrom: '2026-11-01T00:00:00Z' }),
-      item({ id: 'past', validFrom: '2026-01-01T00:00:00Z', validTo: '2026-02-01T00:00:00Z' }),
+      item({ id: 'expired', validFrom: '2026-01-01T00:00:00Z', validTo: '2026-02-01T00:00:00Z' }),
+      item({ id: 'edge', validFrom: '2026-01-01T00:00:00Z', validTo: '2026-11-18T12:00:00Z' }),
+      item({ id: 'revoked', validFrom: '2026-01-01T00:00:00Z', validTo: '2026-11-10T00:00:00Z', revokedBy: 'u-9' }),
+      item({ id: 'revoked-future', validFrom: '2026-12-01T00:00:00Z', validTo: '2026-12-01T00:00:00Z', revokedBy: 'u-9' }),
     ]);
     await pending;
+    facade.showEnded.set(true);
 
     const rows = Object.fromEntries(facade.rows().map((r) => [r.id, r]));
     expect(rows['future']).toMatchObject({ status: 'pending', isActive: false, canRevoke: false });
     expect(rows['now']).toMatchObject({ status: 'active', isActive: true, canRevoke: true });
-    expect(rows['past']).toMatchObject({ status: 'inactive', isActive: false, canRevoke: false });
+    expect(rows['expired']).toMatchObject({ status: 'expired', isActive: false, canRevoke: false });
+    expect(rows['edge']).toMatchObject({ status: 'expired' }); // valid_to <= now
+    expect(rows['revoked']).toMatchObject({ status: 'revoked', isActive: false, canRevoke: false });
+    expect(rows['revoked-future']).toMatchObject({ status: 'revoked', canRevoke: false });
+  });
+
+  it('showEnded (default off) shows active + pending; on it also shows revoked + expired', async () => {
+    const { facade, httpMock } = setup(Date.parse('2026-11-18T12:00:00Z'));
+    const pending = facade.list(userId);
+    answerList(httpMock, [
+      item({ id: 'future', validFrom: '2026-12-01T00:00:00Z' }),
+      item({ id: 'now' }),
+      item({ id: 'expired', validTo: '2026-02-01T00:00:00Z' }),
+      item({ id: 'revoked', validTo: '2026-11-10T00:00:00Z', revokedBy: 'u-9' }),
+    ]);
+    await pending;
+
+    expect(facade.showEnded()).toBe(false);
+    expect(facade.rows().map((r) => r.id)).toEqual(['future', 'now']);
+    expect(facade.endedCount()).toBe(2);
+    facade.showEnded.set(true);
+    expect(facade.rows().map((r) => r.id)).toEqual(['future', 'now', 'expired', 'revoked']);
+  });
+
+  it('validTo sent by the form (start of the next Zurich day) shows as the chosen day, in winter and in summer', async () => {
+    const { facade, httpMock } = setup();
+    TestBed.inject(NxFormatService);
+    const pending = facade.list(userId);
+    answerList(httpMock, [
+      item({ id: 'w', validTo: '2026-11-30T23:00:00Z' }), // 1 Dec 00:00 CET -> until 30 Nov
+      item({ id: 's', validTo: '2026-07-14T22:00:00Z' }), // 15 Jul 00:00 CEST -> until 14 Jul
+      item({ id: 'dst', validTo: '2026-03-29T22:00:00Z' }), // 30 Mar 00:00 CEST -> until 29 Mar
+    ]);
+    await pending;
+    facade.showEnded.set(true);
+
+    const labels = Object.fromEntries(facade.rows().map((r) => [r.id, r.validToLabel ?? '']));
+    expect(labels['w']).toMatch(/30/);
+    expect(labels['s']).toMatch(/14/);
+    expect(labels['dst']).toMatch(/29/);
   });
 
   it('only MANUAL assignments that are still valid can be revoked (ACC-R6 protects SEED)', async () => {
@@ -238,6 +293,7 @@ describe('RoleAssignmentsFacade', () => {
       item({ id: 'ended', validTo: '2026-02-01T00:00:00Z' }),
     ]);
     await pending;
+    facade.showEnded.set(true);
 
     expect(Object.fromEntries(facade.rows().map((r) => [r.id, r.canRevoke]))).toEqual({
       manual: true,

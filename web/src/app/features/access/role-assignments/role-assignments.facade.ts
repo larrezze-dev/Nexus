@@ -26,12 +26,15 @@ import {
   problemOf,
 } from '../../../core/http/problem';
 import { IdempotentCreateId } from '../../../core/ids/uuid-v7';
-import { NxFormatService } from '../../../core/i18n/nx-format.service';
+import { DISPLAY_TIME_ZONE, NxFormatService } from '../../../core/i18n/nx-format.service';
+import { startOfZonedDay, zonedYmd } from '../../../core/time/zoned-day';
 import { NxI18nService } from '../../../core/i18n/nx-i18n.service';
 import { namesContext } from '../../../core/http/skip-error-navigation';
 import { NX_NOW } from '../../../core/time/nx-clock';
 import { resolveCaption } from '../../../shared/ui/caption/caption.util';
 import { SYSTEM_USER_ID, SystemUserReadOnlyError } from '../../../shared/auth/system-user';
+
+export type AssignmentStatus = 'active' | 'pending' | 'revoked' | 'expired';
 
 /** One assignment of a user as the screen shows it: names, never ids. */
 export interface AssignmentRow {
@@ -46,8 +49,11 @@ export interface AssignmentRow {
   /** Last day (inclusive) as «31 Dec 2026»; `null` = no end. */
   readonly validToLabel: string | null;
   readonly source: RoleAssignmentListItem['source'];
-  /** `pending`: starts in the future; `inactive`: already ended; `active`: valid now. */
-  readonly status: 'active' | 'pending' | 'inactive';
+  /**
+   * `pending`: starts in the future; `active`: valid now; `revoked`: closed by a revoke (`revokedBy` set);
+   * `expired`: its end date has passed without a revoke.
+   */
+  readonly status: AssignmentStatus;
   /** Valid now (started, not ended). */
   readonly isActive: boolean;
   /**
@@ -85,7 +91,8 @@ const DAY_MS = 86_400_000;
  * catch: the page asks `describeError()` how to show the failure.
  *
  * Validity end: `valid_to` is exclusive (`> now()`), and the form's «until» day is inclusive, so
- * the form sends the next UTC midnight and `validToLabel` shows the day before an exact midnight.
+ * the form sends the start of the next Europe/Zurich day and `validToLabel` shows the day before.
+ * `list()` asks for `includeInactive` (one call): `rows()` hides revoked/expired ones unless `showEnded` is on.
  */
 @Injectable({ providedIn: 'root' })
 export class RoleAssignmentsFacade {
@@ -117,8 +124,20 @@ export class RoleAssignmentsFacade {
   readonly error = this.errorSignal.asReadonly();
   readonly saving = this.savingSignal.asReadonly();
 
-  /** Items of the last `list()` with names resolved; reactive to the active language. */
+  /** Also show revoked and expired assignments (default: only active and pending ones). */
+  readonly showEnded = signal(false);
+
+  /** How many rows `showEnded` hides right now (to label the toggle / empty state). */
+  readonly endedCount = computed(() => this.allRows().filter((row) => isEnded(row.status)).length);
+
+  /** `allRows()` filtered by `showEnded`. */
   readonly rows = computed<AssignmentRow[]>(() => {
+    const all = this.allRows();
+    return this.showEnded() ? all : all.filter((row) => !isEnded(row.status));
+  });
+
+  /** Items of the last `list()` with names resolved and status derived; reactive to the active language. */
+  private readonly allRows = computed<AssignmentRow[]>(() => {
     const lang = this.i18n.activeLang();
     const roles = this.rolesSignal();
     const now = this.nowSignal();
@@ -126,8 +145,14 @@ export class RoleAssignmentsFacade {
       const role = roles.get(item.roleId);
       const validTo = item.validTo ? new Date(item.validTo).getTime() : null;
       const started = new Date(item.validFrom).getTime() <= now;
-      const isActive = started && (validTo === null || validTo > now);
-      const status = !started ? 'pending' : isActive ? 'active' : 'inactive';
+      const isActive = !item.revokedBy && started && (validTo === null || validTo > now);
+      const status: AssignmentStatus = item.revokedBy
+        ? 'revoked'
+        : !started
+          ? 'pending'
+          : isActive
+            ? 'active'
+            : 'expired';
       return {
         id: item.id,
         roleLabel: role ? resolveCaption(role.captionI18n, lang, role.code) : '—',
@@ -162,7 +187,7 @@ export class RoleAssignmentsFacade {
     this.errorSignal.set(null);
     try {
       const [response, roles, legalEntities, businessUnits, warehouses] = await Promise.allSettled([
-        this.api.invoke(listRoleAssignments, { userId, pageSize: 200, sort: '-validFrom' }),
+        this.api.invoke(listRoleAssignments, { userId, pageSize: 200, sort: '-validFrom', includeInactive: true }),
         this.api.invoke(listRoles, { page: 1, pageSize: 200, sort: 'code' }, namesContext()),
         this.api.invoke(listLegalEntities, { page: 1, pageSize: REFERENCE_PAGE_SIZE, sort: 'code' }, namesContext()),
         this.api.invoke(listBusinessUnits, { page: 1, pageSize: REFERENCE_PAGE_SIZE, sort: 'code' }, namesContext()),
@@ -349,10 +374,22 @@ export class RoleAssignmentsFacade {
     }
   }
 
-  /** `valid_to` is exclusive: an exact UTC midnight means «until the day before». */
+  /**
+   * `valid_to` is exclusive: the start of a Zurich day means «until the day before» (what the form sends for an
+   * inclusive end date). An exact UTC midnight (rows written before the Zurich boundaries) reads the same way.
+   * Returns an instant that falls on the last day, for `formatDateMedium`.
+   */
   private lastDay(validTo: string): string {
     const time = new Date(validTo).getTime();
-    return Number.isNaN(time) || time % DAY_MS !== 0 ? validTo : new Date(time - DAY_MS).toISOString();
+    if (Number.isNaN(time)) {
+      return validTo;
+    }
+    const [year, month, day] = zonedYmd(time, DISPLAY_TIME_ZONE).split('-').map(Number);
+    const zurichMidnight = startOfZonedDay(year, month, day, DISPLAY_TIME_ZONE).getTime() === time;
+    if (zurichMidnight) {
+      return new Date(time - 1).toISOString();
+    }
+    return time % DAY_MS === 0 ? new Date(time - DAY_MS).toISOString() : validTo;
   }
 
   private byId<T extends { id: string }, R>(
@@ -364,6 +401,10 @@ export class RoleAssignmentsFacade {
     }
     return new Map((pick(result.value) ?? []).map((item) => [item.id, item]));
   }
+}
+
+function isEnded(status: AssignmentStatus): boolean {
+  return status === 'revoked' || status === 'expired';
 }
 
 /** Server field name → form control name. */
