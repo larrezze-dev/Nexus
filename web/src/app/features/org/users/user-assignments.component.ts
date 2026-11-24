@@ -11,6 +11,7 @@ import {
   viewChild,
 } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
+import { NgTemplateOutlet } from '@angular/common';
 import { AbstractControl, ReactiveFormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import type { ErrorStateMatcher } from '@angular/material/core';
@@ -19,8 +20,7 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
 import { MatSelectModule } from '@angular/material/select';
-import { NxFormatService } from '../../../core/i18n/nx-format.service';
-import { NX_NOW } from '../../../core/time/nx-clock';
+import { MatSlideToggleModule } from '@angular/material/slide-toggle';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { RouterLink } from '@angular/router';
 import { TranslocoModule, TranslocoService } from '@jsverse/transloco';
@@ -81,6 +81,7 @@ const FIELD_ORDER: readonly { readonly control: 'role' | 'scopeEntity' | 'validF
     MatIconModule,
     MatInputModule,
     MatSelectModule,
+    MatSlideToggleModule,
     NxActionBarComponent,
     NxCanDirective,
     NxEntityPickerComponent,
@@ -88,6 +89,7 @@ const FIELD_ORDER: readonly { readonly control: 'role' | 'scopeEntity' | 'validF
     NxFormSectionComponent,
     NxSpanDirective,
     NxStatusBadgeComponent,
+    NgTemplateOutlet,
   ],
   templateUrl: './user-assignments.component.html',
   styleUrl: './user-assignments.component.scss',
@@ -99,16 +101,9 @@ export class UserAssignmentsComponent {
   private readonly transloco = inject(TranslocoService);
   private readonly confirm = inject(NxConfirm);
   private readonly snackBar = inject(MatSnackBar);
-  private readonly format = inject(NxFormatService);
-  private readonly now = inject(NX_NOW);
   private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
   private readonly saveAlert = viewChild<ElementRef<HTMLElement>>('saveAlert');
-
-  /**
-   * Persistent notice after granting an assignment that starts in the future: `GET /v1/role-assignments`
-   * only returns the ones in force, so it will not show in the list until that day.
-   */
-  protected readonly futureNotice = signal<string | null>(null);
+  private readonly revokeAlert = viewChild<ElementRef<HTMLElement>>('revokeAlert');
 
   readonly userId = input.required<string>();
   /** No grant form (the SYSTEM user is read-only, ORG-R6). */
@@ -118,8 +113,10 @@ export class UserAssignmentsComponent {
   protected readonly form = createRoleAssignmentForm();
   protected readonly effectiveScopeLink = computed(() => effectiveScopeLink(this.userId()));
 
-  /** Alert text of the last failed grant/revoke. */
+  /** Alert text of the last failed grant. */
   protected readonly saveError = signal<string | null>(null);
+  /** Alert text of the last failed revoke; lives outside the grant form (shown without `ROLE_ASSIGNMENT:CREATE`). */
+  protected readonly revokeError = signal<string | null>(null);
   /** Server messages per control (`role`, `scopeEntity`, `validFrom`, `validTo`). */
   protected readonly fieldErrors = signal<Readonly<Record<string, readonly string[]>>>({});
   /** Fields to review after a submit with errors; 0 = no alert. */
@@ -150,6 +147,7 @@ export class UserAssignmentsComponent {
       const id = this.userId();
       untracked(() => {
         this.facade.reset();
+        this.revokeError.set(null);
         void this.facade.list(id);
       });
     });
@@ -184,7 +182,6 @@ export class UserAssignmentsComponent {
       return;
     }
     this.invalidCount.set(0);
-    this.futureNotice.set(null);
     this.saveError.set(null);
     this.fieldErrors.set({});
     const userId = this.userId();
@@ -193,13 +190,6 @@ export class UserAssignmentsComponent {
       await this.facade.create(request);
       resetRoleAssignmentForm(this.form);
       this.notify('org.users.detail.assignments.granted');
-      this.futureNotice.set(
-        new Date(request.validFrom).getTime() > this.now()
-          ? this.transloco.translate('org.users.detail.assignments.startsOn', {
-              date: this.format.formatDateMedium(request.validFrom),
-            })
-          : null,
-      );
       await this.facade.list(userId);
     } catch (error: unknown) {
       this.showError(error);
@@ -219,14 +209,13 @@ export class UserAssignmentsComponent {
     if (!confirmed) {
       return;
     }
-    this.saveError.set(null);
-    this.fieldErrors.set({});
+    this.revokeError.set(null);
     try {
       await this.facade.revoke(row.id);
       this.notify('org.users.detail.assignments.revoked');
       await this.facade.list(this.userId());
     } catch (error: unknown) {
-      this.showError(error);
+      this.showRevokeError(error);
     }
   }
 
@@ -304,6 +293,21 @@ export class UserAssignmentsComponent {
     } else {
       this.focusTestId(FIELD_ORDER.find((field) => info.fields[field.control]?.length)?.testId);
     }
+  }
+
+  /** Own alert for a failed revoke; a 409/422 means the list is stale (already revoked, last admin…), so reload it. */
+  private showRevokeError(error: unknown): void {
+    const info = this.facade.describeError(error);
+    const status = (error as { status?: number } | null)?.status;
+    if (info.kind === 'concurrency' || status === 409 || status === 422) {
+      void this.facade.list(this.userId());
+    }
+    if (info.kind === 'concurrency') {
+      // `errorInterceptor` already opened the concurrency dialog.
+      return;
+    }
+    this.revokeError.set(info.message ?? this.transloco.translate('errors.generic'));
+    setTimeout(() => this.revokeAlert()?.nativeElement.focus());
   }
 
   private notify(key: string): void {

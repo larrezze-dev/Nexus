@@ -1,7 +1,7 @@
 <div class="nx-data-grid" [attr.data-state]="state()" [attr.aria-busy]="state() === 'loading'">
   <!-- Table (≥ 600 px). Kept mounted while loading or empty so its column/sort state survives. -->
   <div class="nx-data-grid__table" [class.nx-data-grid__table--hidden]="state() !== 'rows'">
-    @for (locale of gridInstances(); track locale) {
+    @for (instance of gridInstances(); track instance.key) {
       <ag-grid-angular
         class="nx-data-grid__grid"
         domLayout="autoHeight"
@@ -10,7 +10,7 @@
         [columnDefs]="gridColumns()"
         [defaultColDef]="defaultColDef"
         [rowData]="rowData()"
-        [localeText]="locale"
+        [localeText]="instance.localeText"
         [loading]="false"
         [suppressNoRowsOverlay]="true"
         (gridReady)="onGridReady($event)"

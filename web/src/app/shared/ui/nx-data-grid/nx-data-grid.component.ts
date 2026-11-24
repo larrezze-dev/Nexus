@@ -198,14 +198,15 @@ export class NxDataGridComponent<T> {
 
   private readonly gridLocale = inject(NxGridLocale);
   /**
-   * Zero or one item, keyed by the `localeText` object. AG Grid reads `localeText` at init only,
+   * Zero or one item, keyed by the content of `localeText` as a string (tracking the object by identity
+   * trips NG0956 on every switch; the language code alone would miss the moment its file finishes loading). AG Grid reads `localeText` at init only,
    * so the grid is mounted only once the active language's file has loaded (no raw keys on first
    * load) and re-created on every language switch. Sort and page live in this component and are
    * re-applied to the new instance.
    */
   protected readonly gridInstances = computed(() => {
     const localeText = this.gridLocale.localeText();
-    return localeText ? [localeText] : [];
+    return localeText ? [{ key: JSON.stringify(localeText), localeText }] : [];
   });
 
   protected readonly loading = signal(false);

@@ -7,10 +7,19 @@
     {{ 'org.users.detail.assignments.effectiveScopeLink' | transloco }}
   </a>
 
-  @if (futureNotice(); as notice) {
-    <div class="nx-alert nx-alert--info" role="status" data-testid="assignment-future-notice">
-      <mat-icon aria-hidden="true">schedule</mat-icon>
-      <span class="nx-alert__text">{{ notice }}</span>
+  <mat-slide-toggle
+    class="nx-ua-show-ended"
+    data-testid="assignments-show-ended"
+    [checked]="facade.showEnded()"
+    (change)="facade.showEnded.set($event.checked)"
+  >
+    {{ 'org.users.detail.assignments.showEnded' | transloco }}
+  </mat-slide-toggle>
+
+  @if (revokeError(); as message) {
+    <div #revokeAlert class="nx-alert nx-alert--error" role="alert" tabindex="-1" data-testid="assignment-revoke-error">
+      <mat-icon aria-hidden="true">error</mat-icon>
+      <span class="nx-alert__text">{{ message }}</span>
     </div>
   }
 
@@ -158,29 +167,23 @@
           </mat-select>
         </mat-form-field>
 
-        <!-- One picker per scope type (`track`): a new type starts a fresh search with its own list. -->
-        @for (type of [scopeType()]; track type) {
-          <nx-entity-picker
-            nxSpan="l"
-            data-testid="assignment-scope-entity-picker"
-            [label]="'org.users.detail.assignments.fields.scopeEntity' | transloco"
-            [hint]="
-              (type === 'GLOBAL'
-                ? 'org.users.detail.assignments.hints.global'
-                : 'org.users.detail.assignments.hints.search'
-              ) | transloco
-            "
-            [error]="pickerError('scopeEntity')"
-            [deniedMessage]="type === 'GLOBAL' ? null : (('org.users.detail.assignments.noList.' + type) | transloco)"
-            [required]="type !== 'GLOBAL'"
-            [disabled]="type === 'GLOBAL'"
-            [value]="form.controls.scopeEntity.value"
-            [clearable]="true"
-            [search]="scopeEntitySearch()"
-            [displayWith]="displayScopeEntity"
-            (selected)="onScopeEntitySelected($event)"
-            (cleared)="clearScopeEntity()"
-          />
+        <!--
+          One picker per scope type: each `@case` is its own view, so a new type starts a fresh picker (its own
+          search and options) without an identity-tracked `@for`.
+        -->
+        @switch (scopeType()) {
+          @case ('LEGAL_ENTITY') {
+            <ng-container [ngTemplateOutlet]="scopeEntityPicker" />
+          }
+          @case ('BUSINESS_UNIT') {
+            <ng-container [ngTemplateOutlet]="scopeEntityPicker" />
+          }
+          @case ('WAREHOUSE') {
+            <ng-container [ngTemplateOutlet]="scopeEntityPicker" />
+          }
+          @default {
+            <ng-container [ngTemplateOutlet]="scopeEntityPicker" />
+          }
         }
       </nx-form-grid>
 
@@ -243,3 +246,27 @@
     </nx-action-bar>
   </form>
 }
+
+<ng-template #scopeEntityPicker>
+  <nx-entity-picker
+    nxSpan="l"
+    data-testid="assignment-scope-entity-picker"
+    [label]="'org.users.detail.assignments.fields.scopeEntity' | transloco"
+    [hint]="
+      (scopeType() === 'GLOBAL'
+        ? 'org.users.detail.assignments.hints.global'
+        : 'org.users.detail.assignments.hints.search'
+      ) | transloco
+    "
+    [error]="pickerError('scopeEntity')"
+    [deniedMessage]="scopeType() === 'GLOBAL' ? null : (('org.users.detail.assignments.noList.' + scopeType()) | transloco)"
+    [required]="scopeType() !== 'GLOBAL'"
+    [disabled]="scopeType() === 'GLOBAL'"
+    [value]="form.controls.scopeEntity.value"
+    [clearable]="true"
+    [search]="scopeEntitySearch()"
+    [displayWith]="displayScopeEntity"
+    (selected)="onScopeEntitySelected($event)"
+    (cleared)="clearScopeEntity()"
+  />
+</ng-template>

@@ -29,6 +29,8 @@ const row = (over: Partial<AssignmentRow> = {}): AssignmentRow => ({
 function setup(rows: AssignmentRow[] = [row()]) {
   const facade = {
     rows: signal(rows),
+    showEnded: signal(false),
+    endedCount: signal(0),
     loading: signal(false),
     error: signal<string | null>(null),
     saving: signal(false),
@@ -148,38 +150,61 @@ describe('UserAssignmentsComponent', () => {
       userId: 'u-1',
       scopeType: 'LEGAL_ENTITY',
       scopeEntityId: 'le-1',
-      validFrom: '2026-11-14T00:00:00.000Z',
-      validTo: '2026-11-15T00:00:00.000Z',
+      validFrom: '2026-11-13T23:00:00.000Z',
+      validTo: '2026-11-14T23:00:00.000Z',
     });
     expect(facade.list).toHaveBeenCalledTimes(2);
     expect(cmp.form.controls.role.value).toBeNull();
   });
 
-  it('granting one that starts in the future shows a persistent notice with the date; a current one does not', async () => {
-    const { fixture, facade } = setup([]);
+  it('shows no future notice any more: a future grant is simply listed as pending', async () => {
+    const { fixture } = setup([row({ id: 'p', status: 'pending', isActive: false, canRevoke: false })]);
     const root = await render(fixture);
-    const cmp = fixture.componentInstance as unknown as {
-      form: ReturnType<typeof import('../../access/role-assignments/role-assignment-form').createRoleAssignmentForm>;
-      grant(): Promise<void>;
-    };
-    const fill = (from: Date) => {
-      cmp.form.controls.role.setValue(role);
-      cmp.form.controls.scopeEntity.setValue({ id: 'le-1', label: 'LE' });
-      cmp.form.controls.validFrom.setValue(from);
-    };
-
-    fill(new Date(Date.now() + 40 * 86_400_000));
-    await cmp.grant();
-    fixture.detectChanges();
-    const notice = q(root, 'assignment-future-notice');
-    expect(facade.create).toHaveBeenCalledTimes(1);
-    expect(notice?.textContent).toContain('org.users.detail.assignments.startsOn');
-    expect(notice?.getAttribute('role')).toBe('status');
-
-    fill(new Date(2020, 0, 1));
-    await cmp.grant();
-    fixture.detectChanges();
     expect(q(root, 'assignment-future-notice')).toBeNull();
+    expect(root.querySelector('[data-testid="assignment-p"] nx-status-badge')).not.toBeNull();
+  });
+
+  it('the show-ended toggle drives facade.showEnded', async () => {
+    const { fixture, facade } = setup();
+    const root = await render(fixture);
+    const toggle = q(root, 'assignments-show-ended');
+    expect(toggle).not.toBeNull();
+    toggle?.querySelector<HTMLButtonElement>('button')?.click();
+    fixture.detectChanges();
+    expect(facade.showEnded()).toBe(true);
+  });
+
+  it('a failed revoke shows its alert outside the grant form, even without ROLE_ASSIGNMENT:CREATE (readOnly hides the form)', async () => {
+    const { fixture, facade } = setup();
+    fixture.componentRef.setInput('readOnly', true);
+    const root = await render(fixture);
+    facade.revoke.mockRejectedValue(new Error('http'));
+    facade.describeError.mockReturnValue({ kind: 'rule', message: 'errors.ACC-R12', fields: {} });
+    await (fixture.componentInstance as unknown as { revoke(r: AssignmentRow): Promise<void> }).revoke(row());
+    fixture.detectChanges();
+
+    expect(q(root, 'assignment-grant-form')).toBeNull();
+    expect(q(root, 'assignment-revoke-error')?.textContent).toContain('errors.ACC-R12');
+    expect(q(root, 'assignment-save-error')).toBeNull();
+  });
+
+  it('after a 422 on revoke the list is reloaded; after a 409 CONCURRENCY too, with no alert', async () => {
+    const { fixture, facade } = setup();
+    const root = await render(fixture);
+    const cmp = fixture.componentInstance as unknown as { revoke(r: AssignmentRow): Promise<void> };
+    expect(facade.list).toHaveBeenCalledTimes(1);
+
+    facade.revoke.mockRejectedValueOnce({ status: 422 });
+    facade.describeError.mockReturnValueOnce({ kind: 'rule', message: 'errors.ACC-R12', fields: {} });
+    await cmp.revoke(row());
+    expect(facade.list).toHaveBeenCalledTimes(2);
+
+    facade.revoke.mockRejectedValueOnce({ status: 409 });
+    facade.describeError.mockReturnValueOnce({ kind: 'concurrency', message: null, fields: {} });
+    await cmp.revoke(row());
+    fixture.detectChanges();
+    expect(facade.list).toHaveBeenCalledTimes(3);
+    expect(q(root, 'assignment-revoke-error')).toBeNull();
   });
 
   it('grant error ACC-R2: the message goes under the scope entity and the control is marked', async () => {
