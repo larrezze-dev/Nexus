@@ -9,7 +9,9 @@
 --     SECURITY_ADMIN needs to read the org structure to use the role-assignment form.
 --
 -- Same conventions as V202610300903 and V202611141001: fixed deterministic ids,
--- idempotent via ON CONFLICT (id), system user as granter.
+-- idempotent via ON CONFLICT (id), system user as granter. Also skips a pair that
+-- already has an open grant under another id (e.g. granted by hand through the API):
+-- the EXCLUDE constraint on role_permission would reject a second open window.
 -- Depends on access.role, access.permission and access.role_permission of earlier seeds.
 
 INSERT INTO access.role_permission (id, role_id, permission_id, valid_from, valid_to, granted_by)
@@ -20,4 +22,8 @@ FROM (VALUES
 ) AS m(id, role_code, permission_code)
 JOIN access.role r ON r.code = m.role_code
 JOIN access.permission p ON p.code = m.permission_code
+WHERE NOT EXISTS (
+  SELECT 1 FROM access.role_permission x
+  WHERE x.role_id = r.id AND x.permission_id = p.id AND (x.valid_to IS NULL OR x.valid_to > now())
+)
 ON CONFLICT (id) DO NOTHING;
