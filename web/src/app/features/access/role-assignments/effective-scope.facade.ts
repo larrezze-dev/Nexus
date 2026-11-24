@@ -1,5 +1,6 @@
 import { Injectable, computed, inject, signal } from '@angular/core';
 import { Api } from '../../../api/platform/api';
+import { namesContext } from '../../../core/http/skip-error-navigation';
 import { getUserEffectiveScope } from '../../../api/platform/fn/role-assignments/get-user-effective-scope';
 import { listRoleAssignments } from '../../../api/platform/fn/role-assignments/list-role-assignments';
 import { getUser } from '../../../api/platform/fn/users/get-user';
@@ -58,8 +59,8 @@ export class EffectiveScopeFacade {
     try {
       const [scope, assignments, user] = await Promise.all([
         this.api.invoke(getUserEffectiveScope, { id: userId }),
-        this.api.invoke(listRoleAssignments, { userId, pageSize: 200 }).catch(() => null),
-        this.api.invoke(getUser, { id: userId }).catch(() => null),
+        this.api.invoke(listRoleAssignments, { userId, pageSize: 200 }, namesContext()).catch(() => null),
+        this.api.invoke(getUser, { id: userId }, namesContext()).catch(() => null),
         this.orgTree.load(),
       ]).then(([s, a, u]) => [s, a, u] as const);
       if (this.orgTree.error()) {

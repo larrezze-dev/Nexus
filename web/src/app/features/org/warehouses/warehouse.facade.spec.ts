@@ -4,6 +4,7 @@ import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import type { Warehouse } from '../../../api/platform/models/warehouse';
 import { NxI18nService } from '../../../core/i18n/nx-i18n.service';
+import { NX_SKIP_ERROR_NAVIGATION } from '../../../core/http/skip-error-navigation';
 import { WarehouseFacade } from './warehouse.facade';
 
 const warehouseA = {
@@ -61,6 +62,22 @@ describe('WarehouseFacade load() sequencing', () => {
       answerLabelLookups(httpMock.match((r) => !r.url.includes('/warehouses/')));
     }
   }
+
+  it('secondary label lookups skip the error navigation and a 403 leaves the warehouse loaded', async () => {
+    const { facade, httpMock } = setup();
+    const load = facade.load(warehouseA.id);
+    httpMock.expectOne(url(warehouseA.id)).flush(warehouseA, { headers: { ETag: '"a"' } });
+    const lookups = await takeLabelLookups(httpMock);
+    expect(lookups.length).toBeGreaterThan(0);
+    for (const r of lookups) {
+      expect(r.request.context.get(NX_SKIP_ERROR_NAVIGATION)).toBe(true);
+      r.flush({ status: 403 }, { status: 403, statusText: 'Forbidden' });
+    }
+    await finish(httpMock, load);
+
+    expect(facade.selected()?.id).toBe(warehouseA.id);
+    expect(facade.error()).toBeNull();
+  });
 
   it('ignores an older load() that resolves after a newer one (selected and ETag stay B)', async () => {
     const { facade, httpMock } = setup();

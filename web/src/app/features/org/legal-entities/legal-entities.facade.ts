@@ -2,6 +2,7 @@ import { Injectable, inject, signal } from '@angular/core';
 import { Observable, from } from 'rxjs';
 import { map } from 'rxjs/operators';
 import { Api } from '../../../api/platform/api';
+import { namesContext } from '../../../core/http/skip-error-navigation';
 import { createLegalEntity } from '../../../api/platform/fn/legal-entities/create-legal-entity';
 import { deactivateLegalEntity } from '../../../api/platform/fn/legal-entities/deactivate-legal-entity';
 import { getLegalEntity } from '../../../api/platform/fn/legal-entities/get-legal-entity';
@@ -165,7 +166,7 @@ export class LegalEntitiesFacade {
 
   /** Groups for the create form's «Group» select, each with the legal name of its party. */
   async groupOptions(): Promise<LegalEntityGroupOption[]> {
-    const response = await this.api.invoke(listGroups, { page: 1, pageSize: 200 });
+    const response = await this.api.invoke(listGroups, { page: 1, pageSize: 200 }, namesContext());
     const groups = response.items ?? [];
     return Promise.all(
       groups.map(async (group) => ({
@@ -178,14 +179,19 @@ export class LegalEntitiesFacade {
 
   /** Active currencies for the «Currency» select. */
   async currencyOptions(): Promise<CurrencyListItem[]> {
-    const response = await this.api.invoke(listCurrencies, { page: 1, pageSize: 200, sort: 'code' });
-    return (response.items ?? []).filter((currency) => currency.isActive);
+    try {
+      const response = await this.api.invoke(listCurrencies, { page: 1, pageSize: 200, sort: 'code' }, namesContext());
+      return (response.items ?? []).filter((currency) => currency.isActive);
+    } catch {
+      // No CURRENCY:READ (403) etc.: the select keeps showing the current value by its code.
+      return [];
+    }
   }
 
   /** The party is display data only: if it cannot be read, the page falls back to the code. */
   private async fetchParty(id: string): Promise<Party | null> {
     try {
-      return await this.api.invoke(getParty, { id });
+      return await this.api.invoke(getParty, { id }, namesContext());
     } catch {
       return null;
     }

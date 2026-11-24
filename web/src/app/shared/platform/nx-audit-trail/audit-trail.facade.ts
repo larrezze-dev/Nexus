@@ -1,5 +1,6 @@
 import { Injectable, computed, inject, signal } from '@angular/core';
 import { Api } from '../../../api/platform/api';
+import { namesContext } from '../../../core/http/skip-error-navigation';
 import { getBusinessUnit } from '../../../api/platform/fn/business-units/get-business-unit';
 import { listAuditEvents } from '../../../api/platform/fn/audit/list-audit-events';
 import { getGroup } from '../../../api/platform/fn/groups/get-group';
@@ -19,16 +20,16 @@ type RefResolver = (api: Api, id: string) => Promise<string>;
  */
 const REF_RESOLVERS: Readonly<Partial<Record<string, RefResolver>>> = {
   locationId: async (api, id) => {
-    const location = await api.invoke(getLocation, { id });
+    const location = await api.invoke(getLocation, { id }, namesContext());
     return location.code ? `${location.code} — ${location.name}` : location.name;
   },
-  legalEntityId: async (api, id) => (await api.invoke(getLegalEntity, { id })).code,
-  businessUnitId: async (api, id) => (await api.invoke(getBusinessUnit, { id })).code,
+  legalEntityId: async (api, id) => (await api.invoke(getLegalEntity, { id }, namesContext())).code,
+  businessUnitId: async (api, id) => (await api.invoke(getBusinessUnit, { id }, namesContext())).code,
   partyId: async (api, id) => {
-    const party = await api.invoke(getParty, { id });
+    const party = await api.invoke(getParty, { id }, namesContext());
     return party.displayName ?? party.legalName;
   },
-  groupId: async (api, id) => (await api.invoke(getGroup, { id })).code,
+  groupId: async (api, id) => (await api.invoke(getGroup, { id }, namesContext())).code,
 };
 
 /**

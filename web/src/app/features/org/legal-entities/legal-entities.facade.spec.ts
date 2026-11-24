@@ -4,6 +4,7 @@ import { TestBed } from '@angular/core/testing';
 import { firstValueFrom } from 'rxjs';
 import { LegalEntity } from '../../../api/platform/models/legal-entity';
 import { LegalEntityListItem } from '../../../api/platform/models/legal-entity-list-item';
+import { NX_SKIP_ERROR_NAVIGATION } from '../../../core/http/skip-error-navigation';
 import { LegalEntitiesFacade } from './legal-entities.facade';
 
 const legalEntity: LegalEntity = {
@@ -63,6 +64,17 @@ describe('LegalEntitiesFacade', () => {
 
   afterEach(() => {
     TestBed.inject(HttpTestingController).verify();
+  });
+
+  it('currencyOptions() answers [] on a 403 and does not ask the error interceptor to navigate', async () => {
+    const { facade, httpMock } = setup();
+
+    const result = facade.currencyOptions();
+    const req = httpMock.expectOne((r) => r.url === '/api/platform/v1/currencies');
+    expect(req.request.context.get(NX_SKIP_ERROR_NAVIGATION)).toBe(true);
+    req.flush({ status: 403 }, { status: 403, statusText: 'Forbidden' });
+
+    expect(await result).toEqual([]);
   });
 
   it('list() converts the 0-based grid page to the 1-based API page and back', async () => {

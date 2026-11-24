@@ -2,6 +2,7 @@ import { Injectable, inject, signal } from '@angular/core';
 import { Observable, catchError, defer, forkJoin, from, of } from 'rxjs';
 import { map } from 'rxjs/operators';
 import { Api } from '../../../api/platform/api';
+import { namesContext } from '../../../core/http/skip-error-navigation';
 import { createBusinessUnit } from '../../../api/platform/fn/business-units/create-business-unit';
 import { deactivateBusinessUnit } from '../../../api/platform/fn/business-units/deactivate-business-unit';
 import { getBusinessUnit } from '../../../api/platform/fn/business-units/get-business-unit';
@@ -158,7 +159,7 @@ export class BusinessUnitsFacade {
   /** The party is display data only: if it cannot be read, its fields stay empty. */
   private async fetchParty(id: string): Promise<Party | null> {
     try {
-      return await this.api.invoke(getParty, { id });
+      return await this.api.invoke(getParty, { id }, namesContext());
     } catch {
       return null;
     }

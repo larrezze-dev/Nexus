@@ -1,6 +1,7 @@
 import { Injectable, computed, inject, signal } from '@angular/core';
 import { Observable, from, map } from 'rxjs';
 import { Api } from '../../../api/platform/api';
+import { namesContext } from '../../../core/http/skip-error-navigation';
 import { getBusinessUnit } from '../../../api/platform/fn/business-units/get-business-unit';
 import { listBusinessUnits } from '../../../api/platform/fn/business-units/list-business-units';
 import { getLegalEntity } from '../../../api/platform/fn/legal-entities/get-legal-entity';
@@ -391,14 +392,14 @@ export class WarehouseFacade {
    */
   private async resolveLabels(warehouse: Warehouse, seq: number): Promise<void> {
     const [location, legalEntity, businessUnit] = await Promise.all([
-      this.api.invoke(getLocation, { id: warehouse.locationId }).catch(() => null),
-      this.api.invoke(getLegalEntity, { id: warehouse.legalEntityId }).catch(() => null),
+      this.api.invoke(getLocation, { id: warehouse.locationId }, namesContext()).catch(() => null),
+      this.api.invoke(getLegalEntity, { id: warehouse.legalEntityId }, namesContext()).catch(() => null),
       warehouse.businessUnitId
-        ? this.api.invoke(getBusinessUnit, { id: warehouse.businessUnitId }).catch(() => null)
+        ? this.api.invoke(getBusinessUnit, { id: warehouse.businessUnitId }, namesContext()).catch(() => null)
         : Promise.resolve(null),
     ]);
     // `LegalEntity` carries no legal name: it lives on its `Party` (display data only).
-    const party = legalEntity ? await this.api.invoke(getParty, { id: legalEntity.partyId }).catch(() => null) : null;
+    const party = legalEntity ? await this.api.invoke(getParty, { id: legalEntity.partyId }, namesContext()).catch(() => null) : null;
     if (seq !== this.loadSeq) {
       return;
     }

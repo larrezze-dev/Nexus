@@ -1,11 +1,12 @@
 import { TestBed } from '@angular/core/testing';
 import { provideTransloco } from '@jsverse/transloco';
-import { HttpErrorResponse } from '@angular/common/http';
+import { HttpContext, HttpErrorResponse } from '@angular/common/http';
 import { Api } from '../../../api/platform/api';
 import { getLegalEntity } from '../../../api/platform/fn/legal-entities/get-legal-entity';
 import { getLocation } from '../../../api/platform/fn/locations/get-location';
 import { listAuditEvents } from '../../../api/platform/fn/audit/list-audit-events';
 import { AuditEvent } from '../../../api/platform/models/audit-event';
+import { NX_SKIP_ERROR_NAVIGATION } from '../../../core/http/skip-error-navigation';
 import { AuditTrailFacade } from './audit-trail.facade';
 
 const LOC = '0192f39e-0000-7000-8000-0000000041aa';
@@ -97,6 +98,12 @@ describe('AuditTrailFacade', () => {
     await vi.waitFor(() => expect(facade.resolvedLabels()[LOC]).toBe('ZRH — Zurich'));
 
     const calls = api.invoke.mock.calls.map((c) => c[0]);
+    // Display-only lookups never trigger the error interceptor's navigation (a 403 must not reach /forbidden).
+    for (const [fn, , context] of api.invoke.mock.calls as unknown as [unknown, unknown, HttpContext | undefined][]) {
+      if (fn !== listAuditEvents) {
+        expect(context?.get(NX_SKIP_ERROR_NAVIGATION)).toBe(true);
+      }
+    }
     expect(calls.filter((fn) => fn === getLocation)).toHaveLength(1);
     expect(calls.filter((fn) => fn === getLegalEntity)).toHaveLength(1);
     expect(facade.resolvedLabels()[LE]).toBeUndefined();
