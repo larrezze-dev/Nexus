@@ -28,6 +28,7 @@ const item = (over: Partial<RoleAssignmentListItem>): RoleAssignmentListItem => 
   source: 'MANUAL',
   validFrom: '2026-01-01T00:00:00Z',
   validTo: null,
+  revokedBy: null,
   ...over,
 });
 
