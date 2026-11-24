@@ -32,7 +32,10 @@
     "ACC-R4": "Vous ne pouvez pas attribuer ce rôle dans ce périmètre : votre propre périmètre ne le couvre pas.",
     "ACC-R5": "Personne ne peut modifier ses propres attributions.",
     "ACC-R6": "Cette attribution système ne peut pas être révoquée.",
-    "ACC-R9": "Un rôle système ne peut pas être désactivé."
+    "ACC-R9": "Un rôle système ne peut pas être désactivé.",
+    "ACC-R11": "Le rôle SYSTEM_ADMIN doit conserver ses cinq permissions critiques (lire et modifier les rôles ; lire, créer et modifier les attributions).",
+    "ACC-R12": "Le dernier administrateur système ne peut pas être désactivé ni révoqué : au moins un doit toujours rester actif.",
+    "ACC-R13": "Vous ne pouvez pas vous désactiver vous-même."
   },
   "shell": {
     "skipToContent": "Aller au contenu",
@@ -132,7 +135,8 @@
         "pending": {
           "added": "à ajouter",
           "removed": "à retirer"
-        }
+        },
+        "locked": "Cette permission est verrouillée pour SYSTEM_ADMIN : sans elle, personne ne pourrait plus gérer les rôles ni les attributions."
       },
       "saved": "Rôle enregistré.",
       "deactivated": "Rôle désactivé.",
@@ -342,7 +346,9 @@
       "inactive": "Inactif",
       "pending": "En attente",
       "approved": "Approuvé",
-      "rejected": "Rejeté"
+      "rejected": "Rejeté",
+      "revoked": "Révoquée",
+      "expired": "Expirée"
     },
     "i18nCaptionEditor": {
       "groupLabel": "Traductions de la légende",
@@ -439,7 +445,6 @@
             "BUSINESS_UNIT": "Vous n'avez pas la permission de lister les unités d'affaires",
             "WAREHOUSE": "Vous n'avez pas la permission de lister les entrepôts"
           },
-          "startsOn": "Commence le {{date}} ; elle apparaîtra dans la liste ce jour-là.",
           "revoked": "Attribution révoquée.",
           "noEnd": "Sans date de fin",
           "errors": {
@@ -466,7 +471,8 @@
             "validTo": "Laisser vide s'il n'y a pas de fin."
           },
           "clearRole": "Retirer le rôle",
-          "revokeAria": "Révoquer {{role}} ({{scope}})"
+          "revokeAria": "Révoquer {{role}} ({{scope}})",
+          "showEnded": "Afficher les terminées"
         },
         "modified": "modifié le {{date}}",
         "readOnlyNotice": "Vous pouvez seulement consulter cet utilisateur : vous n'avez pas le droit de le modifier."

@@ -32,7 +32,10 @@
     "ACC-R4": "No puedes conceder este rol en este alcance: tu propio alcance no lo cubre.",
     "ACC-R5": "Nadie puede modificar sus propias asignaciones.",
     "ACC-R6": "Esta asignación del sistema no se puede revocar.",
-    "ACC-R9": "Un rol del sistema no se puede desactivar."
+    "ACC-R9": "Un rol del sistema no se puede desactivar.",
+    "ACC-R11": "El rol SYSTEM_ADMIN debe conservar sus cinco permisos críticos (leer y modificar roles; leer, crear y modificar asignaciones).",
+    "ACC-R12": "No se puede desactivar ni revocar al último administrador del sistema: siempre debe quedar al menos uno activo.",
+    "ACC-R13": "No puedes desactivarte a ti mismo."
   },
   "shell": {
     "skipToContent": "Saltar al contenido",
@@ -132,7 +135,8 @@
         "pending": {
           "added": "por añadir",
           "removed": "por quitar"
-        }
+        },
+        "locked": "Este permiso está bloqueado para SYSTEM_ADMIN: sin él nadie podría gestionar roles ni asignaciones."
       },
       "saved": "Rol guardado.",
       "deactivated": "Rol desactivado.",
@@ -342,7 +346,9 @@
       "inactive": "Inactivo",
       "pending": "Pendiente",
       "approved": "Aprobado",
-      "rejected": "Rechazado"
+      "rejected": "Rechazado",
+      "revoked": "Revocada",
+      "expired": "Caducada"
     },
     "i18nCaptionEditor": {
       "groupLabel": "Traducciones del título",
@@ -439,7 +445,6 @@
             "BUSINESS_UNIT": "No tienes permiso para listar unidades de negocio",
             "WAREHOUSE": "No tienes permiso para listar almacenes"
           },
-          "startsOn": "Empieza el {{date}}; aparecerá en la lista ese día.",
           "revoked": "Asignación revocada.",
           "noEnd": "Sin fecha de fin",
           "errors": {
@@ -466,7 +471,8 @@
             "validTo": "Déjalo vacío si no tiene fin."
           },
           "clearRole": "Quitar rol",
-          "revokeAria": "Revocar {{role}} ({{scope}})"
+          "revokeAria": "Revocar {{role}} ({{scope}})",
+          "showEnded": "Mostrar finalizadas"
         },
         "modified": "modificado el {{date}}",
         "readOnlyNotice": "Solo puedes ver este usuario: no tienes permiso para modificarlo."

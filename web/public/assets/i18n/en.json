@@ -32,7 +32,10 @@
     "ACC-R4": "You cannot grant this role in this scope: your own scope does not cover it.",
     "ACC-R5": "Nobody can change their own assignments.",
     "ACC-R6": "This system assignment cannot be revoked.",
-    "ACC-R9": "A system role cannot be deactivated."
+    "ACC-R9": "A system role cannot be deactivated.",
+    "ACC-R11": "The SYSTEM_ADMIN role must keep its five critical permissions (read and change roles; read, create and change assignments).",
+    "ACC-R12": "The last system administrator cannot be deactivated or revoked: at least one must always stay active.",
+    "ACC-R13": "You cannot deactivate yourself."
   },
   "shell": {
     "skipToContent": "Skip to content",
@@ -132,7 +135,8 @@
         "pending": {
           "added": "to add",
           "removed": "to remove"
-        }
+        },
+        "locked": "This permission is locked for SYSTEM_ADMIN: without it nobody could manage roles or assignments any more."
       },
       "saved": "Role saved.",
       "deactivated": "Role deactivated.",
@@ -342,7 +346,9 @@
       "inactive": "Inactive",
       "pending": "Pending",
       "approved": "Approved",
-      "rejected": "Rejected"
+      "rejected": "Rejected",
+      "revoked": "Revoked",
+      "expired": "Expired"
     },
     "i18nCaptionEditor": {
       "groupLabel": "Caption translations",
@@ -439,7 +445,6 @@
             "BUSINESS_UNIT": "You do not have permission to list business units",
             "WAREHOUSE": "You do not have permission to list warehouses"
           },
-          "startsOn": "Starts on {{date}}; it will appear in the list that day.",
           "revoked": "Assignment revoked.",
           "noEnd": "No end date",
           "errors": {
@@ -466,7 +471,8 @@
             "validTo": "Leave empty if it has no end."
           },
           "clearRole": "Remove role",
-          "revokeAria": "Revoke {{role}} ({{scope}})"
+          "revokeAria": "Revoke {{role}} ({{scope}})",
+          "showEnded": "Show ended"
         },
         "modified": "modified on {{date}}",
         "readOnlyNotice": "You can only view this user: you are not allowed to change it."

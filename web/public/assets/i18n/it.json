@@ -32,7 +32,10 @@
     "ACC-R4": "Non puoi assegnare questo ruolo in questo ambito: il tuo ambito non lo copre.",
     "ACC-R5": "Nessuno può modificare le proprie assegnazioni.",
     "ACC-R6": "Questa assegnazione di sistema non può essere revocata.",
-    "ACC-R9": "Un ruolo di sistema non può essere disattivato."
+    "ACC-R9": "Un ruolo di sistema non può essere disattivato.",
+    "ACC-R11": "Il ruolo SYSTEM_ADMIN deve mantenere i suoi cinque permessi critici (leggere e modificare i ruoli; leggere, creare e modificare le assegnazioni).",
+    "ACC-R12": "L'ultimo amministratore di sistema non può essere disattivato né revocato: almeno uno deve restare sempre attivo.",
+    "ACC-R13": "Non puoi disattivare te stesso."
   },
   "shell": {
     "skipToContent": "Vai al contenuto",
@@ -132,7 +135,8 @@
         "pending": {
           "added": "da aggiungere",
           "removed": "da rimuovere"
-        }
+        },
+        "locked": "Questo permesso è bloccato per SYSTEM_ADMIN: senza di esso nessuno potrebbe più gestire ruoli o assegnazioni."
       },
       "saved": "Ruolo salvato.",
       "deactivated": "Ruolo disattivato.",
@@ -342,7 +346,9 @@
       "inactive": "Inattivo",
       "pending": "In attesa",
       "approved": "Approvato",
-      "rejected": "Rifiutato"
+      "rejected": "Rifiutato",
+      "revoked": "Revocata",
+      "expired": "Scaduta"
     },
     "i18nCaptionEditor": {
       "groupLabel": "Traduzioni della didascalia",
@@ -439,7 +445,6 @@
             "BUSINESS_UNIT": "Non hai il permesso di elencare le unità di business",
             "WAREHOUSE": "Non hai il permesso di elencare i magazzini"
           },
-          "startsOn": "Inizia il {{date}}; comparirà nell'elenco quel giorno.",
           "revoked": "Assegnazione revocata.",
           "noEnd": "Senza scadenza",
           "errors": {
@@ -466,7 +471,8 @@
             "validTo": "Lascia vuoto se non ha scadenza."
           },
           "clearRole": "Rimuovi ruolo",
-          "revokeAria": "Revoca {{role}} ({{scope}})"
+          "revokeAria": "Revoca {{role}} ({{scope}})",
+          "showEnded": "Mostra concluse"
         },
         "modified": "modificato il {{date}}",
         "readOnlyNotice": "Puoi solo consultare questo utente: non hai l'autorizzazione per modificarlo."

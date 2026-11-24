@@ -32,7 +32,10 @@
     "ACC-R4": "Sie dürfen diese Rolle in diesem Bereich nicht vergeben: Ihr eigener Bereich deckt ihn nicht ab.",
     "ACC-R5": "Niemand kann seine eigenen Zuweisungen ändern.",
     "ACC-R6": "Diese Systemzuweisung kann nicht widerrufen werden.",
-    "ACC-R9": "Eine Systemrolle kann nicht deaktiviert werden."
+    "ACC-R9": "Eine Systemrolle kann nicht deaktiviert werden.",
+    "ACC-R11": "Die Rolle SYSTEM_ADMIN muss ihre fünf kritischen Berechtigungen behalten (Rollen lesen und ändern; Zuweisungen lesen, erstellen und ändern).",
+    "ACC-R12": "Der letzte Systemadministrator kann nicht deaktiviert oder entzogen werden: Es muss immer mindestens einer aktiv bleiben.",
+    "ACC-R13": "Sie können sich nicht selbst deaktivieren."
   },
   "shell": {
     "skipToContent": "Zum Inhalt springen",
@@ -243,7 +246,6 @@
             "BUSINESS_UNIT": "Sie dürfen keine Geschäftsbereiche auflisten.",
             "WAREHOUSE": "Sie dürfen keine Lager auflisten."
           },
-          "startsOn": "Beginnt am {{date}}; erscheint an diesem Tag in der Liste.",
           "revoked": "Zuweisung widerrufen.",
           "noEnd": "Unbefristet",
           "errors": {
@@ -270,7 +272,8 @@
             "validTo": "Leer lassen, wenn sie unbefristet gilt."
           },
           "clearRole": "Rolle entfernen",
-          "revokeAria": "{{role}} ({{scope}}) widerrufen"
+          "revokeAria": "{{role}} ({{scope}}) widerrufen",
+          "showEnded": "Beendete anzeigen"
         },
         "modified": "geändert am {{date}}",
         "readOnlyNotice": "Sie können diesen Benutzer nur ansehen: Ihnen fehlt die Berechtigung zum Ändern."
@@ -604,7 +607,8 @@
         "pending": {
           "added": "wird hinzugefügt",
           "removed": "wird entfernt"
-        }
+        },
+        "locked": "Diese Berechtigung ist für SYSTEM_ADMIN gesperrt: Ohne sie könnte niemand mehr Rollen oder Zuweisungen verwalten."
       },
       "saved": "Rolle gespeichert.",
       "deactivated": "Rolle deaktiviert.",
@@ -814,7 +818,9 @@
       "inactive": "Inaktiv",
       "pending": "Ausstehend",
       "approved": "Genehmigt",
-      "rejected": "Abgelehnt"
+      "rejected": "Abgelehnt",
+      "revoked": "Entzogen",
+      "expired": "Abgelaufen"
     },
     "i18nCaptionEditor": {
       "groupLabel": "Übersetzungen der Bezeichnung",
