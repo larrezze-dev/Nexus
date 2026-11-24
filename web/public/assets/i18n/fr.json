@@ -475,7 +475,6 @@
           },
           "clearRole": "Retirer le rôle",
           "revokeAria": "Révoquer {{role}} ({{scope}})",
-          "showEnded": "Afficher les terminées",
           "showEndedCount": "Afficher les terminées ({{count}})"
         },
         "modified": "modifié le {{date}}",

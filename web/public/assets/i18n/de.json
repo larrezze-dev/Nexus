@@ -274,7 +274,6 @@
           },
           "clearRole": "Rolle entfernen",
           "revokeAria": "{{role}} ({{scope}}) widerrufen",
-          "showEnded": "Beendete anzeigen",
           "showEndedCount": "Beendete anzeigen ({{count}})"
         },
         "modified": "geändert am {{date}}",
