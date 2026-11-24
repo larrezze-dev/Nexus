@@ -476,8 +476,18 @@ public sealed class RoleAssignmentApiTests : IClassFixture<PlatformApiFixture>
         var future = (await CreateAsync(admin, subjectId, ViewerRoleId, "LEGAL_ENTITY", Org.LegalEntityB.Id, now.AddDays(30), null)).Id;
         var (revokedId, etag) = await CreateAsync(admin, subjectId, ViewerRoleId, "WAREHOUSE", Org.WarehouseA, now.AddDays(-1), null);
         (await RevokeAsync(admin, revokedId, etag)).StatusCode.ShouldBe(HttpStatusCode.OK);
-        var expired = (await CreateAsync(admin, subjectId, ViewerRoleId, "WAREHOUSE", Org.WarehouseB, now.AddDays(-1), now.AddSeconds(2))).Id;
-        await Task.Delay(TimeSpan.FromSeconds(3), Ct);
+        var expired = Guid.CreateVersion7();
+        await using var insertExpired = _fixture.Database.Admin.CreateCommand(
+            "INSERT INTO access.role_assignment (id, user_id, role_id, scope_type, scope_entity_id, valid_from, valid_to, granted_by, source, " +
+            "source_ref_id, revoked_by, created_at, created_by, updated_at, updated_by) " +
+            "VALUES ($1, $2, $3, 'WAREHOUSE', $4, now() - interval '2 days', now() - interval '1 day', $5, 'MANUAL', " +
+            "NULL, NULL, now() - interval '2 days', $5, now() - interval '2 days', $5)");
+        foreach (var value in new object[] { expired, subjectId, ViewerRoleId, Org.WarehouseB, OrgFixture.SystemUserId })
+        {
+            insertExpired.Parameters.Add(new Npgsql.NpgsqlParameter { Value = value });
+        }
+
+        await insertExpired.ExecuteNonQueryAsync(Ct);
 
         var byDefault = await ListAsync(admin, $"userId={subjectId}&pageSize=200");
         byDefault.Items.Select(i => i.GetProperty("id").GetGuid()).ShouldBe([active]);
