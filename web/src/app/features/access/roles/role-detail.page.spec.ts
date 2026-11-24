@@ -237,6 +237,59 @@ describe('RoleDetailPage', () => {
     expect(facade.getPermissions).toHaveBeenCalledWith(role.id, '2026-01-01T22:59:59.999Z');
   });
 
+  describe('SYSTEM_ADMIN locked permissions (ACC-R11)', () => {
+    const adminRole: Role = { ...role, code: 'SYSTEM_ADMIN', isSystem: true };
+    const critical = ['ROLE:READ', 'ROLE:UPDATE', 'ROLE_ASSIGNMENT:READ', 'ROLE_ASSIGNMENT:CREATE', 'ROLE_ASSIGNMENT:UPDATE'];
+
+    async function open(selected: Role) {
+      const facade = createFacadeStub(selected);
+      facade.getPermissions.mockResolvedValue([...critical, 'AUDIT:READ'].map((code) => ({ ...grant, code })));
+      const fixture = await setupPage({ id: selected.id }, facade);
+      fixture.detectChanges();
+      await fixture.whenStable();
+      return fixture.componentInstance as unknown as {
+        isLockedPermission(code: string | undefined): boolean;
+        toggleGrant(p: { code: string }): void;
+        isGranted(code: string): boolean;
+      };
+    }
+
+    it('the five critical permissions are locked and cannot be unticked; the others toggle', async () => {
+      const page = await open(adminRole);
+      for (const code of critical) {
+        expect(page.isLockedPermission(code)).toBe(true);
+        page.toggleGrant({ code });
+        expect(page.isGranted(code)).toBe(true);
+      }
+      expect(page.isLockedPermission('AUDIT:READ')).toBe(false);
+      page.toggleGrant({ code: 'AUDIT:READ' });
+      expect(page.isGranted('AUDIT:READ')).toBe(false);
+      expect(page.isLockedPermission(undefined)).toBe(false);
+    });
+
+    it('no permission is locked on any other role', async () => {
+      const page = await open(role);
+      expect(critical.some((code) => page.isLockedPermission(code))).toBe(false);
+    });
+  });
+
+  it('"today" for the as-of picker is the Zurich day, not the browser-local one', async () => {
+    const facade = createFacadeStub(role);
+    const fixture = await setupPage({ id: role.id }, facade);
+    const page = fixture.componentInstance as unknown as { isToday(v: string): boolean };
+    const now = vi.spyOn(Date, 'now');
+    // 23:30Z on 14 Nov is already 15 Nov in Zurich (CET); 21:30Z on 14 Jul is still 14 Jul (CEST: 23:30 local).
+    now.mockReturnValue(Date.parse('2026-11-14T23:30:00Z'));
+    const winter = fixture.componentInstance['now']();
+    expect(winter).toBe(Date.parse('2026-11-14T23:30:00Z'));
+    expect(page.isToday('2026-11-15')).toBe(true);
+    expect(page.isToday('2026-11-14')).toBe(false);
+    now.mockReturnValue(Date.parse('2026-07-14T21:30:00Z'));
+    expect(page.isToday('2026-07-14')).toBe(true);
+    expect(page.isToday('2026-07-15')).toBe(false);
+    now.mockRestore();
+  });
+
   it('keeps the matrix editable ("now" semantics) when the picked asOf date is today', async () => {
     const facade = createFacadeStub(role);
     const fixture = await setupPage({ id: role.id }, facade);

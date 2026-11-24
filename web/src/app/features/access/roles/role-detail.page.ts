@@ -43,12 +43,14 @@ import { markServerErrors } from '../../../shared/forms/server-errors';
 import { resolveCaption } from '../../../shared/ui/caption/caption.util';
 import { NxStatusBadgeComponent } from '../../../shared/ui/nx-status-badge/nx-status-badge.component';
 import { RolesFacade } from './roles.facade';
-import { endOfZonedDay } from '../../../core/time/zoned-day';
+import { endOfZonedDay, zonedYmd } from '../../../core/time/zoned-day';
 import { NxBreadcrumbService } from '../../../core/layout/breadcrumb.service';
 import {
   PermissionMatrix,
   buildPermissionMatrix,
   diffPermissions,
+  SYSTEM_ADMIN_LOCKED_PERMISSIONS,
+  SYSTEM_ADMIN_ROLE_CODE,
   humanizeCode,
 } from './permission-matrix';
 
@@ -191,7 +193,10 @@ export class RoleDetailPage implements OnInit {
   protected readonly readOnlyMatrix = computed(() => this.asOf() !== '');
 
   /** Latest day the «as of» picker offers (there is no future state to look at). */
-  protected readonly today = new Date(this.now());
+  protected readonly today = ((): Date => {
+    const [year, month, day] = zonedYmd(this.now(), DISPLAY_TIME_ZONE).split('-').map(Number);
+    return new Date(year, month - 1, day);
+  })();
   /** The picked day as a `Date` for `mat-datepicker` (local midnight); `null` = today. */
   protected readonly asOfDate = computed<Date | null>(() => {
     const value = this.asOf();
@@ -344,9 +349,7 @@ export class RoleDetailPage implements OnInit {
 
   /** `value` is the date-only (`YYYY-MM-DD`) string of the day picked in the «as of» date picker. */
   private isToday(value: string): boolean {
-    const now = new Date(this.now());
-    const todayOnly = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
-    return value === todayOnly;
+    return value === zonedYmd(this.now(), DISPLAY_TIME_ZONE);
   }
 
   private async loadPermissionHistory(): Promise<void> {
@@ -379,6 +382,11 @@ export class RoleDetailPage implements OnInit {
     }
   }
 
+  /** `SYSTEM_ADMIN`'s five critical permissions cannot be unticked (`ACC-R11`). */
+  protected isLockedPermission(code: string | undefined): boolean {
+    return !!code && this.entity()?.code === SYSTEM_ADMIN_ROLE_CODE && SYSTEM_ADMIN_LOCKED_PERMISSIONS.has(code);
+  }
+
   protected isGranted(code: string | undefined): boolean {
     return !!code && this.grantedCodes().has(code);
   }
@@ -389,7 +397,7 @@ export class RoleDetailPage implements OnInit {
   }
 
   protected toggleGrant(permission: Pick<Permission, 'code'>): void {
-    if (!this.canEditPermissions() || this.savingPermissions()) {
+    if (!this.canEditPermissions() || this.savingPermissions() || this.isLockedPermission(permission.code)) {
       return;
     }
     const next = new Set(this.grantedCodes());

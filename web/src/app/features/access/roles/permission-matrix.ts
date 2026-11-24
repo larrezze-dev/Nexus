@@ -99,3 +99,18 @@ export function diffPermissions(original: ReadonlySet<string>, desired: Readonly
     removed: [...original].filter((code) => !desired.has(code)).sort(),
   };
 }
+
+/** Role code of the built-in administrator role (`ACC-R11`). */
+export const SYSTEM_ADMIN_ROLE_CODE = 'SYSTEM_ADMIN';
+
+/**
+ * Permissions `SYSTEM_ADMIN` must keep (`ACC-R11`): without them nobody could manage roles or assignments any more.
+ * The matrix locks them; the server rejects a save without them (422).
+ */
+export const SYSTEM_ADMIN_LOCKED_PERMISSIONS: ReadonlySet<string> = new Set([
+  'ROLE:READ',
+  'ROLE:UPDATE',
+  'ROLE_ASSIGNMENT:READ',
+  'ROLE_ASSIGNMENT:CREATE',
+  'ROLE_ASSIGNMENT:UPDATE',
+]);

@@ -148,9 +148,9 @@
                               <mat-checkbox
                                 [attr.data-testid]="'role-permission-cell-' + cell.code"
                                 [aria-label]="cellAriaLabel(cell.label, change)"
-                                [attr.title]="cell.caption"
+                                [attr.title]="isLockedPermission(cell.code) ? ('access.roles.permissionMatrix.locked' | transloco) : cell.caption"
                                 [checked]="isGranted(cell.code)"
-                                [disabled]="!canEditPermissions() || savingPermissions()"
+                                [disabled]="!canEditPermissions() || savingPermissions() || isLockedPermission(cell.code)"
                                 (change)="toggleGrant(cell)"
                               />
                               @if (change) {

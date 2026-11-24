@@ -25,12 +25,11 @@ import { NxSortModel, Page } from '../../../shared/ui/page.model';
  * `LegalEntitiesFacade` for the `Role` resource itself (`create`/`update`/
  * `deactivate` send `If-Match`).
  *
- * `updateRolePermissions` has no `If-Match` in the contract (`ACC-R7`: the
- * server computes the add/remove diff from the full desired list), but it does bump the role
- * row (`aggregate_version`, ADR-0019), so the role's `ETag` changes: `savePermissions()`
- * re-reads the role afterwards to keep the stored `ETag` valid for the next `update`/`deactivate`.
- * Two concurrent permission edits: the loser gets a 409 `CONCURRENCY` (propagated, the
- * `errorInterceptor` opens the dialog).
+ * `updateRolePermissions` requires `If-Match` (missing: 428, stale: 409 `CONCURRENCY`; the
+ * server still computes the add/remove diff from the full desired list, `ACC-R7`) and bumps the
+ * role row (`aggregate_version`, ADR-0019), so it answers the role's new `ETag`: `savePermissions()`
+ * keeps it for the next `update`/`deactivate`/permission save, and only re-reads the role if the
+ * header is absent. A 409 is propagated (the `errorInterceptor` opens the dialog).
  *
  * `create()`/`update()`/`deactivate()`/`savePermissions()` deliberately do
  * NOT catch errors: they let the raw `HttpErrorResponse` propagate to the
@@ -148,9 +147,19 @@ export class RolesFacade {
    * computes which grants to open/close.
    */
   async savePermissions(roleId: string, codes: string[]): Promise<PermissionGrant[]> {
-    const grants = await this.api.invoke(updateRolePermissions, { id: roleId, body: { permissionCodes: codes } });
-    await this.refreshRole(roleId);
-    return grants;
+    const response = await this.api.invoke$Response(updateRolePermissions, {
+      id: roleId,
+      body: { permissionCodes: codes },
+      'If-Match': this.etag ?? undefined,
+    });
+    const newEtag = response.headers.get('ETag');
+    if (newEtag) {
+      // The response carries the role's new `ETag`: no need to re-read the role.
+      this.etag = newEtag;
+    } else {
+      await this.refreshRole(roleId);
+    }
+    return response.body;
   }
 
   /** Re-reads the role after a permission change (its `ETag` moved); a failure only drops the stale `ETag`. */

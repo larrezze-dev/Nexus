@@ -59,7 +59,7 @@ describe('RolesFacade', () => {
     expect(facade.selected()).toBeNull();
   });
 
-  it('after saving permissions it re-reads the role so the next update sends the new ETag', async () => {
+  it('sends If-Match on the permission save and keeps the ETag of the response for the next write', async () => {
     const load = facade.load(role.id);
     http.expectOne(url).flush(role, { headers: { ETag: '"1"' } });
     await load;
@@ -67,8 +67,42 @@ describe('RolesFacade', () => {
     const save = facade.savePermissions(role.id, ['AUDIT:READ']);
     const put = http.expectOne(`${url}/permissions`);
     expect(put.request.method).toBe('PUT');
+    expect(put.request.headers.get('If-Match')).toBe('"1"');
     expect(put.request.body).toEqual({ permissionCodes: ['AUDIT:READ'] });
-    put.flush([]);
+    put.flush([], { headers: { ETag: '"2"' } });
+    await save;
+    // no re-read of the role: the header was enough
+    http.expectNone(url);
+
+    const update = facade.update(role.id, { captionI18n: role.captionI18n, description: null });
+    const patch = http.expectOne(url);
+    expect(patch.request.headers.get('If-Match')).toBe('"2"');
+    patch.flush(role, { headers: { ETag: '"3"' } });
+    await update;
+  });
+
+  it('two permission saves in a row use the ETag returned by the first', async () => {
+    const load = facade.load(role.id);
+    http.expectOne(url).flush(role, { headers: { ETag: '"1"' } });
+    await load;
+
+    const first = facade.savePermissions(role.id, []);
+    http.expectOne(`${url}/permissions`).flush([], { headers: { ETag: '"2"' } });
+    await first;
+    const second = facade.savePermissions(role.id, []);
+    const put = http.expectOne(`${url}/permissions`);
+    expect(put.request.headers.get('If-Match')).toBe('"2"');
+    put.flush([], { headers: { ETag: '"3"' } });
+    await second;
+  });
+
+  it('falls back to re-reading the role when the permission save answers no ETag', async () => {
+    const load = facade.load(role.id);
+    http.expectOne(url).flush(role, { headers: { ETag: '"1"' } });
+    await load;
+
+    const save = facade.savePermissions(role.id, []);
+    http.expectOne(`${url}/permissions`).flush([]);
     await new Promise((resolve) => setTimeout(resolve));
     http.expectOne(url).flush(role, { headers: { ETag: '"2"' } });
     await save;
