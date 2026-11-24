@@ -130,10 +130,7 @@ public sealed class RoleApiTests : IClassFixture<PlatformApiFixture>
         using var admin = _fixture.CreateClientFor(Org.Admin.Oid);
         var created = await CreateAsync(admin, NewRole());
 
-        var firstPut = await admin.PutAsJsonAsync(
-            new Uri($"/v1/roles/{created.Id}/permissions", UriKind.Relative),
-            new { permissionCodes = new List<string> { "ORG_STRUCTURE:READ", "CURRENCY:READ" } },
-            Ct);
+        var firstPut = await PutPermissionsAsync(admin, created.Id, created.ETag, "ORG_STRUCTURE:READ", "CURRENCY:READ");
         firstPut.StatusCode.ShouldBe(HttpStatusCode.OK);
         var firstGrants = await ReadAsync(firstPut);
         var orgStructureValidFrom = firstGrants.EnumerateArray()
@@ -141,10 +138,7 @@ public sealed class RoleApiTests : IClassFixture<PlatformApiFixture>
             .GetProperty("validFrom").GetDateTimeOffset();
 
         // Remove CURRENCY:READ, keep ORG_STRUCTURE:READ, add ROLE:READ.
-        var secondPut = await admin.PutAsJsonAsync(
-            new Uri($"/v1/roles/{created.Id}/permissions", UriKind.Relative),
-            new { permissionCodes = new List<string> { "ORG_STRUCTURE:READ", "ROLE:READ" } },
-            Ct);
+        var secondPut = await PutPermissionsAsync(admin, created.Id, firstPut.Headers.ETag!.Tag, "ORG_STRUCTURE:READ", "ROLE:READ");
         secondPut.StatusCode.ShouldBe(HttpStatusCode.OK);
         var secondGrants = await ReadAsync(secondPut);
         var codes = secondGrants.EnumerateArray().Select(g => g.GetProperty("code").GetString()).ToList();
@@ -165,20 +159,22 @@ public sealed class RoleApiTests : IClassFixture<PlatformApiFixture>
         currentItems.ShouldContain("ROLE:READ");
     }
 
-    [Fact(DisplayName = "ACC-R7: resending the exact same permission set changes nothing")]
+    [Fact(DisplayName = "ACC-R7: resending the exact same permission set changes nothing (same grants, same ETag)")]
     public async Task Update_role_permissions_with_same_set_is_a_no_op()
     {
         using var admin = _fixture.CreateClientFor(Org.Admin.Oid);
         var created = await CreateAsync(admin, NewRole());
-        var uri = new Uri($"/v1/roles/{created.Id}/permissions", UriKind.Relative);
 
-        var first = await admin.PutAsJsonAsync(uri, new { permissionCodes = new List<string> { "ORG_STRUCTURE:READ" } }, Ct);
+        var first = await PutPermissionsAsync(admin, created.Id, created.ETag, "ORG_STRUCTURE:READ");
+        first.StatusCode.ShouldBe(HttpStatusCode.OK);
         var firstValidFrom = (await ReadAsync(first)).EnumerateArray().Single().GetProperty("validFrom").GetDateTimeOffset();
 
-        var second = await admin.PutAsJsonAsync(uri, new { permissionCodes = new List<string> { "ORG_STRUCTURE:READ" } }, Ct);
+        var second = await PutPermissionsAsync(admin, created.Id, first.Headers.ETag!.Tag, "ORG_STRUCTURE:READ");
+        second.StatusCode.ShouldBe(HttpStatusCode.OK);
         var secondValidFrom = (await ReadAsync(second)).EnumerateArray().Single().GetProperty("validFrom").GetDateTimeOffset();
 
         secondValidFrom.ShouldBe(firstValidFrom); // no close + reopen: the row was left alone.
+        second.Headers.ETag!.Tag.ShouldBe(first.Headers.ETag!.Tag); // nor was the role row.
     }
 
     [Fact(DisplayName = "PUT /v1/roles/{id}/permissions with an unknown code is rejected")]
@@ -187,10 +183,7 @@ public sealed class RoleApiTests : IClassFixture<PlatformApiFixture>
         using var admin = _fixture.CreateClientFor(Org.Admin.Oid);
         var created = await CreateAsync(admin, NewRole());
 
-        var response = await admin.PutAsJsonAsync(
-            new Uri($"/v1/roles/{created.Id}/permissions", UriKind.Relative),
-            new { permissionCodes = new List<string> { "NOT_A_REAL_PERMISSION:READ" } },
-            Ct);
+        var response = await PutPermissionsAsync(admin, created.Id, created.ETag, "NOT_A_REAL_PERMISSION:READ");
 
         response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
     }
@@ -212,13 +205,125 @@ public sealed class RoleApiTests : IClassFixture<PlatformApiFixture>
             created.Id,
             Org.Admin.Id);
 
-        var response = await admin.PutAsJsonAsync(
-            new Uri($"/v1/roles/{created.Id}/permissions", UriKind.Relative),
-            new { permissionCodes = new List<string> { "ROLE:READ" } },
-            Ct);
+        var response = await PutPermissionsAsync(admin, created.Id, created.ETag, "ROLE:READ");
 
         response.StatusCode.ShouldBe(HttpStatusCode.Conflict);
         (await ReadAsync(response)).GetProperty("code").GetString().ShouldBe("CONCURRENCY");
+    }
+
+    [Fact(DisplayName = "PUT /v1/roles/{id}/permissions without If-Match is 428 and changes nothing")]
+    public async Task Update_role_permissions_without_if_match_is_428()
+    {
+        using var admin = _fixture.CreateClientFor(Org.Admin.Oid);
+        var created = await CreateAsync(admin, NewRole());
+
+        var response = await PutPermissionsAsync(admin, created.Id, etag: null, "ROLE:READ");
+
+        response.StatusCode.ShouldBe((HttpStatusCode)428);
+        (await ReadAsync(response)).GetProperty("code").GetString().ShouldBe("PRECONDITION_REQUIRED");
+        (await CurrentPermissionCodesAsync(created.Id)).ShouldBeEmpty();
+    }
+
+    [Theory(DisplayName = "PUT /v1/roles/{id}/permissions with a stale or unparseable If-Match is 409 CONCURRENCY and changes nothing")]
+    [InlineData("stale")]
+    [InlineData("garbage")]
+    public async Task Update_role_permissions_with_a_stale_if_match_is_409(string kind)
+    {
+        using var admin = _fixture.CreateClientFor(Org.Admin.Oid);
+        var created = await CreateAsync(admin, NewRole());
+        var first = await PutPermissionsAsync(admin, created.Id, created.ETag, "ORG_STRUCTURE:READ");
+        first.StatusCode.ShouldBe(HttpStatusCode.OK);
+
+        // created.ETag predates the first PUT, which changed the set and so the role row's xmin.
+        var etag = kind == "stale" ? created.ETag : "\"not-a-version\"";
+        var response = await PutPermissionsAsync(admin, created.Id, etag, "ROLE:READ");
+
+        response.StatusCode.ShouldBe(HttpStatusCode.Conflict);
+        (await ReadAsync(response)).GetProperty("code").GetString().ShouldBe("CONCURRENCY");
+        (await CurrentPermissionCodesAsync(created.Id)).ShouldBe(["ORG_STRUCTURE:READ"]);
+    }
+
+    [Fact(DisplayName = "PUT /v1/roles/{id}/permissions with the current If-Match is 200 with a new ETag that the next PUT and GET /v1/roles/{id} agree on")]
+    public async Task Update_role_permissions_returns_an_etag_usable_for_the_next_put()
+    {
+        using var admin = _fixture.CreateClientFor(Org.Admin.Oid);
+        var created = await CreateAsync(admin, NewRole());
+
+        var first = await PutPermissionsAsync(admin, created.Id, created.ETag, "ORG_STRUCTURE:READ");
+        first.StatusCode.ShouldBe(HttpStatusCode.OK);
+        var firstETag = first.Headers.ETag!.Tag;
+        firstETag.ShouldNotBe(created.ETag);
+
+        var get = await admin.GetAsync(new Uri($"/v1/roles/{created.Id}", UriKind.Relative), Ct);
+        get.Headers.ETag!.Tag.ShouldBe(firstETag);
+
+        var second = await PutPermissionsAsync(admin, created.Id, firstETag, "ORG_STRUCTURE:READ", "ROLE:READ");
+        second.StatusCode.ShouldBe(HttpStatusCode.OK);
+        second.Headers.ETag!.Tag.ShouldNotBe(firstETag);
+        (await CurrentPermissionCodesAsync(created.Id)).ShouldBe(["ORG_STRUCTURE:READ", "ROLE:READ"], ignoreOrder: true);
+    }
+
+    [Theory(DisplayName = "ACC-R11: removing a critical permission from SYSTEM_ADMIN is 422 ACC-R11 and changes nothing")]
+    [InlineData("ROLE:READ")]
+    [InlineData("ROLE:UPDATE")]
+    [InlineData("ROLE_ASSIGNMENT:READ")]
+    [InlineData("ROLE_ASSIGNMENT:CREATE")]
+    [InlineData("ROLE_ASSIGNMENT:UPDATE")]
+    public async Task Removing_a_critical_permission_from_system_admin_is_rejected_ACC_R11(string critical)
+    {
+        using var admin = _fixture.CreateClientFor(Org.Admin.Oid);
+        var (systemAdminId, etag) = await GetByCodeAsync(admin, "SYSTEM_ADMIN");
+        var before = await CurrentPermissionCodesAsync(systemAdminId);
+        before.ShouldContain(critical);
+
+        var response = await PutPermissionsAsync(admin, systemAdminId, etag, before.Where(c => c != critical).ToArray());
+
+        response.StatusCode.ShouldBe((HttpStatusCode)422);
+        response.Content.Headers.ContentType?.MediaType.ShouldBe("application/problem+json");
+        (await ReadAsync(response)).GetProperty("code").GetString().ShouldBe("ACC-R11");
+        (await CurrentPermissionCodesAsync(systemAdminId)).ShouldBe(before, ignoreOrder: true);
+        (await GetByCodeAsync(admin, "SYSTEM_ADMIN")).ETag.ShouldBe(etag);
+    }
+
+    [Fact(DisplayName = "ACC-R11: removing a non-critical permission from SYSTEM_ADMIN is 200")]
+    public async Task Removing_a_non_critical_permission_from_system_admin_succeeds_ACC_R11()
+    {
+        using var admin = _fixture.CreateClientFor(Org.Admin.Oid);
+        var (systemAdminId, etag) = await GetByCodeAsync(admin, "SYSTEM_ADMIN");
+        var before = await CurrentPermissionCodesAsync(systemAdminId);
+        const string nonCritical = "CURRENCY:UPDATE";
+        before.ShouldContain(nonCritical);
+
+        var response = await PutPermissionsAsync(admin, systemAdminId, etag, before.Where(c => c != nonCritical).ToArray());
+        try
+        {
+            response.StatusCode.ShouldBe(HttpStatusCode.OK);
+            (await CurrentPermissionCodesAsync(systemAdminId)).ShouldNotContain(nonCritical);
+        }
+        finally
+        {
+            // This class's database only, but other tests here act as the GLOBAL admin: put it back.
+            if (response.StatusCode == HttpStatusCode.OK)
+            {
+                (await PutPermissionsAsync(admin, systemAdminId, response.Headers.ETag!.Tag, before.ToArray()))
+                    .StatusCode.ShouldBe(HttpStatusCode.OK);
+            }
+        }
+    }
+
+    [Fact(DisplayName = "ACC-R11: any role other than SYSTEM_ADMIN may drop the five critical permissions (200)")]
+    public async Task Other_roles_may_drop_the_critical_permissions_ACC_R11()
+    {
+        using var admin = _fixture.CreateClientFor(Org.Admin.Oid);
+        var created = await CreateAsync(admin, NewRole());
+        string[] critical = ["ROLE:READ", "ROLE:UPDATE", "ROLE_ASSIGNMENT:READ", "ROLE_ASSIGNMENT:CREATE", "ROLE_ASSIGNMENT:UPDATE"];
+        var granted = await PutPermissionsAsync(admin, created.Id, created.ETag, critical);
+        granted.StatusCode.ShouldBe(HttpStatusCode.OK);
+
+        var response = await PutPermissionsAsync(admin, created.Id, granted.Headers.ETag!.Tag);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
+        (await CurrentPermissionCodesAsync(created.Id)).ShouldBeEmpty();
     }
 
     [Fact(DisplayName = "The role_permission EXCLUDE constraint has the name RoleErrors maps")]
@@ -260,6 +365,38 @@ public sealed class RoleApiTests : IClassFixture<PlatformApiFixture>
         };
         message.Headers.TryAddWithoutValidation("If-Match", etag);
         return await client.SendAsync(message, Ct);
+    }
+
+    /// <summary><c>PUT /v1/roles/{id}/permissions</c> with <paramref name="codes"/>; no <c>If-Match</c> when <paramref name="etag"/> is <see langword="null"/>.</summary>
+    private static async Task<HttpResponseMessage> PutPermissionsAsync(HttpClient client, Guid id, string? etag, params string[] codes)
+    {
+        using var message = new HttpRequestMessage(HttpMethod.Put, new Uri($"/v1/roles/{id}/permissions", UriKind.Relative))
+        {
+            Content = JsonContent.Create(new { permissionCodes = codes }),
+        };
+        if (etag is not null)
+        {
+            message.Headers.TryAddWithoutValidation("If-Match", etag);
+        }
+
+        return await client.SendAsync(message, Ct);
+    }
+
+    /// <summary>The role's currently open grants (<c>valid_to IS NULL</c>), read from the database.</summary>
+    private async Task<List<string>> CurrentPermissionCodesAsync(Guid roleId)
+    {
+        await using var command = _fixture.Database.Admin.CreateCommand(
+            "SELECT p.code FROM access.role_permission rp JOIN access.permission p ON p.id = rp.permission_id " +
+            "WHERE rp.role_id = $1 AND rp.valid_to IS NULL ORDER BY p.code");
+        command.Parameters.Add(new NpgsqlParameter { Value = roleId });
+        await using var reader = await command.ExecuteReaderAsync(Ct);
+        var codes = new List<string>();
+        while (await reader.ReadAsync(Ct))
+        {
+            codes.Add(reader.GetString(0));
+        }
+
+        return codes;
     }
 
     private static async Task<HttpResponseMessage> DeactivateAsync(HttpClient client, Guid id, string etag)

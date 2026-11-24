@@ -92,7 +92,7 @@ public static class RoleEndpoints
             .ValidatedBy<UpdateRolePermissionsCommand>()
             .RequirePermission("ROLE", PermissionAction.Update)
             .WithScope("global")
-            .WithRules("ACC-R7");
+            .WithRules("ACC-R7", "ACC-R11");
     }
 
     internal static async Task<Results<Ok<PageResponse<PermissionResponse>>, ProblemHttpResult>> ListPermissions(
@@ -235,16 +235,25 @@ public static class RoleEndpoints
         Guid id,
         UpdateRolePermissionsRequest request,
         IDispatcher dispatcher,
+        HttpRequest httpRequest,
+        HttpResponse response,
         CancellationToken cancellationToken)
     {
-        var result = await dispatcher.Send(new UpdateRolePermissionsCommand(id, request.PermissionCodes), cancellationToken);
+        if (!TryReadExpectedVersion(httpRequest, out var expected, out var problem))
+        {
+            return problem;
+        }
+
+        var result = await dispatcher.Send(
+            new UpdateRolePermissionsCommand(id, expected, request.PermissionCodes), cancellationToken);
         if (result.IsFailure)
         {
             return result.Error!.ToProblem();
         }
 
+        response.SetETag(result.Value.Version.ToString(CultureInfo.InvariantCulture));
         return TypedResults.Ok<IReadOnlyList<PermissionGrantResponse>>(
-            result.Value.Select(PermissionGrantResponse.From).ToList());
+            result.Value.Grants.Select(PermissionGrantResponse.From).ToList());
     }
 
     private static Results<Ok<RoleResponse>, ProblemHttpResult> ToResponse(Result<RoleDetails> result, HttpResponse response)
