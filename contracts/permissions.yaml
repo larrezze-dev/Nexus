@@ -41,7 +41,7 @@ permissions:
   - code: ORG_STRUCTURE:READ
     resource: ORG_STRUCTURE
     action: READ
-    defaultRoles: ["SYSTEM_ADMIN", "ORG_ADMIN", "WAREHOUSE_OPERATOR", "PROJECT_MANAGER", "CONTROLLER", "VIEWER"]
+    defaultRoles: ["SYSTEM_ADMIN", "ORG_ADMIN", "WAREHOUSE_OPERATOR", "PROJECT_MANAGER", "CONTROLLER", "VIEWER", "SECURITY_ADMIN"]
     step: "0.4"
   - code: ORG_STRUCTURE:CREATE
     resource: ORG_STRUCTURE
@@ -86,7 +86,7 @@ permissions:
   - code: ROLE:READ
     resource: ROLE
     action: READ
-    defaultRoles: ["SYSTEM_ADMIN", "SECURITY_ADMIN"]
+    defaultRoles: ["SYSTEM_ADMIN", "SECURITY_ADMIN", "ORG_ADMIN"]
     step: "0.6"
   - code: ROLE:CREATE
     resource: ROLE

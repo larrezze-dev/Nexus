@@ -222,7 +222,7 @@ El Solver registra en su log de aplicación qué `legal_entity_id` toca cada cor
 | ACC-R9 | Un rol con `is_system = true` no se desactiva | [+] |
 | ACC-R10 | `has_permission` sin alcance solo se usa en endpoints de listado; los de detalle y escritura pasan siempre el `legal_entity_id` de la fila | [+] |
 | ACC-R11 | El rol `SYSTEM_ADMIN` conserva siempre los permisos críticos `ROLE:READ`, `ROLE:UPDATE`, `ROLE_ASSIGNMENT:READ`, `ROLE_ASSIGNMENT:CREATE` y `ROLE_ASSIGNMENT:UPDATE`: un `PUT /v1/roles/{id}/permissions` que quite alguno → 422 `ACC-R11`. El resto de sus permisos sí se edita (ACC-R9 solo impide desactivarlo) | [+] (decidido 2026-11-21/24, Luciano) |
-| ACC-R12 | Siempre queda al menos un usuario activo con una asignación `SYSTEM_ADMIN` `GLOBAL` vigente: se rechaza (422 `ACC-R12`) revocar esa asignación o desactivar ese usuario si es el último. La comprobación se hace bajo bloqueo, para que dos operaciones simultáneas no dejen cero. Complementa ACC-R5 (nadie revoca lo suyo) y ACC-R6 (la asignación SEED `GLOBAL` no se revoca), que no cubren a un `SECURITY_ADMIN` revocando al último administrador ni la desactivación del usuario | [+] (decidido 2026-11-24, Luciano) |
+| ACC-R12 | Siempre queda al menos un usuario activo distinto de SYSTEM (ORG-R6: SYSTEM no inicia sesión y su asignación SEED no cuenta) con una asignación `SYSTEM_ADMIN` `GLOBAL` vigente: se rechaza (422 `ACC-R12`) revocar esa asignación o desactivar ese usuario si es el último. La comprobación se hace bajo bloqueo, para que dos operaciones simultáneas no dejen cero. Complementa ACC-R5 (nadie revoca lo suyo) y ACC-R6 (la asignación SEED `GLOBAL` no se revoca), que no cubren a un `SECURITY_ADMIN` revocando al último administrador ni la desactivación del usuario | [+] (decidido 2026-11-24, Luciano) |
 | ACC-R13 | Nadie se desactiva a sí mismo (`POST /v1/users/{id}/deactivate` con el propio id → 422 `ACC-R13`) | [+] (decidido 2026-11-24, Luciano) |
 
 ## §7 Roles y permisos sembrados (`db/seed/common`)
@@ -237,9 +237,9 @@ El Solver registra en su log de aplicación qué `legal_entity_id` toca cada cor
 |---|---|
 | `GET /v1/permissions` | `ROLE:READ` |
 | `GET/POST /v1/roles`, `GET/PUT /v1/roles/{id}`, `POST /v1/roles/{id}/deactivate` | `ROLE:READ/CREATE/UPDATE` |
-| `PUT /v1/roles/{id}/permissions` (lista completa; el servidor calcula altas y cierres). `If-Match` con el `ETag` del rol: sin él → 428, distinto → 409 (`conventions-api.md §5`) `[+]` (decidido 2026-11-11; pendiente de implementar, ver `STATUS.md`) | `ROLE:UPDATE` |
+| `PUT /v1/roles/{id}/permissions` (lista completa; el servidor calcula altas y cierres). `If-Match` con el `ETag` del rol: sin él → 428, distinto → 409 (`conventions-api.md §5`) `[+]` (decidido 2026-11-11). Además ACC-R11: no puede quitar a `SYSTEM_ADMIN` sus cinco permisos críticos (422) | `ROLE:UPDATE` |
 | `GET /v1/roles/{id}/permissions?asOf=` | `ROLE:READ` |
-| `GET /v1/role-assignments?userId=&roleId=&scopeType=&activeOn=` | `ROLE_ASSIGNMENT:READ` |
+| `GET /v1/role-assignments?userId=&roleId=&scopeType=&activeOn=&includeInactive=` | `ROLE_ASSIGNMENT:READ` |
 | `POST /v1/role-assignments` | `ROLE_ASSIGNMENT:CREATE` |
 | `POST /v1/role-assignments/{id}/revoke` | `ROLE_ASSIGNMENT:UPDATE` |
 | `GET /v1/users/{id}/effective-scope` | `ROLE_ASSIGNMENT:READ` |

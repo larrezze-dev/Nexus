@@ -1948,11 +1948,15 @@ paths:
     post:
       operationId: deactivateUser
       summary: Desactivar un usuario.
-      description: El usuario SYSTEM nunca se desactiva (ORG-R6).
+      description: >
+        El usuario SYSTEM nunca se desactiva (ORG-R6). Nadie se desactiva a
+        sí mismo (ACC-R13 → 422). No se puede desactivar al último usuario
+        activo con una asignación `SYSTEM_ADMIN` `GLOBAL` vigente (ACC-R12 →
+        422); la comprobación se hace bajo bloqueo.
       tags: [Users]
       x-permission: "USER:UPDATE"
       x-scope: none
-      x-rules: [ORG-R6]
+      x-rules: [ORG-R6, ACC-R12, ACC-R13]
       parameters:
         - $ref: '#/components/parameters/UserId'
         - $ref: '_shared/components.yaml#/components/parameters/IfMatch'
@@ -2615,13 +2619,18 @@ paths:
         actualiza la fila del rol (`aggregate_version`, ADR-0019), así que su
         `ETag` (`xmin`) también cambia; si dos ediciones concurrentes de los
         permisos del mismo rol chocan, la perdedora recibe 409 con
-        `code: CONCURRENCY`.
+        `code: CONCURRENCY`. Requiere `If-Match` con el `ETag` del rol (sin
+        él → 428; distinto del actual → 409). ACC-R11: el rol `SYSTEM_ADMIN`
+        conserva siempre `ROLE:READ`, `ROLE:UPDATE`, `ROLE_ASSIGNMENT:READ`,
+        `ROLE_ASSIGNMENT:CREATE` y `ROLE_ASSIGNMENT:UPDATE`; una lista que
+        quite alguno → 422 `ACC-R11`.
       tags: [Roles]
       x-permission: "ROLE:UPDATE"
       x-scope: global
-      x-rules: [ACC-R7]
+      x-rules: [ACC-R7, ACC-R11]
       parameters:
         - $ref: '#/components/parameters/RoleId'
+        - $ref: '_shared/components.yaml#/components/parameters/IfMatch'
       requestBody:
         required: true
         content:
@@ -2633,6 +2642,9 @@ paths:
       responses:
         '200':
           description: Permisos vigentes del rol tras el reemplazo.
+          headers:
+            ETag:
+              $ref: '#/components/headers/ETag'
           content:
             application/json:
               schema:
@@ -2660,6 +2672,8 @@ paths:
           $ref: '_shared/components.yaml#/components/responses/Conflict'
         '422':
           $ref: '_shared/components.yaml#/components/responses/UnprocessableEntity'
+        '428':
+          $ref: '_shared/components.yaml#/components/responses/PreconditionRequired'
 
   # ---------------------------------------------------------------------
   # Role assignments
@@ -2668,7 +2682,12 @@ paths:
     get:
       operationId: listRoleAssignments
       summary: Listar asignaciones de rol.
-      description: Listar asignaciones de rol.
+      description: >
+        Listar asignaciones de rol. Por defecto solo las vigentes (ahora, o
+        en `activeOn`). Con `includeInactive=true` devuelve también las
+        futuras, revocadas y caducadas (sin filtro de vigencia); no se puede
+        combinar con `activeOn` (400). Sin parámetros de alcance, el listado
+        cubre los alcances sobre los que el llamante tiene el permiso (ACC-R10).
       tags: [RoleAssignments]
       x-permission: "ROLE_ASSIGNMENT:READ"
       x-scope: none
@@ -2702,6 +2721,15 @@ paths:
           schema:
             type: string
             format: date-time
+        - name: includeInactive
+          in: query
+          required: false
+          description: >
+            Con `true` incluye también asignaciones futuras, revocadas y
+            caducadas. Por defecto `false`. No combinable con `activeOn` (400).
+          schema:
+            type: boolean
+            default: false
       responses:
         '200':
           description: Página de asignaciones.
@@ -2726,6 +2754,7 @@ paths:
                     validFrom: "2026-10-30T09:00:00Z"
                     validTo: null
                     source: SEED
+                    revokedBy: null
                 page: 1
                 pageSize: 50
                 total: 1
@@ -2880,11 +2909,13 @@ paths:
         Fija `validTo = now()` y `revokedBy` (ACC-R3): nunca se borra una
         asignación. La asignación `SEED` `GLOBAL` de `SYSTEM` y la del primer
         administrador no se pueden revocar desde la API (ACC-R6); nadie
-        revoca sus propias asignaciones (ACC-R5).
+        revoca sus propias asignaciones (ACC-R5). Tampoco se puede revocar la
+        última asignación `SYSTEM_ADMIN` `GLOBAL` vigente de un usuario activo
+        distinto de SYSTEM (ACC-R12 → 422).
       tags: [RoleAssignments]
       x-permission: "ROLE_ASSIGNMENT:UPDATE"
       x-scope: none
-      x-rules: [ACC-R3, ACC-R5, ACC-R6]
+      x-rules: [ACC-R3, ACC-R5, ACC-R6, ACC-R12]
       parameters:
         - $ref: '#/components/parameters/RoleAssignmentId'
         - $ref: '_shared/components.yaml#/components/parameters/IfMatch'
@@ -4139,7 +4170,11 @@ components:
         source:
           type: string
           enum: [MANUAL, RESOURCE_ASSIGNMENT, SEED]
-      required: [id, userId, roleId, scopeType, scopeEntityId, validFrom, validTo, source]
+        revokedBy:
+          type: [string, "null"]
+          format: uuid
+          description: Usuario que revocó la asignación; `null` si no está revocada.
+      required: [id, userId, roleId, scopeType, scopeEntityId, validFrom, validTo, source, revokedBy]
 
     CreateRoleAssignmentRequest:
       type: object
