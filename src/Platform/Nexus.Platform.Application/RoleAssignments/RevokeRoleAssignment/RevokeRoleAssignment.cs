@@ -19,6 +19,13 @@ namespace Nexus.Platform.Application.RoleAssignments.RevokeRoleAssignment;
 /// <see cref="IRoleAssignmentScopeChecker"/> (the same resolver the create filter uses) - and
 /// answers 403 otherwise. The contract itself is unchanged.
 /// </para>
+/// <para>
+/// Order of the checks: 404 / 409 (<c>If-Match</c>) → 403 (scope) → idempotent no-op (an
+/// assignment that no longer grants anything is returned unchanged, without error) → ACC-R5
+/// (self) → ACC-R6 (seeded GLOBAL grant) → ACC-R12 (not the last qualifying <c>SYSTEM_ADMIN</c>
+/// administrator; <see cref="LastSystemAdministratorGuard"/>, which takes its lock only for a
+/// valid <c>GLOBAL</c> <c>SYSTEM_ADMIN</c> assignment) → revoke.
+/// </para>
 /// </summary>
 public sealed record RevokeRoleAssignmentCommand(Guid Id, uint ExpectedVersion) : ICommand<RoleAssignmentDetails>;
 
@@ -29,6 +36,7 @@ internal sealed class RevokeRoleAssignmentHandler : ICommandHandler<RevokeRoleAs
     private readonly IRequestTransaction _transaction;
     private readonly IRoleAssignmentRepository _assignments;
     private readonly IRoleAssignmentScopeChecker _scopeChecker;
+    private readonly ISystemAdministratorReadDb _systemAdministrators;
     private readonly ICurrentUser _currentUser;
     private readonly TimeProvider _timeProvider;
 
@@ -36,12 +44,14 @@ internal sealed class RevokeRoleAssignmentHandler : ICommandHandler<RevokeRoleAs
         IRequestTransaction transaction,
         IRoleAssignmentRepository assignments,
         IRoleAssignmentScopeChecker scopeChecker,
+        ISystemAdministratorReadDb systemAdministrators,
         ICurrentUser currentUser,
         TimeProvider timeProvider)
     {
         _transaction = transaction;
         _assignments = assignments;
         _scopeChecker = scopeChecker;
+        _systemAdministrators = systemAdministrators;
         _currentUser = currentUser;
         _timeProvider = timeProvider;
     }
@@ -73,10 +83,30 @@ internal sealed class RevokeRoleAssignmentHandler : ICommandHandler<RevokeRoleAs
             return Result.Failure<RoleAssignmentDetails>(RoleAssignmentErrors.RevokeScopeNotCovered);
         }
 
-        var revokeResult = assignment.Revoke(_currentUser.UserId!.Value, _timeProvider.GetUtcNow());
-        if (revokeResult.IsFailure)
+        var actor = _currentUser.UserId!.Value;
+        var now = _timeProvider.GetUtcNow();
+
+        // No-op, ACC-R5, ACC-R6 - without changing anything yet.
+        var revocable = assignment.CheckRevocable(actor, now);
+        if (revocable.IsFailure)
         {
-            return Result.Failure<RoleAssignmentDetails>(revokeResult.Error!);
+            return Result.Failure<RoleAssignmentDetails>(revocable.Error!);
+        }
+
+        if (revocable.Value)
+        {
+            var keepsOne = await LastSystemAdministratorGuard.EnsureRevocationKeepsOneAsync(
+                _systemAdministrators, assignment, now, cancellationToken);
+            if (keepsOne.IsFailure)
+            {
+                return Result.Failure<RoleAssignmentDetails>(keepsOne.Error!);
+            }
+
+            var revokeResult = assignment.Revoke(actor, now);
+            if (revokeResult.IsFailure)
+            {
+                return Result.Failure<RoleAssignmentDetails>(revokeResult.Error!);
+            }
         }
 
         await _transaction.CommitAsync(cancellationToken);

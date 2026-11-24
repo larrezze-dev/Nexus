@@ -55,7 +55,7 @@ public static class RoleAssignmentEndpoints
             .WithName("revokeRoleAssignment")
             .RequirePermission("ROLE_ASSIGNMENT", PermissionAction.Update)
             .WithScope("none")
-            .WithRules("ACC-R3", "ACC-R5", "ACC-R6");
+            .WithRules("ACC-R3", "ACC-R5", "ACC-R6", "ACC-R12");
 
         app.MapGet("/v1/users/{id:guid}/effective-scope", GetUserEffectiveScope)
             .WithName("getUserEffectiveScope")

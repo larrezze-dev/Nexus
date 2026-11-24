@@ -144,15 +144,41 @@ public sealed class AppUser : AggregateRoot<Guid>
         id == SystemUserId ? Result.Failure(SystemUserIsImmutable) : Result.Success();
 
     /// <summary>
-    /// Deactivates the user (no DELETE in master data). Idempotent: deactivating an inactive
-    /// user changes nothing and raises nothing. Returns whether anything changed.
+    /// The checks of <see cref="Deactivate"/> that do not depend on the user's current state, in
+    /// this order: ORG-R6 (the SYSTEM user is never deactivated), then ACC-R13 (nobody
+    /// deactivates themselves: <paramref name="deactivatedBy"/> is the acting user). Lets a use
+    /// case run a rule that needs other aggregates (ACC-R12) between these checks and the change.
     /// </summary>
-    public Result<bool> Deactivate()
+    public Result EnsureCanBeDeactivatedBy(Guid deactivatedBy)
     {
         // Rule ORG-R6: the SYSTEM user is never deactivated.
         if (IsSystem)
         {
-            return Result.Failure<bool>(SystemUserIsImmutable);
+            return Result.Failure(SystemUserIsImmutable);
+        }
+
+        // Rule ACC-R13: nobody deactivates themselves (they would lock themselves out for good:
+        // there is no reactivation endpoint).
+        if (Id == deactivatedBy)
+        {
+            return Result.Failure(new Error("ACC-R13", "A user cannot deactivate themselves."));
+        }
+
+        return Result.Success();
+    }
+
+    /// <summary>
+    /// Deactivates the user (no DELETE in master data), acting as <paramref name="deactivatedBy"/>.
+    /// ORG-R6 and ACC-R13 first (<see cref="EnsureCanBeDeactivatedBy"/>), then idempotent:
+    /// deactivating an inactive user changes nothing and raises nothing. Returns whether anything
+    /// changed.
+    /// </summary>
+    public Result<bool> Deactivate(Guid deactivatedBy)
+    {
+        var allowed = EnsureCanBeDeactivatedBy(deactivatedBy);
+        if (allowed.IsFailure)
+        {
+            return Result.Failure<bool>(allowed.Error!);
         }
 
         if (!IsActive)
