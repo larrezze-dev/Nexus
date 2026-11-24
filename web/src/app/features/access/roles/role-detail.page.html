@@ -317,9 +317,11 @@
     </nx-form-section>
 
     <nx-action-bar>
-      <button mat-button type="button" data-testid="role-form-cancel" (click)="onCancel()">
-        {{ 'common.cancel' | transloco }}
-      </button>
+      @if (!readOnly()) {
+        <button mat-button type="button" data-testid="role-form-cancel" (click)="onCancel()">
+          {{ 'common.cancel' | transloco }}
+        </button>
+      }
       <button
         mat-flat-button
         type="submit"

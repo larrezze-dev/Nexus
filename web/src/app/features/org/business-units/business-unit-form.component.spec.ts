@@ -165,13 +165,14 @@ describe('BusinessUnitFormComponent', () => {
     expect(submit.disabled).toBe(false);
   });
 
-  it('disables every field, the captions included, and Save when read-only', () => {
+  it('disables every field, the captions included, and Save when read-only, with no Cancel', () => {
     const fixture = setup('edit', { initial: businessUnit, party, readOnly: true });
 
     expect(input(fixture, 'bu-form-code').disabled).toBe(true);
     expect(input(fixture, 'bu-form-cost-center').disabled).toBe(true);
     expect((root(fixture).querySelector('input[data-lang="de"]') as HTMLInputElement).disabled).toBe(true);
     expect((root(fixture).querySelector('[data-testid="bu-form-submit"]') as HTMLButtonElement).disabled).toBe(true);
+    expect(root(fixture).querySelector('[data-testid="bu-form-cancel"]')).toBeNull();
     // Legible like locked fields, not Material's faint disabled grey.
     expect(root(fixture).querySelector('form')?.classList).toContain('nx-readonly');
   });

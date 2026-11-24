@@ -185,11 +185,12 @@ describe('LegalEntityFormComponent', () => {
     expect(submit.disabled).toBe(false);
   });
 
-  it('disables every field and Save when read-only', () => {
+  it('disables every field and Save when read-only, with no Cancel', () => {
     const fixture = setup('edit', { initial: legalEntity, party, readOnly: true });
 
     expect((root(fixture).querySelector('[data-testid="le-form-code"]') as HTMLInputElement).disabled).toBe(true);
     expect((root(fixture).querySelector('[data-testid="le-form-submit"]') as HTMLButtonElement).disabled).toBe(true);
+    expect(root(fixture).querySelector('[data-testid="le-form-cancel"]')).toBeNull();
   });
 
   it('on an invalid submit shows the number of fields to check, marks them and does not emit', () => {

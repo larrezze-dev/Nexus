@@ -159,10 +159,11 @@ describe('PartyFormComponent', () => {
     ]);
   });
 
-  it('read-only: every field disabled and Save disabled', async () => {
+  it('read-only: every field disabled, Save disabled and no Cancel', async () => {
     const { fixture, form } = await setup('edit', party, true);
 
     expect(Object.values(form.form.controls).every((control) => control.disabled)).toBe(true);
     expect((root(fixture).querySelector('[data-testid="party-form-submit"]') as HTMLButtonElement).disabled).toBe(true);
+    expect(root(fixture).querySelector('[data-testid="party-form-cancel"]')).toBeNull();
   });
 });

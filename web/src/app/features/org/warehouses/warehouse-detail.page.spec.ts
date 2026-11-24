@@ -192,7 +192,7 @@ describe('WarehouseDetailPage header and states', () => {
     expect(byTestId(fixture, 'warehouse-deactivate-button')).toBeNull();
   });
 
-  it('is read-only with a notice and no Deactivate without ORG_STRUCTURE:UPDATE', async () => {
+  it('is read-only with a notice and no Deactivate or Cancel without ORG_STRUCTURE:UPDATE', async () => {
     const fixture = await setupPage({ id: warehouse.id }, createFacadeStub(warehouse));
     TestBed.inject(PermissionsStore).setPermissions([{ code: 'ORG_STRUCTURE:READ', scopes: [] }]);
     await settle(fixture);
@@ -200,6 +200,7 @@ describe('WarehouseDetailPage header and states', () => {
     expect(byTestId(fixture, 'warehouse-read-only')).toBeTruthy();
     expect(byTestId(fixture, 'warehouse-deactivate-button')).toBeNull();
     expect((byTestId(fixture, 'warehouse-save-button') as HTMLButtonElement).disabled).toBe(true);
+    expect(byTestId(fixture, 'warehouse-cancel-button')).toBeNull();
     expect(fixture.componentInstance['form'].disabled).toBe(true);
   });
 

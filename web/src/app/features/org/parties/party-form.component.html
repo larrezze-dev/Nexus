@@ -97,9 +97,11 @@
   </nx-form-section>
 
   <nx-action-bar>
-    <button mat-button type="button" data-testid="party-form-cancel" (click)="cancel.emit()">
-      {{ 'common.cancel' | transloco }}
-    </button>
+    @if (!readOnly()) {
+      <button mat-button type="button" data-testid="party-form-cancel" (click)="cancel.emit()">
+        {{ 'common.cancel' | transloco }}
+      </button>
+    }
     <button
       mat-flat-button
       type="submit"

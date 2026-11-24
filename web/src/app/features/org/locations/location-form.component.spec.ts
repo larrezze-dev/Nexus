@@ -122,12 +122,13 @@ describe('LocationFormComponent', () => {
     expect(submit(fixture).disabled).toBe(false);
   });
 
-  it('disables every field and Save when read-only', () => {
+  it('disables every field and Save when read-only, with no Cancel', () => {
     const fixture = setup('edit', { initial: location, readOnly: true });
 
     expect(input(fixture, 'location-form-name').disabled).toBe(true);
     expect(input(fixture, 'location-form-city').disabled).toBe(true);
     expect(submit(fixture).disabled).toBe(true);
+    expect(root(fixture).querySelector('[data-testid="location-form-cancel"]')).toBeNull();
   });
 
   it('on an invalid submit counts the fields to check, marks them and focuses the first', () => {

@@ -182,10 +182,11 @@ describe('CurrencyFormComponent', () => {
     expect(document.activeElement).toBe(el(fixture, 'currency-form-code'));
   });
 
-  it('read-only: the form carries .nx-readonly (disabled fields look locked), editable forms do not', async () => {
+  it('read-only: the form carries .nx-readonly (disabled fields look locked) and has no Cancel; editable forms do', async () => {
     const fixture = await setup();
     const form = (fixture.nativeElement as HTMLElement).querySelector('form') as HTMLFormElement;
     expect(form.classList).not.toContain('nx-readonly');
+    expect((fixture.nativeElement as HTMLElement).querySelector('[data-testid="currency-form-cancel"]')).not.toBeNull();
 
     fixture.componentInstance.mode.set('edit');
     fixture.componentInstance.initial.set(sek);
@@ -195,6 +196,7 @@ describe('CurrencyFormComponent', () => {
     fixture.detectChanges();
 
     expect(form.classList).toContain('nx-readonly');
+    expect((fixture.nativeElement as HTMLElement).querySelector('[data-testid="currency-form-cancel"]')).toBeNull();
     expect(german(fixture).disabled).toBe(true);
     expect((fixture.nativeElement as HTMLElement).querySelector('.nx-i18n-caption-editor')?.classList).toContain(
       'nx-readonly',

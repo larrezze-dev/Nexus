@@ -161,9 +161,11 @@ const FIELD_ORDER = ['code', 'minorUnits', 'captionI18n'] as const;
       </nx-form-section>
 
       <nx-action-bar>
-        <button mat-button type="button" data-testid="currency-form-cancel" (click)="cancel.emit()">
-          {{ 'common.cancel' | transloco }}
-        </button>
+        @if (!readOnly()) {
+          <button mat-button type="button" data-testid="currency-form-cancel" (click)="cancel.emit()">
+            {{ 'common.cancel' | transloco }}
+          </button>
+        }
         <button
           mat-flat-button
           type="submit"

@@ -550,7 +550,7 @@ describe('RoleDetailPage', () => {
     expect(facade.deactivate).toHaveBeenCalledWith(role.id);
   });
 
-  it('is read-only without ROLE:UPDATE', async () => {
+  it('is read-only without ROLE:UPDATE: notice, Save disabled, no Cancel', async () => {
     const facade = createFacadeStub(role);
     const fixture = await setupPage({ id: role.id }, facade);
     TestBed.inject(PermissionsStore).setPermissions([{ code: 'ROLE:READ', scopes: [] }] as never);
@@ -559,5 +559,10 @@ describe('RoleDetailPage', () => {
 
     expect(fixture.componentInstance['canUpdate']()).toBe(false);
     expect(fixture.componentInstance['canEditPermissions']()).toBe(false);
+    fixture.detectChanges();
+    const root = fixture.nativeElement as HTMLElement;
+    expect(root.querySelector('[data-testid="role-detail-read-only"]')).not.toBeNull();
+    expect(root.querySelector('[data-testid="role-form-cancel"]')).toBeNull();
+    expect(root.querySelector<HTMLButtonElement>('[data-testid="role-form-submit"]')?.disabled).toBe(true);
   });
 });
